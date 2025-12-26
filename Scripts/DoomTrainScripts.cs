@@ -76,7 +76,7 @@ public class NewRaid4P
     [ScriptMethod(
         name: "换p",
         eventType: EventTypeEnum.StartCasting,
-        eventCondition: ["ActionId:regex:^(45680|45709)$"],
+        eventCondition: ["ActionId:regex:^(45680|45709|45711)$"],
         userControl: false)]
     public void 换p(Event evt, ScriptAccessory sa)
     {
