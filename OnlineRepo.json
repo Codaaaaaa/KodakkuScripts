@@ -2,9 +2,10 @@
   {
     "Name": "格莱杨拉波尔歼殛战 指路+TTS",
     "Guid": "3f8c6b2e-91c4-4a87-bd63-0b7a5f0d7e42",
-    "Version": "0.0.0.1",
+    "Version": "0.0.0.2",
     "Author": "Codaaaaaa",
     "TerritoryIds": [1308],
     "DownloadUrl": "https://raw.githubusercontent.com/Codaaaaaa/KodakkuScripts/main/Scripts/DoomTrainScripts.cs",
+    "UpdateInfo": "修复了最后一块板丢失画图的问题"
   }
 ]

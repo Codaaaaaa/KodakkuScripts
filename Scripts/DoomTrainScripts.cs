@@ -76,7 +76,7 @@ public class NewRaid4P
     [ScriptMethod(
         name: "换p",
         eventType: EventTypeEnum.StartCasting,
-        eventCondition: ["ActionId:45680"],
+        eventCondition: ["ActionId:regex:^(45680|45709)$"],
         userControl: false)]
     public void 换p(Event evt, ScriptAccessory sa)
     {
@@ -147,12 +147,12 @@ public class NewRaid4P
             sa.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Rect, dp);
         }
         else if (_phase == 2){
-            var dp1 = sa.FastDp("雷光环矩形危险区-半透明", pos, 4500, new Vector2(5, 30), safe: false);
+            var dp1 = sa.FastDp("雷光环矩形危险区-半透明", pos, 4000, new Vector2(5, 30), safe: false);
             dp1.Color = new Vector4(dp1.Color.X, dp1.Color.Y, dp1.Color.Z, 0.2f);
             sa.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Rect, dp1);
 
-            var dp2 = sa.FastDp("雷光环矩形危险区-不透明", pos, 2500, new Vector2(5, 30), safe: false);
-            dp2.Delay = 4500; // 延后 5 秒出现
+            var dp2 = sa.FastDp("雷光环矩形危险区-不透明", pos, 3000, new Vector2(5, 30), safe: false);
+            dp2.Delay = 4000; // 延后 4 秒出现
             dp2.Color = new Vector4(dp2.Color.X, dp2.Color.Y, dp2.Color.Z, 1f);
             sa.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Rect, dp2);
         }
@@ -526,7 +526,7 @@ public class NewRaid4P
             sa.Method.EdgeTTS("留在下面");
             sa.Method.TextInfo("留在下面", 3000, false);
 
-            if (_phase == 3){
+            if (_phase == 4){
                 var dp1 = sa.FastDp("前照光矩形危险区-上面1", new Vector3(107.5f, 5f, 245f), 7000, new Vector2(5, 10), safe: true);
                 var dp2 = sa.FastDp("前照光矩形危险区-上面2", new Vector3(92.5f, 5f, 250f), 7000, new Vector2(5, 15), safe: true);
                 sa.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Rect, dp1);
@@ -542,7 +542,7 @@ public class NewRaid4P
             sa.Method.EdgeTTS("上去");
             sa.Method.TextInfo("上去", 3000, false);
 
-            if (_phase == 3){
+            if (_phase == 4){
                 var dp3 = sa.FastDp("前照光矩形危险区-下面1", new Vector3(97.5f, 0f, 235f), 2500, new Vector2(15, 15), safe: true);
                 var dp5 = sa.FastDp("前照光矩形危险区-下面3", new Vector3(107.5f, 0f, 235f), 2500, new Vector2(5, 10), safe: true);
                 var dp6 = sa.FastDp("前照光矩形危险区-下面4", new Vector3(102.5f, 0f, 255f), 2500, new Vector2(15, 10), safe: true);
@@ -562,7 +562,7 @@ public class NewRaid4P
             sa.Method.EdgeTTS("上去");
             sa.Method.TextInfo("上去", 3000, false);
 
-            if (_phase == 3){
+            if (_phase == 4){
                 var dp1 = sa.FastDp("前照光矩形危险区-下面1", new Vector3(97.5f, 0f, 235f), 7000, new Vector2(15, 15), safe: true);
                 var dp5 = sa.FastDp("前照光矩形危险区-下面3", new Vector3(107.5f, 0f, 235f), 7000, new Vector2(5, 10), safe: true);
                 var dp6 = sa.FastDp("前照光矩形危险区-下面4", new Vector3(102.5f, 0f, 255f), 7000, new Vector2(15, 10), safe: true);
@@ -581,7 +581,7 @@ public class NewRaid4P
             sa.Method.EdgeTTS("下去");
             sa.Method.TextInfo("下去", 3000, false);
 
-            if (_phase == 3){
+            if (_phase == 4){
                 var dp2 = sa.FastDp("前照光矩形危险区-上面1", new Vector3(107.5f, 5f, 245f), 2500, new Vector2(5, 10), safe: true);
                 var dp4 = sa.FastDp("前照光矩形危险区-上面2", new Vector3(92.5f, 5f, 250f), 2500, new Vector2(5, 15), safe: true);
                 sa.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Rect, dp2);
