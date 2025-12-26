@@ -522,7 +522,7 @@ public class NewRaid4P
         var actionId = evt.ActionId();
         // 先打上后打下
         if (actionId == 45690){
-            sa.Method.SendChat($"/e phase: {_phase}");
+            // sa.Method.SendChat($"/e phase: {_phase}");
             sa.Method.EdgeTTS("留在下面");
             sa.Method.TextInfo("留在下面", 3000, false);
 
@@ -558,7 +558,7 @@ public class NewRaid4P
             }
         }
         else{
-            sa.Method.SendChat($"/e phase: {_phase}");
+            // sa.Method.SendChat($"/e phase: {_phase}");
             sa.Method.EdgeTTS("上去");
             sa.Method.TextInfo("上去", 3000, false);
 
