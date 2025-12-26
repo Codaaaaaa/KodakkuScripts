@@ -13,7 +13,7 @@ using KodakkuAssist.Extensions;
 
 namespace Codaaaaaa.DoomTrainScripts;
 
-[ScriptType(guid: "3f8c6b2e-91c4-4a87-bd63-0b7a5f0d7e42", name: "格莱杨拉波尔歼殛战 指路+TTS", territorys: [1308], version: "0.0.0.3", author: "Codaaaaaa", note: "画图+指路+TTS。做个测试，使用前请务必调整小队顺序")]
+[ScriptType(guid: "3f8c6b2e-91c4-4a87-bd63-0b7a5f0d7e42", name: "格莱杨拉波尔歼殛战 指路+TTS", territorys: [1308], version: "0.0.0.5", author: "Codaaaaaa", note: "画图+指路+TTS。做个测试，使用前请务必调整小队顺序")]
 public class NewRaid4P
 {
     private static readonly Vector3 Center = new(100, 0, 100);
@@ -80,10 +80,13 @@ public class NewRaid4P
         userControl: false)]
     public void 换p(Event evt, ScriptAccessory sa)
     {
-        _phase++;
+        var actionId = evt.ActionId();
+        if (actionId == 45709) _phase = 4;
+        else if (actionId == 45711) _phase = 5;
+        else _phase++;
+
         超增压 = 分摊分散.None;
-        sa.Method.TextInfo($"下一平台", 5500, true);
-        // sa.Method.SendChat($"/e phase: {_phase}");
+        sa.Method.TextInfo($"快跑, 前往第{_phase}平台", 5500, true);
     }
 
     [ScriptMethod(
@@ -111,18 +114,6 @@ public class NewRaid4P
         // sa.Method.SendChat($"/e P{_phase} share = SPREAD");
     }
 
-    // ============================================================
-    // P1机制 1：
-    // 如果 “雷光环 19000 Spawn”：
-    //   检查它的位置，如果 Y == 0.00 -> 画矩形危险区
-    //   EffectRange=30, XAxisModifier=5, CastType=12
-    //   时间 9 秒
-    //
-    // 说明：
-    // - “Spawn”我用 AddCombatant(DataId:19000) 来写
-    // - 如果你实际是 ObjectChanged Add（像你原脚本冰圈那种），就把 eventType 改成 ObjectChanged
-    // ============================================================
-
     [ScriptMethod(
         name: "雷光环",
         eventType: EventTypeEnum.AddCombatant,
@@ -133,15 +124,14 @@ public class NewRaid4P
         // sa.Method.SendChat("/e P1 机制：雷光环出现");
         var pos = evt.SourcePosition();
 
-        // 平台1 只处理 Y:0.00（给个容差，避免浮点误差）
+        // 平台1/2 只处理 Y:0.00
         if (_phase == 1 || _phase == 2)
         {
             if (MathF.Abs(pos.Y - 0.0f) > 0.01f) return;
         }
 
 
-        // 画矩形危险区：我用 Rect 的 Scale = (XAxisModifier, EffectRange)
-        // 你的脚本里 Rect 通常是 new Vector2(width, length) 的概念
+        // 画矩形危险区
         if (_phase == 1){
             var dp = sa.FastDp("雷光环矩形危险区", pos, 7000, new Vector2(5, 30), safe: false);
             sa.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Rect, dp);
@@ -158,11 +148,6 @@ public class NewRaid4P
         }
     }
 
-    // ============================================================
-    // P1机制 2：
-    // StartCasting 45670(超增压急行)，如果“位置是 h2”，指路到 {104.39, -0.00, 105.12}。
-    // 10 秒后结束
-    // ============================================================
     [ScriptMethod(
         name: "超增压急行",
         eventType: EventTypeEnum.StartCasting,
@@ -665,10 +650,6 @@ public static class ScriptAccessoryExtensions
     {
         // sa.Method.RemoveDraw("P1-SpreadCircle.*");
 
-        // 尝试用 Circle；如果你这个 KAS 没有 Circle，就退化为 Rect
-        var hasCircle = Enum.TryParse("Circle", ignoreCase: true, out DrawTypeEnum circleType);
-        var markerType = hasCircle ? circleType : DrawTypeEnum.Rect;
-
         foreach (var pid in sa.Data.PartyList)
         {
             var dp = sa.Data.GetDefaultDrawProperties();
@@ -678,7 +659,7 @@ public static class ScriptAccessoryExtensions
             dp.DestoryAt = 6000;
             dp.Scale = new Vector2(5);
 
-            sa.Method.SendDraw(DrawModeEnum.Default, markerType, dp);
+            sa.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Circle, dp);
         }
     }
 
@@ -693,7 +674,7 @@ public static class ScriptAccessoryExtensions
             dp.Owner = from;                 // 线起点跟随 from
             dp.TargetObject = to;            // 线终点跟随 to
             dp.ScaleMode = ScaleMode.YByDistance;
-            dp.Scale = new Vector2(5);       // 线宽/效果（看你们实现）
+            dp.Scale = new Vector2(5);       // 线宽
             dp.Color = sa.Data.DefaultSafeColor;
             dp.DestoryAt = 6000;
 
