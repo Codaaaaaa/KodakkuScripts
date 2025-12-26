@@ -13,7 +13,7 @@ using KodakkuAssist.Extensions;
 
 namespace Codaaaaaa.DoomTrainScripts;
 
-[ScriptType(guid: "3f8c6b2e-91c4-4a87-bd63-0b7a5f0d7e42", name: "格莱杨拉波尔歼殛战 指路+TTS", territorys: [1308], version: "0.0.0.5", author: "Codaaaaaa", note: "画图+指路+TTS。做个测试，使用前请务必调整小队顺序")]
+[ScriptType(guid: "3f8c6b2e-91c4-4a87-bd63-0b7a5f0d7e42", name: "格莱杨拉波尔歼殛战 指路+TTS", territorys: [1308], version: "0.0.0.6", author: "Codaaaaaa", note: "画图+指路+TTS。做个测试，使用前请务必调整小队顺序")]
 public class NewRaid4P
 {
     private static readonly Vector3 Center = new(100, 0, 100);
@@ -40,6 +40,7 @@ public class NewRaid4P
     private const float PredictStopT = 7.6f;
 
     // 其他
+    // private bool 最后平台飞箱 = false;
 
     public void Init(ScriptAccessory sa)
     {
@@ -70,19 +71,27 @@ public class NewRaid4P
 
     [ScriptMethod(name: "Set Phase 4", eventType: EventTypeEnum.Chat, eventCondition: ["Type:Echo", "Message:KASP4"], userControl: false)]
     public void SetP4(Event evt, ScriptAccessory sa) => _phase = 4;
+
+    [ScriptMethod(name: "Set Phase 5", eventType: EventTypeEnum.Chat, eventCondition: ["Type:Echo", "Message:KASP5"], userControl: false)]
+    public void SetP5(Event evt, ScriptAccessory sa) => _phase = 5;
+
+    [ScriptMethod(name: "Set Phase 6", eventType: EventTypeEnum.Chat, eventCondition: ["Type:Echo", "Message:KASP6"], userControl: false)]
+    public void SetP6(Event evt, ScriptAccessory sa) => _phase = 6;
+    
     [ScriptMethod(name: "Show Phase", eventType: EventTypeEnum.Chat, eventCondition: ["Type:Echo", "Message:phase"], userControl: false)]
     public void ShowPhase(Event evt, ScriptAccessory sa) => sa.Method.SendChat($"/e Current Phase: {_phase}");
 
     [ScriptMethod(
         name: "换p",
         eventType: EventTypeEnum.StartCasting,
-        eventCondition: ["ActionId:regex:^(45680|45709|45711)$"],
+        eventCondition: ["ActionId:regex:^(45680|45709|46489|46490)$"],
         userControl: false)]
-    public void 换p(Event evt, ScriptAccessory sa)
+    public async void 换p(Event evt, ScriptAccessory sa)
     {
         var actionId = evt.ActionId();
         if (actionId == 45709) _phase = 4;
-        else if (actionId == 45711) _phase = 5;
+        else if (actionId == 46489) _phase = 5;
+        else if (actionId == 46490) _phase = 6;
         else _phase++;
 
         超增压 = 分摊分散.None;
@@ -266,6 +275,11 @@ public class NewRaid4P
             length = actionId == 45683 ? 20f : 5f;
         }
 
+        // if (actionId == 45681 && 最后平台飞箱 == true) {
+        if (actionId == 45681) {
+            length = 40f;
+        }
+
         var dp = sa.Data.GetDefaultDrawProperties();
         dp.Name = $"雷转质射线-{actionId}-{evt.SourceId():X}";
         dp.Owner = evt.SourceId();
@@ -276,6 +290,29 @@ public class NewRaid4P
         dp.FixRotation = false;
 
         sa.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Rect, dp);
+    }
+
+    // 最后平台
+    [ScriptMethod(
+    name: "雷转质射线2",
+    eventType: EventTypeEnum.StartCasting,
+    eventCondition: ["ActionId:45682"])]
+    public void 雷转质射线2(Event evt, ScriptAccessory sa)
+    {
+        if(_phase != 6) return;
+        var actionId = evt.ActionId();
+
+        var dp = sa.Data.GetDefaultDrawProperties();
+        dp.Name = $"雷转质射线2-{actionId}-{evt.SourceId():X}";
+        dp.Owner = evt.SourceId();
+        dp.Color = sa.Data.DefaultDangerColor;
+        dp.DestoryAt = 7000;
+        dp.Scale = new Vector2(5, 10);
+
+        dp.FixRotation = false;
+
+        sa.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Rect, dp);
+        // 最后平台飞箱 = true;
     }
 
     private float Theta(Vector2 origin, Vector2 target) => MathF.Atan2(target.Y - origin.Y, target.X - origin.X);
