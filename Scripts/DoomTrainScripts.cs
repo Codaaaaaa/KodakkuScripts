@@ -13,9 +13,13 @@ using KodakkuAssist.Extensions;
 
 namespace Codaaaaaa.DoomTrainScripts;
 
-[ScriptType(guid: "3f8c6b2e-91c4-4a87-bd63-0b7a5f0d7e42", name: "格莱杨拉波尔歼殛战 指路+TTS", territorys: [1308], version: "0.0.0.6", author: "Codaaaaaa", note: "画图+指路+TTS。做个测试，使用前请务必调整小队顺序")]
+[ScriptType(guid: "3f8c6b2e-91c4-4a87-bd63-0b7a5f0d7e42", name: "格莱杨拉波尔歼殛战 指路+TTS", territorys: [1308], version: "0.0.0.7", author: "Codaaaaaa", note: "画图+指路+TTS。做个测试，使用前请务必调整小队顺序")]
 public class NewRaid4P
 {
+    #region 用户设置
+    [UserSetting("TTS")] public static bool TTSOpen { get; set; } = true;
+
+
     private static readonly Vector3 Center = new(100, 0, 100);
     
     // =========================
@@ -119,7 +123,8 @@ public class NewRaid4P
     public void SharedStoreSpread(Event evt, ScriptAccessory sa)
     {
         超增压 = 分摊分散.Spread;
-        sa.Method.EdgeTTS("待会儿分散");
+        if (TTSOpen)
+            sa.Method.EdgeTTS("待会儿分散");
         // sa.Method.SendChat($"/e P{_phase} share = SPREAD");
     }
 
@@ -134,14 +139,14 @@ public class NewRaid4P
         var pos = evt.SourcePosition();
 
         // 平台1/2 只处理 Y:0.00
-        if (_phase == 1 || _phase == 2)
+        if (_phase == 1 || _phase == 2 || _phase == 6)
         {
             if (MathF.Abs(pos.Y - 0.0f) > 0.01f) return;
         }
 
 
         // 画矩形危险区
-        if (_phase == 1){
+        if (_phase == 1 || _phase == 6){
             var dp = sa.FastDp("雷光环矩形危险区", pos, 7000, new Vector2(5, 30), safe: false);
             sa.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Rect, dp);
         }
@@ -174,7 +179,8 @@ public class NewRaid4P
         dp.DestoryAt = 7000;
         dp.Scale = new Vector2(0.7f, 15f);
 
-        sa.Method.EdgeTTS("击退");
+        if (TTSOpen)
+            sa.Method.EdgeTTS("击退");
         sa.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Displacement, dp);
 
         await Task.Delay(5500);
@@ -182,11 +188,13 @@ public class NewRaid4P
         switch (超增压)
         {
             case 分摊分散.Stack:
-                sa.Method.EdgeTTS("分摊");
+                if (TTSOpen)
+                    sa.Method.EdgeTTS("分摊");
                 sa.Method.TextInfo("分摊", 4000, false);
                 break;
             case 分摊分散.Spread:
-                sa.Method.EdgeTTS("分散");
+                if (TTSOpen)
+                    sa.Method.EdgeTTS("分散");
                 sa.Method.TextInfo("分散", 4000, false);
                 break;
             default:
@@ -225,7 +233,8 @@ public class NewRaid4P
         dp.DestoryAt = 7000;
         dp.Scale = new Vector2(0.7f, 15f);
 
-        sa.Method.EdgeTTS("吸引");
+        if (TTSOpen)
+            sa.Method.EdgeTTS("吸引");
         sa.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Displacement, dp);
 
         await Task.Delay(5500);
@@ -233,11 +242,13 @@ public class NewRaid4P
         switch (超增压)
         {
             case 分摊分散.Stack:
-                sa.Method.EdgeTTS("分摊");
+                if (TTSOpen)
+                    sa.Method.EdgeTTS("分摊");
                 sa.Method.TextInfo("分摊", 4000, false);
                 break;
             case 分摊分散.Spread:
-                sa.Method.EdgeTTS("分散");
+                if (TTSOpen)
+                    sa.Method.EdgeTTS("分散");
                 sa.Method.TextInfo("分散", 4000, false);
                 break;
             default:
@@ -354,7 +365,7 @@ public class NewRaid4P
             dp2.Color = sa.Data.DefaultSafeColor;
             dp2.Radian = MathF.PI / 5.143f; // 22.5°
             dp2.Scale = new Vector2(60f);
-            dp2.DestoryAt = 8000;
+            dp2.DestoryAt = 9000;
 
             sa.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Fan, dp2);
         }
@@ -473,8 +484,9 @@ public class NewRaid4P
 
         // 分散
         if (idStr == "027E")
-        {
-            sa.Method.EdgeTTS("分散");
+        {   
+            if (TTSOpen)
+                sa.Method.EdgeTTS("分散");
             sa.Method.TextInfo("分散", 4000, false);
             foreach (var pid in sa.Data.PartyList)
             {
@@ -496,8 +508,9 @@ public class NewRaid4P
 
         // 分摊
         if (idStr == "027D")
-        {
-            sa.Method.EdgeTTS("分摊");
+        {   
+            if (TTSOpen)
+                sa.Method.EdgeTTS("分摊");
             sa.Method.TextInfo("分摊", 4000, false);
             if (sa.Data.PartyList.Count < 4) return;
 
@@ -545,7 +558,8 @@ public class NewRaid4P
         // 先打上后打下
         if (actionId == 45690){
             // sa.Method.SendChat($"/e phase: {_phase}");
-            sa.Method.EdgeTTS("留在下面");
+            if (TTSOpen)
+                sa.Method.EdgeTTS("留在下面");
             sa.Method.TextInfo("留在下面", 3000, false);
 
             if (_phase == 4){
@@ -561,7 +575,8 @@ public class NewRaid4P
             }
 
             await Task.Delay(7000);
-            sa.Method.EdgeTTS("上去");
+            if (TTSOpen)
+                sa.Method.EdgeTTS("上去");
             sa.Method.TextInfo("上去", 3000, false);
 
             if (_phase == 4){
@@ -581,7 +596,8 @@ public class NewRaid4P
         }
         else{
             // sa.Method.SendChat($"/e phase: {_phase}");
-            sa.Method.EdgeTTS("上去");
+            if (TTSOpen)
+                sa.Method.EdgeTTS("上去");
             sa.Method.TextInfo("上去", 3000, false);
 
             if (_phase == 4){
@@ -600,7 +616,8 @@ public class NewRaid4P
             }
 
             await Task.Delay(7000);
-            sa.Method.EdgeTTS("下去");
+            if (TTSOpen)
+                sa.Method.EdgeTTS("下去");
             sa.Method.TextInfo("下去", 3000, false);
 
             if (_phase == 4){
