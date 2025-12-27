@@ -13,12 +13,12 @@ using KodakkuAssist.Extensions;
 
 namespace Codaaaaaa.DoomTrainScripts;
 
-[ScriptType(guid: "3f8c6b2e-91c4-4a87-bd63-0b7a5f0d7e42", name: "格莱杨拉波尔歼殛战 指路+TTS", territorys: [1308], version: "0.0.0.7", author: "Codaaaaaa", note: "画图+指路+TTS。做个测试，使用前请务必调整小队顺序")]
+[ScriptType(guid: "3f8c6b2e-91c4-4a87-bd63-0b7a5f0d7e42", name: "格莱杨拉波尔歼殛战 指路+TTS", territorys: [1308], version: "0.0.0.8", author: "Codaaaaaa", note: "画图+指路+TTS。做个测试，使用前请务必调整小队顺序")]
 public class NewRaid4P
 {
     #region 用户设置
     [UserSetting("TTS")] public static bool TTSOpen { get; set; } = true;
-
+    #endregion
 
     private static readonly Vector3 Center = new(100, 0, 100);
     
