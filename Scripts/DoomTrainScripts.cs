@@ -13,11 +13,11 @@ using KodakkuAssist.Extensions;
 
 namespace Codaaaaaa.DoomTrainScripts;
 
-[ScriptType(guid: "3f8c6b2e-91c4-4a87-bd63-0b7a5f0d7e42", name: "格莱杨拉波尔歼殛战 指路+TTS", territorys: [1308], version: "0.0.0.8", author: "Codaaaaaa", note: "画图+指路+TTS。做个测试，使用前请务必调整小队顺序")]
+[ScriptType(guid: "3f8c6b2e-91c4-4a87-bd63-0b7a5f0d7e42", name: "格莱杨拉波尔歼殛战 指路+TTS", territorys: [1308], version: "0.0.0.9", author: "Codaaaaaa", note: "画图+指路+TTS。做个测试，使用前请务必调整小队顺序")]
 public class NewRaid4P
 {
     #region 用户设置
-    [UserSetting("TTS")] public static bool TTSOpen { get; set; } = true;
+    [UserSetting("是否开启TTS")] public static bool TTSOpen { get; set; } = true;
     #endregion
 
     private static readonly Vector3 Center = new(100, 0, 100);
@@ -42,6 +42,7 @@ public class NewRaid4P
     private const int SampleCount = 7;
     private const int SampleIntervalMs = 500;
     private const float PredictStopT = 7.6f;
+    private bool 以太晶球最大近战距离 = false;
 
     // 其他
     // private bool 最后平台飞箱 = false;
@@ -56,6 +57,7 @@ public class NewRaid4P
     {
         _phase = 1;
         超增压 = 分摊分散.None;
+        以太晶球最大近战距离 = false;
     }
 
     [ScriptMethod(name: "clear draw", eventType: EventTypeEnum.Chat, eventCondition: ["Type:Echo", "Message:KASCLEAR"], userControl: false)]
@@ -338,6 +340,32 @@ public class NewRaid4P
 
     // 异世界
     [ScriptMethod(
+        name: "以太晶球最大近战距离",
+        eventType: EventTypeEnum.AddCombatant,
+        eventCondition: ["DataId:9020"])]
+    public void P2AetherSphereSpawn(Event evt, ScriptAccessory sa)
+    {
+        // 不知道为什么每次会同时生成六个以太晶球...
+        // sa.Method.RemoveDraw("以太晶球最大近战距离");
+
+        // 检测有没有以太晶球最大近战距离,有就不画了
+        // 笨办法，DrawList从哪获得啊
+        if (以太晶球最大近战距离) return;
+        以太晶球最大近战距离 = true;
+        // sa.Method.SendChat("/e 以太晶球出现，画最大近战距离圈");
+
+        var pos = evt.SourcePosition();
+        var dp = sa.Data.GetDefaultDrawProperties();
+        dp.Name = $"以太晶球最大近战距离";
+        dp.Position = new Vector3(-400f, -900f, -400f);
+        dp.Color = new Vector4(sa.Data.DefaultSafeColor.X, sa.Data.DefaultSafeColor.Y, sa.Data.DefaultSafeColor.Z, 0.01f);
+        dp.DestoryAt = 100000;
+        dp.Scale = new Vector2(5f); // 半径4米
+
+        sa.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Circle, dp);
+    }
+
+    [ScriptMethod(
         name: "异世界-双T&D3D4鸣笛指路",
         eventType: EventTypeEnum.TargetIcon,
         eventCondition: ["Id:027F"]
@@ -362,7 +390,7 @@ public class NewRaid4P
             dp2.Name = $"HornCone_{tankId:X}_{evt.SourceId():X}";
             dp2.Owner = sa.Data.Objects.FirstOrDefault(x => x.DataId == TargetBNpcId).EntityId;
             dp2.TargetObject = tankId;
-            dp2.Color = sa.Data.DefaultSafeColor;
+            dp2.Color = sa.Data.DefaultDangerColor;
             dp2.Radian = MathF.PI / 5.143f; // 22.5°
             dp2.Scale = new Vector2(60f);
             dp2.DestoryAt = 9000;
@@ -442,19 +470,6 @@ public class NewRaid4P
         Vector2 d3Point = stopPos + dirIn * 11f;
         Vector2 d4Point = stopPos + dirIn * 39f;
 
-        void DrawPoint(ScriptAccessory sa, string name, Vector2 pos)
-        {
-            var dp = sa.FastDp(
-                name,
-                new Vector3(pos.X, -900, pos.Y),
-                duration: 600000,
-                scale: new Vector2(0.6f, 0.6f),
-                safe: true
-            );
-
-            sa.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Circle, dp);
-        }
-
         // 使用
         Vector3 ToWaypoint(Vector2 source) => new Vector3(source.X, -900, source.Y);
 
@@ -497,7 +512,7 @@ public class NewRaid4P
                 var dp = sa.Data.GetDefaultDrawProperties();
                 dp.Name = $"P3-SpreadCircle-{pid:X}";
                 dp.Owner = pid;
-                dp.Color = sa.Data.DefaultSafeColor;
+                dp.Color = sa.Data.DefaultDangerColor;
                 dp.DestoryAt = duration;
                 dp.Scale = new Vector2(5);
 
@@ -516,21 +531,45 @@ public class NewRaid4P
 
             var h1 = sa.Data.PartyList[2];
             var h2 = sa.Data.PartyList[3];
+            var d1 = sa.Data.PartyList[4];
+            var d2 = sa.Data.PartyList[5];
 
             void DrawYellowCircle(uint pid)
             {
                 var dp = sa.Data.GetDefaultDrawProperties();
                 dp.Name = $"P3-StackCircle-{pid:X}";
                 dp.Owner = pid;
-                dp.Color = new Vector4(1f, 1f, 0f, 1f);
+                dp.Color = new Vector4(1f, 1f, 0f, 0.1f);
                 dp.DestoryAt = duration;
                 dp.Scale = new Vector2(5);
 
-                sa.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Circle, dp);
+                sa.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Circle, dp);
             }
 
             DrawYellowCircle(h1);
             DrawYellowCircle(h2);
+
+            var dp = sa.Data.GetDefaultDrawProperties();
+            dp.Name = $"P2-StackLine-h1";
+            dp.Owner = h1;                 // 线起点跟随 from
+            dp.TargetObject = d1;            // 线终点跟随 to
+            dp.ScaleMode = ScaleMode.YByDistance;
+            dp.Scale = new Vector2(5);       // 线宽
+            dp.Color = sa.Data.DefaultDangerColor;
+            dp.DestoryAt = duration;
+
+            sa.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Line, dp);
+
+            var dp2 = sa.Data.GetDefaultDrawProperties();
+            dp2.Name = $"P2-StackLine-h2";
+            dp2.Owner = h2;                 // 线起点跟随 from
+            dp2.TargetObject = d2;            // 线终点跟随 to
+            dp2.ScaleMode = ScaleMode.YByDistance;
+            dp2.Scale = new Vector2(5);       // 线宽
+            dp2.Color = sa.Data.DefaultDangerColor;
+            dp2.DestoryAt = duration;
+
+            sa.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Line, dp2);
         }
 
     }
@@ -563,33 +602,33 @@ public class NewRaid4P
             sa.Method.TextInfo("留在下面", 3000, false);
 
             if (_phase == 4){
-                var dp1 = sa.FastDp("前照光矩形危险区-上面1", new Vector3(107.5f, 5f, 245f), 7000, new Vector2(5, 10), safe: true);
-                var dp2 = sa.FastDp("前照光矩形危险区-上面2", new Vector3(92.5f, 5f, 250f), 7000, new Vector2(5, 15), safe: true);
+                var dp1 = sa.FastDp("前照光矩形危险区-上面1", new Vector3(107.5f, 5f, 245f), 6500, new Vector2(5, 10), safe: false);
+                var dp2 = sa.FastDp("前照光矩形危险区-上面2", new Vector3(92.5f, 5f, 250f), 6500, new Vector2(5, 15), safe: false);
                 sa.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Rect, dp1);
                 sa.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Rect, dp2);
             }
             else
             {
-                var dp1 = sa.FastDp("前照光矩形危险区-上面1", new Vector3(92.5f, 5f, 345f), 7000, new Vector2(5, 20), safe: true);
+                var dp1 = sa.FastDp("前照光矩形危险区-上面1", new Vector3(92.5f, 5f, 345f), 6500, new Vector2(5, 20), safe: false);
                 sa.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Rect, dp1);
             }
 
-            await Task.Delay(7000);
+            await Task.Delay(6500);
             if (TTSOpen)
                 sa.Method.EdgeTTS("上去");
             sa.Method.TextInfo("上去", 3000, false);
 
             if (_phase == 4){
-                var dp3 = sa.FastDp("前照光矩形危险区-下面1", new Vector3(97.5f, 0f, 235f), 2500, new Vector2(15, 15), safe: true);
-                var dp5 = sa.FastDp("前照光矩形危险区-下面3", new Vector3(107.5f, 0f, 235f), 2500, new Vector2(5, 10), safe: true);
-                var dp6 = sa.FastDp("前照光矩形危险区-下面4", new Vector3(102.5f, 0f, 255f), 2500, new Vector2(15, 10), safe: true);
+                var dp3 = sa.FastDp("前照光矩形危险区-下面1", new Vector3(97.5f, 0f, 235f), 3000, new Vector2(15, 15), safe: false);
+                var dp5 = sa.FastDp("前照光矩形危险区-下面3", new Vector3(107.5f, 0f, 235f), 3000, new Vector2(5, 10), safe: false);
+                var dp6 = sa.FastDp("前照光矩形危险区-下面4", new Vector3(102.5f, 0f, 255f), 3000, new Vector2(15, 10), safe: false);
                 sa.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Rect, dp3);
                 sa.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Rect, dp5);
                 sa.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Rect, dp6);
             }
             else{
-                var dp3 = sa.FastDp("前照光矩形危险区-下面1", new Vector3(92.5f, 0f, 335f), 2500, new Vector2(5, 10), safe: true);
-                var dp4 = sa.FastDp("前照光矩形危险区-下面4", new Vector3(102.5f, 0f, 335f), 2500, new Vector2(15, 30), safe: true);
+                var dp3 = sa.FastDp("前照光矩形危险区-下面1", new Vector3(92.5f, 0f, 335f), 3000, new Vector2(5, 10), safe: false);
+                var dp4 = sa.FastDp("前照光矩形危险区-下面4", new Vector3(102.5f, 0f, 335f), 3000, new Vector2(15, 30), safe: false);
                 sa.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Rect, dp3);
                 sa.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Rect, dp4);
             }
@@ -601,40 +640,40 @@ public class NewRaid4P
             sa.Method.TextInfo("上去", 3000, false);
 
             if (_phase == 4){
-                var dp1 = sa.FastDp("前照光矩形危险区-下面1", new Vector3(97.5f, 0f, 235f), 7000, new Vector2(15, 15), safe: true);
-                var dp5 = sa.FastDp("前照光矩形危险区-下面3", new Vector3(107.5f, 0f, 235f), 7000, new Vector2(5, 10), safe: true);
-                var dp6 = sa.FastDp("前照光矩形危险区-下面4", new Vector3(102.5f, 0f, 255f), 7000, new Vector2(15, 10), safe: true);
+                var dp1 = sa.FastDp("前照光矩形危险区-下面1", new Vector3(97.5f, 0f, 235f), 6500, new Vector2(15, 15), safe: false);
+                var dp5 = sa.FastDp("前照光矩形危险区-下面3", new Vector3(107.5f, 0f, 235f), 6500, new Vector2(5, 10), safe: false);
+                var dp6 = sa.FastDp("前照光矩形危险区-下面4", new Vector3(102.5f, 0f, 255f), 6500, new Vector2(15, 10), safe: false);
                 sa.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Rect, dp1);
                 sa.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Rect, dp5);
                 sa.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Rect, dp6);
             }
             else{
-                var dp1 = sa.FastDp("前照光矩形危险区-下面1", new Vector3(92.5f, 0f, 335f), 7000, new Vector2(5, 10), safe: true);
-                var dp2 = sa.FastDp("前照光矩形危险区-下面4", new Vector3(102.5f, 0f, 335f), 7000, new Vector2(15, 30), safe: true);
+                var dp1 = sa.FastDp("前照光矩形危险区-下面1", new Vector3(92.5f, 0f, 335f), 6500, new Vector2(5, 10), safe: false);
+                var dp2 = sa.FastDp("前照光矩形危险区-下面4", new Vector3(102.5f, 0f, 335f), 6500, new Vector2(15, 30), safe: false);
                 sa.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Rect, dp1);
                 sa.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Rect, dp2);
             }
 
-            await Task.Delay(7000);
+            await Task.Delay(6500);
             if (TTSOpen)
                 sa.Method.EdgeTTS("下去");
             sa.Method.TextInfo("下去", 3000, false);
 
             if (_phase == 4){
-                var dp2 = sa.FastDp("前照光矩形危险区-上面1", new Vector3(107.5f, 5f, 245f), 2500, new Vector2(5, 10), safe: true);
-                var dp4 = sa.FastDp("前照光矩形危险区-上面2", new Vector3(92.5f, 5f, 250f), 2500, new Vector2(5, 15), safe: true);
+                var dp2 = sa.FastDp("前照光矩形危险区-上面1", new Vector3(107.5f, 5f, 245f), 3000, new Vector2(5, 10), safe: false);
+                var dp4 = sa.FastDp("前照光矩形危险区-上面2", new Vector3(92.5f, 5f, 250f), 3000, new Vector2(5, 15), safe: false);
                 sa.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Rect, dp2);
                 sa.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Rect, dp4);
             }
             else{
-                var dp2 = sa.FastDp("前照光矩形危险区-上面1", new Vector3(92.5f, 5f, 345f), 2500, new Vector2(5, 20), safe: true);
+                var dp2 = sa.FastDp("前照光矩形危险区-上面1", new Vector3(92.5f, 5f, 345f), 3000, new Vector2(5, 20), safe: false);
                 sa.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Rect, dp2);
             }
         }
     }
 }
 
-#region Helpers (保持你原来的写法)
+#region Helpers
 
 public static class EventExtensions
 {
@@ -709,7 +748,7 @@ public static class ScriptAccessoryExtensions
             var dp = sa.Data.GetDefaultDrawProperties();
             dp.Name = $"P1-SpreadCircle-{pid:X}";
             dp.Owner = pid;
-            dp.Color = sa.Data.DefaultSafeColor;
+            dp.Color = sa.Data.DefaultDangerColor;
             dp.DestoryAt = 6000;
             dp.Scale = new Vector2(5);
 
@@ -729,7 +768,7 @@ public static class ScriptAccessoryExtensions
             dp.TargetObject = to;            // 线终点跟随 to
             dp.ScaleMode = ScaleMode.YByDistance;
             dp.Scale = new Vector2(5);       // 线宽
-            dp.Color = sa.Data.DefaultSafeColor;
+            dp.Color = sa.Data.DefaultDangerColor;
             dp.DestoryAt = 6000;
 
             sa.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Line, dp);
@@ -739,11 +778,11 @@ public static class ScriptAccessoryExtensions
             var dp = sa.Data.GetDefaultDrawProperties();
             dp.Name = $"P1-StackCircle-{ply:X}";
             dp.Owner = ply;
-            dp.Color = new Vector4(1f, 1f, 0f, 1f); // 黄色
+            dp.Color = new Vector4(1f, 1f, 0f, 0.1f); // 黄色
             dp.DestoryAt = 6000;
             dp.Scale = new Vector2(5);
 
-            sa.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Circle, dp);
+            sa.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Circle, dp);
         }
 
         // 防止队伍不足 8 人时崩

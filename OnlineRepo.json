@@ -2,10 +2,10 @@
   {
     "Name": "格莱杨拉波尔歼殛战 指路+TTS",
     "Guid": "3f8c6b2e-91c4-4a87-bd63-0b7a5f0d7e42",
-    "Version": "0.0.0.8",
+    "Version": "0.0.0.9",
     "Author": "Codaaaaaa",
     "TerritoryIds": [1308],
     "DownloadUrl": "https://raw.githubusercontent.com/Codaaaaaa/KodakkuScripts/main/Scripts/DoomTrainScripts.cs",
-    "UpdateInfo": "0.0.0.8\n修复最后一块平台雷光环不绘画的问题\n增加TTS开关\n异世界双T死刑画图时间略微延长"
+    "UpdateInfo": "0.0.0.9\n颜色修复\np2小世界加了中间四人的分摊时的同组连线以及最大近战距离\n分摊特效透明度降低\n\n0.0.0.8\n修复最后一块平台雷光环不绘画的问题\n增加TTS开关\n异世界双T死刑画图时间略微延长"
   }
 ]
