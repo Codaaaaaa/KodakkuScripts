@@ -7,5 +7,14 @@
     "TerritoryIds": [1308],
     "DownloadUrl": "https://raw.githubusercontent.com/Codaaaaaa/KodakkuScripts/main/Scripts/DoomTrainScripts.cs",
     "UpdateInfo": "0.0.0.9\n颜色修复\np2小世界加了中间四人的分摊时的同组连线以及最大近战距离\n分摊特效透明度降低\n\n0.0.0.8\n修复最后一块平台雷光环不绘画的问题\n增加TTS开关\n异世界双T死刑画图时间略微延长"
+  },
+  {
+    "Name": "阿卡狄亚零式登天斗技场M10S 指路",
+    "Guid": "2c8b7d4a-6e91-4f3c-a5d2-9b7e1f6c8a03",
+    "Version": "0.0.0.1",
+    "Author": "Codaaaaaa",
+    "TerritoryIds": [1323],
+    "DownloadUrl": "https://raw.githubusercontent.com/Codaaaaaa/KodakkuScripts/main/Scripts/M10S.cs",
+    "UpdateInfo": "0.0.0.1\n如果电了可以在频道反馈。感谢灵视佬提供的arr"
   }
 ]

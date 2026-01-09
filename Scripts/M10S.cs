@@ -17,12 +17,12 @@ using System.Runtime.Intrinsics.Arm;
 namespace Codaaaaaa.M9S;
 
 [ScriptType(
-    guid: "b7d2d7d7-5e8c-4f53-8a0e-7e7f0a7a1c21",
-    name: "阿卡狄亚零式登天斗技场M10S",
+    guid: "2c8b7d4a-6e91-4f3c-a5d2-9b7e1f6c8a03",
+    name: "阿卡狄亚零式登天斗技场M10S 指路",
     territorys: [1323],
     version: "0.0.0.1",
     author: "Codaaaaaa",
-    note: "Template：画图+指路+TTS。请按实际机制替换 ActionId/DataId/TargetIcon。")]
+    note: "大部分的机制都做了指路，使用之前请务必调整可达鸭内位置和选择打法。由于版本初拿不到arr用来测试，有较大概率会被电...如果电了可以在频道反馈。目前支持\nP2 第一轮打法\n * 水波\n * 镜像水波\n\nP2 第二三轮打法\n * 近战优化\n * 美野\n\n进水牢方式\n * 坦克\n * 近战\n * 治疗\n\n水牢打法\n * 无脑\n * MMW\n")]
 public class M10S
 {
     #region 用户设置
@@ -1079,7 +1079,7 @@ public class M10S
 
         // 给队里所有人画扇形 from boss to oid
         if (!int.TryParse(evt["DurationMilliseconds"], out var duration)) return;
-        if (_phase == 1 || _phase == 3)
+        if (_phase == 1 || _phase == 3 || _phase == 5)
         {
             foreach (var oid in sa.Data.PartyList)
             {
@@ -1273,7 +1273,7 @@ public class M10S
         if (actionId == "46557")
         {
             // --- 情况 A: 保持原方向，往每个玩家当时位置喷 30度 ---
-            if (_phase == 1 || _phase == 3)
+            if (_phase == 1 || _phase == 3 || _phase == 5)
             {
                 foreach (var kv in snapPos)
                 {
@@ -1310,7 +1310,7 @@ public class M10S
             // --- 情况 B: 左右偏转 24度，各画一个 15度扇形 ---
             float off = 24f * (float)Math.PI / 180f;   // 24°
             float rad = 15f * (float)Math.PI / 180f;   // 15°
-            if (_phase == 1 || _phase == 3)
+            if (_phase == 1 || _phase == 3 || _phase == 5)
             {
                 foreach (var kv in snapPos)
                 {
@@ -1387,10 +1387,68 @@ public class M10S
                 break;
         }
 
-        if (_phase == 3)
+        if (_phase != 5) return;
+        // P5
+        bool isWaterSnake = EnvHelpers.IsWater(flag);                 // 2/32/128
+        bool isFireSnake  = (flag == 512 || flag == 2048 || flag == 8192);
+
+        if (!isWaterSnake && !isFireSnake) return;
+
+        var myIdx = sa.MyIndex();
+        if (myIdx < 0 || myIdx > 7) return;
+
+        // 当前格子对应的蛇类型
+        var snakeFromFlag = isWaterSnake ? P5火水蛇.水 : P5火水蛇.火;
+
+        // 我自己的蛇形BUFF是否与该格子“相同”
+        bool sameSnake = (_P5火水蛇 != P5火水蛇.无) && (_P5火水蛇 == snakeFromFlag);
+
+        // 发指路的小函数：只给自己发
+        void DrawWpIfNeeded(string name)
         {
-            
+            var wpos = new Vector3(gridPos.X, 0f, gridPos.Z);
+            var dpWp = sa.WaypointDp(wpos, 6000, 0, name);
+            sa.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dpWp);
         }
+
+        // 1) 死刑(TB)：flag=128 或 8192
+        // TextInfo 提示换T，并且只给 T(0/1) 指路：如果自己的蛇形 != 格子的蛇形 才去
+        if (flag == 128 || flag == 8192)
+        {
+            sa.Method.TextInfo("死刑：换T", 2500, false);
+
+            if (myIdx == 0 || myIdx == 1)
+            {
+                if (!sameSnake)
+                    DrawWpIfNeeded("狂浪腾空-换T指路");
+            }
+            return; // 死刑格子不参与下面的“轮换奶/近/远”
+        }
+
+        // 2) 分摊/分散：flag=2/32/512/2048
+        bool isSpreadOrStack = (flag == 2 || flag == 32 || flag == 512 || flag == 2048);
+        if (!isSpreadOrStack) return;
+
+        // 轮换提示：0奶 -> 1近 -> 2远
+        if (_P5狂浪次数 == 0) sa.Method.TextInfo("狂浪：换奶", 2500, false);
+        else if (_P5狂浪次数 == 1) sa.Method.TextInfo("狂浪：换近战", 2500, false);
+        else sa.Method.TextInfo("狂浪：换远程", 2500, false);
+
+        // 决定这一轮谁要去“对蛇格子”（且：自己的蛇形 != 格子的蛇形 才去）
+        bool shouldHandle =
+            (_P5狂浪次数 == 0 && (myIdx == 2 || myIdx == 3)) || // 奶
+            (_P5狂浪次数 == 1 && (myIdx == 4 || myIdx == 5)) || // 近战
+            (_P5狂浪次数 == 2 && (myIdx == 6 || myIdx == 7));   // 远程
+
+        if (shouldHandle)
+        {
+            if (!sameSnake)
+                DrawWpIfNeeded("狂浪腾空-对蛇指路");
+        }
+
+        // 次数推进：0->1->2->0 循环
+        if (!isWaterSnake) return;
+        _P5狂浪次数 = (_P5狂浪次数 + 1) % 3;
     }
 
     [ScriptMethod(
@@ -1843,6 +1901,10 @@ public class M10S
         };
         var dpWp = sa.WaypointDp(wpos, 5000, 0, "异常旋转巨火指路");
         sa.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dpWp);
+
+        if (_phase == 5) return;
+        _phase = 5;
+        sa.Method.SendChat("/e 马上进入P5阶段");
     }
 
     // 获得buff
@@ -1856,7 +1918,7 @@ public class M10S
     {
         var targetId = evt.TargetId();
         if (targetId != sa.Data.Me) return;
-        
+
         var statusId = evt["StatusID"];
         if (statusId == "4827")
         {
