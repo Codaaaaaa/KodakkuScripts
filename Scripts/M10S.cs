@@ -12,6 +12,7 @@ using KodakkuAssist.Data;
 using KodakkuAssist.Extensions;
 
 using System.Diagnostics;
+using System.Runtime.Intrinsics.Arm;
 
 namespace Codaaaaaa.M9S;
 
@@ -31,6 +32,9 @@ public class M10S
     [ UserSetting("P2第一轮打法")] public P2第一轮打法 p2第一轮打法 { get; set; } = P2第一轮打法.水波;
     // 近战优化或者美式野
     [ UserSetting("P2第二三轮打法")] public P2第二三轮打法 p2第二三轮打法 { get; set; } = P2第二三轮打法.近战优化;
+    // 进水牢方式
+    [ UserSetting("进水牢方式")] public 进水牢 进水牢方式 { get; set; } = 进水牢.近战进水牢;
+    [ UserSetting("水牢打法")] public 水牢打法 水牢打法选择 { get; set; } = 水牢打法.无脑;
     #endregion
     public enum P2第一轮打法
     {
@@ -43,12 +47,30 @@ public class M10S
         近战优化,
         美式野
     }
+    public enum 进水牢
+    {
+        坦克进水牢,
+        近战进水牢,
+        治疗进水牢
+    }
 
+    public enum 水牢打法
+    {
+        无脑,
+        MMW
+    }
 
+    public enum P5火水蛇
+    {
+        无,
+        火,
+        水
+    }
     private static readonly Vector3 Center = new(100f, 0f, 100f);
 
     private uint _phase = 1;
     private uint 炽红 = 19287u;
+    private uint 深蓝 = 19288u;
 
     // =========================
     // 空中旋火：射线记录 & 点位动态下移
@@ -90,12 +112,24 @@ public class M10S
         _分摊分散 = 0;
         _P2左右 = 0;
         _P2火圈次数 = 0;
+        _P3水牢次数 = 0;
+        _P3水牢深蓝初始位置 = 0;
         _浪花位置 = Vector3.Zero;
+        _P5火水蛇 = P5火水蛇.无;
+        _P5狂浪次数 = 0;
     }
 
     // P2左右
     private int _P2左右 = 0; // 1=左 2=右
     private int _P2火圈次数 = 0;
+
+    // P3
+    private int _P3水牢次数 = 0;
+    private int _P3水牢深蓝初始位置 = 0; // 1 或者 4
+
+    // P5
+    private P5火水蛇 _P5火水蛇 = P5火水蛇.无;
+    private int _P5狂浪次数 = 0; // 0 奶 1 近 2 远
 
     // Debug
     [ScriptMethod(name: "clear draw", eventType: EventTypeEnum.Chat, eventCondition: ["Type:Echo", "Message:KASCLEAR"], userControl: false)]
@@ -337,6 +371,18 @@ public class M10S
         _phase = 2;
         sa.Method.SendChat("/e 转场换P，当前阶段 P2");
     }
+    // 转场换P
+    [ScriptMethod(
+        name: "转场换P3",
+        eventType: EventTypeEnum.StartCasting,
+        eventCondition: ["ActionId:46563"],
+        userControl: false
+    )]
+    public void 转场换P3(Event evt, ScriptAccessory sa)
+    {
+        _phase = 3;
+        sa.Method.SendChat("/e 转场换P，当前阶段 P3");
+    }
 
     // 空中旋火
     [ScriptMethod(
@@ -475,6 +521,25 @@ public class M10S
             
         }
 
+        if (_phase == 3)
+        {
+            // 其实是P4
+            Vector3 wpos = myIdx switch
+            {
+                0 => new Vector3(81.27f, 0.00f, 87.70f),
+                1 => new Vector3(118.99f, 0.00f, 87.11f),
+                2 => new Vector3(80.93f, 0.00f, 118.95f),
+                3 => new Vector3(118.66f, 0.00f, 118.24f),
+                4 => new Vector3(80.90f, 0.00f, 110.95f),
+                5 => new Vector3(119.21f, 0.00f, 109.14f),
+                6 => new Vector3(81.11f, 0.00f, 81.26f),
+                7 => new Vector3(119.21f, 0.00f, 80.52f),  
+                _ => Center
+            };
+            var dp = sa.WaypointDp(wpos, 6000, 0, "空中旋火指路P3");
+            sa.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
+        }
+
 
         
     }
@@ -529,7 +594,7 @@ public class M10S
         {
             sa.Method.EdgeTTS("分摊");
             // 双奶画分摊圈
-            if (_phase == 1)
+            if (_phase == 1 || _phase == 3)
             {
                 for (int i = 2; i < 4; i++)
                 {
@@ -616,7 +681,7 @@ public class M10S
         {
             sa.Method.EdgeTTS("分散");
             // 所有人画 5m 的危险圈
-            if (_phase == 1)
+            if (_phase == 1 || _phase == 3)
             {
                  foreach (var oid in sa.Data.PartyList) // 这里的 oid 就是 uint
                 {
@@ -760,6 +825,76 @@ public class M10S
         
 
     }
+
+    // 火基佬四连跳画图
+    [ScriptMethod(
+        name: "火基佬四连跳画图",
+        eventType: EventTypeEnum.StartCasting,
+        eventCondition: ["ActionId:46532"]
+    )]
+    public void 火基佬四连跳(Event evt, ScriptAccessory sa)
+    {
+        const uint FireBuffId = 4974;   // 火buff
+        const uint Duration   = 1100000;
+
+        // 3) 美式野：火buff组指路（你给的固定坐标）
+        if (_phase >= 2 && p2第二三轮打法 == P2第二三轮打法.美式野)
+        {
+            var myIdx = sa.MyIndex();
+            if (myIdx < 0 || myIdx > 7) return;
+
+            Vector3 wpos = myIdx switch
+            {
+                0 or 1 => new Vector3(88.26f, 0f, 88.20f),
+                2 or 3 => new Vector3(112.14f, 0f, 88.24f),
+                4 or 5 => new Vector3(88.18f, 0f, 111.87f),
+                _      => new Vector3(112.22f, 0f, 111.80f),
+            };
+
+            var dpWp = sa.WaypointDp(wpos, Duration, 0, "火基佬四连跳指路");
+            sa.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dpWp);
+        }
+    }
+
+
+    // 清除火基佬四连跳画图
+    [ScriptMethod(
+        name: "火基佬四连跳二连指路",
+        eventType: EventTypeEnum.ActionEffect,
+        eventCondition: ["ActionId:regex:^(47390|47391|47392|47393)$"],
+        userControl: false
+    )]
+    public void 火基佬四连跳二连指路(Event evt, ScriptAccessory sa)
+    {
+        var targetId = evt.TargetId();
+        if (targetId == 0) return;
+
+        // 清除指路/连线/圈
+        if (targetId == sa.Data.Me)
+        {
+            sa.Method.RemoveDraw("火基佬四连跳指路");
+            // sa.Method.SendChat("/e 火基佬四连跳指路2");
+
+            // var dp  = sa.WaypointDp(Center, 4000, 0, "火基佬四连跳指路2");
+            // sa.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
+
+            // 指勾八，自己去场中吧
+        }
+    }
+
+    // 深海冲击
+    [ScriptMethod(
+        name: "深海冲击",
+        eventType: EventTypeEnum.StartCasting,
+        eventCondition: ["ActionId:46519"]
+    )]
+    public void 深海冲击(Event evt, ScriptAccessory sa)
+    {
+        sa.Method.EdgeTTS("坦克远离人群，注意死刑");
+        sa.Method.TextInfo("T远离人群，注意死刑", 4500, true);
+    }
+
+
 
     // ===== 水波P2指路补完：角色/角度工具 =====
     private enum WaterRole
@@ -944,7 +1079,7 @@ public class M10S
 
         // 给队里所有人画扇形 from boss to oid
         if (!int.TryParse(evt["DurationMilliseconds"], out var duration)) return;
-        if (_phase == 1)
+        if (_phase == 1 || _phase == 3)
         {
             foreach (var oid in sa.Data.PartyList)
             {
@@ -1035,7 +1170,7 @@ public class M10S
             var dpWp = sa.WaypointDp(wpos, (uint)duration, 0, "水波站位指路");
             sa.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dpWp);
         }
-        else if (_phase >= 2)
+        else if (_phase == 2)
         {
             const uint BuffId = 4975;
             float r = 4f;
@@ -1099,6 +1234,7 @@ public class M10S
 
             snapPos[oid] = new Vector3(obj.Position.X, 0f, obj.Position.Z);
         }
+        sa.Method.SendChat($"/e 水波喷射记录完毕");
 
         // 重新抓一次 boss（防止 cast 期间移动）
         bossObj = sa.Data.Objects.FirstOrDefault(o => o.GameObjectId == bossId);
@@ -1137,7 +1273,7 @@ public class M10S
         if (actionId == "46557")
         {
             // --- 情况 A: 保持原方向，往每个玩家当时位置喷 30度 ---
-            if (_phase == 1)
+            if (_phase == 1 || _phase == 3)
             {
                 foreach (var kv in snapPos)
                 {
@@ -1174,7 +1310,7 @@ public class M10S
             // --- 情况 B: 左右偏转 24度，各画一个 15度扇形 ---
             float off = 24f * (float)Math.PI / 180f;   // 24°
             float rad = 15f * (float)Math.PI / 180f;   // 15°
-            if (_phase == 1)
+            if (_phase == 1 || _phase == 3)
             {
                 foreach (var kv in snapPos)
                 {
@@ -1213,6 +1349,15 @@ public class M10S
     [ScriptMethod(name: "狂浪腾空", eventType: EventTypeEnum.EnvControl, eventCondition: ["Index:regex:^\\d+$"])]
     public void 狂浪腾空(Event evt, ScriptAccessory sa)
     {
+        // 14 => new Vector3(87f, 0f, 87f),
+        // 15 => new Vector3(100f, 0f, 87f),
+        // 16 => new Vector3(113f, 0f, 87f),
+        // 17 => new Vector3(87f, 0f, 100f),
+        // 18 => new Vector3(100f, 0f, 100f),
+        // 19 => new Vector3(113f, 0f, 100f),
+        // 20 => new Vector3(87f, 0f, 113f),
+        // 21 => new Vector3(100f, 0f, 113f),
+        // 22 => new Vector3(113f, 0f, 113f),
         if (!EnvHelpers.TryGetGridIndexFlag(evt, out var index, out var flag)) return;
         if (!EnvHelpers.TryGetGridPos(index, out var gridPos)) return;
 
@@ -1240,6 +1385,11 @@ public class M10S
                 break;
             default:
                 break;
+        }
+
+        if (_phase == 3)
+        {
+            
         }
     }
 
@@ -1296,8 +1446,11 @@ public class M10S
     )]
     public void 浪尖转体(Event evt, ScriptAccessory sa)
     {
-        var sourcePos = evt.SourcePosition();
+        var sourcePos0 = evt.SourcePosition();
         var sourceRot = evt.SourceRotation;
+
+        // y 固定 0
+        var sourcePos = new Vector3(sourcePos0.X, 0f, sourcePos0.Z);
 
         var dp = sa.Data.GetDefaultDrawProperties();
         dp.Name = "浪尖转体-扇形";
@@ -1313,113 +1466,408 @@ public class M10S
 
         _浪花位置 = sourcePos;
 
-        // 指路，如果拥有buff 4975继续，否则不指路
-        // 如果是近战优化 ，根据sourcePos和sourceRot
-            // 如果_P2左右== 1，并且sourcePos.Z小于100 所有人去{89, 0.00, 81}
-            // 如果_P2左右== 1，并且sourcePos.Z大于100 所有人去{89, 0.00, 119}
+        // ===== Buff 判定 =====
+        const uint WaterBuffId = 4975;
+        const uint FireBuffId  = 4974;
 
-            // 如果_P2左右== 2，并且sourcePos.Z小于100 所有人去{111, 0.00, 81}
-            // 如果_P2左右== 2，并且sourcePos.Z大于100 所有人去{111, 0.00, 119}
-        // 水
-        const uint BuffId = 4975;
-        var hasBuff = sa.GetParty()
-            .Any(p => p != null && p.EntityId == sa.Data.Me && p.HasStatus(BuffId));
-        if (hasBuff)
+        bool hasWater = sa.GetParty().Any(p => p != null && p.EntityId == sa.Data.Me && p.HasStatus(WaterBuffId));
+        bool hasFire  = sa.GetParty().Any(p => p != null && p.EntityId == sa.Data.Me && p.HasStatus(FireBuffId));
+
+        if (!hasWater && !hasFire) return;
+
+        var myIdx = sa.MyIndex();
+        if (myIdx < 0 || myIdx > 7) return;
+
+        bool zHigh = sourcePos.Z > 100f; // 上/下
+
+        // 分组：0/1, 2/3, 4/5, 6/7
+        int pairGroup = myIdx switch
         {
-            if (p2第二三轮打法 == P2第二三轮打法.近战优化)
-            {
-                Vector3 wpos;
-                if (_phase >= 2)
-                {
-                    if (_P2左右 == 1)
-                    {
-                        if (sourcePos.Z < 100f)
-                            wpos = new Vector3(89f, 0f, 81f);
-                        else
-                            wpos = new Vector3(89f, 0f, 119f);
-                    }
-                    else
-                    {
-                        if (sourcePos.Z < 100f)
-                            wpos = new Vector3(111f, 0f, 81f);
-                        else
-                            wpos = new Vector3(111f, 0f, 119f);
-                    }
+            0 or 1 => 0,
+            2 or 3 => 1,
+            4 or 5 => 2,
+            _      => 3, // 6 or 7
+        };
 
-                    var dp2 = sa.WaypointDp(wpos, 6000, 0, "浪尖转体-指路P2");
-                    sa.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp2);
+        void DrawWp(Vector3 wpos, string name)
+        {
+            wpos = new Vector3(wpos.X, 0f, wpos.Z);
+            var dpWp = sa.WaypointDp(wpos, 6000, 0, name);
+            sa.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dpWp);
+        }
+
+        // =========================================
+        // P1：你原来的兜底（没写 P1 美野就也走这个）
+        // =========================================
+        if (_phase < 2)
+        {
+            var forward = new Vector3(MathF.Sin(sourceRot), 0f, MathF.Cos(sourceRot));
+            if (forward.LengthSquared() < 1e-6f) forward = new Vector3(0f, 0f, 1f);
+            forward = Vector3.Normalize(forward);
+
+            var wpos = sourcePos + forward * 10f;
+            DrawWp(wpos, "浪尖转体-指路");
+            return;
+        }
+
+        // =========================================
+        // P2：按打法分流
+        // =========================================
+        if (p2第二三轮打法 == P2第二三轮打法.近战优化)
+        {
+            // -------------------------
+            // 水 buff：所有水去固定点（你注释的 4 点）
+            // -------------------------
+            if (hasWater)
+            {
+                Vector3 wposWater;
+                if (_P2左右 == 1)
+                {
+                    // 左(东侧基准)
+                    wposWater = zHigh ? new Vector3(89f, 0f, 119f) : new Vector3(89f, 0f, 81f);
                 }
                 else
                 {
-                    // 原始逻辑：所有人都去 boss 前方 10m 处
-                    var forward = new Vector3(MathF.Sin(sourceRot), 0f, MathF.Cos(sourceRot));
-                    forward = Vector3.Normalize(forward);
-                    wpos = sourcePos + forward * 10f;
-                    wpos = new Vector3(wpos.X, 0f, wpos.Z);
+                    // 右(西侧基准)
+                    wposWater = zHigh ? new Vector3(111f, 0f, 119f) : new Vector3(111f, 0f, 81f);
+                }
 
-                    var dp3 = sa.WaypointDp(wpos, 6000, 0, "浪尖转体-指路");
-                    sa.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp3);
+                DrawWp(wposWater, "浪尖转体-指路P2(水-近战优化)");
+            }
+
+            // -------------------------
+            // 火 buff：按优先级 0 1 4 5 2 3 6 7 分 4 组去 4 个点
+            // 你原来 xs 顺序写反了，这里按注释修正
+            // -------------------------
+            if (hasFire)
+            {
+                // z
+                float z = zHigh ? 118.5f : 81.5f;
+
+                // _P2左右==1: 组0/1/2/3 => 116.83, 109.62, 90.4, 82.50
+                // _P2左右==2: 组0/1/2/3 => 82.50, 90.4, 109.62, 116.83
+                float[] xs = _P2左右 == 1
+                    ? new float[] { 82.50f, 90.40f, 104.62f, 111f }
+                    : new float[] { 111f, 104.62f, 90.40f, 82.50f };
+
+                // 分组： (0,1)->0, (4,5)->1, (2,3)->2, (6,7)->3  （按你注释）
+                int fireGroup = myIdx switch
+                {
+                    0 or 1 => 0,
+                    4 or 5 => 1,
+                    2 or 3 => 2,
+                    _      => 3, // 6 or 7
+                };
+
+                var wposFire = new Vector3(xs[fireGroup], 0f, z);
+                DrawWp(wposFire, "浪尖转体-指路P2(火-近战优化)");
+            }
+
+            return;
+        }
+
+        // =========================================
+        // 美式野：严格按你给的表（火 buff 表 / 水 buff 表）
+        // =========================================
+        // 你给的点位是“固定坐标表”，这里不再用 _P2左右
+        // 只要有火就走火表，否则走水表（避免同一人画两次）
+        bool useFireTable = hasFire;
+
+        Vector3 wposUS;
+        if (!zHigh)
+        {
+            // sourcePos.Z < 100
+            if (useFireTable)
+            {
+                wposUS = pairGroup switch
+                {
+                    0 => new Vector3(103.22f, 0.00f, 80.61f), // 0/1
+                    1 => new Vector3(119.57f, 0.00f, 80.61f), // 2/3
+                    2 => new Vector3(109.78f, 0.00f, 80.61f), // 4/5
+                    _ => new Vector3(118.76f, 0.00f, 88.66f), // 6/7
+                };
+            }
+            else
+            {
+                wposUS = pairGroup switch
+                {
+                    0 => new Vector3(96.78f, 0.00f, 80.61f),  // 100-3.22
+                    1 => new Vector3(80.43f, 0.00f, 80.61f),
+                    2 => new Vector3(90.22f, 0.00f, 80.61f),
+                    _ => new Vector3(81.24f, 0.00f, 88.66f),
+                };
+            }
+        }
+        else
+        {
+            // sourcePos.Z > 100
+            if (useFireTable)
+            {
+                wposUS = pairGroup switch
+                {
+                    0 => new Vector3(103.22f, 0.00f, 119.39f), // 0/1
+                    1 => new Vector3(119.57f, 0.00f, 119.55f), // 2/3
+                    2 => new Vector3(109.78f, 0.00f, 119.35f), // 4/5
+                    _ => new Vector3(118.76f, 0.00f, 111.34f), // 6/7
+                };
+            }
+            else
+            {
+                wposUS = pairGroup switch
+                {
+                    0 => new Vector3(96.78f, 0.00f, 119.39f),  // 100-3.22
+                    1 => new Vector3(80.43f, 0.00f, 119.55f),
+                    2 => new Vector3(90.22f, 0.00f, 119.35f),
+                    _ => new Vector3(81.24f, 0.00f, 111.34f),
+                };
+            }
+        }
+
+        DrawWp(wposUS, useFireTable ? "浪尖转体-指路P2(火-美式野)" : "浪尖转体-指路P2(水-美式野)");
+    }
+
+    // P3 水牢
+    [ScriptMethod(
+        name: "进牢指路",
+        eventType: EventTypeEnum.StartCasting,
+        eventCondition: ["ActionId:46563"]
+    )]
+    public void 进牢指路(Event evt, ScriptAccessory sa)
+    {
+        // 看进水牢方式的选择，指路(100,0,100).如果选择是T就是只有0 1画，治疗是2 3画，近战是4 5画.但是你还是要mydex来查看自己的index，如果不是就不画
+        var myIdx = sa.MyIndex();
+        if (myIdx < 0 || myIdx > 5) return;
+        if (进水牢方式 == 进水牢.坦克进水牢 && myIdx > 1) return;
+        if (进水牢方式 == 进水牢.治疗进水牢 && (myIdx < 2 || myIdx > 3)) return;
+        if (进水牢方式 == 进水牢.近战进水牢 && (myIdx < 4 || myIdx > 5)) return;
+
+        Vector3 wpos = new Vector3(100f, 0f, 100f);
+        var dpWp = sa.WaypointDp(wpos, 8000, 0, "进牢指路");
+        sa.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dpWp);
+
+    }
+
+    // 水牢画图指路-火
+    [ScriptMethod(
+        name: "水牢画图指路-火",
+        eventType: EventTypeEnum.TargetIcon,
+        eventCondition: ["Id:regex:027C"]
+    )]
+    public void 水牢画图指路火(Event evt, ScriptAccessory sa)
+    {
+        var sourceId = evt.SourceId();
+        // 查找BOSS炽红 DATABID对应的位置
+        var bossObj = sa.Data.Objects.FirstOrDefault(o => o.DataId == 炽红);
+        if (bossObj == null) return;
+        var bossPos = new Vector3(bossObj.Position.X, 0f, bossObj.Position.Z);
+        // 画图
+        var dp = sa.Data.GetDefaultDrawProperties();
+        dp.Name = "水牢画图指路-火";
+        dp.Position = bossPos;
+        dp.TargetObject = sourceId;
+        dp.Color = new Vector4(0.8863f, 0.5451f, 0.1569f, 1f);
+        dp.DestoryAt = 6000;
+        dp.Scale = new Vector2(8f, 50f);
+        dp.ScaleMode = ScaleMode.ByTime;
+        sa.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Rect, dp);
+
+
+        if (sourceId != sa.Data.Me) return;
+        if (水牢打法选择 == 水牢打法.MMW)
+        {
+            // 指路 一共有四个点
+            var p_NE = new Vector3(113.10f, 0.00f, 113.21f); // 上半场 + 左半场  -> 去右上
+            var p_NW = new Vector3(86.37f,  0.00f, 112.98f); // 上半场 + 右半场  -> 去左上
+            var p_SW = new Vector3(86.90f,  0.00f, 86.44f);  // 下半场 + 右半场  -> 去左下
+            var p_SE = new Vector3(113.38f, 0.00f, 86.16f);  // 下半场 + 左半场  -> 去右下
+
+            bool topHalf = bossPos.Z < 100f;    // 你注释里写的：Z<100 上半场
+            bool rightHalf = bossPos.X > 100f;  // X>100 右半场（否则左半场）
+
+            Vector3 wpos;
+            if (topHalf)
+            {
+                // 上半场
+                wpos = rightHalf ? p_NW : p_NE;
+            }
+            else
+            {
+                // 下半场
+                wpos = rightHalf ? p_SW : p_SE;
+            }
+
+            // 发一个位移指路
+            var dpWp = sa.WaypointDp(wpos, 6000, 0, "水牢指路-火");
+            sa.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dpWp);
+        }
+        else
+        {
+            // 无脑
+            // 如果boss上半场，指路  {106.49, -0.00, 118.08}
+            // 如果boss下半场，指路 {94.68, -0.00, 81.44}
+            Vector3 wpos = bossPos.Z < 100f
+                ? new Vector3(106.49f, -0.00f, 118.08f)
+                : new Vector3(94.68f, -0.00f, 81.44f);
+            var dpWp = sa.WaypointDp(wpos, 6000, 0, "水牢指路-火");
+            sa.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dpWp);
+        }
+    }
+
+    // // 水牢画图指路-水
+    [ScriptMethod(
+        name: "水牢画图指路-水",
+        eventType: EventTypeEnum.TargetIcon,
+        eventCondition: ["Id:regex:027B"]
+    )]
+    public void 水牢画图指路水(Event evt, ScriptAccessory sa)
+    {
+        var sourceId = evt.SourceId();
+
+        var bossObj = sa.Data.Objects.FirstOrDefault(o => o.DataId == 深蓝);
+        if (bossObj == null) return;
+        var bossPos = new Vector3(bossObj.Position.X, 0f, bossObj.Position.Z);
+        // 画图
+        var dp = sa.Data.GetDefaultDrawProperties();
+        dp.Name = "水牢画图指路-水";
+        dp.Position = bossPos;
+        dp.TargetObject = sourceId;
+        dp.Color = new Vector4(0.1569f, 0.5451f, 0.8863f, 1f);
+        dp.DestoryAt = 6000;
+        dp.Scale = new Vector2(8f, 50f);
+        dp.ScaleMode = ScaleMode.ByTime;
+        sa.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Rect, dp);
+        
+        // 指路
+        // 首先判断p3水牢方法
+        Vector3 wpos = default;
+        if (水牢打法选择 == 水牢打法.MMW)
+        {
+            if (_P3水牢次数 == 0)
+            {
+                // 如果BossPos.Z > 100 BOSS下半场，_P3水牢深蓝初始位置 = 4 去 {95.67, 0.00, 81.59}
+                // 如果bossPos.Z < 100 上半场，_P3水牢深蓝初始位置 = 1 去 {104.04, 0.00, 119.04}
+                
+                if (bossPos.Z > 100f)
+                {
+                    _P3水牢深蓝初始位置 = 4;
+                    wpos = new Vector3(95.67f, 0.00f, 81.59f);
+                }
+                else
+                {
+                    _P3水牢深蓝初始位置 = 1;
+                    wpos = new Vector3(104.04f, 0.00f, 119.04f);
                 }
             }
             else
             {
-                // 美野
-
+                sa.Method.SendChat($"/e >1次水牢");
+                if (_P3水牢深蓝初始位置 == 4)
+                {
+                    // 初始 4：
+                    // bossPos.Z > 93  -> {118.13, 0.00, 105.24}
+                    // bossPos.Z < 93  -> {95.67, 0.00, 81.59}
+                    wpos = bossPos.Z < 93f
+                        ? new Vector3(118.13f, 0.00f, 105.24f)
+                        : new Vector3(95.67f, 0.00f, 81.59f);
+                }
+                else // 初始 1（默认按 1 处理）
+                {
+                    // 初始 1：
+                    // bossPos.X > 93  -> {81.76, 0.00, 94.95}
+                    // bossPos.X < 93  -> {104.04, 0.00, 119.04}
+                    wpos = bossPos.X > 93f
+                        ? new Vector3(81.76f, 0.00f, 94.95f)
+                        : new Vector3(104.04f, 0.00f, 119.04f);
+                }
             }
-        }
-
-        // 火
-        var myIdx = sa.MyIndex();
-        const uint 火BuffId = 4974;
-        if (p2第二三轮打法 == P2第二三轮打法.近战优化)
-        {
-            // 指路，如果拥有buff 4975继续，否则不指路
-                // 如果_P2左右== 1，并且 _浪花位置.Z小于100 按照优先级0 1 4 5 2 3 6 7, 分别去{116.83, 0.00, 81.5} {109.62, 0.00, 81.5} {90.4, 0.00, 81.5} {82.50, 0.00, 81.5}
-                // 如果_P2左右== 1，并且 _浪花位置.Z大于100 按照优先级0 1 4 5 2 3 6 7, 分别去{116.83, 0.00, 118.5} {109.62, 0.00, 118.5} {90.4, 0.00, 118.5} {82.50, 0.00, 118.5}
-
-
-                // 如果_P2左右== 2，并且 _浪花位置.Z小于100 按照优先级0 1 4 5 2 3 6 7, 分别去{82.50, 0.00, 81.5} {90.4, 0.00, 81.5} {109.62, 0.00, 81.5} {116.83, 0.00, 81.5}
-                // 如果_P2左右== 2，并且 _浪花位置.Z大于100 按照优先级0 1 4 5 2 3 6 7 分别去{82.50, 0.00, 118.5} {90.4, 0.00, 118.5} {109.62, 0.00, 118.5} {116.83, 0.00, 118.5}
-            // 指路，如果拥有buff 4975继续，否则不指路
-            sa.Method.SendChat($"/e 火buff指路 myIdx={myIdx}");
-            var has火Buff = sa.GetParty()
-                .Any(p => p != null && p.EntityId == sa.Data.Me && p.HasStatus(火BuffId));
-            if (!has火Buff) return;
-
-            // 找到自己在小队里的 index（0~7）
-            if (myIdx < 0 || myIdx > 7) return;
-
-            // 优先级顺序：0 1 4 5 2 3 6 7
-            // 对应分组： (0,1)->组0, (4,5)->组1, (2,3)->组2, (6,7)->组3
-            int group = myIdx switch
-            {
-                0 or 1 => 0,
-                4 or 5 => 1,
-                2 or 3 => 2,
-                _      => 3, // 6 or 7
-            };
-            sa.Method.SendChat($"/e 火buff指路组={group}, P2左右={_P2左右}");
-            // 根据 _浪花位置.Z 选择上下
-            bool zHigh = _浪花位置.Z > 100f;
-            float z = zHigh ? 118.5f : 81.5f;
-
-            // 根据 _P2左右 选择左右（x 的排列方向）
-            // _P2左右==1: 组0/1/2/3 => 116.83, 109.62, 90.4, 82.50
-            // _P2左右==2: 组0/1/2/3 => 82.50, 90.4, 109.62, 116.83
-            float[] xs = _P2左右 == 1
-                ? new float[] { 82.50f, 90.4f, 109.62f, 116.83f }
-                : new float[] { 116.83f, 109.62f, 90.4f, 82.50f };
-
-            var wpos = new Vector3(xs[group], 0f, z);
-
-            var dp2 = sa.WaypointDp(wpos, 6000, 0, "浪尖转体-指路P2(近战优化)");
-            sa.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp2);
         }
         else
         {
-            // 美
+            // 无脑
+            // 如果boss上半场，指路  {88.57, 0.00, 115.93}
+            // 如果boss下半场，指路  {88.79, -0.00, 84.46}
+            wpos = bossPos.Z < 100f
+                ? new Vector3(88.57f, 0.00f, 115.93f)
+                : new Vector3(88.79f, -0.00f, 84.46f);
+
         }
+        var wp = sa.WaypointDp(wpos, 6000, 0, $"水牢指路-水_{_P3水牢次数 + 1}");
+        if (sourceId == sa.Data.Me)
+        {
+            sa.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, wp);
+        }
+        sa.Method.SendChat($"/e P3水牢次数={_P3水牢次数} wpos={wpos.X:F2},{wpos.Z:F2} bossPos={bossPos.X:F2},{bossPos.Z:F2}");
+        _P3水牢次数++;
+    }
+
+    // P4
+    // 浪顶炽火
+    [ScriptMethod(
+        name: "浪顶炽火",
+        eventType: EventTypeEnum.StartCasting,
+        eventCondition: ["ActionId:46548"]
+    )]
+    public void 浪顶炽火(Event evt, ScriptAccessory sa)
+    {
+        var myIdx = sa.MyIndex();
+        if (myIdx < 0 || myIdx > 7) return;
+        // 指路
+        Vector3 wpos = myIdx switch
+        {
+            0 or 2 or 4 or 6 => new Vector3(93.23f, 0.00f, 95.37f),
+            1 or 3 or 5 or 7 => new Vector3(106.34f, -0.00f, 96.78f),
+            _ => Center,
+        };
+        var dpWp = sa.WaypointDp(wpos, 5000, 0, "浪顶炽火指路");
+        sa.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dpWp);
+    }
+
+    // 异常旋转巨火
+    [ScriptMethod(
+        name: "异常旋转巨火",
+        eventType: EventTypeEnum.StartCasting,
+        eventCondition: ["ActionId:46486"]
+    )]
+    public void 异常旋转巨火(Event evt, ScriptAccessory sa)
+    {
+        var myIdx = sa.MyIndex();
+        if (myIdx < 0 || myIdx > 7) return;
+        // 指路
+        Vector3 wpos = myIdx switch
+        {
+            0 or 6 => new Vector3(90.37f, 0.00f, 82.63f),
+            1 or 7 => new Vector3(109.58f, 0.00f, 82.10f),
+            2 or 4 => new Vector3(89.81f, 0.00f, 117.30f),
+            3 or 5 => new Vector3(108.98f, 0.00f, 117.27f),
+            _ => Center,
+        };
+        var dpWp = sa.WaypointDp(wpos, 5000, 0, "异常旋转巨火指路");
+        sa.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dpWp);
+    }
+
+    // 获得buff
+    [ScriptMethod(
+        name: "P5火水蛇形BUFF判定",
+        eventType: EventTypeEnum.StatusAdd,
+        eventCondition: ["StatusID:regex:^(4827|4828)$"],
+        userControl: false
+    )]
+    public void P5火水蛇形BUFF判定(Event evt, ScriptAccessory sa)
+    {
+        var targetId = evt.TargetId();
+        if (targetId != sa.Data.Me) return;
         
+        var statusId = evt["StatusID"];
+        if (statusId == "4827")
+        {
+            _P5火水蛇 = P5火水蛇.火;
+            sa.Method.SendChat("/e 获得火蛇形BUFF");
+        }
+        else if (statusId == "4828")
+        {
+            _P5火水蛇 = P5火水蛇.水;
+            sa.Method.SendChat("/e 获得水蛇形BUFF");
+        }
     }
 }
 
