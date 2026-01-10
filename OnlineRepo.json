@@ -11,7 +11,7 @@
   {
     "Name": "阿卡狄亚零式登天斗技场M10S 指路",
     "Guid": "2c8b7d4a-6e91-4f3c-a5d2-9b7e1f6c8a03",
-    "Version": "0.0.0.4",
+    "Version": "0.0.0.5",
     "Author": "Codaaaaaa",
     "TerritoryIds": [1323],
     "DownloadUrl": "https://raw.githubusercontent.com/Codaaaaaa/KodakkuScripts/main/Scripts/M10S.cs",
