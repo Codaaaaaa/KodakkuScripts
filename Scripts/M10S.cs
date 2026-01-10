@@ -1789,13 +1789,38 @@ public class M10S
         else
         {
             // 无脑
-            // 如果boss上半场，指路  {106.49, -0.00, 118.08}
-            // 如果boss下半场，指路 {94.68, -0.00, 81.44}
-            Vector3 wpos = bossPos.Z < 100f
-                ? new Vector3(106.49f, -0.00f, 118.08f)
-                : new Vector3(94.68f, -0.00f, 81.44f);
-            var dpWp = sa.WaypointDp(wpos, 6000, 0, "水牢指路-火");
-            sa.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dpWp);
+            // 如果boss上半场，指路  (95.39f, -0.00f, 118.40f)
+            // 如果boss下半场，指路 {96.97, 0.00, 81.30}
+            if (_P3水牢次数 == 0)
+            {
+                Vector3 wpos = bossPos.Z < 100f
+                    ? new Vector3(97.97f, 0.00f, 119.09f)
+                    : new Vector3(96.97f, 0.00f, 80.73f);
+                var dpWp = sa.WaypointDp(wpos, 6000, 0, "水牢指路-火");
+                sa.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dpWp);
+            }
+            else
+            {
+                if (_P3水牢深蓝初始位置 == 1)
+                {
+                    Vector3 wpos = bossPos.Z < 100f
+                    ? new Vector3(97.97f, 0.00f, 119.09f)
+                    : new Vector3(110.36f, 0.00f, 83.66f);
+                var dpWp = sa.WaypointDp(wpos, 6000, 0, "水牢指路-火");
+                sa.Method.SendChat($"/e 深蓝初始位置1, 水牢>1. wpos:{wpos}");
+                sa.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dpWp);
+                }
+                else
+                {
+                    Vector3 wpos = bossPos.Z < 100f
+                    ? new Vector3(108.41f, 0.00f, 117.58f)
+                    : new Vector3(96.97f, 0.00f, 80.73f);
+                    sa.Method.SendChat($"/e 深蓝初始位置{_P3水牢深蓝初始位置}, 水牢>1. wpos:{wpos}");
+                var dpWp = sa.WaypointDp(wpos, 6000, 0, "水牢指路-火");
+                sa.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dpWp);
+                }
+            }
+            
         }
     }
 
@@ -1836,10 +1861,12 @@ public class M10S
                 if (bossPos.Z > 100f)
                 {
                     _P3水牢深蓝初始位置 = 4;
+                    sa.Method.SendChat($"/e _P3水牢深蓝初始位置设为4");
                     wpos = new Vector3(95.67f, 0.00f, 81.59f);
                 }
                 else
                 {
+                    sa.Method.SendChat($"/e _P3水牢深蓝初始位置设为4");
                     _P3水牢深蓝初始位置 = 1;
                     wpos = new Vector3(104.04f, 0.00f, 119.04f);
                 }
@@ -1872,6 +1899,22 @@ public class M10S
             // 无脑
             // 如果boss上半场，指路  {88.57, 0.00, 115.93}
             // 如果boss下半场，指路  {88.79, -0.00, 84.46}
+            if (_P3水牢次数 == 0)
+            {
+                if (bossPos.Z > 100f)
+                {
+                    _P3水牢深蓝初始位置 = 4;
+                    sa.Method.SendChat($"/e _P3水牢深蓝初始位置设为4");
+                    wpos = new Vector3(95.67f, 0.00f, 81.59f);
+                }
+                else
+                {
+                    sa.Method.SendChat($"/e _P3水牢深蓝初始位置设为4");
+                    _P3水牢深蓝初始位置 = 1;
+                    wpos = new Vector3(104.04f, 0.00f, 119.04f);
+                }
+            }
+        
             wpos = bossPos.Z < 100f
                 ? new Vector3(88.57f, 0.00f, 115.93f)
                 : new Vector3(88.79f, -0.00f, 84.46f);
