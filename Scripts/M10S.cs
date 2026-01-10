@@ -20,7 +20,7 @@ namespace Codaaaaaa.M9S;
     guid: "2c8b7d4a-6e91-4f3c-a5d2-9b7e1f6c8a03",
     name: "阿卡狄亚零式登天斗技场M10S 指路",
     territorys: [1323],
-    version: "0.0.0.4",
+    version: "0.0.0.5",
     author: "Codaaaaaa",
     note: "大部分的机制都做了指路，使用之前请务必调整可达鸭内位置和选择打法。由于版本初拿不到arr用来测试，有较大概率会被电...如果电了可以在频道反馈。目前支持\nP2 第一轮打法\n * 水波\n * 镜像水波\n\nP2 第二三轮打法\n * 近战优化\n * 美野\n\n进水牢方式\n * 坦克\n * 近战\n * 治疗\n\n水牢打法\n * 无脑\n * MMW\n")]
 public class M10S
@@ -852,8 +852,8 @@ public class M10S
             {
                 0 or 1 => new Vector3(88.26f, 0f, 88.20f),
                 2 or 3 => new Vector3(112.14f, 0f, 88.24f),
-                4 or 5 => new Vector3(88.18f, 0f, 111.87f),
-                _      => new Vector3(112.22f, 0f, 111.80f),
+                4 or 5 => new Vector3(112.22f, 0f, 111.80f),
+                _      => new Vector3(88.18f, 0f, 111.87f),
             };
 
             var dpWp = sa.WaypointDp(wpos, Duration, 0, "火基佬四连跳指路");
