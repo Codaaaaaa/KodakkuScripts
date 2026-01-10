@@ -20,7 +20,7 @@ namespace Codaaaaaa.M9S;
     guid: "2c8b7d4a-6e91-4f3c-a5d2-9b7e1f6c8a03",
     name: "阿卡狄亚零式登天斗技场M10S 指路",
     territorys: [1323],
-    version: "0.0.0.6",
+    version: "0.0.0.7",
     author: "Codaaaaaa",
     note: "大部分的机制都做了指路，使用之前请务必调整可达鸭内位置和选择打法。由于版本初拿不到arr用来测试，有较大概率会被电...如果电了可以在频道反馈。如果电了可以在频道反馈。感谢灵视佬提供的arr\n目前支持\nP2 第一轮打法\n * 水波\n * 镜像水波\n\nP2 第二三轮打法\n * 近战优化\n * 美野\n\n进水牢方式\n * 坦克\n * 近战\n * 治疗\n\n水牢打法\n * 无脑\n * MMW\n")]
 public class M10S
@@ -456,20 +456,20 @@ public class M10S
                 {
                     spots = new[]
                     {
-                        new Vector3(118.28f, 0.00f,  93.43f), // 6 7
+                        new Vector3(118.09f, 0.00f, 96.88f), // 6 7
                         new Vector3(112.2f, 0.00f,  93.43f), // 4 5
                         new Vector3(112.2f, 0.00f,  103.74f), // 0 1
-                        new Vector3(118.28f, 0.00f,  103.74f), // 2 3
+                        new Vector3(117.98f, 0.00f, 102.98f), // 2 3
                     };
                 }
                 else
                 {
                     spots = new[]
                     {
-                        new Vector3(81.72f, 0.00f,  93.43f), // 6 7
+                        new Vector3(81.72f, 0.00f,  96.88f), // 6 7
                         new Vector3(87.8f, 0.00f,  93.43f), // 4 5
                         new Vector3(87.8f, 0.00f,  103.74f), // 0 1
-                        new Vector3(81.72f, 0.00f,  103.74f), // 2 3
+                        new Vector3(81.72f, 0.00f,  102.98f), // 2 3
                     };
                 }
             }
@@ -1697,7 +1697,7 @@ public class M10S
                     0 => new Vector3(103.22f, 0.00f, 119.39f), // 0/1
                     1 => new Vector3(119.57f, 0.00f, 119.55f), // 2/3
                     2 => new Vector3(109.78f, 0.00f, 119.35f), // 4/5
-                    _ => new Vector3(118.76f, 0.00f, 111.34f), // 6/7
+                    _ => new Vector3(118.76f, 0.00f, 113.26f), // 6/7
                 };
             }
             else
@@ -1707,7 +1707,7 @@ public class M10S
                     0 => new Vector3(96.78f, 0.00f, 119.39f),  // 100-3.22
                     1 => new Vector3(80.43f, 0.00f, 119.55f),
                     2 => new Vector3(90.22f, 0.00f, 119.35f),
-                    _ => new Vector3(81.24f, 0.00f, 111.34f),
+                    _ => new Vector3(81.24f, 0.00f, 113.26f),
                 };
             }
         }
