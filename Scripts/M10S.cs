@@ -20,9 +20,9 @@ namespace Codaaaaaa.M9S;
     guid: "2c8b7d4a-6e91-4f3c-a5d2-9b7e1f6c8a03",
     name: "阿卡狄亚零式登天斗技场M10S 指路",
     territorys: [1323],
-    version: "0.0.0.5",
+    version: "0.0.0.6",
     author: "Codaaaaaa",
-    note: "大部分的机制都做了指路，使用之前请务必调整可达鸭内位置和选择打法。由于版本初拿不到arr用来测试，有较大概率会被电...如果电了可以在频道反馈。目前支持\nP2 第一轮打法\n * 水波\n * 镜像水波\n\nP2 第二三轮打法\n * 近战优化\n * 美野\n\n进水牢方式\n * 坦克\n * 近战\n * 治疗\n\n水牢打法\n * 无脑\n * MMW\n")]
+    note: "大部分的机制都做了指路，使用之前请务必调整可达鸭内位置和选择打法。由于版本初拿不到arr用来测试，有较大概率会被电...如果电了可以在频道反馈。如果电了可以在频道反馈。感谢灵视佬提供的arr\n目前支持\nP2 第一轮打法\n * 水波\n * 镜像水波\n\nP2 第二三轮打法\n * 近战优化\n * 美野\n\n进水牢方式\n * 坦克\n * 近战\n * 治疗\n\n水牢打法\n * 无脑\n * MMW\n")]
 public class M10S
 {
     #region 用户设置
@@ -35,6 +35,7 @@ public class M10S
     // 进水牢方式
     [ UserSetting("进水牢方式")] public 进水牢 进水牢方式 { get; set; } = 进水牢.近战进水牢;
     [ UserSetting("水牢打法")] public 水牢打法 水牢打法选择 { get; set; } = 水牢打法.无脑;
+    [ UserSetting("P5换边指路")] public bool p5换边指路 { get; set; } = true;
     #endregion
     public enum P2第一轮打法
     {
@@ -1413,7 +1414,10 @@ public class M10S
         {
             var wpos = new Vector3(gridPos.X, 0f, gridPos.Z);
             var dpWp = sa.WaypointDp(wpos, 6000, 0, name);
-            sa.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dpWp);
+            if (p5换边指路)
+            {
+                sa.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dpWp);
+            }
         }
 
         // 1) 死刑(TB)：flag=128 或 8192
