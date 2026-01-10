@@ -20,7 +20,7 @@ namespace Codaaaaaa.M9S;
     guid: "2c8b7d4a-6e91-4f3c-a5d2-9b7e1f6c8a03",
     name: "阿卡狄亚零式登天斗技场M10S 指路",
     territorys: [1323],
-    version: "0.0.0.1",
+    version: "0.0.0.2",
     author: "Codaaaaaa",
     note: "大部分的机制都做了指路，使用之前请务必调整可达鸭内位置和选择打法。由于版本初拿不到arr用来测试，有较大概率会被电...如果电了可以在频道反馈。目前支持\nP2 第一轮打法\n * 水波\n * 镜像水波\n\nP2 第二三轮打法\n * 近战优化\n * 美野\n\n进水牢方式\n * 坦克\n * 近战\n * 治疗\n\n水牢打法\n * 无脑\n * MMW\n")]
 public class M10S
@@ -835,8 +835,14 @@ public class M10S
     public void 火基佬四连跳(Event evt, ScriptAccessory sa)
     {
         const uint FireBuffId = 4974;   // 火buff
-        const uint Duration   = 1100000;
-
+        const uint Duration   = 11000;
+        // 只有自己有buff的才画
+        var buffed = sa.GetParty()
+                .Where(p => p != null && p.EntityId != 0 && p.HasStatus(FireBuffId))
+                .ToList();
+        if (!sa.GetParty().Any(p => p != null && p.EntityId == sa.Data.Me && p.HasStatus(FireBuffId)))
+            return;
+        
         // 3) 美式野：火buff组指路（你给的固定坐标）
         if (_phase >= 2 && p2第二三轮打法 == P2第二三轮打法.美式野)
         {
@@ -1490,9 +1496,31 @@ public class M10S
                 sa.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Circle, dpCircle);
             }
         }
-        else
+        else if (flag == 128)
         {
             sa.Method.EdgeTTS("待会儿分摊");
+
+            await Task.Delay(5000);
+            // 有BUFF的人画圈
+            // P2 分摊只画有BUFF的治疗
+            var buffId = 4975u;
+            for (int i = 2; i < 4; i++)
+            {
+                var oid = sa.Data.PartyList[i];
+                var p = sa.GetParty().FirstOrDefault(x => x != null && x.EntityId == oid);
+                if (p == null || oid == 0 || !p.HasStatus(buffId))
+                    continue;
+
+                var dpCircle = sa.Data.GetDefaultDrawProperties();
+                dpCircle.Name = $"分摊圈_{oid:X}";
+                dpCircle.Owner = oid;
+                dpCircle.Color = sa.Data.DefaultSafeColor;
+                dpCircle.DestoryAt = 5000;
+                dpCircle.Scale = new Vector2(5f);
+                dpCircle.ScaleMode = ScaleMode.ByTime;
+
+                sa.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Circle, dpCircle);
+                }
         }
     }
 
