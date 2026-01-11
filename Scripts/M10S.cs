@@ -20,7 +20,7 @@ namespace Codaaaaaa.M9S;
     guid: "2c8b7d4a-6e91-4f3c-a5d2-9b7e1f6c8a03",
     name: "阿卡狄亚零式登天斗技场M10S 指路",
     territorys: [1323],
-    version: "0.0.0.9",
+    version: "0.0.1.0",
     author: "Codaaaaaa",
     note: "大部分的机制都做了指路，使用之前请务必调整可达鸭内位置和选择打法。由于版本初拿不到arr用来测试，有较大概率会被电...如果电了可以在频道反馈。感谢灵视佬提供的arr\n目前支持\nP2 第一轮打法\n * 水波\n * 镜像水波\n\nP2 第二三轮打法\n * 近战优化\n * 美野\n\n进水牢方式\n * 坦克\n * 近战\n * 治疗\n\n水牢打法\n * 无脑\n * MMW\n")]
 public class M10S
@@ -205,7 +205,7 @@ public class M10S
         _bossFwdXZ = fwd;
         _bossRightXZ = right;
 
-        sa.Method.SendChat($"/e 缓存Boss基底 pos=({_bossBasisPos.X:F1},{_bossBasisPos.Z:F1}) fwd=({_bossFwdXZ.X:F2},{_bossFwdXZ.Y:F2}) right=({_bossRightXZ.X:F2},{_bossRightXZ.Y:F2})");
+        // sa.Method.SendChat($"/e 缓存Boss基底 pos=({_bossBasisPos.X:F1},{_bossBasisPos.Z:F1}) fwd=({_bossFwdXZ.X:F2},{_bossFwdXZ.Y:F2}) right=({_bossRightXZ.X:F2},{_bossRightXZ.Y:F2})");
         // 只画自己身上的
         if (targetId == 0 || myId == 0 || targetId != myId)
             return;
@@ -420,7 +420,7 @@ public class M10S
         if (_phase == 2 && _P2火圈次数 <= 3)
         {   
             _P2火圈次数++;
-            sa.Method.SendChat($"/e P2火圈次数 {_P2火圈次数}");
+            // sa.Method.SendChat($"/e P2火圈次数 {_P2火圈次数}");
 
             const uint BuffId = 4974;
             var spots = new Vector3[4];
@@ -515,7 +515,7 @@ public class M10S
         else if (_phase == 2 && _P2火圈次数 <= 7)
         {
             _P2火圈次数++;
-            sa.Method.SendChat($"/e P2火圈次数 {_P2火圈次数}");
+            // sa.Method.SendChat($"/e P2火圈次数 {_P2火圈次数}");
             
         }
 
@@ -673,7 +673,7 @@ public class M10S
                 sa.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
             }
 
-            sa.Method.SendChat($"/e 分摊 idx={myIdx} evenLane={evenLane:F2} oddLane={oddLane:F2}");
+            // sa.Method.SendChat($"/e 分摊 idx={myIdx} evenLane={evenLane:F2} oddLane={oddLane:F2}");
         }
         else
         {
@@ -767,7 +767,7 @@ public class M10S
                 sa.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
             }
             
-            sa.Method.SendChat($"/e 分散 idx={myIdx} evenLane={evenLane:F2} oddLane={oddLane:F2}");
+            // sa.Method.SendChat($"/e 分散 idx={myIdx} evenLane={evenLane:F2} oddLane={oddLane:F2}");
         }
     }
 
@@ -1182,8 +1182,8 @@ public class M10S
             float r = 4f;
             // 判断boss在左半场和右半场：x<100左以东基准，x>100右以西基准
             _P2左右 = bossPos.X < 100f ? 1 : 2;
-            sa.Method.SendChat($"/e P2左右");
-            sa.Method.SendChat($"/e P2左右={_P2左右}");
+            // sa.Method.SendChat($"/e P2左右");
+            // sa.Method.SendChat($"/e P2左右={_P2左右}");
             // 只在身上有 4975 的人参与分配
             var buffed = sa.GetParty()
                 .Where(p => p != null && p.EntityId != 0 && p.HasStatus(BuffId))
@@ -1439,16 +1439,20 @@ public class M10S
         if (!isSpreadOrStack) return;
 
         // 轮换提示：0奶 -> 1近 -> 2远
-        if (_P5狂浪次数 == 0) sa.Method.TextInfo("狂浪：换奶", 2500, false);
-        else if (_P5狂浪次数 == 1) sa.Method.TextInfo("狂浪：换近战", 2500, false);
+        if (_P5狂浪次数 < 2) sa.Method.TextInfo("狂浪：换奶", 2500, false);
+        else if (_P5狂浪次数 < 4) sa.Method.TextInfo("狂浪：换近战", 2500, false);
         else sa.Method.TextInfo("狂浪：换远程", 2500, false);
 
         // 决定这一轮谁要去“对蛇格子”（且：自己的蛇形 != 格子的蛇形 才去）
         bool shouldHandle =
-            (_P5狂浪次数 == 0 && (myIdx == 2 || myIdx == 3)) || // 奶
-            (_P5狂浪次数 == 1 && (myIdx == 4 || myIdx == 5)) || // 近战
-            (_P5狂浪次数 == 2 && (myIdx == 6 || myIdx == 7));   // 远程
-
+            (_P5狂浪次数 < 2 && (myIdx == 2 || myIdx == 3)) || // 奶
+            (_P5狂浪次数 >= 2 && _P5狂浪次数 < 4 && (myIdx == 4 || myIdx == 5)) || // 近战
+            (_P5狂浪次数 >= 4 && _P5狂浪次数 < 6 && (myIdx == 6 || myIdx == 7));   // 远程
+        
+        // bool shouldHandleHeal = (_P5狂浪次数 < 2 && (myIdx == 2 || myIdx == 3));
+        // bool shouldHandleMelee = (_P5狂浪次数 >= 2 && _P5狂浪次数 < 4 && (myIdx == 4 || myIdx == 5));
+        // bool shouldHandleRanged = (_P5狂浪次数 >= 4 && _P5狂浪次数 < 6 && (myIdx == 6 || myIdx == 7));
+        // sa.Method.SendChat($"/e 狂浪 shouldHandle={shouldHandle} 奶={shouldHandleHeal} 近={shouldHandleMelee} 远={shouldHandleRanged} sameSnake={sameSnake}");
         if (shouldHandle)
         {
             if (!sameSnake)
@@ -1456,8 +1460,9 @@ public class M10S
         }
 
         // 次数推进：0->1->2->0 循环
-        if (!isWaterSnake) return;
-        _P5狂浪次数 = (_P5狂浪次数 + 1) % 3;
+        // if (!isWaterSnake) return;
+        _P5狂浪次数 = _P5狂浪次数 + 1;
+        sa.Method.SendChat($"/e P5狂浪次数={_P5狂浪次数}");
     }
 
     [ScriptMethod(
@@ -1883,7 +1888,7 @@ public class M10S
             }
             else
             {
-                sa.Method.SendChat($"/e >1次水牢");
+                // sa.Method.SendChat($"/e >1次水牢");
                 if (_P3水牢深蓝初始位置 == 4)
                 {
                     // 初始 4：
@@ -1935,7 +1940,7 @@ public class M10S
         {
             sa.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, wp);
         }
-        sa.Method.SendChat($"/e P3水牢次数={_P3水牢次数} wpos={wpos.X:F2},{wpos.Z:F2} bossPos={bossPos.X:F2},{bossPos.Z:F2}");
+        // sa.Method.SendChat($"/e P3水牢次数={_P3水牢次数} wpos={wpos.X:F2},{wpos.Z:F2} bossPos={bossPos.X:F2},{bossPos.Z:F2}");
         _P3水牢次数++;
     }
 
