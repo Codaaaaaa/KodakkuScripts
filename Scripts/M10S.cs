@@ -20,7 +20,7 @@ namespace Codaaaaaa.M9S;
     guid: "2c8b7d4a-6e91-4f3c-a5d2-9b7e1f6c8a03",
     name: "阿卡狄亚零式登天斗技场M10S 指路",
     territorys: [1323],
-    version: "0.0.0.8",
+    version: "0.0.0.9",
     author: "Codaaaaaa",
     note: "大部分的机制都做了指路，使用之前请务必调整可达鸭内位置和选择打法。由于版本初拿不到arr用来测试，有较大概率会被电...如果电了可以在频道反馈。感谢灵视佬提供的arr\n目前支持\nP2 第一轮打法\n * 水波\n * 镜像水波\n\nP2 第二三轮打法\n * 近战优化\n * 美野\n\n进水牢方式\n * 坦克\n * 近战\n * 治疗\n\n水牢打法\n * 无脑\n * MMW\n")]
 public class M10S
@@ -1613,7 +1613,14 @@ public class M10S
                 if (_P2左右 == 1)
                 {
                     // 左(东侧基准)
-                    wposWater = zHigh ? new Vector3(89f, 0f, 119f) : new Vector3(89f, 0f, 81f);
+                    // wposWater = zHigh ? new Vector3(89f, 0f, 119f) : new Vector3(89f, 0f, 81f);
+
+                    wposWater = myIdx switch
+                    {
+                        0 or 1 or 2 or 3 => zHigh ? new Vector3(80.65f, 0f, 113.99f) : new Vector3(80.65f, 0f, 86.01f),
+                        4 or 5 or 6 or 7 => zHigh ? new Vector3(87.49f, 0f, 114.21f): new Vector3(87.49f, 0f, 85.79f),
+                        _ => zHigh ? new Vector3(89f, 0f, 119f) : new Vector3(89f, 0f, 81f),
+                    };
                 }
                 else
                 {
@@ -1631,13 +1638,13 @@ public class M10S
             if (hasFire)
             {
                 // z
-                float z = zHigh ? 118.5f : 81.5f;
+                float z = zHigh ? 119.5f : 80.5f;
 
                 // _P2左右==1: 组0/1/2/3 => 116.83, 109.62, 90.4, 82.50
                 // _P2左右==2: 组0/1/2/3 => 82.50, 90.4, 109.62, 116.83
                 float[] xs = _P2左右 == 1
-                    ? new float[] { 82.50f, 90.40f, 104.62f, 111f }
-                    : new float[] { 111f, 104.62f, 90.40f, 82.50f };
+                    ? new float[] { 80.50f, 90.40f, 104.62f, 111f }
+                    : new float[] { 111f, 104.62f, 90.40f, 80.50f };
 
                 // 分组： (0,1)->0, (4,5)->1, (2,3)->2, (6,7)->3  （按你注释）
                 int fireGroup = myIdx switch
