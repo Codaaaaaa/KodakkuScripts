@@ -19,16 +19,16 @@ namespace Codaaaaaa.M11S;
     guid: "6f3d1b82-9d44-4c5a-8277-3a8f5c0f2b1e",
     name: "M11S补充画图",
     territorys: [1325],
-    version: "0.0.0.2",
+    version: "0.0.0.3",
     author: "Codaaaaaa",
-    note: "设置里面改打法，但目前支持的不是很多有很大概率被电。该脚本只对RyougiMio佬的画图更新前做指路补充，需要配合使用。\n谢谢灵视佬和7dsa1wd1s佬提供的arr")]
+    note: "设置里面改打法，但目前支持的不是很多有很大概率被电。\n- 目前只有铸兵之令的近固以及王者陨石L改美野的画图\n- 该脚本只对RyougiMio佬的画图更新前做指路补充，需要配合使用。\n- 谢谢灵视佬和7dsa1wd1s佬提供的arr")]
 public class M11S
 {
     #region 用户设置
     // [UserSetting("是否开启TTS")] public static bool TTSOpen { get; set; } = true;
     [UserSetting("铸兵之令统治打法")] public 铸兵之令统治打法 铸兵之令统治打法选择 { get; set; } = 铸兵之令统治打法.近战固定法;
-    [UserSetting("王者陨石踩塔打法")] public 王者陨石踩塔打法 王者陨石踩塔打法选择 { get; set; } = 王者陨石踩塔打法.tndd;
-    [UserSetting("王者陨石踩塔击飞打法")] public 王者陨石击飞打法 王者陨石踩塔击飞打法选择 { get; set; } = 王者陨石击飞打法.同平台;
+    [UserSetting("王者陨石L改踩塔打法")] public 王者陨石踩塔打法 王者陨石踩塔打法选择 { get; set; } = 王者陨石踩塔打法.tndd;
+    [UserSetting("王者陨石L改踩塔击飞打法")] public 王者陨石击飞打法 王者陨石踩塔击飞打法选择 { get; set; } = 王者陨石击飞打法.同平台;
     // [UserSetting("流星雨打法")] public 流星雨打法 流星雨打法选择 { get; set; } = 流星雨打法.奶远近;
     #endregion
 
