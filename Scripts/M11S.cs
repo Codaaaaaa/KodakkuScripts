@@ -1,6 +1,7 @@
 using System;
 using System.Linq;
 using System.Numerics;
+using System.Threading;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using Newtonsoft.Json;
@@ -181,6 +182,32 @@ public class M11S
     private Vector3 王者陨石陨石Pos = Vector3.Zero;
     private Corner 王者陨石下一次Corner = Corner.未设定;
 
+    private readonly object _meteorLock = new();
+    private CancellationTokenSource _meteorCts = new();
+    private int _meteorSeq = 0;
+
+    private (int seq, CancellationToken token) GetMeteorToken()
+    {
+        lock (_meteorLock)
+            return (_meteorSeq, _meteorCts.Token);
+    }
+
+    private bool IsMeteorSeqValid(int seq)
+    {
+        lock (_meteorLock)
+            return seq == _meteorSeq;
+    }
+
+    private void CancelMeteorTasks()
+    {
+        lock (_meteorLock)
+        {
+            _meteorSeq++;
+            try { _meteorCts.Cancel(); } catch { }
+            try { _meteorCts.Dispose(); } catch { }
+            _meteorCts = new CancellationTokenSource();
+        }
+    }
     public void Init(ScriptAccessory sa)
     {
         ResetAll();
@@ -189,6 +216,8 @@ public class M11S
 
     private void ResetAll()
     {
+        CancelMeteorTasks();
+
         王者陨石是否有拉线Buff = false;
         王者陨石陨石Pos = Vector3.Zero;
         王者陨石下一次Corner = Corner.未设定;
@@ -314,52 +343,76 @@ public class M11S
     [ScriptMethod(name: "王者陨石指路-拉线", eventType: EventTypeEnum.ActionEffect, eventCondition: ["ActionId:46144"])]
     public async void 王者陨石指路拉线(Event evt, ScriptAccessory sa)
     {
-        await Task.Delay(2000); // 等buff先触发
-        var myIdx = sa.MyIndex();
-        if (myIdx < 0 || myIdx > 7) return;
+        var (seq, token) = GetMeteorToken();
 
-        // 先确定第一次踩哪里的塔
-        if (王者陨石踩塔打法选择 == 王者陨石踩塔打法.近近远远)
+         _ = Task.Run(async () =>
         {
-            王者陨石下一次Corner = myIdx switch
+            try
             {
-                0 or 4 => Corner.左上,
-                1 or 5 => Corner.右上,
-                2 or 6 => Corner.左下,
-                3 or 7 => Corner.右下,
-                _ => Corner.未设定,
-            };
-        }
-        else if (王者陨石踩塔打法选择 == 王者陨石踩塔打法.tndd)
-        {
-            王者陨石下一次Corner = myIdx switch
+                await Task.Delay(2000, token); // 等buff先触发
+                if (!IsMeteorSeqValid(seq)) return;
+
+                var myIdx = sa.MyIndex();
+                if (myIdx < 0 || myIdx > 7) return;
+
+                // 先确定第一次踩哪里的塔
+                if (王者陨石踩塔打法选择 == 王者陨石踩塔打法.近近远远)
+                {
+                    王者陨石下一次Corner = myIdx switch
+                    {
+                        0 or 4 => Corner.左上,
+                        1 or 5 => Corner.右上,
+                        2 or 6 => Corner.左下,
+                        3 or 7 => Corner.右下,
+                        _ => Corner.未设定,
+                    };
+                }
+                else if (王者陨石踩塔打法选择 == 王者陨石踩塔打法.tndd)
+                {
+                    王者陨石下一次Corner = myIdx switch
+                    {
+                        0 or 2 => Corner.左上,
+                        1 or 3 => Corner.右上,
+                        4 or 6 => Corner.左下,
+                        5 or 7 => Corner.右下,
+                        _ => Corner.未设定,
+                    };
+                }
+
+                // 第一次踩塔循环
+                await RunMeteorCycleAsync(sa, seq, token);
+
+                await Task.Delay(6500, token); // 视情况调小/调大
+                sa.Method.SendChat("/e 第二次踩塔，出现buff");
+
+                // 你可以按你自己的机制点，在这里等 buff / tetherPos 更新完成
+                // （如果你已经在别的事件里更新了 王者陨石是否有拉线Buff / 王者陨石陨石Pos，就只需要等一小会）
+                
+
+                // 第二次踩塔循环（此时王者陨石是否有拉线Buff 通常变 true）
+                await RunMeteorCycleAsync(sa, seq, token);
+            }
+            catch (OperationCanceledException)
             {
-                0 or 2 => Corner.左上,
-                1 or 3 => Corner.右上,
-                4 or 6 => Corner.左下,
-                5 or 7 => Corner.右下,
-                _ => Corner.未设定,
-            };
-        }
-
-        // 第一次踩塔循环
-        await RunMeteorCycleAsync(sa);
-
-        await Task.Delay(6500); // 视情况调小/调大
-        sa.Method.SendChat("/e 第二次踩塔，出现buff");
-
-        // 你可以按你自己的机制点，在这里等 buff / tetherPos 更新完成
-        // （如果你已经在别的事件里更新了 王者陨石是否有拉线Buff / 王者陨石陨石Pos，就只需要等一小会）
-        
-
-        // 第二次踩塔循环（此时王者陨石是否有拉线Buff 通常变 true）
-        await RunMeteorCycleAsync(sa);
+                // 任务被取消，安全退出
+                sa.Method.SendChat("/e 王者陨石指路任务已取消");
+            }
+            catch (Exception ex)
+            {
+                sa.Method.SendChat($"/e [M11S] Meteor task crashed: {ex.GetType().Name}: {ex.Message}");
+            }
+        });
     }
     private static bool IsLeftCorner(Corner c) => c is Corner.左上 or Corner.左下;
     private static bool IsRightCorner(Corner c) => c is Corner.右上 or Corner.右下;
 
-    private async Task RunMeteorCycleAsync(ScriptAccessory sa)
+    private async Task RunMeteorCycleAsync(ScriptAccessory sa, int seq, CancellationToken token)
     {
+        token.ThrowIfCancellationRequested();
+        if (!IsMeteorSeqValid(seq)) return;
+
+        if (王者陨石下一次Corner == Corner.未设定) return;
+
         // 1) 先引导去踩塔：idx 逻辑更新
         int idx;
         if (王者陨石是否有拉线Buff)
@@ -398,14 +451,16 @@ public class M11S
         sa.Method.SendChat($"/e 王者陨石下一次Corner: {王者陨石下一次Corner}，idx: {idx}");
         var wPos = 王者陨石塔位置[王者陨石下一次Corner][idx];
         DrawWaypointToMe(sa, wPos, 11000, "Meteor_Tower_Waypoint");
-        await Task.Delay(11000);
+        await Task.Delay(11000, token);
+        if (!IsMeteorSeqValid(seq)) return;
 
         sa.Method.SendChat("/e 空中飞人+判断下一次踩塔位置");
 
         // 2) 空中飞人后，计算下一次 Corner
         UpdateCornerAfterKnockback();
 
-        await Task.Delay(2500);
+        await Task.Delay(2500, token);
+        if (!IsMeteorSeqValid(seq)) return;
         sa.Method.SendChat("/e 引导到待定位置");
 
         // 3) 待定位置（你的原代码不动）
@@ -418,9 +473,11 @@ public class M11S
             _ => Vector3.Zero,
         };
         DrawWaypointToMe(sa, wPos2, 4000, "待定位置_Waypoint");
-        await Task.Delay(3500);
+        await Task.Delay(3500, token);
+        if (!IsMeteorSeqValid(seq)) return;
         // TODO: 这里再加一个根据同边同组没有buff的人的位置，修改corner。就近原则。
-        await Task.Delay(500);
+        await Task.Delay(500, token);
+        if (!IsMeteorSeqValid(seq)) return;
 
         sa.Method.SendChat("/e 引导火圈");
 
@@ -447,7 +504,8 @@ public class M11S
             var pos = fireList[i];
             if (王者陨石是否有拉线Buff)
                 DrawWaypointToMe(sa, pos, 2000, "火圈_Waypoint");
-            await Task.Delay(2000);
+            await Task.Delay(2000, token);
+            if (!IsMeteorSeqValid(seq)) return;
             sa.Method.SendChat("/e 下一个火圈");
         }
 
@@ -462,7 +520,8 @@ public class M11S
             _ => Vector3.Zero,
         };
         DrawWaypointToMe(sa, wPos3, 2000, "最终位置_Waypoint");
-        await Task.Delay(2000);
+        await Task.Delay(2000, token);
+        if (!IsMeteorSeqValid(seq)) return;
 
         // 初始化
         王者陨石是否有拉线Buff = false;
