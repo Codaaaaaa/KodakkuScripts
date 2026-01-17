@@ -20,10 +20,10 @@
   {
     "Name": "M11S补充画图",
     "Guid": "6f3d1b82-9d44-4c5a-8d77-3a8f5c0f2b1e",
-    "Version": "0.0.0.1",
+    "Version": "0.0.0.2",
     "Author": "Codaaaaaa",
     "TerritoryIds": [1325],
     "DownloadUrl": "https://raw.githubusercontent.com/Codaaaaaa/KodakkuScripts/main/Scripts/M11S.cs",
-    "UpdateInfo": "0.0.0.1\n亲友自用亲友自用亲友自用，只有近固第一次铸兵之令统治指路，因为只开荒到这里。慎用"
+    "UpdateInfo": "0.0.0.2\n设置里面改打法，但目前支持的不是很多有很大概率被电。该脚本只对RyougiMio佬的画图更新前做指路补充，需要配合使用\n谢谢灵视佬和7dsa1wd1s佬提供的arr"
   },
 ]
