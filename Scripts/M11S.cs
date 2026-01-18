@@ -492,7 +492,8 @@ public class M11S
 
         for (int i = 0; i < fireList.Length; i++)
         {
-            if (i == 1 && !王者陨石是否有拉线Buff)
+            sa.Method.SendChat($"/e i={i}");
+            if (i == 2 && !王者陨石是否有拉线Buff)
             {
                 // 在引导第二个火圈时重算一次 Corner
                 UpdateCornerByMyPosition(sa);
