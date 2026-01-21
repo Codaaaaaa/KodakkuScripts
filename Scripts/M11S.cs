@@ -20,7 +20,7 @@ namespace Codaaaaaa.M11S;
     guid: "6f3d1b82-9d44-4c5a-8277-3a8f5c0f2b1e",
     name: "M11S补充画图",
     territorys: [1325],
-    version: "0.0.0.5",
+    version: "0.0.0.6",
     author: "Codaaaaaa",
     note: "设置里面改打法，但目前支持的不是很多有很大概率被电。\n- 目前只有铸兵之令的近固以及王者陨石L改美野的画图\n- 该脚本只对RyougiMio佬的画图更新前做指路补充，需要配合使用。\n- 谢谢灵视佬和7dsa1wd1s佬提供的arr")]
 public class M11S
@@ -403,6 +403,37 @@ public class M11S
             }
         });
     }
+
+    [ScriptMethod(name: "六连风圈指路", eventType: EventTypeEnum.AddCombatant, eventCondition: ["DataId:19183"])]
+    public async void 六连风圈指路(Event evt, ScriptAccessory sa)
+    {
+
+        var myIdx = sa.MyIndex();
+        if (myIdx < 0 || myIdx > 7) return;
+
+        var sourcePos = evt.SourcePosition();
+        if (MathF.Abs(sourcePos.X - 100f) > 0.1f || MathF.Abs(sourcePos.Z - 87.97f) > 0.1f)
+            return;
+
+        var wPos = myIdx switch
+        {
+            0 => new Vector3(103.35f, 0.00f, 83.27f),
+            1 => new Vector3(93.43f, 0.00f, 116.62f),
+            2 => new Vector3(85.91f, 0.00f, 96.18f),
+            3 => new Vector3(115.15f, 0.00f, 103.49f),
+            4 => new Vector3(95.72f, 0.00f, 83.80f),
+            5 => new Vector3(101.60f, 0.00f, 117.08f),
+            6 => new Vector3(86.04f, 0.00f, 102.22f),
+            7 => new Vector3(116.16f, 0.00f, 96.73f),
+            _ => default
+        };
+
+        DrawWaypointToMe(sa, wPos, 6000, "六连风圈指路");
+    }
+
+
+
+
     private static bool IsLeftCorner(Corner c) => c is Corner.左上 or Corner.左下;
     private static bool IsRightCorner(Corner c) => c is Corner.右上 or Corner.右下;
 
@@ -625,6 +656,8 @@ public class M11S
 
         sa.Method.SendChat($"/e [无拉线] 按站位重算Corner => {王者陨石下一次Corner} (X={p.X:0.00}, Z={p.Z:0.00})");
     }
+
+
     private static int MatchDomPointIndex(Vector3 p)
     {
         int best = -1;
