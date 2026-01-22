@@ -20,9 +20,9 @@ namespace Codaaaaaa.M11S;
     guid: "6f3d1b82-9d44-4c5a-8277-3a8f5c0f2b1e",
     name: "M11S补充画图",
     territorys: [1325],
-    version: "0.0.0.6",
+    version: "0.0.0.7",
     author: "Codaaaaaa",
-    note: "设置里面改打法，但目前支持的不是很多有很大概率被电。\n- 目前只有铸兵之令的近固以及王者陨石L改美野的画图\n- 该脚本只对RyougiMio佬的画图更新前做指路补充，需要配合使用。\n- 谢谢灵视佬和7dsa1wd1s佬提供的arr")]
+    note: "设置里面改打法，但目前支持的不是很多有很大概率被电。\n- 该脚本只对RyougiMio佬的画图更新前做指路补充，需要配合使用。\n- 谢谢灵视佬和7dsa1wd1s佬提供的arr")]
 public class M11S
 {
     #region 用户设置
@@ -185,6 +185,25 @@ public class M11S
     private readonly object _meteorLock = new();
     private CancellationTokenSource _meteorCts = new();
     private int _meteorSeq = 0;
+    
+
+    // 换P
+    private int _phase = 1;
+
+    // 陨石狂奔：拉线只触发一次
+    private bool _runMeteorTetherTriggered = false;
+    private readonly object _runMeteorLock = new();
+    private readonly List<uint> _runMeteorFireTargets = new();   // 每轮 2 个火圈 TargetId
+    private readonly List<Vector3> _runMeteorPositions = new();  // 每轮 2 个陨石位置
+
+    // 可调：判定“同一个点”的误差
+    private const float RunMeteorPosEps = 0.35f;
+
+    [ScriptMethod(name: "Set Phase 1", eventType: EventTypeEnum.Chat, eventCondition: ["Type:Echo", "Message:KASP1"], userControl: false)]
+    public void SetP1(Event evt, ScriptAccessory sa) => _phase = 1;
+
+    [ScriptMethod(name: "Set Phase 2", eventType: EventTypeEnum.Chat, eventCondition: ["Type:Echo", "Message:KASP2"], userControl: false)]
+    public void SetP2(Event evt, ScriptAccessory sa) => _phase = 2;
 
     private (int seq, CancellationToken token) GetMeteorToken()
     {
@@ -218,6 +237,8 @@ public class M11S
     {
         CancelMeteorTasks();
 
+        _phase = 1;
+        _runMeteorTetherTriggered = false;
         王者陨石是否有拉线Buff = false;
         王者陨石陨石Pos = Vector3.Zero;
         王者陨石下一次Corner = Corner.未设定;
@@ -228,6 +249,11 @@ public class M11S
             _domCount = 0;
             _domSeq++;
             _domLastTick = DateTime.UtcNow.Ticks;
+        }
+        lock (_runMeteorLock)
+        {
+            _runMeteorFireTargets.Clear();
+            _runMeteorPositions.Clear();
         }
     }
 
@@ -335,9 +361,12 @@ public class M11S
         var myId = sa.Data.Me;
         if (targetId != myId) return;
 
-        sa.Method.SendChat("/e 记录王者陨石拉线Buff和位置");
-        王者陨石是否有拉线Buff = true;
-        王者陨石陨石Pos = evt.SourcePosition();
+        if (_phase == 1)
+        {
+            sa.Method.SendChat("/e 记录王者陨石拉线Buff和位置");
+            王者陨石是否有拉线Buff = true;
+            王者陨石陨石Pos = evt.SourcePosition();
+        }
     }
 
     [ScriptMethod(name: "王者陨石指路-拉线", eventType: EventTypeEnum.ActionEffect, eventCondition: ["ActionId:46144"])]
@@ -431,7 +460,180 @@ public class M11S
         DrawWaypointToMe(sa, wPos, 6000, "六连风圈指路");
     }
 
+    [ScriptMethod(name: "陨石狂奔-远程组AC火圈BUFF记录", eventType: EventTypeEnum.TargetIcon, eventCondition: ["Id:001E"], userControl: false)]
+    public void 陨石狂奔远程组AC火圈BUFF记录(Event evt, ScriptAccessory sa)
+    {
+        if (_phase != 2) return;
 
+        var tid = evt.TargetId();
+        if (tid == 0) return;
+
+        lock (_runMeteorLock)
+        {
+            if (_runMeteorFireTargets.Count >= 2) return;
+            if (_runMeteorFireTargets.Contains(tid)) return;
+
+            _runMeteorFireTargets.Add(tid);
+            sa.Method.SendChat($"/e [P2] 记录火圈点名 {_runMeteorFireTargets.Count}/2 => 0x{tid:X}");
+        }
+    }
+
+
+    [ScriptMethod(name: "陨石狂奔-陨石位置记录", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:46163"], userControl: false)]
+    public void 陨石狂奔陨石位置记录(Event evt, ScriptAccessory sa)
+    {
+        if (_phase != 2) return;
+
+        var pos = evt.SourcePosition();
+        if (pos == Vector3.Zero) return;
+
+        lock (_runMeteorLock)
+        {
+            if (_runMeteorPositions.Count >= 2) return;
+
+            foreach (var p in _runMeteorPositions)
+            {
+                if (MathF.Abs(p.X - pos.X) < RunMeteorPosEps && MathF.Abs(p.Z - pos.Z) < RunMeteorPosEps)
+                    return; // 同点重复触发
+            }
+
+            _runMeteorPositions.Add(pos);
+            sa.Method.SendChat($"/e [P2] 记录陨石位置 {_runMeteorPositions.Count}/2 => X={pos.X:0.00}, Z={pos.Z:0.00}");
+        }
+    }
+
+    [ScriptMethod(name: "陨石狂奔指路-远程组AC火圈", eventType: EventTypeEnum.ActionEffect, eventCondition: ["ActionId:46162"])]
+    public void 陨石狂奔指路远程组AC火圈(Event evt, ScriptAccessory sa)
+    {
+        if (_phase != 2) return;
+
+        _ = Task.Run(async () =>
+        {
+            await Task.Delay(1500);
+
+            List<uint> targets;
+            List<Vector3> meteors;
+
+            lock (_runMeteorLock)
+            {
+                targets = _runMeteorFireTargets.ToList();
+                meteors = _runMeteorPositions.ToList();
+            }
+
+            if (targets.Count < 2) return;
+            if (meteors.Count < 2) return;
+
+            var myId = sa.Data.Me;
+            if (!targets.Contains(myId)) return; // 只给被点的两个人画
+
+            // 优先级：H1 D3 D4 H2 -> partyIdx: 2 6 7 3
+            int[] prio = { 2, 6, 7, 3 };
+            int PartyIdxOf(uint id) => sa.Data.PartyList.IndexOf(id);
+
+            var ordered = targets
+                .Select(id => new { id, pidx = PartyIdxOf(id) })
+                .Where(x => x.pidx >= 0)
+                .OrderBy(x =>
+                {
+                    var k = Array.IndexOf(prio, x.pidx);
+                    return k < 0 ? 999 : k;
+                })
+                .ToList();
+
+            if (ordered.Count < 2) return;
+
+            var highId = ordered[0].id;
+            var lowId  = ordered[1].id;
+
+            bool sameXZ =
+                MathF.Abs(meteors[0].X - meteors[0].Z) < RunMeteorPosEps &&
+                MathF.Abs(meteors[1].X - meteors[1].Z) < RunMeteorPosEps;
+
+            Vector3 highPos, lowPos;
+            if (sameXZ)
+            {
+                highPos = new Vector3(110.04f, 0.00f, 81.11f);
+                lowPos  = new Vector3(89.66f,  0.00f, 119.10f);
+            }
+            else
+            {
+                highPos = new Vector3(89.36f,  0.00f, 82.47f);
+                lowPos  = new Vector3(108.91f, 0.00f, 119.13f);
+            }
+
+            var go = (myId == highId) ? highPos : lowPos;
+            DrawWaypointToMe(sa, go, 6500, "陨石狂奔_AC火圈_Waypoint");
+
+            // 用完就清（你希望的“每次都会清空”）
+            lock (_runMeteorLock)
+            {
+                _runMeteorFireTargets.Clear();
+                _runMeteorPositions.Clear();
+            }
+        });
+    }
+
+
+
+    [ScriptMethod(name: "陨石狂奔指路-拉线", eventType: EventTypeEnum.Tether, eventCondition: ["Id:0039"])]
+    public void 陨石狂奔指路拉线(Event evt, ScriptAccessory sa)
+    {
+        var myIdx = sa.MyIndex();
+        if (myIdx < 0 || myIdx > 7) return;
+
+        var targetId = evt.TargetId();
+        var myId = sa.Data.Me;
+        if (targetId != myId) return;
+
+        if (_phase != 2) return;
+
+        // 只能触发一次
+        if (_runMeteorTetherTriggered) return;
+        _runMeteorTetherTriggered = true;
+
+        var sourcePos = evt.SourcePosition();
+        sa.Method.SendChat($"/e [P2] 记录陨石狂奔Buff和位置并指路 (srcX={sourcePos.X:0.00}, srcZ={sourcePos.Z:0.00})");
+
+        var center = new Vector3(100f, 0f, 100f);
+
+        // “面向”取 source -> center
+        var forward = center - new Vector3(sourcePos.X, 0f, sourcePos.Z);
+        var len = forward.Length();
+        if (len < 0.001f)
+        {
+            // 极端情况：sourcePos 就在中心附近，给个兜底朝向
+            forward = new Vector3(0f, 0f, -1f);
+        }
+        else
+        {
+            forward /= len;
+        }
+
+        // 左方向：在 XZ 平面把 forward 逆时针转 90°（x,z)->(-z,x)
+        var left = new Vector3(forward.Z, 0f, -forward.X);
+
+        // 从中心：前 40 + 左 20
+        var targetPos = center + forward * 19f + left * 19f;
+
+        DrawWaypointToMe(sa, targetPos, 7500, "陨石狂奔_Waypoint");
+        sa.Method.SendChat($"/e [P2] 陨石狂奔目标点 => X={targetPos.X:0.00}, Z={targetPos.Z:0.00}");
+    }
+
+
+
+    
+    // 换P
+    [ScriptMethod(name: "陨石狂奔换P", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:46162"], userControl: false)]
+    public void 陨石狂奔换P(Event evt, ScriptAccessory sa)
+    {
+        _phase = 2;
+        _runMeteorTetherTriggered = false;
+        lock (_runMeteorLock)
+        {
+            _runMeteorFireTargets.Clear();
+            _runMeteorPositions.Clear();
+        }
+    }
 
 
     private static bool IsLeftCorner(Corner c) => c is Corner.左上 or Corner.左下;
@@ -523,7 +725,7 @@ public class M11S
 
         for (int i = 0; i < fireList.Length; i++)
         {
-            sa.Method.SendChat($"/e i={i}");
+            // sa.Method.SendChat($"/e i={i}");
             if (i == 2 && !王者陨石是否有拉线Buff)
             {
                 // 在引导第二个火圈时重算一次 Corner
@@ -538,7 +740,7 @@ public class M11S
                 DrawWaypointToMe(sa, pos, 2000, "火圈_Waypoint");
             await Task.Delay(2000, token);
             if (!IsMeteorSeqValid(seq)) return;
-            sa.Method.SendChat("/e 下一个火圈");
+            // sa.Method.SendChat("/e 下一个火圈");
         }
 
         // 5) 最终位置（你的原代码不动）
