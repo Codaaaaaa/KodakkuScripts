@@ -20,7 +20,7 @@ namespace Codaaaaaa.M11S;
     guid: "6f3d1b82-9d44-4c5a-8277-3a8f5c0f2b1e",
     name: "M11S补充画图",
     territorys: [1325],
-    version: "0.0.0.7",
+    version: "0.0.0.8",
     author: "Codaaaaaa",
     note: "设置里面改打法，但目前支持的不是很多有很大概率被电。\n- 该脚本只对RyougiMio佬的画图更新前做指路补充，需要配合使用。\n- 谢谢灵视佬和7dsa1wd1s佬提供的arr")]
 public class M11S
@@ -211,6 +211,403 @@ public class M11S
     [ScriptMethod(name: "Set Phase 2", eventType: EventTypeEnum.Chat, eventCondition: ["Type:Echo", "Message:KASP2"], userControl: false)]
     public void SetP2(Event evt, ScriptAccessory sa) => _phase = 2;
 
+    #region StarTrack
+
+    // ==================== [Star Track] Config ====================
+    private const int StarTrackActionId = 46131;
+
+    private const int TotalCasts = 8;   // 8 次炮线
+    private const int PairCount  = 4;   // 两两一组 -> 4 个交点（标 1..4）
+
+    // 4x4 网格映射（按场地实际调整）
+    private const float GridMinXZ = 80f;   // NW 角最小 X/Z
+    private const float CellSize  = 10f;   // 每格 10
+
+    // 去重参数
+    private const int   DuplicateWindowMs     = 300;
+    private const float DuplicatePosTolerance = 0.2f;
+    private const float DuplicateRotTolerance = 0.05f;
+
+    // 你给的四个“角点跑位”
+    private static readonly Vector3 PtSW = new(98.52f, 0f, 100.68f); // 左下
+    private static readonly Vector3 PtNW = new(98.54f, 0f,  99.25f); // 左上
+    private static readonly Vector3 PtNE = new(101.55f, 0f,  99.35f); // 右上
+    private static readonly Vector3 PtSE = new(101.28f, 0f, 100.61f); // 右下
+
+    // 半透明黄色（dp.Color 是 Vector4 的话可直接用；否则你改成你项目的颜色结构）
+    private static readonly Vector4 Yellow50 = new(1f, 1f, 0f, 0.5f);
+
+    // ==================== [Star Track] State ====================
+    private readonly object _stLock = new();
+
+    private readonly record struct StarCast(long TimeMs, uint SourceId, Vector3 Origin, float Rot);
+    private readonly record struct DedupInfo(long TimeMs, Vector3 Pos, float Rot);
+
+    private int _stCastSeq = 0; // 1..8
+    private readonly List<StarCast> _stCasts = new(TotalCasts);
+    private readonly List<Vector3> _stIntersections = new(PairCount);
+    private readonly int[,] _stGrid = new int[4, 4];                 // 4x4 结果网格（0/1..4）
+    private readonly Dictionary<uint, DedupInfo> _stLastBySource = new();
+
+    private readonly int[,] _stLastSnapshot = new int[4, 4];
+
+    // ==================== [Beastflame/Tail] Gate ====================
+    // 兽焰连尾击：记录面向，用来 gate 星轨链指路
+    private readonly object _beastLock = new();
+    private bool _beastFacingAC = true;
+    private float _beastLastRot = 0f;
+    private long _beastLastMs = 0;
+
+    // 容忍角度：0.35rad ~ 20°
+    private const float BeastFacingTol = 0.35f;
+
+    // 仅在最近 N ms 内记录有效（避免上一轮的“坏面向”影响下一轮）
+    private const int BeastFacingValidMs = 15000;
+
+    // 默认：C = +Z (rot ~ 0)，A = -Z (rot ~ PI)
+    private const float AngleC = 0f;
+    private const float AngleA = MathF.PI;
+    private bool BeastflameAllowsStarTrack(long nowMs)
+    {
+        lock (_beastLock)
+        {
+            if (_beastLastMs == 0) return true; // 没记录到就不拦
+            if (nowMs - _beastLastMs > BeastFacingValidMs) return true; // 记录过旧就不拦
+            return _beastFacingAC;
+        }
+    }
+
+    private static bool IsFacingAngle(float rot, float target, float tol)
+        => MathF.Abs(NormalizeAngle(rot - target)) <= tol;
+
+    // ==================== [Star Track] Utils ====================
+    private static float NormalizeAngle(float a)
+    {
+        float twoPi = MathF.PI * 2f;
+        while (a > MathF.PI) a -= twoPi;
+        while (a < -MathF.PI) a += twoPi;
+        return a;
+    }
+
+    // FFXIV 常见旋转：rot=0 朝 +Z
+    private static Vector2 DirXZ(float rot) => new(MathF.Sin(rot), MathF.Cos(rot));
+    private static float Cross(Vector2 a, Vector2 b) => a.X * b.Y - a.Y * b.X;
+
+    private static bool TryIntersectXZ(Vector3 o1, float r1, Vector3 o2, float r2, out Vector3 hit)
+    {
+        Vector2 p1 = new(o1.X, o1.Z);
+        Vector2 p2 = new(o2.X, o2.Z);
+        Vector2 d1 = DirXZ(r1);
+        Vector2 d2 = DirXZ(r2);
+
+        float denom = Cross(d1, d2);
+        if (MathF.Abs(denom) < 1e-4f)
+        {
+            hit = default;
+            return false;
+        }
+
+        Vector2 diff = p2 - p1;
+        float t = Cross(diff, d2) / denom;
+
+        Vector2 ip = p1 + d1 * t;
+        hit = new Vector3(ip.X, 0f, ip.Y);
+        return true;
+    }
+
+    // World(XZ) -> Grid(row,col); row=0 是“上/北”(Z小), col=0 是“左/西”(X小)
+    private static (int row, int col) WorldToGrid(Vector3 p)
+    {
+        int col = (int)MathF.Floor((p.X - GridMinXZ) / CellSize);
+        int row = (int)MathF.Floor((p.Z - GridMinXZ) / CellSize);
+        col = Math.Clamp(col, 0, 3);
+        row = Math.Clamp(row, 0, 3);
+        return (row, col);
+    }
+
+    private static void ClearGrid(int[,] grid)
+    {
+        for (int r = 0; r < 4; r++)
+            for (int c = 0; c < 4; c++)
+                grid[r, c] = 0;
+    }
+
+    private static bool TryFindValue(int[,] grid, int value, out int row, out int col)
+    {
+        for (int r = 0; r < 4; r++)
+        for (int c = 0; c < 4; c++)
+        {
+            if (grid[r, c] == value)
+            {
+                row = r;
+                col = c;
+                return true;
+            }
+        }
+        row = col = -1;
+        return false;
+    }
+
+    private enum STCorner { NW, NE, SW, SE }
+
+    private static STCorner Opposite(STCorner c) => c switch
+    {
+        STCorner.NW => STCorner.SE,
+        STCorner.NE => STCorner.SW,
+        STCorner.SW => STCorner.NE,
+        STCorner.SE => STCorner.NW,
+        _ => STCorner.NW
+    };
+
+    private static Vector3 CornerPoint(STCorner c) => c switch
+    {
+        STCorner.NW => PtNW,
+        STCorner.NE => PtNE,
+        STCorner.SW => PtSW,
+        STCorner.SE => PtSE,
+        _ => PtNW
+    };
+
+    // 2 在中心 2x2 的哪个格 -> 对应哪个角
+    // [1][1]=左上，[1][2]=右上，[2][1]=左下，[2][2]=右下
+    private static STCorner? Inner2x2ToCorner(int row, int col)
+    {
+        if (row == 1 && col == 1) return STCorner.NW;
+        if (row == 1 && col == 2) return STCorner.NE;
+        if (row == 2 && col == 1) return STCorner.SW;
+        if (row == 2 && col == 2) return STCorner.SE;
+        return null;
+    }
+
+    private static bool IsCornerCell(int r, int c)
+        => (r == 0 || r == 3) && (c == 0 || c == 3);
+
+    private static bool IsEdgeCell(int r, int c)
+        => (r == 0 || r == 3 || c == 0 || c == 3) && !IsCornerCell(r, c);
+
+    // ==================== [Star Track] Reset & Snapshot ====================
+    private void ResetStarTrackState()
+    {
+        lock (_stLock)
+        {
+            _stCastSeq = 0;
+            _stCasts.Clear();
+            _stIntersections.Clear();
+            _stLastBySource.Clear();
+            ClearGrid(_stGrid);
+        }
+    }
+
+    private void SnapshotGrid()
+    {
+        lock (_stLock)
+        {
+            for (int r = 0; r < 4; r++)
+                for (int c = 0; c < 4; c++)
+                    _stLastSnapshot[r, c] = _stGrid[r, c];
+        }
+    }
+
+    // ==================== [Star Track] Draw wrappers（全用 Displacement） ====================
+    private void DrawWpToMe(ScriptAccessory sa, string name, Vector3 target, Vector4 color, int delayMs, int durMs)
+    {
+        var dp = sa.WaypointDp(target, (uint)durMs, (uint)delayMs, $"{name}_{Environment.TickCount64}", color);
+        sa.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
+    }
+
+    private void DrawWpPosToPos(ScriptAccessory sa, string name, Vector3 from, Vector3 to, Vector4 color, int delayMs, int durMs)
+    {
+        var dp = sa.WaypointFromToDp(from, to, (uint)durMs, (uint)delayMs, $"{name}_{Environment.TickCount64}", color);
+        sa.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
+    }
+
+    // ==================== [Star Track] Main ====================
+    [ScriptMethod(name: "星轨链(只用Displacement)", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:46131"])]
+    public void OnStarTrackCast(Event evt, ScriptAccessory sa)
+    {
+        long nowMs = Environment.TickCount64;
+
+        // ========= Gate：兽焰连尾击不面向 A/C 则禁用星轨链本轮指路 =========
+        if (!BeastflameAllowsStarTrack(nowMs))
+        {
+            // 清空星轨链状态，防止残留数据导致后续误触发
+            lock (_stLock)
+            {
+                _stCastSeq = 0;
+                _stCasts.Clear();
+                _stIntersections.Clear();
+                _stLastBySource.Clear();
+                ClearGrid(_stGrid);
+            }
+            return;
+        }
+
+        uint sourceId = evt.SourceId();
+        Vector3 pos = evt.SourcePosition();
+        float rot = evt.SourceRotation();   // 下面我在 EventExtensions 里补了这个方法
+
+        // 颜色：正常用 DefaultSafeColor
+        var normal = sa.Data.DefaultSafeColor;
+
+        lock (_stLock)
+        {
+            // ---- 去重：同一 SourceId，短时间 + 位置/角度几乎一致 => 重复
+            if (_stLastBySource.TryGetValue(sourceId, out var last))
+            {
+                bool within = (nowMs - last.TimeMs) <= DuplicateWindowMs;
+                bool samePos = Vector3.Distance(last.Pos, pos) <= DuplicatePosTolerance;
+                bool sameRot = MathF.Abs(NormalizeAngle(rot - last.Rot)) <= DuplicateRotTolerance;
+                if (within && samePos && sameRot) return;
+            }
+            _stLastBySource[sourceId] = new DedupInfo(nowMs, pos, rot);
+
+            // ---- 收集 cast
+            _stCastSeq++;
+            _stCasts.Add(new StarCast(nowMs, sourceId, pos, rot));
+
+            // ---- 每两条算一组交点（标号 1..4）
+            if (_stCastSeq % 2 == 0 && _stCasts.Count >= 2 && _stIntersections.Count < PairCount)
+            {
+                var a = _stCasts[_stCasts.Count - 2];
+                var b = _stCasts[_stCasts.Count - 1];
+
+                if (TryIntersectXZ(a.Origin, a.Rot, b.Origin, b.Rot, out var hit))
+                {
+                    _stIntersections.Add(hit);
+                    int idx = _stIntersections.Count; // 1..4
+                    var (row, col) = WorldToGrid(hit);
+                    _stGrid[row, col] = idx;
+                }
+            }
+
+            // ---- 8 次齐了：做指路逻辑 + snapshot + reset
+            if (_stCastSeq >= TotalCasts)
+            {
+                // 先复制一份 grid 给 Resolve 用（避免 Resolve 里又锁）
+                var gridCopy = new int[4, 4];
+                for (int r = 0; r < 4; r++)
+                    for (int c = 0; c < 4; c++)
+                        gridCopy[r, c] = _stGrid[r, c];
+
+                SnapshotGrid();
+                ResetStarTrackState();
+
+                // 出锁后再画
+                Task.Run(() => ResolveStarTrackGuide(sa, gridCopy, normal));
+            }
+        }
+    }
+
+    // ==================== [Star Track] 3 Cases ====================
+    private void ResolveStarTrackGuide(ScriptAccessory sa, int[,] grid, Vector4 normalColor)
+    {
+        if (!TryFindValue(grid, 1, out int r1, out int c1)) return;
+        if (!TryFindValue(grid, 2, out int r2, out int c2)) return;
+
+        // --------------------
+        // Case 1: 1 在 [2][1] 或 [1][2]
+        // --------------------
+        if ((r1 == 2 && c1 == 1) || (r1 == 1 && c1 == 2))
+        {
+            // 1在[2][1] -> 起跑点=右上(NE) -> 黄线 NE->SW(4s) -> 4s后指路到SW
+            // 1在[1][2] -> 起跑点=左下(SW) -> 黄线 SW->NE(4s) -> 4s后指路到NE
+            STCorner startCorner = (r1 == 2 && c1 == 1) ? STCorner.NE : STCorner.SW;
+            STCorner endCorner   = Opposite(startCorner);
+
+            Vector3 start = CornerPoint(startCorner);
+            Vector3 end   = CornerPoint(endCorner);
+
+            DrawWpToMe(sa, "ST_C1_Start", start, normalColor, 0, 1500);
+            DrawWpPosToPos(sa, "ST_C1_Preview", start, end, Yellow50, 0, 1500);
+            DrawWpToMe(sa, "ST_C1_End", end, normalColor, 1500, 1500);
+            return;
+        }
+
+        // --------------------
+        // Case 2: 1 在四角
+        // --------------------
+        if (IsCornerCell(r1, c1))
+        {
+            var targetOpt = Inner2x2ToCorner(r2, c2);
+            if (!targetOpt.HasValue) return;
+
+            STCorner target = targetOpt.Value;     // 2 对应的“目标角”
+            STCorner start  = Opposite(target);    // 起跑点=目标角对角
+
+            Vector3 startPos  = CornerPoint(start);
+            Vector3 targetPos = CornerPoint(target);
+
+            DrawWpToMe(sa, "ST_C2_Start", startPos, normalColor, 0, 3000);
+            DrawWpPosToPos(sa, "ST_C2_Preview", startPos, targetPos, Yellow50, 0, 3000);
+            DrawWpToMe(sa, "ST_C2_Target", targetPos, normalColor, 3000, 1500);
+            return;
+        }
+
+        // --------------------
+        // Case 3: 1 在四边（非四角）
+        // --------------------
+        if (IsEdgeCell(r1, c1))
+        {
+            // 0-4s   指路去起跑点
+            // 0-4s   起跑->对角  黄线预告
+            // 4-12s  对角->起跑  黄线预告（持续8s）
+            // 4-8s   4s后指路去对角
+            // 8-12s  再4s后指路回起跑
+            var startCornerOpt = Inner2x2ToCorner(r2, c2);
+            if (startCornerOpt == null) return;
+
+            STCorner startCorner = startCornerOpt.Value;
+            STCorner endCorner   = Opposite(startCorner);
+
+            Vector3 start = CornerPoint(startCorner);
+            Vector3 end   = CornerPoint(endCorner);
+
+            DrawWpToMe(sa, "ST_C3_Start", start, normalColor, 0, 1500);
+
+            DrawWpPosToPos(sa, "ST_C3_Preview_1", start, end, Yellow50, 0, 1500);
+            DrawWpPosToPos(sa, "ST_C3_Preview_2", end, start, Yellow50, 1500, 1500);
+
+            DrawWpToMe(sa, "ST_C3_GoEnd", end, normalColor, 1500, 1500);
+            DrawWpToMe(sa, "ST_C3_GoBack", start, normalColor, 3000, 1500);
+            return;
+        }
+    }
+
+    #endregion
+
+    [ScriptMethod(
+        name: "兽焰连尾击",
+        eventType: EventTypeEnum.StartCasting,
+        eventCondition: ["ActionId:regex:^(46072|46128|46073|46129)$"],
+        userControl: false)]
+    public void 兽焰连尾击记录面向(Event evt, ScriptAccessory sa)
+    {
+        float rot;
+        try
+        {
+            rot = evt.SourceRotation();
+        }
+        catch
+        {
+            return;
+        }
+
+        long nowMs = Environment.TickCount64;
+
+        // 面向 C(南,+Z) 或 A(北,-Z)
+        bool ok = IsFacingAngle(rot, AngleC, BeastFacingTol) || IsFacingAngle(rot, AngleA, BeastFacingTol);
+
+        lock (_beastLock)
+        {
+            _beastLastRot = rot;
+            _beastLastMs = nowMs;
+            _beastFacingAC = ok;
+        }
+
+        sa.Method.SendChat($"/e [兽焰连尾击] rot={rot:0.00} => {(ok ? "面向A/C(允许星轨)" : "非A/C(禁用星轨)")} ");
+    }
+
+
     private (int seq, CancellationToken token) GetMeteorToken()
     {
         lock (_meteorLock)
@@ -241,6 +638,7 @@ public class M11S
 
     private void ResetAll()
     {
+        ResetStarTrackState();
         CancelMeteorTasks();
 
         _phase = 1;
@@ -260,6 +658,12 @@ public class M11S
         {
             _runMeteorFireTargets.Clear();
             _runMeteorPositions.Clear();
+        }
+        lock (_beastLock)
+        {
+            _beastFacingAC = true;
+            _beastLastRot = 0f;
+            _beastLastMs = 0;
         }
     }
 
@@ -1053,6 +1457,8 @@ public class M11S
 
 public static class EventExtensions
 {
+    public static float SourceRotation(this Event evt)
+        => JsonConvert.DeserializeObject<float>(evt["SourceRotation"]);
     private static bool ParseHexId(string? idStr, out uint id)
     {
         id = 0;
@@ -1092,13 +1498,41 @@ public static class ScriptAccessoryExtensions
         return dp;
     }
 
-    public static DrawPropertiesEdit WaypointDp(this ScriptAccessory sa, Vector3 pos, uint duration, uint delay = 0, string name = "Waypoint")
+    // public static DrawPropertiesEdit WaypointDp(this ScriptAccessory sa, Vector3 pos, uint duration, uint delay = 0, string name = "Waypoint")
+    // {
+    //     var dp = sa.Data.GetDefaultDrawProperties();
+    //     dp.Name = name;
+    //     dp.Color = sa.Data.DefaultSafeColor;
+    //     dp.Owner = sa.Data.Me;
+    //     dp.TargetPosition = pos;
+    //     dp.DestoryAt = duration;
+    //     dp.Delay = delay;
+    //     dp.Scale = new Vector2(2);
+    //     dp.ScaleMode = ScaleMode.YByDistance;
+    //     return dp;
+    // }
+    public static DrawPropertiesEdit WaypointDp(this ScriptAccessory sa, Vector3 target, uint duration, uint delay = 0, string name = "Waypoint", Vector4? color = null)
     {
         var dp = sa.Data.GetDefaultDrawProperties();
         dp.Name = name;
-        dp.Color = sa.Data.DefaultSafeColor;
-        dp.Owner = sa.Data.Me;
-        dp.TargetPosition = pos;
+        dp.Color = color ?? sa.Data.DefaultSafeColor;
+        dp.Owner = sa.Data.Me;            // 仍然绑定自己
+        dp.TargetPosition = target;
+        dp.DestoryAt = duration;
+        dp.Delay = delay;
+        dp.Scale = new Vector2(2);
+        dp.ScaleMode = ScaleMode.YByDistance;
+        return dp;
+    }
+
+    public static DrawPropertiesEdit WaypointFromToDp(this ScriptAccessory sa, Vector3 from, Vector3 to, uint duration, uint delay = 0, string name = "WaypointFromTo", Vector4? color = null)
+    {
+        var dp = sa.Data.GetDefaultDrawProperties();
+        dp.Name = name;
+        dp.Color = color ?? sa.Data.DefaultSafeColor;
+        dp.Owner = 0;                    // 不绑定任何物体，防止跟着人跑
+        dp.Position = from;              // 起点
+        dp.TargetPosition = to;          // 终点
         dp.DestoryAt = duration;
         dp.Delay = delay;
         dp.Scale = new Vector2(2);
