@@ -13,6 +13,7 @@ using KodakkuAssist.Data;
 using KodakkuAssist.Extensions;
 using System.Runtime.CompilerServices;
 using System.Security.Cryptography.X509Certificates;
+using System.Reflection;
 
 namespace Codaaaaaa.M11S;
 
@@ -20,7 +21,7 @@ namespace Codaaaaaa.M11S;
     guid: "6f3d1b82-9d44-4c5a-8277-3a8f5c0f2b1e",
     name: "M11S补充画图",
     territorys: [1325],
-    version: "0.0.0.8",
+    version: "0.0.0.9",
     author: "Codaaaaaa",
     note: "设置里面改打法，但目前支持的不是很多有很大概率被电。\n- 该脚本只对RyougiMio佬的画图更新前做指路补充，需要配合使用。\n- 谢谢灵视佬和7dsa1wd1s佬提供的arr")]
 public class M11S
@@ -215,6 +216,7 @@ public class M11S
 
     // ==================== [Star Track] Config ====================
     private const int StarTrackActionId = 46131;
+    private bool _stGuideIssued = false; // 本轮是否已经提前出过指路
 
     private const int TotalCasts = 8;   // 8 次炮线
     private const int PairCount  = 4;   // 两两一组 -> 4 个交点（标 1..4）
@@ -395,6 +397,7 @@ public class M11S
             _stIntersections.Clear();
             _stLastBySource.Clear();
             ClearGrid(_stGrid);
+            _stGuideIssued = false;
         }
     }
 
@@ -477,29 +480,50 @@ public class M11S
                     int idx = _stIntersections.Count; // 1..4
                     var (row, col) = WorldToGrid(hit);
                     _stGrid[row, col] = idx;
+
+                    if (!_stGuideIssued && _stIntersections.Count >= 2)
+                    {
+                        _stGuideIssued = true;
+
+                        var gridCopyEarly = new int[4, 4];
+                        for (int rr = 0; rr < 4; rr++)
+                            for (int cc = 0; cc < 4; cc++)
+                                gridCopyEarly[rr, cc] = _stGrid[rr, cc];
+
+                        // 出锁后画（更安全）；这里先记录一个要画的副本
+                        sa.Method.SendChat("/e 记录两个 指路");
+                        Task.Run(() => ResolveStarTrackGuide(sa, gridCopyEarly, normal, 3000));
+                    }
                 }
             }
 
             // ---- 8 次齐了：做指路逻辑 + snapshot + reset
             if (_stCastSeq >= TotalCasts)
             {
-                // 先复制一份 grid 给 Resolve 用（避免 Resolve 里又锁）
-                var gridCopy = new int[4, 4];
-                for (int r = 0; r < 4; r++)
-                    for (int c = 0; c < 4; c++)
-                        gridCopy[r, c] = _stGrid[r, c];
+                int[,]? gridCopyEnd = null;
+
+                if (!_stGuideIssued)
+                {
+                    gridCopyEnd = new int[4, 4];
+                    for (int r = 0; r < 4; r++)
+                        for (int c = 0; c < 4; c++)
+                            gridCopyEnd[r, c] = _stGrid[r, c];
+                }
 
                 SnapshotGrid();
                 ResetStarTrackState();
 
-                // 出锁后再画
-                Task.Run(() => ResolveStarTrackGuide(sa, gridCopy, normal));
+                if (gridCopyEnd != null)
+                {
+                    sa.Method.SendChat("/e 保底 指路");
+                    Task.Run(() => ResolveStarTrackGuide(sa, gridCopyEnd, normal));
+                }                
             }
         }
     }
 
     // ==================== [Star Track] 3 Cases ====================
-    private void ResolveStarTrackGuide(ScriptAccessory sa, int[,] grid, Vector4 normalColor)
+    private void ResolveStarTrackGuide(ScriptAccessory sa, int[,] grid, Vector4 normalColor, int delay = 0)
     {
         if (!TryFindValue(grid, 1, out int r1, out int c1)) return;
         if (!TryFindValue(grid, 2, out int r2, out int c2)) return;
@@ -517,9 +541,9 @@ public class M11S
             Vector3 start = CornerPoint(startCorner);
             Vector3 end   = CornerPoint(endCorner);
 
-            DrawWpToMe(sa, "ST_C1_Start", start, normalColor, 0, 1500);
-            DrawWpPosToPos(sa, "ST_C1_Preview", start, end, Yellow50, 0, 1500);
-            DrawWpToMe(sa, "ST_C1_End", end, normalColor, 1500, 1500);
+            DrawWpToMe(sa, "ST_C1_Start", start, normalColor, 0, 1500+delay);
+            DrawWpPosToPos(sa, "ST_C1_Preview", start, end, Yellow50, 0, 1500+delay);
+            DrawWpToMe(sa, "ST_C1_End", end, normalColor, 1500+delay, 1500);
             return;
         }
 
@@ -537,9 +561,9 @@ public class M11S
             Vector3 startPos  = CornerPoint(start);
             Vector3 targetPos = CornerPoint(target);
 
-            DrawWpToMe(sa, "ST_C2_Start", startPos, normalColor, 0, 3000);
-            DrawWpPosToPos(sa, "ST_C2_Preview", startPos, targetPos, Yellow50, 0, 3000);
-            DrawWpToMe(sa, "ST_C2_Target", targetPos, normalColor, 3000, 1500);
+            DrawWpToMe(sa, "ST_C2_Start", startPos, normalColor, 0, 3000+delay);
+            DrawWpPosToPos(sa, "ST_C2_Preview", startPos, targetPos, Yellow50, 0, 3000+delay);
+            DrawWpToMe(sa, "ST_C2_Target", targetPos, normalColor, 3000+delay, 1500);
             return;
         }
 
@@ -562,13 +586,13 @@ public class M11S
             Vector3 start = CornerPoint(startCorner);
             Vector3 end   = CornerPoint(endCorner);
 
-            DrawWpToMe(sa, "ST_C3_Start", start, normalColor, 0, 1500);
+            DrawWpToMe(sa, "ST_C3_Start", start, normalColor, 0, 1500+delay);
 
-            DrawWpPosToPos(sa, "ST_C3_Preview_1", start, end, Yellow50, 0, 1500);
-            DrawWpPosToPos(sa, "ST_C3_Preview_2", end, start, Yellow50, 1500, 1500);
+            DrawWpPosToPos(sa, "ST_C3_Preview_1", start, end, Yellow50, 0, 1500+delay);
+            DrawWpPosToPos(sa, "ST_C3_Preview_2", end, start, Yellow50, 1500+delay, 1500);
 
-            DrawWpToMe(sa, "ST_C3_GoEnd", end, normalColor, 1500, 1500);
-            DrawWpToMe(sa, "ST_C3_GoBack", start, normalColor, 3000, 1500);
+            DrawWpToMe(sa, "ST_C3_GoEnd", end, normalColor, 1500+delay, 1500);
+            DrawWpToMe(sa, "ST_C3_GoBack", start, normalColor, 3000+delay, 1500);
             return;
         }
     }
