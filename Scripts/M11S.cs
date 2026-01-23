@@ -30,6 +30,7 @@ public class M11S
     [UserSetting("铸兵之令统治打法")] public 铸兵之令统治打法 铸兵之令统治打法选择 { get; set; } = 铸兵之令统治打法.近战固定法;
     [UserSetting("王者陨石L改踩塔打法")] public 王者陨石踩塔打法 王者陨石踩塔打法选择 { get; set; } = 王者陨石踩塔打法.tndd;
     [UserSetting("王者陨石L改踩塔击飞打法")] public 王者陨石击飞打法 王者陨石踩塔击飞打法选择 { get; set; } = 王者陨石击飞打法.同平台;
+    [UserSetting("陨石狂奔打法")] public 陨石狂奔打法 陨石狂奔打法选择 { get; set; } = 陨石狂奔打法.十引导;
     // [UserSetting("流星雨打法")] public 流星雨打法 流星雨打法选择 { get; set; } = 流星雨打法.奶远近;
     #endregion
 
@@ -51,6 +52,11 @@ public class M11S
     {
         同平台,
         闲人斜飞_未经过充分测试
+    }
+    public enum 陨石狂奔打法
+    {
+        十引导,
+        X引导,
     }
 
     private enum Corner
@@ -563,13 +569,6 @@ public class M11S
 
             var go = (myId == highId) ? highPos : lowPos;
             DrawWaypointToMe(sa, go, 6500, "陨石狂奔_AC火圈_Waypoint");
-
-            // 用完就清（你希望的“每次都会清空”）
-            lock (_runMeteorLock)
-            {
-                _runMeteorFireTargets.Clear();
-                _runMeteorPositions.Clear();
-            }
         });
     }
 
@@ -619,6 +618,150 @@ public class M11S
         sa.Method.SendChat($"/e [P2] 陨石狂奔目标点 => X={targetPos.X:0.00}, Z={targetPos.Z:0.00}");
     }
 
+    [ScriptMethod(name: "陨石狂奔指路-二向四向火", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:regex:^(46170|47037)$"])]
+    public void 陨石狂奔指路二向四向火(Event evt, ScriptAccessory sa)
+    {
+        if (_phase != 2) return;
+
+        // 46170 = 四向火, 47037 = 二向火（按你注释的假设）
+        var actionId = evt.ActionId();
+        bool isFour = actionId == 46170;
+        bool isTwo  = !isFour;
+
+        // 读一下 cast 时长（拿不到就给个默认）
+        int dur = 0;
+        _ = int.TryParse(evt["DurationMilliseconds"], out dur);
+
+        var myIdx = sa.MyIndex();
+        if (myIdx < 0 || myIdx > 7) return;
+
+        _ = Task.Run(async () =>
+        {
+            // 给 TargetIcon / StartCasting 事件一点时间进来
+            await Task.Delay(200);
+
+            List<uint> fireTargets;
+            lock (_runMeteorLock)
+            {
+                fireTargets = _runMeteorFireTargets.ToList();
+            }
+            if (fireTargets.Count < 2) return;
+
+            var myId = sa.Data.Me;
+
+            bool iAmFire = fireTargets.Contains(myId);
+            bool iAm45   = (myIdx == 4 || myIdx == 5);
+            bool isTen   = (陨石狂奔打法选择 == 陨石狂奔打法.十引导);
+            bool isX     = (陨石狂奔打法选择 == 陨石狂奔打法.X引导);
+
+            // 22X 的二向火：还要给 myIdx 0/1 指路（按你的注释）
+            bool iAm01ForXTwo = isTwo && isX && (myIdx == 0 || myIdx == 1);
+
+            // 只有相关人画：两火圈 + idx4/5 + (22X 二向火的 idx0/1)
+            if (!iAmFire && !iAm45 && !iAm01ForXTwo) return;
+
+            var center = new Vector3(100f, 0f, 100f);
+
+            // Step 1: 先集合到中点 (100,0,100)，4秒
+            const int gatherMs = 3500;
+            DrawWaypointToMe(sa, center, gatherMs, isFour ? "四向火_集合" : "二向火_集合");
+            await Task.Delay(gatherMs);
+
+            // 计算两名火圈点名的高/低优先（沿用你前面 AC 火圈同一套）
+            int[] prio = { 2, 6, 7, 3 }; // H1 D3 D4 H2 -> partyIdx: 2 6 7 3
+            int PartyIdxOf(uint id) => sa.Data.PartyList.IndexOf(id);
+
+            var ordered = fireTargets
+                .Select(id => new { id, pidx = PartyIdxOf(id) })
+                .Where(x => x.pidx >= 0)
+                .OrderBy(x =>
+                {
+                    var k = Array.IndexOf(prio, x.pidx);
+                    return k < 0 ? 999 : k;
+                })
+                .ToList();
+
+            if (ordered.Count < 2) return;
+
+            var highId = ordered[0].id;
+            var lowId  = ordered[1].id;
+
+            // Step 2: 4秒后去最终点
+            Vector3 go = Vector3.Zero;
+
+            if (isFour)
+            {
+                if (isTen)
+                {
+                    // 22十 四向火
+                    if (iAmFire)
+                        go = (myId == highId) ? new Vector3(100f, 0.00f, 95f) : new Vector3(100f, 0.00f, 105f);
+                    else if (myIdx == 4)
+                        go = new Vector3(95f, 0.00f, 100f);
+                    else if (myIdx == 5)
+                        go = new Vector3(105f, 0.00f, 100f);
+                }
+                else
+                {
+                    // 22X 四向火
+                    if (iAmFire)
+                        go = (myId == highId) ? new Vector3(103.90f, 0.00f, 96.83f) : new Vector3(96.08f, 0.00f, 103.24f);
+                    else if (myIdx == 4)
+                        go = new Vector3(96.82f, 0.00f, 96.11f);
+                    else if (myIdx == 5)
+                        go = new Vector3(103.17f, 0.00f, 103.92f);
+                }
+            }
+            else
+            {
+                // 二向火
+                if (isTen)
+                {
+                    // 22十 二向火
+                    if (iAmFire)
+                        go = (myId == highId) ? new Vector3(100f, 0.00f, 95f) : new Vector3(100f, 0.00f, 105f);
+                    else if (myIdx == 4)
+                        go = new Vector3(100f, 0.00f, 93f);
+                    else if (myIdx == 5)
+                        go = new Vector3(100f, 0.00f, 107f);
+                }
+                else
+                {
+                    // 22X 二向火：火圈两人 + idx4/5 同 22十；idx0/1 选离自己近的(92.5/107.5)
+                    if (iAmFire)
+                        go = (myId == highId) ? new Vector3(100f, 0.00f, 95f) : new Vector3(100f, 0.00f, 105f);
+                    else if (myIdx == 4)
+                        go = new Vector3(100f, 0.00f, 93f);
+                    else if (myIdx == 5)
+                        go = new Vector3(100f, 0.00f, 107f);
+                    else if (myIdx == 0 || myIdx == 1)
+                    {
+                        // 选更近的点
+                        var mePos = sa.Data.Objects.FirstOrDefault(o => o.GameObjectId == myId)?.Position ?? Vector3.Zero;
+                        var a = new Vector3(100f, 0.00f, 92.5f);
+                        var b = new Vector3(100f, 0.00f, 107.5f);
+
+                        float d2a = (mePos.X - a.X) * (mePos.X - a.X) + (mePos.Z - a.Z) * (mePos.Z - a.Z);
+                        float d2b = (mePos.X - b.X) * (mePos.X - b.X) + (mePos.Z - b.Z) * (mePos.Z - b.Z);
+                        go = (d2a <= d2b) ? a : b;
+                    }
+                }
+            }
+
+            if (go == Vector3.Zero) return;
+
+            // 第二段持续时间：尽量用剩余 cast time；拿不到就默认 6.5s
+            int remainMs = dur > 0 ? Math.Max(2000, dur - gatherMs) : 6500;
+            DrawWaypointToMe(sa, go, remainMs, isFour ? "四向火_最终点" : "二向火_最终点");
+
+            // 用完再清，避免后面机制读不到（按你“每次都会清空”）
+            lock (_runMeteorLock)
+            {
+                _runMeteorFireTargets.Clear();
+                _runMeteorPositions.Clear();
+            }
+        });
+    }
 
 
     
