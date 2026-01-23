@@ -21,7 +21,7 @@ namespace Codaaaaaa.M11S;
     guid: "6f3d1b82-9d44-4c5a-8277-3a8f5c0f2b1e",
     name: "M11S补充画图",
     territorys: [1325],
-    version: "0.0.0.9",
+    version: "0.0.1.0",
     author: "Codaaaaaa",
     note: "设置里面改打法，但目前支持的不是很多有很大概率被电。\n- 该脚本只对RyougiMio佬的画图更新前做指路补充，需要配合使用。\n- 谢谢灵视佬和7dsa1wd1s佬提供的arr")]
 public class M11S
@@ -425,7 +425,7 @@ public class M11S
     }
 
     // ==================== [Star Track] Main ====================
-    [ScriptMethod(name: "星轨链(只用Displacement)", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:46131"])]
+    [ScriptMethod(name: "星轨链近战无损指路", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:46131"])]
     public void OnStarTrackCast(Event evt, ScriptAccessory sa)
     {
         long nowMs = Environment.TickCount64;

@@ -20,7 +20,7 @@
   {
     "Name": "M11S补充画图",
     "Guid": "6f3d1b82-9d44-4c5a-8277-3a8f5c0f2b1e",
-    "Version": "0.0.0.9",
+    "Version": "0.0.1.0",
     "Author": "Codaaaaaa",
     "TerritoryIds": [1325],
     "DownloadUrl": "https://raw.githubusercontent.com/Codaaaaaa/KodakkuScripts/main/Scripts/M11S.cs",
