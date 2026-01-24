@@ -21,7 +21,7 @@ namespace Codaaaaaa.M11S;
     guid: "6f3d1b82-9d44-4c5a-8277-3a8f5c0f2b1e",
     name: "M11S补充画图",
     territorys: [1325],
-    version: "0.0.1.1",
+    version: "0.0.1.2",
     author: "Codaaaaaa",
     note: "设置里面改打法，但目前支持的不是很多有很大概率被电。\n- 该脚本只对RyougiMio佬的画图更新前做指路补充，需要配合使用。\n- 谢谢灵视佬和7dsa1wd1s佬提供的arr")]
 public class M11S
@@ -33,6 +33,8 @@ public class M11S
     [UserSetting("王者陨石L改踩塔击飞打法")] public 王者陨石击飞打法 王者陨石踩塔击飞打法选择 { get; set; } = 王者陨石击飞打法.同平台;
     [UserSetting("陨石狂奔打法")] public 陨石狂奔打法 陨石狂奔打法选择 { get; set; } = 陨石狂奔打法.十引导;
     // [UserSetting("流星雨打法")] public 流星雨打法 流星雨打法选择 { get; set; } = 流星雨打法.奶远近;
+    [UserSetting("六连风圈高亮颜色")] public ScriptColor 六连风圈高亮颜色 { get; set; } = new ScriptColor() { V4 = new Vector4(0.9803922f, 0.4313726f, 0.1960784f, 0.35f) }; // 默认淡蓝
+
     #endregion
 
     public enum 流星雨打法
@@ -892,6 +894,33 @@ public class M11S
         };
 
         DrawWaypointToMe(sa, wPos, 6000, "六连风圈指路");
+    }
+    
+    [ScriptMethod(name: "六连风圈高亮", eventType: EventTypeEnum.AddCombatant, eventCondition: ["DataId:19183"])]
+    public void 六连风圈高亮(Event evt, ScriptAccessory sa)
+    {
+        var sourcePos = evt.SourcePosition();
+
+        var dp = sa.Data.GetDefaultDrawProperties();
+        dp.Name = $"六连风圈高亮_{Environment.TickCount64}";
+        dp.Position = sourcePos;
+        dp.Rotation = 0f;
+        dp.DestoryAt = 20000;
+
+        // 5m 圈（如果你发现大小不对，把 5f 改成 10f/2.5f 之类试一下）
+        dp.Scale = new Vector2(4f);
+        dp.ScaleMode = ScaleMode.None;
+
+        // 用用户设置颜色（带透明度）
+        dp.Color = 六连风圈高亮颜色.V4;
+
+        sa.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Circle, dp);
+    }
+
+    [ScriptMethod(name: "六连风圈删除", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:46120"], userControl: false)]
+    public void 六连风圈删除(Event evt, ScriptAccessory sa)
+    {
+        sa.Method.RemoveDraw("^六连风圈高亮_.*$");
     }
 
     [ScriptMethod(name: "陨石狂奔-远程组AC火圈BUFF记录", eventType: EventTypeEnum.TargetIcon, eventCondition: ["Id:001E"], userControl: false)]
