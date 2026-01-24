@@ -21,7 +21,7 @@ namespace Codaaaaaa.M11S;
     guid: "6f3d1b82-9d44-4c5a-8277-3a8f5c0f2b1e",
     name: "M11S补充画图",
     territorys: [1325],
-    version: "0.0.1.0",
+    version: "0.0.1.1",
     author: "Codaaaaaa",
     note: "设置里面改打法，但目前支持的不是很多有很大概率被电。\n- 该脚本只对RyougiMio佬的画图更新前做指路补充，需要配合使用。\n- 谢谢灵视佬和7dsa1wd1s佬提供的arr")]
 public class M11S
@@ -1204,6 +1204,104 @@ public class M11S
             _runMeteorFireTargets.Clear();
             _runMeteorPositions.Clear();
         }
+    }
+
+
+    [ScriptMethod(
+        name: "王者陨石掀地板指路",
+        eventType: EventTypeEnum.StartCasting,
+        eventCondition: ["ActionId:regex:^(46155|46157|46159|46161)$"]
+    )]
+    public async void 王者陨石掀地板指路(Event evt, ScriptAccessory sa)
+    {
+        // 可选：如果你只想 P1 生效
+        // if (_phase != 1) return;
+
+        var (seq, token) = GetMeteorToken();
+
+        uint actionId = evt.ActionId();
+        var corner = 王者陨石下一次Corner;
+        if (corner == Corner.未设定) return;
+
+        // ---- 1) 先确定“踩塔位置索引” ----
+        int towerIdx = actionId switch
+        {
+            46159u => corner switch
+            {
+                Corner.右上 => 2,
+                Corner.右下 => 0,
+                Corner.左上 => 1,
+                Corner.左下 => 1,
+                _ => -1,
+            },
+            46161u => corner switch
+            {
+                Corner.右上 => 0,
+                Corner.右下 => 2,
+                Corner.左上 => 1,
+                Corner.左下 => 1,
+                _ => -1,
+            },
+            46157u => corner switch
+            {
+                Corner.右上 => 1,
+                Corner.右下 => 1,
+                Corner.左上 => 2,
+                Corner.左下 => 0,
+                _ => -1,
+            },
+            46155u => corner switch
+            {
+                Corner.右上 => 1,
+                Corner.右下 => 1,
+                Corner.左上 => 0,
+                Corner.左下 => 2,
+                _ => -1,
+            },
+            _ => -1
+        };
+
+        if (towerIdx < 0) return;
+        if (!王者陨石塔位置.TryGetValue(corner, out var towerArr)) return;
+        if (towerIdx >= towerArr.Length) return;
+
+        var towerPos = towerArr[towerIdx];
+
+        // ---- 2) 再确定“掀地板后的安全点” ----
+        var safePos = actionId switch
+        {
+            // 46159 面右（安全区4）
+            46159u => new Vector3(83.84f, 0.00f, 117.36f),
+            // 46161 面右（安全区1）
+            46161u => new Vector3(83.98f, 0.00f, 82.67f),
+            // 46157 面左（安全区3）
+            46157u => new Vector3(115.73f, 0.00f, 117.35f),
+            // 46155 面左（安全区2）(你标注未验证)
+            46155u => new Vector3(116.10f, 0.00f, 82.45f),
+            _ => Vector3.Zero
+        };
+        if (safePos == Vector3.Zero) return;
+
+        // ---- 3) 画图：先踩塔 7s；7s 后再去安全点 7s ----
+        const int firstMs = 7000;
+        const int safeMs  = 7000;
+
+        sa.Method.SendChat($"/e [掀地板] action={actionId} corner={corner} towerIdx={towerIdx}");
+
+        DrawWaypointToMe(sa, towerPos, firstMs, $"掀地板_踩塔_{actionId}");
+
+        try
+        {
+            await Task.Delay(firstMs, token);
+        }
+        catch (OperationCanceledException)
+        {
+            return;
+        }
+
+        if (!IsMeteorSeqValid(seq)) return;
+
+        DrawWaypointToMe(sa, safePos, safeMs, $"掀地板_安全区_{actionId}");
     }
 
 
