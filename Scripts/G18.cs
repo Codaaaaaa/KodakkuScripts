@@ -16,7 +16,7 @@ namespace Codaaaaaa.G18;
     guid: "8f2a1d6d-4d3b-4c61-8b9a-6a4b8d0c8b2a",
     name: "g18神秘剧透小脚本",
     territorys: [1279],
-    version: "0.0.0.2",
+    version: "0.0.0.3",
     author: "Codaaaaaa",
     note: "剧透")]
 public class G18
@@ -28,7 +28,7 @@ public class G18
 
     private readonly List<string> _historyRound = new();
 
-    private readonly List<RoundItem> _roundBuf = new(3);
+    private readonly List<RoundItem> _roundBuf = new();
 
     private static readonly TimeSpan RoundResetGap = TimeSpan.FromSeconds(3);
 
@@ -52,7 +52,7 @@ public class G18
     {
         sa.Method.RemoveDraw(".*");
         _historyRound.Clear();
-        _roundBuf.Clear();
+        // _roundBuf.Clear();
         // _lastRecordTime = DateTime.MinValue;
         _seq = 0;
     }
@@ -90,11 +90,11 @@ public class G18
                 .ToList();
 
             var line = string.Join(" / ", ordered);
-            _historyRound.Add(line);
+            // _historyRound.Add(line);
 
             DebugPrint(sa, $"[G18] Round sealed => {line}");
 
-            _roundBuf.Clear();
+            // _roundBuf.Clear();
         }
     }
 
@@ -104,6 +104,8 @@ public class G18
         if (!TryGetInt(evt, "Index", out var index)) return;
         if (index >= 21 && index <= 26) return;
 
+        DebugPrint(sa, $"变动");
+        sa.Method.TTS("变动");
         sa.Method.TextInfo("变动", 5500, true);
     }
 
@@ -112,6 +114,7 @@ public class G18
     {
         if (TryGetInt(evt, "Id1", out var id1) && id1 != 1) return;
 
+        DebugPrint(sa, "[G18] 1.");
         // 1) 优先播报当前缓冲（即使没满3个也可以发）
         if (_roundBuf.Count > 0)
         {
@@ -123,16 +126,17 @@ public class G18
 
             var msg = $"[G18]：{string.Join(" / ", ordered)}";
             Output(sa, msg);
+            _roundBuf.Clear();
             return;
         }
 
         // 2) 否则播报最后一条封存历史
-        if (_historyRound.Count > 0)
-        {
-            var last = _historyRound.Last();
-            Output(sa, $"[G18]：{last}");
-            return;
-        }
+        // if (_historyRound.Count > 0)
+        // {
+        //     var last = _historyRound.Last();
+        //     Output(sa, $"[G18]：{last}");
+        //     return;
+        // }
 
         DebugPrint(sa, "[G18] No records yet.");
     }
@@ -180,7 +184,7 @@ public class G18
         if (ChatOutput)
             DebugPrint(sa, msg);
 
-        sa.Method.TextInfo(msg, 5500, false);
+        sa.Method.TextInfo(msg, 3000, false);
     }
 
     private void DebugPrint(ScriptAccessory sa, string msg)
