@@ -21,7 +21,7 @@ namespace Codaaaaaa.M11S;
     guid: "6f3d1b82-9d44-4c5a-8277-3a8f5c0f2b1e",
     name: "M11S补充画图",
     territorys: [1325],
-    version: "0.0.1.2",
+    version: "0.0.1.3",
     author: "Codaaaaaa",
     note: "设置里面改打法，但目前支持的不是很多有很大概率被电。\n- 该脚本只对RyougiMio佬的画图更新前做指路补充，需要配合使用。\n- 谢谢灵视佬和7dsa1wd1s佬提供的arr")]
 public class M11S
@@ -54,7 +54,7 @@ public class M11S
     public enum 王者陨石击飞打法
     {
         同平台,
-        闲人斜飞_未经过充分测试
+        闲人斜飞
     }
     public enum 陨石狂奔打法
     {
@@ -205,7 +205,6 @@ public class M11S
     private readonly List<uint> _runMeteorFireTargets = new();   // 每轮 2 个火圈 TargetId
     private readonly List<Vector3> _runMeteorPositions = new();  // 每轮 2 个陨石位置
 
-    // 可调：判定“同一个点”的误差
     private const float RunMeteorPosEps = 0.35f;
 
     [ScriptMethod(name: "Set Phase 1", eventType: EventTypeEnum.Chat, eventCondition: ["Type:Echo", "Message:KASP1"], userControl: false)]
@@ -223,7 +222,7 @@ public class M11S
     private const int TotalCasts = 8;   // 8 次炮线
     private const int PairCount  = 4;   // 两两一组 -> 4 个交点（标 1..4）
 
-    // 4x4 网格映射（按场地实际调整）
+    // 4x4 网格映射
     private const float GridMinXZ = 80f;   // NW 角最小 X/Z
     private const float CellSize  = 10f;   // 每格 10
 
@@ -232,13 +231,12 @@ public class M11S
     private const float DuplicatePosTolerance = 0.2f;
     private const float DuplicateRotTolerance = 0.05f;
 
-    // 你给的四个“角点跑位”
     private static readonly Vector3 PtSW = new(98.52f, 0f, 100.68f); // 左下
     private static readonly Vector3 PtNW = new(98.54f, 0f,  99.25f); // 左上
     private static readonly Vector3 PtNE = new(101.55f, 0f,  99.35f); // 右上
     private static readonly Vector3 PtSE = new(101.28f, 0f, 100.61f); // 右下
 
-    // 半透明黄色（dp.Color 是 Vector4 的话可直接用；否则你改成你项目的颜色结构）
+    // 半透明黄色
     private static readonly Vector4 Yellow50 = new(1f, 1f, 0f, 0.5f);
 
     // ==================== [Star Track] State ====================
@@ -492,7 +490,6 @@ public class M11S
                             for (int cc = 0; cc < 4; cc++)
                                 gridCopyEarly[rr, cc] = _stGrid[rr, cc];
 
-                        // 出锁后画（更安全）；这里先记录一个要画的副本
                         sa.Method.SendChat("/e 记录两个 指路");
                         Task.Run(() => ResolveStarTrackGuide(sa, gridCopyEarly, normal, 3000));
                     }
@@ -892,7 +889,7 @@ public class M11S
             7 => new Vector3(116.16f, 0.00f, 96.73f),
             _ => default
         };
-
+        
         DrawWaypointToMe(sa, wPos, 6000, "六连风圈指路");
     }
     
@@ -907,11 +904,9 @@ public class M11S
         dp.Rotation = 0f;
         dp.DestoryAt = 20000;
 
-        // 5m 圈（如果你发现大小不对，把 5f 改成 10f/2.5f 之类试一下）
         dp.Scale = new Vector2(4f);
         dp.ScaleMode = ScaleMode.None;
 
-        // 用用户设置颜色（带透明度）
         dp.Color = 六连风圈高亮颜色.V4;
 
         sa.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Circle, dp);
@@ -1052,7 +1047,6 @@ public class M11S
 
         var center = new Vector3(100f, 0f, 100f);
 
-        // “面向”取 source -> center
         var forward = center - new Vector3(sourcePos.X, 0f, sourcePos.Z);
         var len = forward.Length();
         if (len < 0.001f)
@@ -1080,7 +1074,7 @@ public class M11S
     {
         if (_phase != 2) return;
 
-        // 46170 = 四向火, 47037 = 二向火（按你注释的假设）
+        // 46170 = 四向火, 47037 = 二向火
         var actionId = evt.ActionId();
         bool isFour = actionId == 46170;
         bool isTwo  = !isFour;
@@ -1111,7 +1105,7 @@ public class M11S
             bool isTen   = (陨石狂奔打法选择 == 陨石狂奔打法.十引导);
             bool isX     = (陨石狂奔打法选择 == 陨石狂奔打法.X引导);
 
-            // 22X 的二向火：还要给 myIdx 0/1 指路（按你的注释）
+            // 22X 的二向火
             bool iAm01ForXTwo = isTwo && isX && (myIdx == 0 || myIdx == 1);
 
             // 只有相关人画：两火圈 + idx4/5 + (22X 二向火的 idx0/1)
@@ -1124,7 +1118,7 @@ public class M11S
             DrawWaypointToMe(sa, center, gatherMs, isFour ? "四向火_集合" : "二向火_集合");
             await Task.Delay(gatherMs);
 
-            // 计算两名火圈点名的高/低优先（沿用你前面 AC 火圈同一套）
+            // 计算两名火圈点名的高/低优先
             int[] prio = { 2, 6, 7, 3 }; // H1 D3 D4 H2 -> partyIdx: 2 6 7 3
             int PartyIdxOf(uint id) => sa.Data.PartyList.IndexOf(id);
 
@@ -1211,7 +1205,7 @@ public class M11S
             int remainMs = dur > 0 ? Math.Max(2000, dur - gatherMs) : 6500;
             DrawWaypointToMe(sa, go, remainMs, isFour ? "四向火_最终点" : "二向火_最终点");
 
-            // 用完再清，避免后面机制读不到（按你“每次都会清空”）
+            // 用完再清
             lock (_runMeteorLock)
             {
                 _runMeteorFireTargets.Clear();
@@ -1243,8 +1237,6 @@ public class M11S
     )]
     public async void 王者陨石掀地板指路(Event evt, ScriptAccessory sa)
     {
-        // 可选：如果你只想 P1 生效
-        // if (_phase != 1) return;
 
         var (seq, token) = GetMeteorToken();
 
@@ -1305,7 +1297,7 @@ public class M11S
             46161u => new Vector3(83.98f, 0.00f, 82.67f),
             // 46157 面左（安全区3）
             46157u => new Vector3(115.73f, 0.00f, 117.35f),
-            // 46155 面左（安全区2）(你标注未验证)
+            // 46155 面左（安全区2)
             46155u => new Vector3(116.10f, 0.00f, 82.45f),
             _ => Vector3.Zero
         };
@@ -1348,7 +1340,6 @@ public class M11S
         int idx;
         if (王者陨石是否有拉线Buff)
         {
-            // 默认仍然以 0 为主，但按你描述在特定条件下改为 1
             idx = 0;
 
             var meteorPos = 王者陨石陨石Pos;
@@ -1359,7 +1350,6 @@ public class M11S
                 bool cornerRight = IsRightCorner(王者陨石下一次Corner);
                 bool cornerLeft  = IsLeftCorner(王者陨石下一次Corner);
 
-                // 你给的规则：
                 // - 陨石.X < 100：如果 corner 在右边 => idx=1，否则 idx=0
                 // - 陨石.X > 100：如果 corner 在左边 => idx=1，否则 idx=0
                 if (meteorPos.X < 100f)
@@ -1375,7 +1365,7 @@ public class M11S
         }
         else
         {
-            // 没拉线 buff：保持你原逻辑
+            // 没拉线 buff：保持原逻辑
             idx = (王者陨石踩塔击飞打法选择 == 王者陨石击飞打法.同平台 ? 1 : 2);
         }
 
@@ -1394,7 +1384,7 @@ public class M11S
         if (!IsMeteorSeqValid(seq)) return;
         sa.Method.SendChat("/e 引导到待定位置");
 
-        // 3) 待定位置（你的原代码不动）
+        // 3) 待定
         var wPos2 = 王者陨石下一次Corner switch
         {
             Corner.左上 => 王者陨石是否有拉线Buff ? new Vector3(88.15f, 0f, 100f) : new Vector3(93.08f, 0f, 100.38f),
@@ -1412,7 +1402,7 @@ public class M11S
 
         sa.Method.SendChat("/e 引导火圈");
 
-        // 4) 火圈引导（你的原代码不动）
+        // 4) 火圈引导
         // foreach (var pos in 王者陨石火圈引导美[王者陨石下一次Corner])
         // {
         //     DrawWaypointToMe(sa, pos, 2000, "火圈_Waypoint");
@@ -1441,7 +1431,7 @@ public class M11S
             // sa.Method.SendChat("/e 下一个火圈");
         }
 
-        // 5) 最终位置（你的原代码不动）
+        // 5) 最终位
         sa.Method.SendChat("/e 最终位置_Waypoint");
         var wPos3 = 王者陨石下一次Corner switch
         {
@@ -1466,8 +1456,6 @@ public class M11S
             {
                 var meteorPos = 王者陨石陨石Pos;
 
-            // 上下：按你之前的 Z 判断（你说“上下按之前的计算”）
-            // 注意：你原注释写反了，这里按你原代码：Z>100 -> Upper
             bool isUpper = true;
             bool hasMeteorPos = meteorPos != Vector3.Zero;
             if (hasMeteorPos)
@@ -1475,7 +1463,6 @@ public class M11S
                 isUpper = meteorPos.Z > 100f;
             }
 
-            // 左右：按你新规则
             // 陨石.X < 100 => corner 一定是右
             // 陨石.X > 100 => corner 一定是左
             // X==100 或没抓到位置：保留原 corner 的左右
@@ -1529,7 +1516,7 @@ public class M11S
         // 仅用于“没有拉线 buff”的情况
         if (王者陨石是否有拉线Buff) return;
 
-        // 这里用 sa.Data.MePosition（如果你环境里属性名不同，你改成对应的“自己坐标”即可）
+        // 这里用 sa.Data.MePosition
         var meId = sa.Data.Me;
         // 通过id获得自己的坐标
         var p = sa.Data.Objects.FirstOrDefault(o => o.GameObjectId == meId)?.Position ?? Vector3.Zero;
