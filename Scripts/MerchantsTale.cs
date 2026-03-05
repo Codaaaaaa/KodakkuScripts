@@ -21,9 +21,9 @@ namespace Codaaaaaa.MerchantsTale;
     guid: "a2c7f9d1-4b6e-4f3a-9c18-7d2e6a5b8c41",
     name: "多变迷宫 异闻商客奇谭 指路+画图",
     territorys: [1317],
-    version: "0.0.0.1",
+    version: "0.0.0.2",
     author: "Codaaaaaa",
-    note: "目前只完成了剑术大师，其他boss得等arr\n感谢Tou_uTou佬的arr\n攻略使用的是mmw: https://mmw-ffxiv.feishu.cn/wiki/KvdJwQqfziIab3kPBAAcbCYvn5r")]
+    note: "0.0.0.2\n修复了P2四方凶兆可能会出错的问题，修复了P3四方凶兆3第四轮连线+弱点刀时序问题导致安全点错误的问题，指路已经可以用了，以及其他一些小问题。P4陨石还在查原因，晚点可能会修\n\n目前只完成了剑术大师，其他boss得等arr\n感谢Tou_uTou佬的arr\n攻略使用的是mmw: https://mmw-ffxiv.feishu.cn/wiki/KvdJwQqfziIab3kPBAAcbCYvn5r")]
 public class MerchantsTale
 {
     #region 用户设置
@@ -88,6 +88,7 @@ public class MerchantsTale
     private readonly Dictionary<P3O3Dir, Vector3> _p3O3WavePos = new();
     private long _p3O3LastExecMs = 0;
     private bool _p3O3TaskScheduled = false;
+    private long _p3O3FourthTicks = long.MinValue;
 
     private const float P3O3MatchEps = 0.6f;
     
@@ -113,11 +114,11 @@ public class MerchantsTale
     private static readonly Vector3 P4Gather = new(170.00f, -16.00f, -815.00f);
 
     // 分组指路点
-    private static readonly Vector3 P4_A_02 = new(181.86f, -16.00f, -826.78f);
-    private static readonly Vector3 P4_A_13 = new(158.06f, -16.00f, -803.05f);
+    private static readonly Vector3 P4_A_02 = new(183.18f, -16.00f, -828.14f);
+    private static readonly Vector3 P4_A_13 = new(156.93f, -16.00f, -801.79f);
 
-    private static readonly Vector3 P4_B_02 = new(158.06f, -16.00f, -826.81f);
-    private static readonly Vector3 P4_B_13 = new(181.97f, -16.00f, -803.11f);
+    private static readonly Vector3 P4_B_02 = new(156.93f, -16.00f, -828.14f);
+    private static readonly Vector3 P4_B_13 = new(183.18f, -16.00f, -801.79f);
     private readonly object _p4O4Lock = new();
     private readonly Dictionary<P3O3Dir, Vector3> _p4O4WavePos = new();
     private bool _p4O4TaskScheduled = false;
@@ -151,7 +152,7 @@ public class MerchantsTale
     public void 初始化(Event evt, ScriptAccessory sa)
     {
         sa.Method.RemoveDraw(".*");
-        sa.Method.SendChat($"/e Current Phase: {_phase}");
+        // sa.Method.SendChat($"/e Current Phase: {_phase}");
         ResetAll();
     }
 
@@ -159,7 +160,7 @@ public class MerchantsTale
     public void 初始化兜底(Event evt, ScriptAccessory sa)
     {
         sa.Method.RemoveDraw(".*");
-        sa.Method.SendChat($"/e Current Phase: {_phase}");
+        // sa.Method.SendChat($"/e Current Phase: {_phase}");
         ResetAll();
     }
 
@@ -255,6 +256,7 @@ public class MerchantsTale
         {
             _p3O3FourthDanger = null;
             _p3O3FourthMs = 0;
+            _p3O3FourthTicks = long.MinValue;
         }
     }
 
@@ -353,6 +355,9 @@ public class MerchantsTale
         {
             _p3O3WavePos.Clear();
             _p3O3TaskScheduled = false;
+            // _p3O3FourthDanger = null;
+            _p3O3FourthMs = 0;
+            // _p3O3FourthTicks = long.MinValue;
         }
     }
     private static float DistXZ2P4(Vector3 a, Vector3 b)
@@ -797,7 +802,7 @@ public class MerchantsTale
                             dp.Color = sa.Data.DefaultDangerColor;
                             dp.DestoryAt = 7000;
 
-                            dp.Scale = new Vector2(8f, 28.29f);
+                            dp.Scale = new Vector2(8f, 35f);
                             dp.ScaleMode = ScaleMode.ByTime;
 
                             sa.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Rect, dp);
@@ -1202,7 +1207,10 @@ public class MerchantsTale
         }
     }
 
-    [ScriptMethod(name: "剑术大师-P3-四方凶兆2-灵击波记录2", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:regex:^(48653)$"], userControl: false)]
+    [ScriptMethod(name: "剑术大师-P3-四方凶兆2-灵击波记录2",
+        eventType: EventTypeEnum.StartCasting,
+        eventCondition: ["ActionId:regex:^(48653)$"],
+        userControl: false)]
     public void 剑术大师_P3_四方凶兆2_灵击波记录2(Event evt, ScriptAccessory sa)
     {
         if (_phase != 3) return;
@@ -1236,7 +1244,8 @@ public class MerchantsTale
             if (edges.Count == 0 || party.Count == 0) return;
 
             var outMap = new Dictionary<uint, uint>();
-            var posOf = new Dictionary<uint, Vector3>();
+            var posOf  = new Dictionary<uint, Vector3>();
+
             foreach (var e in edges)
             {
                 outMap[e.SourceId] = e.TargetId;
@@ -1245,7 +1254,6 @@ public class MerchantsTale
                 if (e.TargetPos != Vector3.Zero && !posOf.ContainsKey(e.TargetId)) posOf[e.TargetId] = e.TargetPos;
             }
 
-            // 反向索引
             var inMap = new Dictionary<uint, List<uint>>();
             foreach (var e in edges)
             {
@@ -1256,51 +1264,15 @@ public class MerchantsTale
 
             var memberToBottom = new Dictionary<uint, P3MemberLink>();
 
-            foreach (var m in party)
-            {
-                // 找是否有边 (orb -> m)
-                var incoming = edges.Where(x => x.TargetId == m).Select(x => x.SourceId).Distinct().ToList();
-                if (incoming.Count == 0) continue;
+            // ---- BEGIN INSERT ----
+            var reservedOrbs = new HashSet<uint>();
+            var usedBottoms  = new HashSet<uint>();
 
-                // 可能会有多条（异常/重复），选一个：优先有位置的
-                uint orb = incoming.FirstOrDefault(id => posOf.ContainsKey(id));
-                if (orb == 0) orb = incoming[0];
-
-                // 追溯到最底部 orb：一直往上找 parent -> current（且 parent 不是队员）
-                uint cur = orb;
-                while (true)
-                {
-                    if (!inMap.TryGetValue(cur, out var parents) || parents.Count == 0) break;
-
-                    uint p = parents.FirstOrDefault(x => !partyPos.ContainsKey(x));
-                    if (p == 0) break;
-
-                    cur = p;
-                }
-
-                Vector3 bpos = posOf.TryGetValue(cur, out var bp) ? bp : (posOf.TryGetValue(orb, out var op) ? op : Vector3.Zero);
-                var key = MatchBottomKey(bpos);
-
-                memberToBottom[m] = new P3MemberLink(m, cur, bpos, key);
-            }
-
-            // 2) 兜底：有些队员不在“orb->member”的 target 里
-            //    就拿“剩余的底部 orb”，按 5m 内最近分配
-            //    先收集所有“看起来像底部”的 orb：它作为 source 出现过，且它的 target 不是队员（或者它没有 parent）
-            var candidateBottoms = new HashSet<uint>();
-            foreach (var e in edges)
-            {
-                // source 不是队员 && sourcePos 有意义
-                if (partyPos.ContainsKey(e.SourceId)) continue;
-                candidateBottoms.Add(e.SourceId);
-            }
-            sa.Method.SendChat($"/e [O2CAND] edges={edges.Count} candBottoms={candidateBottoms.Count} => [{string.Join(",", candidateBottoms.Select(x=>x.ToString("X")))}]");
-
-            // 进一步把 candidate 追溯到真正底部
             uint GetBottom(uint start)
             {
                 uint cur = start;
-                while (true)
+                int guard = 0;
+                while (cur != 0 && guard++ < 16)
                 {
                     if (!inMap.TryGetValue(cur, out var parents) || parents.Count == 0) break;
                     uint p = parents.FirstOrDefault(x => !partyPos.ContainsKey(x));
@@ -1310,54 +1282,80 @@ public class MerchantsTale
                 return cur;
             }
 
-            var bottomToPos = new Dictionary<uint, Vector3>();
-            
-            foreach (var c in candidateBottoms)
+            void MarkChainReserved(uint startOrb)
             {
-                uint b = GetBottom(c);
-                if (!bottomToPos.ContainsKey(b))
+                uint cur = startOrb;
+                int guard = 0;
+                while (cur != 0 && guard++ < 16)
                 {
-                    Vector3 bp = posOf.TryGetValue(b, out var v) ? v : Vector3.Zero;
-                    bottomToPos[b] = bp;
+                    reservedOrbs.Add(cur);
+
+                    if (!inMap.TryGetValue(cur, out var parents) || parents.Count == 0) break;
+                    uint p = parents.FirstOrDefault(x => !partyPos.ContainsKey(x));
+                    if (p == 0) break;
+                    cur = p;
                 }
             }
-            sa.Method.SendChat($"/e [O2BOTTOM] bottomToPos={bottomToPos.Count} => [{string.Join(" | ", bottomToPos.Select(kv=>$"0x{kv.Key:X}({kv.Value.X:0.0},{kv.Value.Z:0.0})"))}]");
 
-            // 对没分到的队员按最近 bottom 分配（5m 以内）
-            float eps2 = P3AssignEps * P3AssignEps;
+            // 1) 正常匹配：orb -> player
+            foreach (var m in party)
+            {
+                var incoming = edges.Where(x => x.TargetId == m).Select(x => x.SourceId).Distinct().ToList();
+                if (incoming.Count == 0) continue;
+
+                uint orb = incoming.FirstOrDefault(id => posOf.ContainsKey(id));
+                if (orb == 0) orb = incoming[0];
+
+                uint bottom = GetBottom(orb);
+                Vector3 bpos = posOf.TryGetValue(bottom, out var bp) ? bp : Vector3.Zero;
+                if (bpos == Vector3.Zero && posOf.TryGetValue(orb, out var op)) bpos = op;
+
+                var key = MatchBottomKey(bpos);
+                memberToBottom[m] = new P3MemberLink(m, bottom, bpos, key);
+
+                MarkChainReserved(orb);
+                MarkChainReserved(bottom);
+                usedBottoms.Add(bottom);
+            }
+
+            // 2) orphan 兜底：只在未占用的 orb 节点里找
+            var orphanOrbs = posOf
+                .Where(kv => !partyPos.ContainsKey(kv.Key))
+                .Where(kv => kv.Value != Vector3.Zero)
+                .Where(kv => !reservedOrbs.Contains(kv.Key))
+                .Select(kv => (id: kv.Key, pos: kv.Value))
+                .ToList();
 
             foreach (var m in party)
             {
                 if (memberToBottom.ContainsKey(m)) continue;
-
                 if (!partyPos.TryGetValue(m, out var mp) || mp == Vector3.Zero) continue;
 
-                uint bestB = 0;
-                float bestD2 = float.MaxValue;
+                var nearest = orphanOrbs
+                    .Select(o => (o.id, o.pos, d2: DistXZ2(mp, o.pos)))
+                    .OrderBy(x => x.d2)
+                    .Take(6)
+                    .ToList();
 
-                foreach (var kv in bottomToPos)
+                foreach (var cand in nearest)
                 {
-                    var bp = kv.Value;
-                    if (bp == Vector3.Zero) continue;
+                    uint bottom = GetBottom(cand.id);
+                    if (bottom != 0 && usedBottoms.Contains(bottom))
+                        continue;
 
-                    float d2 = DistXZ2(mp, bp);
-                    if (d2 < bestD2)
-                    {
-                        bestD2 = d2;
-                        bestB = kv.Key;
-                    }
-                }
-                var bkeys = string.Join(",", bottomToPos.Select(k => $"0x{k.Key:X}({k.Value.X:0.0},{k.Value.Z:0.0})"));
-                sa.Method.SendChat($"/e [O2FB] m=0x{m:X} mPos=({mp.X:0.0},{mp.Z:0.0}) bottoms={bottomToPos.Count} [{bkeys}] best=0x{bestB:X} d={MathF.Sqrt(bestD2):0.00}m (eps={P3AssignEps:0.0})");
-                if (bestB != 0 && bestD2 <= eps2)
-                {
-                    Vector3 bp = bottomToPos[bestB];
-                    var key = MatchBottomKey(bp);
-                    memberToBottom[m] = new P3MemberLink(m, bestB, bp, key);
+                    Vector3 bpos = posOf.TryGetValue(bottom, out var bp) ? bp : cand.pos;
+                    var key = MatchBottomKey(bpos);
+
+                    memberToBottom[m] = new P3MemberLink(m, bottom, bpos, key);
+
+                    MarkChainReserved(cand.id);
+                    MarkChainReserved(bottom);
+                    usedBottoms.Add(bottom);
+                    break;
                 }
             }
+            // ---- END INSERT ----
 
-            // 写回共享
             lock (_p3Lock)
             {
                 if (seqLocal != _p3Seq) return;
@@ -1449,6 +1447,10 @@ public class MerchantsTale
                     {
                         // 兜底：按站位近的分配
                         sa.Method.SendChat("/e 四方凶兆2发生错误");
+                        sa.Method.SendChat($"/e [O2ERR] me=0x{me:X} iAmEW={iAmEW} iAmNS={iAmNS} partner=0x{partner:X} " +
+                            $"myKey={myLink.Key} myBottom=0x{myLink.BottomOrbId:X} myPos=({myLink.BottomPos.X:0.0},{myLink.BottomPos.Z:0.0}) " +
+                            $"ptKey={ptLink.Key} ptBottom=0x{ptLink.BottomOrbId:X} ptPos=({ptLink.BottomPos.X:0.0},{ptLink.BottomPos.Z:0.0}) " +
+                            $"EW=[{string.Join(",", ew.Select(x=>x.ToString("X")))}] NS=[{string.Join(",", ns.Select(x=>x.ToString("X")))}] mapHasMe={map.ContainsKey(me)} mapHasPt={map.ContainsKey(partner)}");
                         var mePos = GetObjPos(sa, me);
                         if (mePos != Vector3.Zero)
                         {
@@ -1496,10 +1498,9 @@ public class MerchantsTale
                                 )
                                 .ToList();
 
-                            // 每条都单独发，最不容易被截断
-                            sa.Method.SendChat($"/e [O2MAP] count={lines.Count}");
-                            foreach (var s in lines)
-                                sa.Method.SendChat($"/e [O2MAP] {s}");
+                            // sa.Method.SendChat($"/e [O2MAP] count={lines.Count}");
+                            // foreach (var s in lines)
+                                // sa.Method.SendChat($"/e [O2MAP] {s}");
                         }
                         catch { }
                         var mePos = GetObjPos(sa, me);
@@ -1627,65 +1628,78 @@ public class MerchantsTale
                 {
                     sa.tts("去边上", TTSMode, TTSOpen);
                     // 1) 把“象限危险”拆成四向危险
-                    // var dangerSet = new HashSet<P3O3Dir>();
-                    // AddQuadrantDanger(dangerSet, se, sw, ne, nw);
+                    var dangerSet = new HashSet<P3O3Dir>();
+                    AddQuadrantDanger(dangerSet, se, sw, ne, nw);
 
-                    // // 2) 叠加第四轮额外危险（North/South）
-                    // if (fourthDanger.HasValue)
-                    //     dangerSet.Add(fourthDanger.Value);
+                    // 2) 叠加第四轮额外危险（North/South）
+                    if (fourthDanger.HasValue)
+                        dangerSet.Add(fourthDanger.Value);
 
                     // sa.Method.SendChat($"/e [P3O3DBG] dangerSet=[{string.Join(",", dangerSet.Select(d => d.ToString()))}] " +
-                    //     $"se={se} sw={sw} ne={ne} nw={nw} fourth={fourthDanger?.ToString() ?? "null"}");
+                    //     $"se={se} sw={sw} ne={ne} nw={nw} fourth={fourthDanger?.ToString() ?? "null"} p303={_p3O3FourthDanger}");
 
-                    // // 3) 找唯一安全方向
-                    // var safeDirs = AllDirs().Where(d => !dangerSet.Contains(d)).ToList();
-                    // if (safeDirs.Count != 1)
-                    // {
-                    //     // 不符合“唯一安全”的预期 -> 兜底：回退到原本的“去安全角”逻辑
-                    // }
-                    // else
-                    // {
-                    //     var safeDir = safeDirs[0];
+                    // 3) 找唯一安全方向
+                    var safeDirs = AllDirs().Where(d => !dangerSet.Contains(d)).ToList();
+                    if (safeDirs.Count != 1)
+                    {
+                        // 不符合“唯一安全”的预期 -> 兜底：回退到原本的“去安全角”逻辑
+                    }
+                    else
+                    {
+                        var safeDir = safeDirs[0];
+                        var anchor = new Vector3(150.00f, -16.00f, -820.00f);
+                        
+                        bool hasAnchorWave = waveCopy.Values.Any(p => DistXZ2(p, anchor) <= (P3O3MatchEps * P3O3MatchEps));
+                        // 如果四个灵击波都不在 anchor 上 -> 安全点互换（东去西，西去东，南去北，北去南）
+                        var finalSafeDir = hasAnchorWave ? safeDir : (safeDir switch
+                        {
+                            P3O3Dir.East  => P3O3Dir.West,
+                            P3O3Dir.West  => P3O3Dir.East,
+                            P3O3Dir.North => P3O3Dir.South,
+                            P3O3Dir.South => P3O3Dir.North,
+                            _ => safeDir
+                        });
 
-                    //     if (!P3O3SafePosByDir.TryGetValue(safeDir, out var safePos))
-                    //     {
-                    //         ClearP3O3();
-                    //         return;
-                    //     }
+                        if (!P3O3SafePosByDir.TryGetValue(finalSafeDir, out var safePos))
+                        {
+                            ClearP3O3();
+                            return;
+                        }
+                        // sa.Method.SendChat($"/e safeDir={safeDir} finalSafeDir={finalSafeDir} hasAnchorWave={hasAnchorWave}");
 
-                    //     // 画固定安全点 rect
-                    //     var dp2 = sa.Data.GetDefaultDrawProperties();
-                    //     dp2.Name = $"P3_凶兆3_第四轮安全Rect_{Environment.TickCount64}";
-                    //     dp2.Owner = 0;
-                    //     dp2.Position = safePos;
-                    //     dp2.Rotation = MathF.PI / 2f;
-                    //     dp2.DestoryAt = 3500;
-                    //     dp2.Color = sa.Data.DefaultSafeColor;
-                    //     dp2.ScaleMode = ScaleMode.None;
-                    //     dp2.Scale = new Vector2(10f, 10f);
+                        // 画固定安全点 rect
+                        var dp2 = sa.Data.GetDefaultDrawProperties();
+                        dp2.Name = $"P3_凶兆3_第四轮安全Rect_{Environment.TickCount64}";
+                        dp2.Owner = 0;
+                        dp2.Position = safePos;
+                        dp2.Rotation = MathF.PI / 2f;
+                        dp2.DestoryAt = 3500;
+                        dp2.Color = sa.Data.DefaultSafeColor;
+                        dp2.ScaleMode = ScaleMode.None;
+                        dp2.Scale = new Vector2(10f, 10f);
 
-                    //     sa.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Rect, dp2);
+                        sa.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Rect, dp2);
 
-                    //     // TTS
-                    //     string ttsText = safeDir switch
-                    //     {
-                    //         P3O3Dir.West  => "去西安全",
-                    //         P3O3Dir.East  => "去东安全",
-                    //         P3O3Dir.North => "去北安全",
-                    //         P3O3Dir.South => "去南安全",
-                    //         _ => "去安全点"
-                    //     };
-                    //     sa.tts(ttsText, TTSMode, TTSOpen);
+                        // TTS
+                        // string ttsText = safeDir switch
+                        // {
+                        //     P3O3Dir.West  => "去西安全",
+                        //     P3O3Dir.East  => "去东安全",
+                        //     P3O3Dir.North => "去北安全",
+                        //     P3O3Dir.South => "去南安全",
+                        //     _ => "去安全点"
+                        // };
+                        // sa.tts(ttsText, TTSMode, TTSOpen);
 
                         // 结束本轮收集
-                    //     lock (_p3O3Lock)
-                    //     {
-                    //         _p3O3LastExecMs = Environment.TickCount64;
-                    //         _p3O3TaskScheduled = false;
-                    //         _p3O3WavePos.Clear();
-                    //     }
-                    //     return;
-                    // }
+                        lock (_p3O3Lock)
+                        {
+                            _p3O3LastExecMs = Environment.TickCount64;
+                            _p3O3TaskScheduled = false;
+                            _p3O3WavePos.Clear();
+                        }
+                        return;
+                    }
                     return;
                 }
 
@@ -1785,8 +1799,6 @@ public class MerchantsTale
         sa.Method.RemoveDraw($"^P3_凶兆3_安全Rect_.*$");
         ClearP3O3();
     }
-
-    private static long HiTs() => System.Diagnostics.Stopwatch.GetTimestamp();
     
     [ScriptMethod(
         name: "剑术大师-P3-四方凶兆3-第四轮",
@@ -1794,8 +1806,7 @@ public class MerchantsTale
         eventCondition: ["Id:regex:^(0165|0166|0167|0168)$"])]
     public void 剑术大师_P3_四方凶兆3_第四轮(Event evt, ScriptAccessory sa)
     {
-        long ts = HiTs();
-        sa.Method.SendChat($"/e [O3-4] ts={ts} id={evt["Id"]} src=0x{evt.SourceId():X} tgt=0x{evt.TargetId():X}");
+        // sa.Method.SendChat($"/e [O3-4] id={evt["Id"]} src=0x{evt.SourceId():X} tgt=0x{evt.TargetId():X} ticks={evt.DateTime.Ticks} ms={evt.DateTime.Millisecond}");
         if (_phase != 4) return;
 
         uint me = sa.Data.Me;
@@ -1819,8 +1830,16 @@ public class MerchantsTale
 
         lock (_p3O3Lock)
         {
-            _p3O3FourthDanger = danger;
-            _p3O3FourthMs = Environment.TickCount64;
+            long t = evt.DateTime.Ticks;
+
+            // 只接受更晚的那条
+            if (t >= _p3O3FourthTicks)
+            {
+                _p3O3FourthTicks = t;
+                _p3O3FourthDanger = danger;
+                // sa.Method.SendChat($"/e [O3-4] ticks={t} 已更新危险区danger={_p3O3FourthDanger}");
+                _p3O3FourthMs = Environment.TickCount64;
+            }
         }
     }
 
@@ -1839,7 +1858,7 @@ public class MerchantsTale
         if (tid == 0 || tid != me) return; // 只对自己被点名时提示
 
         sa.tts("疾跑 中间集合", TTSMode, TTSOpen);
-        DrawWaypointToMe(sa, P4Gather, 5000, $"P4_落石_集合_{Environment.TickCount64}");
+        DrawWaypointToMe(sa, P4Gather, 3500, $"P4_落石_集合_{Environment.TickCount64}");
     }
 
     [ScriptMethod(
@@ -1857,19 +1876,27 @@ public class MerchantsTale
         uint tid = evt.TargetId();
         if (sid == 0 || tid == 0) return;
 
-        bool relateMe = (sid == me) || (tid == me);
-        if (!relateMe) return;
+        // 只处理与自己有关的 tether
+        if (sid != me && tid != me) return;
+
+        // 找到对方
+        uint other = (sid == me) ? tid : sid;
 
         sa.tts("拉线", TTSMode, TTSOpen);
+
         _phase = 5;
         ResetP4O4();
-        var myIdx = sa.MyIndex();
-        if (myIdx < 0) return;
+
+        int myIdx = sa.MyIndex();
+        int otherIdx = sa.Data.PartyList.IndexOf(other);
+
+        if (myIdx < 0 || otherIdx < 0) return;
 
         _ = Task.Run(async () =>
         {
             await Task.Delay(200);
 
+            // 读取两颗陨石落点，判断 A/B
             List<Vector3> rocks;
             lock (_p4RockLock)
                 rocks = _p4RockPositions.ToList();
@@ -1884,28 +1911,18 @@ public class MerchantsTale
                 }
             }
 
-            Vector3 go = Vector3.Zero;
+            Vector3 p02 = nearRef ? P4_A_02 : P4_B_02;
+            Vector3 p13 = nearRef ? P4_A_13 : P4_B_13;
 
-            int idx4 = myIdx; 
-            if (idx4 > 3) idx4 %= 4;
+            bool otherHigher = otherIdx > myIdx;
+            Vector3 go = otherHigher ? p02 : p13;
 
-            bool is02 = (idx4 == 0 || idx4 == 2);
-            bool is13 = (idx4 == 1 || idx4 == 3);
-
-            if (nearRef)
-            {
-                if (is02) go = P4_A_02;
-                else if (is13) go = P4_A_13;
-            }
-            else
-            {
-                if (is02) go = P4_B_02;
-                else if (is13) go = P4_B_13;
-            }
-
-            if (go == Vector3.Zero) return;
-
-            DrawWaypointToMe(sa, go, 5500, $"P4_落石_拉线指路_{(nearRef ? "A" : "B")}_{Environment.TickCount64}");
+            DrawWaypointToMe(
+                sa,
+                go,
+                5500,
+                $"P4_落石_拉线指路_{(nearRef ? "A" : "B")}_{(otherHigher ? "ME13" : "ME02")}_{Environment.TickCount64}"
+            );
         });
     }
 
@@ -1934,8 +1951,7 @@ public class MerchantsTale
     [ScriptMethod(
         name: "剑术大师-P4-四方凶兆4-灵击波(找落石挡箭头)",
         eventType: EventTypeEnum.StartCasting,
-        eventCondition: ["ActionId:47763"],
-        userControl: false)]
+        eventCondition: ["ActionId:47763"])]
     public void 剑术大师_P4_四方凶兆4_灵击波(Event evt, ScriptAccessory sa)
     {
         if (_phase != 5) return;

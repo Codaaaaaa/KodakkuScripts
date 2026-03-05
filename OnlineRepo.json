@@ -38,10 +38,10 @@
   {
     "Name": "多变迷宫 异闻商客奇谭 指路+画图",
     "Guid": "a2c7f9d1-4b6e-4f3a-9c18-7d2e6a5b8c41",
-    "Version": "0.0.0.1",
+    "Version": "0.0.0.2",
     "Author": "Codaaaaaa",
     "TerritoryIds": [1317],
     "DownloadUrl": "https://raw.githubusercontent.com/Codaaaaaa/KodakkuScripts/main/Scripts/MerchantsTale.cs",
-    "UpdateInfo": "0.0.0.1目前只完成了剑术大师的基本所有机制的指路画图tts，其他boss得等arr\n感谢Tou_uTou佬的arr"
+    "UpdateInfo": "0.0.0.2\n修复了P2四方凶兆可能会出错的问题，P3四方凶兆3第四轮连线+弱点刀时序问题导致安全点错误的问题，P4落石运动会拉线指路错误，以及其他一些小问题\n\n0.0.0.1目前只完成了剑术大师的基本所有机制的指路画图tts，其他boss得等arr\n感谢Tou_uTou佬的arr"
   }
 ]
