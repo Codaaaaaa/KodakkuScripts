@@ -23,7 +23,7 @@ namespace Codaaaaaa.MerchantsTale;
     territorys: [1317],
     version: "0.0.0.2",
     author: "Codaaaaaa",
-    note: "0.0.0.2\n修复了P2四方凶兆可能会出错的问题，修复了P3四方凶兆3第四轮连线+弱点刀时序问题导致安全点错误的问题，指路已经可以用了，以及其他一些小问题。P4陨石还在查原因，晚点可能会修\n\n目前只完成了剑术大师，其他boss得等arr\n感谢Tou_uTou佬的arr\n攻略使用的是mmw: https://mmw-ffxiv.feishu.cn/wiki/KvdJwQqfziIab3kPBAAcbCYvn5r")]
+    note: "目前只完成了剑术大师，其他boss得等arr\n感谢Tou_uTou佬的arr\n攻略使用的是mmw: https://mmw-ffxiv.feishu.cn/wiki/KvdJwQqfziIab3kPBAAcbCYvn5r")]
 public class MerchantsTale
 {
     #region 用户设置
