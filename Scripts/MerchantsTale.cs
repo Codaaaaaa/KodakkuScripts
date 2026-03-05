@@ -23,7 +23,7 @@ namespace Codaaaaaa.MerchantsTale;
     territorys: [1317],
     version: "0.0.0.1",
     author: "Codaaaaaa",
-    note: "攻略使用的是mmw: https://mmw-ffxiv.feishu.cn/wiki/KvdJwQqfziIab3kPBAAcbCYvn5r")]
+    note: "目前只完成了剑术大师，其他boss得等arr\n感谢Tou_uTou佬的arr\n攻略使用的是mmw: https://mmw-ffxiv.feishu.cn/wiki/KvdJwQqfziIab3kPBAAcbCYvn5r")]
 public class MerchantsTale
 {
     #region 用户设置
@@ -50,7 +50,6 @@ public class MerchantsTale
     private uint _tjMj1Target = 0;   // 014C
     private uint _tjMj2Target = 0;   // 014D
 
-    // ====== 天界交叉斩：坐标配置（按你注释里的点） ======
     private static readonly Vector3 TJ_ArrowPos = new(170.04f, -16.00f, -822.50f);
 
     // 单：没点名
@@ -69,6 +68,9 @@ public class MerchantsTale
     {
         [4785u] = new List<uint>(),
         [4786u] = new List<uint>(),
+        [4779u] = new List<uint>(),
+        [4783u] = new List<uint>()
+
     };
 
     // 灵击波点名的两个人（满足过滤条件后才记录）
@@ -79,6 +81,50 @@ public class MerchantsTale
 
     // 2m 绿色圈
     private static readonly Vector4 XZGreen = new(0f, 1f, 0f, 0.55f);
+    private readonly object _p3O3Lock = new();
+    private P3O3Dir? _p3O3FourthDanger = null;
+    private long _p3O3FourthMs = 0;
+
+    private readonly Dictionary<P3O3Dir, Vector3> _p3O3WavePos = new();
+    private long _p3O3LastExecMs = 0;
+    private bool _p3O3TaskScheduled = false;
+
+    private const float P3O3MatchEps = 0.6f;
+    
+    private bool _四方凶兆3收尾 = false;
+
+    // 四向分类
+    private enum P3O3Dir { West, East, South, North }
+    private enum P3O3Quadrant { Unknown, NW, NE, SW, SE }
+
+    private static bool Near(float v, float target, float eps) => MathF.Abs(v - target) <= eps;
+
+    private readonly object _p4RockLock = new();
+
+    // 记录两颗陨石（DataId=19229）的落点（XZ）
+    private readonly List<Vector3> _p4RockPositions = new();
+
+    // 去重容差
+    private const float P4RockEps = 0.6f;
+
+    private static readonly Vector3 P4RockRef = new(175.50f, -16.00f, -809.50f);
+
+    // 集合点
+    private static readonly Vector3 P4Gather = new(170.00f, -16.00f, -815.00f);
+
+    // 分组指路点
+    private static readonly Vector3 P4_A_02 = new(181.86f, -16.00f, -826.78f);
+    private static readonly Vector3 P4_A_13 = new(158.06f, -16.00f, -803.05f);
+
+    private static readonly Vector3 P4_B_02 = new(158.06f, -16.00f, -826.81f);
+    private static readonly Vector3 P4_B_13 = new(181.97f, -16.00f, -803.11f);
+    private readonly object _p4O4Lock = new();
+    private readonly Dictionary<P3O3Dir, Vector3> _p4O4WavePos = new();
+    private bool _p4O4TaskScheduled = false;
+    private long _p4O4LastMs = 0;
+
+    private const int P4O4DupWindowMs = 250;
+    private const float P4O4MatchEps = 0.8f;
 
     #endregion
 
@@ -91,8 +137,31 @@ public class MerchantsTale
     [ScriptMethod(name: "Set Phase 2", eventType: EventTypeEnum.Chat, eventCondition: ["Type:Echo", "Message:KASP2"], userControl: false)]
     public void SetP2(Event evt, ScriptAccessory sa) => _phase = 2;
 
+    [ScriptMethod(name: "Set Phase 3", eventType: EventTypeEnum.Chat, eventCondition: ["Type:Echo", "Message:KASP3"], userControl: false)]
+    public void SetP3(Event evt, ScriptAccessory sa) => _phase = 3;
+    [ScriptMethod(name: "Set Phase 4", eventType: EventTypeEnum.Chat, eventCondition: ["Type:Echo", "Message:KASP4"], userControl: false)]
+    public void SetP4(Event evt, ScriptAccessory sa) => _phase = 4;
+    [ScriptMethod(name: "Set Phase 5", eventType: EventTypeEnum.Chat, eventCondition: ["Type:Echo", "Message:KASP5"], userControl: false)]
+    public void SetP5(Event evt, ScriptAccessory sa) => _phase = 5;
+
     [ScriptMethod(name: "Show Phase", eventType: EventTypeEnum.Chat, eventCondition: ["Type:Echo", "Message:phase"], userControl: false)]
     public void ShowPhase(Event evt, ScriptAccessory sa) => sa.Method.SendChat($"/e Current Phase: {_phase}");
+
+    [ScriptMethod(name: "初始化", eventType: EventTypeEnum.Chat, eventCondition: ["Type:NPCDialogueAnnouncements", "Message:regex:.*放马过来吧.*"], userControl: false)]
+    public void 初始化(Event evt, ScriptAccessory sa)
+    {
+        sa.Method.RemoveDraw(".*");
+        sa.Method.SendChat($"/e Current Phase: {_phase}");
+        ResetAll();
+    }
+
+    [ScriptMethod(name: "初始化兜底", eventType: EventTypeEnum.Chat, eventCondition: ["Type:SystemMessage", "Message:战斗开始！"], userControl: false)]
+    public void 初始化兜底(Event evt, ScriptAccessory sa)
+    {
+        sa.Method.RemoveDraw(".*");
+        sa.Method.SendChat($"/e Current Phase: {_phase}");
+        ResetAll();
+    }
 
     public void Init(ScriptAccessory sa)
     {
@@ -114,9 +183,13 @@ public class MerchantsTale
         {
             _xzStatusGroups[4785u].Clear();
             _xzStatusGroups[4786u].Clear();
+            _xzStatusGroups[4779u].Clear();
+            _xzStatusGroups[4783u].Clear();
             _xzLingjiTargets.Clear();
         }
         ResetP3();
+        ResetP4Rock();
+        ResetP4O4();
     }
     private readonly object _p3Lock = new();
 
@@ -127,21 +200,21 @@ public class MerchantsTale
     // 记录灵击波 tether 边（source -> target）
     private readonly List<P3TetherEdge> _p3Tethers = new();
 
-    private bool _p3Resolved = false;           // 48653 只跑一次
-    private bool _p3GuideIssued = false;        // 46725 只跑一次
-    private int _p3Seq = 0;                     // 防串轮
+    private bool _p3Resolved = false;
+    private bool _p3GuideIssued = false;
+    private int _p3Seq = 0;
     private long _p3LastMs = 0;
 
     private readonly Dictionary<uint, P3MemberLink> _p3MemberToBottom = new(); // memberId -> bottom info
 
-    // 固定四点（你给的）
+    // 固定四点
     private static readonly Vector3 P3_Right = new(190.00f, -16.00f, -810.00f);
     private static readonly Vector3 P3_Left  = new(150.00f, -16.00f, -820.00f);
     private static readonly Vector3 P3_Down  = new(165.00f, -16.00f, -795.00f);
     private static readonly Vector3 P3_Up    = new(175.00f, -16.00f, -835.00f);
 
-    private const float P3PointEps = 6.0f;   // 四点匹配容差（按迷宫那种点位，给大一点更稳）
-    private const float P3AssignEps = 5.0f;  // “找不到直接连到队员”的兜底：按 5m 内最近
+    private const float P3PointEps = 6.0f; 
+    private const float P3AssignEps = 5.0f;
 
     private enum P3BottomKey { Unknown, Right, Left, Down, Up }
 
@@ -176,6 +249,13 @@ public class MerchantsTale
             _p3Resolved = false;
             _p3GuideIssued = false;
         }
+
+        _四方凶兆3收尾 = false;
+        lock (_p3O3Lock)
+        {
+            _p3O3FourthDanger = null;
+            _p3O3FourthMs = 0;
+        }
     }
 
     private static float DistXZ2(Vector3 a, Vector3 b)
@@ -204,6 +284,150 @@ public class MerchantsTale
 
     private static uint FindAnother(List<uint> list, uint me)
         => list.FirstOrDefault(x => x != 0 && x != me);
+    private static bool TryClassifyWaveDir(Vector3 p, out P3O3Dir dir)
+    {
+        // X 150左右=西，190左右=东；Z -795左右=南，-835左右=北
+        if (Near(p.X, 150f, P3O3MatchEps)) { dir = P3O3Dir.West; return true; }
+        if (Near(p.X, 190f, P3O3MatchEps)) { dir = P3O3Dir.East; return true; }
+        if (Near(p.Z, -795f, P3O3MatchEps)) { dir = P3O3Dir.South; return true; }
+        if (Near(p.Z, -835f, P3O3MatchEps)) { dir = P3O3Dir.North; return true; }
+
+        dir = default;
+        return false;
+    }
+
+    private static P3O3Quadrant Opposite(P3O3Quadrant q) => q switch
+    {
+        P3O3Quadrant.NW => P3O3Quadrant.SE,
+        P3O3Quadrant.NE => P3O3Quadrant.SW,
+        P3O3Quadrant.SW => P3O3Quadrant.NE,
+        P3O3Quadrant.SE => P3O3Quadrant.NW,
+        _ => P3O3Quadrant.Unknown
+    };
+
+    private static (P3O3Dir ew, P3O3Dir ns) SafeDirsBySafeQuadrant(P3O3Quadrant safe) => safe switch
+    {
+        // 安全象限：NW = West+North
+        P3O3Quadrant.NW => (P3O3Dir.West, P3O3Dir.North),
+        // NE = East+North
+        P3O3Quadrant.NE => (P3O3Dir.East, P3O3Dir.North),
+        // SW = West+South
+        P3O3Quadrant.SW => (P3O3Dir.West, P3O3Dir.South),
+        // SE = East+South
+        P3O3Quadrant.SE => (P3O3Dir.East, P3O3Dir.South),
+        _ => (P3O3Dir.West, P3O3Dir.North)
+    };
+
+    private static Vector3 ComposeCenter(Vector3 ewPos, Vector3 nsPos)
+    {
+        return new Vector3(nsPos.X, -16f, ewPos.Z);
+    }
+
+    private static readonly Dictionary<P3O3Dir, Vector3> P3O3SafePosByDir = new()
+    {
+        [P3O3Dir.East]  = new Vector3(150.00f, -16.00f, -810.00f),
+        [P3O3Dir.West]  = new Vector3(179.85f, -16.00f, -820.14f),
+        [P3O3Dir.South] = new Vector3(160.02f, -16.00f, -830.39f),
+        [P3O3Dir.North] = new Vector3(170.01f, -16.00f, -799.37f),
+    };
+
+    private static IEnumerable<P3O3Dir> AllDirs()
+    {
+        yield return P3O3Dir.West;
+        yield return P3O3Dir.East;
+        yield return P3O3Dir.North;
+        yield return P3O3Dir.South;
+    }
+
+    // 象限危险 -> 危险方向集合
+    private static void AddQuadrantDanger(HashSet<P3O3Dir> danger, bool se, bool sw, bool ne, bool nw)
+    {
+        if (se) { danger.Add(P3O3Dir.East);  danger.Add(P3O3Dir.South); }
+        if (sw) { danger.Add(P3O3Dir.West);  danger.Add(P3O3Dir.South); }
+        if (ne) { danger.Add(P3O3Dir.East);  danger.Add(P3O3Dir.North); }
+        if (nw) { danger.Add(P3O3Dir.West);  danger.Add(P3O3Dir.North); }
+    }
+    private void ClearP3O3()
+    {
+        lock (_p3O3Lock)
+        {
+            _p3O3WavePos.Clear();
+            _p3O3TaskScheduled = false;
+        }
+    }
+    private static float DistXZ2P4(Vector3 a, Vector3 b)
+    {
+        float dx = a.X - b.X;
+        float dz = a.Z - b.Z;
+        return dx * dx + dz * dz;
+    }
+
+    private static bool NearXZ(Vector3 a, Vector3 b, float eps)
+        => DistXZ2P4(a, b) <= eps * eps;
+
+    private void ResetP4Rock()
+    {
+        lock (_p4RockLock)
+            _p4RockPositions.Clear();
+    }
+    private void ResetP4O4()
+    {
+        lock (_p4O4Lock)
+        {
+            _p4O4WavePos.Clear();
+            _p4O4TaskScheduled = false;
+            _p4O4LastMs = 0;
+        }
+    }
+    private static bool TryClassifyP4O4Dir(Vector3 p, out P3O3Dir dir)
+    {
+        // if (Near(p.X, 150f, P4O4MatchEps)) { dir = P3O3Dir.East; return true; }
+        // if (Near(p.X, 190f, P4O4MatchEps)) { dir = P3O3Dir.West; return true; }
+        // if (Near(p.Z, -835f, P4O4MatchEps)) { dir = P3O3Dir.North; return true; }
+        // if (Near(p.Z, -795f, P4O4MatchEps)) { dir = P3O3Dir.South; return true; }
+        if (Near(p.X, 150f, P4O4MatchEps)) { dir = P3O3Dir.West; return true; }
+        if (Near(p.X, 190f, P4O4MatchEps)) { dir = P3O3Dir.East; return true; }
+        if (Near(p.Z, -835f, P4O4MatchEps)) { dir = P3O3Dir.North; return true; }
+        if (Near(p.Z, -795f, P4O4MatchEps)) { dir = P3O3Dir.South; return true; }
+
+        dir = default;
+        return false;
+    }
+
+    // 4786: 东安全 / 4779: 北安全 / 4785: 西安全 / 4783: 南安全
+    private static bool TryGetP4O4SafeDir(List<uint> myStatuses, out P3O3Dir safe)
+    {
+        if (myStatuses.Contains(4786u)) { safe = P3O3Dir.East; return true; }
+        if (myStatuses.Contains(4779u)) { safe = P3O3Dir.North; return true; }
+        if (myStatuses.Contains(4785u)) { safe = P3O3Dir.West; return true; }
+        if (myStatuses.Contains(4783u)) { safe = P3O3Dir.South; return true; }
+
+        safe = default;
+        return false;
+    }
+
+    private static float Abs(float x) => x < 0 ? -x : x;
+
+    // 在两颗落石里选“指定轴更接近 innerCoord”的那一颗
+    private static Vector3 PickRockByAxis(List<Vector3> rocks, bool compareZ, float innerCoord)
+    {
+        if (rocks.Count == 0) return Vector3.Zero;
+
+        Vector3 best = Vector3.Zero;
+        float bestD = float.MaxValue;
+
+        foreach (var r in rocks)
+        {
+            float v = compareZ ? r.Z : r.X;
+            float d = Abs(v - innerCoord);
+            if (d < bestD)
+            {
+                bestD = d;
+                best = r;
+            }
+        }
+        return best;
+    }
 
     #region 通用
     [ScriptMethod(name: "aoe播报", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:regex:^(45870|46686)$"])]
@@ -217,7 +441,6 @@ public class MerchantsTale
         var obj = sa.Data.Objects.FirstOrDefault(o => o.GameObjectId == objectId);
         if (obj == null) return 0;
 
-        // 如果你这边不是 DataId 字段，把这里改成对应字段
         return obj.DataId;
     }
     private void DrawWaypointToMe(ScriptAccessory sa, Vector3 wpos, int durMs, string name)
@@ -333,7 +556,7 @@ public class MerchantsTale
             {
                 target = isCircle ? TJ_Pos_B : TJ_Pos_A;
                 label = "天界交叉斩_麻将2";
-                sa.tts(isCircle ? "麻将二 去C" : "麻将二 去中间", TTSMode, TTSOpen);
+                sa.tts(isCircle ? "麻将二 去中间" : "麻将二 去C", TTSMode, TTSOpen);
             }
             else
             {
@@ -381,14 +604,16 @@ public class MerchantsTale
         }
     }
 
-    [ScriptMethod(name: "剑术大师-P1-四方凶兆1-凶兆记录", eventType: EventTypeEnum.StatusAdd, eventCondition: ["StatusID:regex:^(4785|4786)$"], userControl: false)]
+    [ScriptMethod(name: "剑术大师-P1-四方凶兆1-凶兆记录", eventType: EventTypeEnum.StatusAdd, eventCondition: ["StatusID:regex:^(4785|4786|4783|4779)$"], userControl: false)]
     public void 剑术大师_P1_四方凶兆1_凶兆记录(Event evt, ScriptAccessory sa)
     {
+        // 4783 东西北
+        // 4779 东西南
         uint tid = evt.TargetId();
         if (tid == 0) return;
 
         var sid = evt.StatusId;
-        sa.Method.SendChat($"/e StatusId{sid}");
+        // sa.Method.SendChat($"/e StatusId{sid}");
 
         lock (_xzLock)
         {
@@ -417,57 +642,65 @@ public class MerchantsTale
             if (_xzLingjiTargets.Contains(tid)) return;
 
             _xzLingjiTargets.Add(tid);
-            sa.Method.SendChat($"/e [四方凶兆1] 灵击波点名 {_xzLingjiTargets.Count}/2 => tid=0x{tid:X} dataId={dataId}");
+            // sa.Method.SendChat($"/e [四方凶兆1] 灵击波点名 {_xzLingjiTargets.Count}/2 => tid=0x{tid:X} dataId={dataId}");
         }
     }
 
     [ScriptMethod(name: "剑术大师-P1-四方凶兆1-接线", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:regex:^(46698)$"])]
     public async void 剑术大师_P1_四方凶兆1_接线(Event evt, ScriptAccessory sa)
     {
-        await Task.Delay(1000);
-        uint myId = sa.Data.Me;
-        sa.Method.SendChat($"/e myId{myId}");
-        sa.Method.SendChat($"/e _xzLingjiTargets{_xzLingjiTargets}");
-
-        uint partnerId = 0;
-        bool iAmLingji = false;
-
-        lock (_xzLock)
+        if (_phase == 1)
         {
-            iAmLingji = _xzLingjiTargets.Contains(myId);
-            sa.Method.SendChat($"/e iAmLingji{iAmLingji}");
-            if (iAmLingji) return; // 自己被灵击波点了，不接线，不画
+            await Task.Delay(1000);
+            uint myId = sa.Data.Me;
+            // sa.Method.SendChat($"/e myId{myId}");
+            // sa.Method.SendChat($"/e _xzLingjiTargets{_xzLingjiTargets}");
 
-            // 找自己属于哪个凶兆组，然后找同组另一个人
-            foreach (var kv in _xzStatusGroups)
+            uint partnerId = 0;
+            bool iAmLingji = false;
+
+            lock (_xzLock)
             {
-                var list = kv.Value;
-                if (!list.Contains(myId)) continue;
+                iAmLingji = _xzLingjiTargets.Contains(myId);
+                // sa.Method.SendChat($"/e iAmLingji{iAmLingji}");
+                if (iAmLingji) return; // 自己被灵击波点了，不接线，不画
 
-                partnerId = list.FirstOrDefault(x => x != myId);
-                break;
+                // 找自己属于哪个凶兆组，然后找同组另一个人
+                foreach (var kv in _xzStatusGroups)
+                {
+                    var list = kv.Value;
+                    if (!list.Contains(myId)) continue;
+
+                    partnerId = list.FirstOrDefault(x => x != myId);
+                    break;
+                }
             }
+
+            if (partnerId == 0)
+            {
+                sa.tts("未找到搭档ID", TTSMode, TTSOpen);
+                return;
+            }
+            
+
+            // 画 2m 绿圈（绑定对方脚下）
+            sa.tts("接同组的线", TTSMode, TTSOpen);
+
+            var dp = sa.Data.GetDefaultDrawProperties();
+            dp.Name = $"{XZCircleNamePrefix}{partnerId:X}_{Environment.TickCount64}";
+            dp.Owner = partnerId;
+            dp.DestoryAt = 8000; // 给个够用时长，后面 ActionEffect 再 remove
+            dp.Scale = new Vector2(2f);
+            dp.ScaleMode = ScaleMode.None;
+            dp.Color = XZGreen;
+
+            sa.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Circle, dp);
         }
 
-        if (partnerId == 0)
+        if (_phase == 4)
         {
-            sa.tts("等待同组接线", TTSMode, TTSOpen);
-            return;
+            _四方凶兆3收尾 = true;
         }
-        
-
-        // 画 2m 绿圈（绑定对方脚下）
-        sa.tts("接同组的线", TTSMode, TTSOpen);
-
-        var dp = sa.Data.GetDefaultDrawProperties();
-        dp.Name = $"{XZCircleNamePrefix}{partnerId:X}_{Environment.TickCount64}";
-        dp.Owner = partnerId;
-        dp.DestoryAt = 8000; // 给个够用时长，后面 ActionEffect 再 remove
-        dp.Scale = new Vector2(2f);
-        dp.ScaleMode = ScaleMode.None;
-        dp.Color = XZGreen;
-
-        sa.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Circle, dp);
     }
 
     [ScriptMethod(name: "剑术大师-P1-天界交叉斩-清除绘图", eventType: EventTypeEnum.ActionEffect, eventCondition: ["ActionId:regex:^(46693)$"], userControl:false)]
@@ -485,6 +718,8 @@ public class MerchantsTale
         {
             _xzStatusGroups[4785u].Clear();
             _xzStatusGroups[4786u].Clear();
+            _xzStatusGroups[4779u].Clear();
+            _xzStatusGroups[4783u].Clear();
             _xzLingjiTargets.Clear();
         }
     }
@@ -492,22 +727,26 @@ public class MerchantsTale
     [ScriptMethod(name: "剑术大师-P2-八叶转轮残响回响组合技", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:regex:^(46707|46704)$"])]
     public void 剑术大师_P2_八叶转轮残响回响组合技(Event evt, ScriptAccessory sa)
     {
+        
         uint actionId = evt.ActionId();
 
         int durMs = 0;
         _ = int.TryParse(evt["DurationMilliseconds"], out durMs);
         if (durMs <= 0) durMs = 6000;
 
-        sa.tts("场中集合", TTSMode, TTSOpen);
-        var dpWp = sa.WaypointDp(
-            target: new Vector3(170f, -16f, -815f),
-            duration: (uint)Math.Max(1000, durMs),
-            delay: 0,
-            name: $"P2-八叶转轮-场中集合_{actionId}",
-            color: sa.Data.DefaultSafeColor
-        );
-        sa.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dpWp);
-
+        if (_phase == 1)
+        {
+            sa.tts("场中集合", TTSMode, TTSOpen);
+            var dpWp = sa.WaypointDp(
+                target: new Vector3(170f, -16f, -815f),
+                duration: (uint)Math.Max(1000, durMs),
+                delay: 0,
+                name: $"P2-八叶转轮-场中集合_{actionId}",
+                color: sa.Data.DefaultSafeColor
+            );
+            sa.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dpWp);
+        }
+        
         int delayMs = Math.Max(0, durMs);
 
         // 46707 用 8向 rect
@@ -835,7 +1074,7 @@ public class MerchantsTale
 
         var myId = sa.Data.Me;
         var targetId = evt.TargetId();
-        sa.Method.SendChat($"/e {myId} {targetId}");
+        // sa.Method.SendChat($"/e {myId} {targetId}");
         if (targetId == 0 || targetId != myId) return;
 
         var myIdx = sa.MyIndex();
@@ -896,6 +1135,7 @@ public class MerchantsTale
     {
         sa.tts("三连分摊", TTSMode, TTSOpen);
         // 换p进入p3
+        if (_phase > 3) return;
         _phase = 3;
     }
 
@@ -977,7 +1217,7 @@ public class MerchantsTale
 
         _ = Task.Run(async () =>
         {
-            await Task.Delay(150);
+            await Task.Delay(500);
 
             List<P3TetherEdge> edges;
             List<uint> party;
@@ -1048,13 +1288,13 @@ public class MerchantsTale
             //    就拿“剩余的底部 orb”，按 5m 内最近分配
             //    先收集所有“看起来像底部”的 orb：它作为 source 出现过，且它的 target 不是队员（或者它没有 parent）
             var candidateBottoms = new HashSet<uint>();
-
             foreach (var e in edges)
             {
                 // source 不是队员 && sourcePos 有意义
                 if (partyPos.ContainsKey(e.SourceId)) continue;
                 candidateBottoms.Add(e.SourceId);
             }
+            sa.Method.SendChat($"/e [O2CAND] edges={edges.Count} candBottoms={candidateBottoms.Count} => [{string.Join(",", candidateBottoms.Select(x=>x.ToString("X")))}]");
 
             // 进一步把 candidate 追溯到真正底部
             uint GetBottom(uint start)
@@ -1071,6 +1311,7 @@ public class MerchantsTale
             }
 
             var bottomToPos = new Dictionary<uint, Vector3>();
+            
             foreach (var c in candidateBottoms)
             {
                 uint b = GetBottom(c);
@@ -1080,6 +1321,7 @@ public class MerchantsTale
                     bottomToPos[b] = bp;
                 }
             }
+            sa.Method.SendChat($"/e [O2BOTTOM] bottomToPos={bottomToPos.Count} => [{string.Join(" | ", bottomToPos.Select(kv=>$"0x{kv.Key:X}({kv.Value.X:0.0},{kv.Value.Z:0.0})"))}]");
 
             // 对没分到的队员按最近 bottom 分配（5m 以内）
             float eps2 = P3AssignEps * P3AssignEps;
@@ -1105,7 +1347,8 @@ public class MerchantsTale
                         bestB = kv.Key;
                     }
                 }
-
+                var bkeys = string.Join(",", bottomToPos.Select(k => $"0x{k.Key:X}({k.Value.X:0.0},{k.Value.Z:0.0})"));
+                sa.Method.SendChat($"/e [O2FB] m=0x{m:X} mPos=({mp.X:0.0},{mp.Z:0.0}) bottoms={bottomToPos.Count} [{bkeys}] best=0x{bestB:X} d={MathF.Sqrt(bestD2):0.00}m (eps={P3AssignEps:0.0})");
                 if (bestB != 0 && bestD2 <= eps2)
                 {
                     Vector3 bp = bottomToPos[bestB];
@@ -1238,7 +1481,27 @@ public class MerchantsTale
                         go = meDown ? NS_B : NS_A;
                     else
                     {
-                        sa.Method.SendChat("/e 四方凶兆2发生错误");
+                        sa.Method.SendChat($"/e [O2ERR] me=0x{me:X} iAmEW={iAmEW} iAmNS={iAmNS} partner=0x{partner:X} " +
+                            $"myKey={myLink.Key} myBottom=0x{myLink.BottomOrbId:X} myPos=({myLink.BottomPos.X:0.0},{myLink.BottomPos.Z:0.0}) " +
+                            $"ptKey={ptLink.Key} ptBottom=0x{ptLink.BottomOrbId:X} ptPos=({ptLink.BottomPos.X:0.0},{ptLink.BottomPos.Z:0.0}) " +
+                            $"EW=[{string.Join(",", ew.Select(x=>x.ToString("X")))}] NS=[{string.Join(",", ns.Select(x=>x.ToString("X")))}] mapHasMe={map.ContainsKey(me)} mapHasPt={map.ContainsKey(partner)}");
+                        // ===== dump map (member -> bottom) =====
+                        try
+                        {
+                            var lines = map
+                                .OrderBy(k => k.Key)
+                                .Select(kv =>
+                                    $"m=0x{kv.Key:X} key={kv.Value.Key} bottom=0x{kv.Value.BottomOrbId:X} " +
+                                    $"pos=({kv.Value.BottomPos.X:0.0},{kv.Value.BottomPos.Z:0.0})"
+                                )
+                                .ToList();
+
+                            // 每条都单独发，最不容易被截断
+                            sa.Method.SendChat($"/e [O2MAP] count={lines.Count}");
+                            foreach (var s in lines)
+                                sa.Method.SendChat($"/e [O2MAP] {s}");
+                        }
+                        catch { }
                         var mePos = GetObjPos(sa, me);
                         if (mePos != Vector3.Zero)
                         {
@@ -1262,32 +1525,559 @@ public class MerchantsTale
         });
     }
 
-    [ScriptMethod(name: "剑术大师-P3-四方凶兆3-凶兆记录", eventType: EventTypeEnum.StatusAdd, eventCondition: ["StatusID:regex:^(4777|4778|4781)$"], userControl: false)]
-    public void 剑术大师_P3_四方凶兆3_凶兆记录(Event evt, ScriptAccessory sa)
-    {
-        if (_phase != 4) return;
-        // 只记录自己的
-        // 4777 东南危险
-        // 4778 西南危险
-        // 4781 东北危险
-        // xxxx 西北危险
-        // 记录StatusID以及点的是小队里的谁
-    }
-    [ScriptMethod(name: "剑术大师-P3-四方凶兆3-灵击波记录", eventType: EventTypeEnum.StartCasting, eventCondition: ["StatusID:regex:^(46749)$"], userControl: false)]
+    [ScriptMethod(
+        name: "剑术大师-P3-四方凶兆3-灵击波记录",
+        eventType: EventTypeEnum.StartCasting,
+        eventCondition: ["ActionId:regex:^(46749)$"],
+        userControl: false)]
     public void 剑术大师_P3_四方凶兆3_灵击波记录(Event evt, ScriptAccessory sa)
     {
         if (_phase != 4) return;
-        // 记录 SourcePosition
-        // X 150左右的是西 190左右的是东
-        // Y -795左右的是南 -835左右的是北
-        // 差距在0.6之内，可以用之前的那个param
 
-        // 然后接下来的3秒内只能执行一次（因为可能会触发四次，但我想要记录四个SourcePosition但是接下来的画图逻辑只执行一次）
-        // 等待200ms等所有SourcePosition都被记录下来了
-        // 查看自己的凶兆记录
-        // 如果是东南危险，去找西北的灵击波。然后以不是边界的两个灵击波的坐标合一起为中心，画一个Rect，持续三秒.(比如西(X:150, Y:-16, Z: -810)和北(X:165, Y:-16, Z:-835),那么中心就是(165, -16, -810))
+        var pos = evt.SourcePosition();
+        if (pos == Vector3.Zero) return;
 
-        // 结束完清空list，3秒后马上又会来一波新的
+        long now = Environment.TickCount64;
+
+        // 1) 先尽量记录四个方向的 SourcePosition
+        if (TryClassifyWaveDir(pos, out var dir))
+        {
+            lock (_p3O3Lock)
+            {
+                _p3O3WavePos[dir] = pos;
+            }
+        }
+
+        // 2) 3秒内只允许调度一次
+        bool shouldSchedule = false;
+        lock (_p3O3Lock)
+        {
+            if (now - _p3O3LastExecMs < 3000) return;
+
+            if (!_p3O3TaskScheduled)
+            {
+                _p3O3TaskScheduled = true;
+                shouldSchedule = true;
+            }
+        }
+        if (!shouldSchedule) return;
+        // if (_四方凶兆3收尾) return;
+
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                const uint SE = 4777u; // 东南危险
+                const uint SW = 4778u; // 西南危险
+                const uint NE = 4781u; // 东北危险
+                const uint NW = 4782u; // 西北危险
+
+                var myStatuses = GetMyStatusIdsSafe(sa);
+                bool se = myStatuses.Contains(SE);
+                bool sw = myStatuses.Contains(SW);
+                bool ne = myStatuses.Contains(NE);
+                bool nw = myStatuses.Contains(NW);
+
+                // 没有四个buff之一 -> 不画
+                if (!se && !sw && !ne && !nw)
+                {
+                    ClearP3O3();
+                    return;
+                }
+
+                // 4) 等 200ms，让其它 SourcePosition 都进来
+                await Task.Delay(200);
+
+                Dictionary<P3O3Dir, Vector3> waveCopy;
+                lock (_p3O3Lock)
+                {
+                    waveCopy = _p3O3WavePos.ToDictionary(k => k.Key, v => v.Value);
+                }
+
+                // SE危险 -> 安全NW -> West + North
+                // SW危险 -> 安全NE -> East + North
+                // NE危险 -> 安全SW -> West + South
+                // NW危险 -> 安全SE -> East + South
+                P3O3Dir ewNeed, nsNeed;
+                if (se) { ewNeed = P3O3Dir.West; nsNeed = P3O3Dir.North; }
+                else if (sw) { ewNeed = P3O3Dir.East; nsNeed = P3O3Dir.North; }
+                else if (ne) { ewNeed = P3O3Dir.West; nsNeed = P3O3Dir.South; }
+                else /*nw*/  { ewNeed = P3O3Dir.East; nsNeed = P3O3Dir.South; }
+
+                if (!waveCopy.TryGetValue(ewNeed, out var ewPos) || !waveCopy.TryGetValue(nsNeed, out var nsPos))
+                {
+                    // 没收齐坐标就不画，避免误导
+                    ClearP3O3();
+                    return;
+                }
+
+                // 读取收尾标记 + 第四轮额外危险
+                bool tail;
+                P3O3Dir? fourthDanger;
+                lock (_p3O3Lock)
+                {
+                    tail = _四方凶兆3收尾;
+                    fourthDanger = _p3O3FourthDanger;
+                }
+
+                // =====================
+                // 收尾逻辑：第四轮固定只有一个安全方向
+                // =====================
+                if (tail)
+                {
+                    sa.tts("去边上", TTSMode, TTSOpen);
+                    // 1) 把“象限危险”拆成四向危险
+                    // var dangerSet = new HashSet<P3O3Dir>();
+                    // AddQuadrantDanger(dangerSet, se, sw, ne, nw);
+
+                    // // 2) 叠加第四轮额外危险（North/South）
+                    // if (fourthDanger.HasValue)
+                    //     dangerSet.Add(fourthDanger.Value);
+
+                    // sa.Method.SendChat($"/e [P3O3DBG] dangerSet=[{string.Join(",", dangerSet.Select(d => d.ToString()))}] " +
+                    //     $"se={se} sw={sw} ne={ne} nw={nw} fourth={fourthDanger?.ToString() ?? "null"}");
+
+                    // // 3) 找唯一安全方向
+                    // var safeDirs = AllDirs().Where(d => !dangerSet.Contains(d)).ToList();
+                    // if (safeDirs.Count != 1)
+                    // {
+                    //     // 不符合“唯一安全”的预期 -> 兜底：回退到原本的“去安全角”逻辑
+                    // }
+                    // else
+                    // {
+                    //     var safeDir = safeDirs[0];
+
+                    //     if (!P3O3SafePosByDir.TryGetValue(safeDir, out var safePos))
+                    //     {
+                    //         ClearP3O3();
+                    //         return;
+                    //     }
+
+                    //     // 画固定安全点 rect
+                    //     var dp2 = sa.Data.GetDefaultDrawProperties();
+                    //     dp2.Name = $"P3_凶兆3_第四轮安全Rect_{Environment.TickCount64}";
+                    //     dp2.Owner = 0;
+                    //     dp2.Position = safePos;
+                    //     dp2.Rotation = MathF.PI / 2f;
+                    //     dp2.DestoryAt = 3500;
+                    //     dp2.Color = sa.Data.DefaultSafeColor;
+                    //     dp2.ScaleMode = ScaleMode.None;
+                    //     dp2.Scale = new Vector2(10f, 10f);
+
+                    //     sa.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Rect, dp2);
+
+                    //     // TTS
+                    //     string ttsText = safeDir switch
+                    //     {
+                    //         P3O3Dir.West  => "去西安全",
+                    //         P3O3Dir.East  => "去东安全",
+                    //         P3O3Dir.North => "去北安全",
+                    //         P3O3Dir.South => "去南安全",
+                    //         _ => "去安全点"
+                    //     };
+                    //     sa.tts(ttsText, TTSMode, TTSOpen);
+
+                        // 结束本轮收集
+                    //     lock (_p3O3Lock)
+                    //     {
+                    //         _p3O3LastExecMs = Environment.TickCount64;
+                    //         _p3O3TaskScheduled = false;
+                    //         _p3O3WavePos.Clear();
+                    //     }
+                    //     return;
+                    // }
+                    return;
+                }
+
+                var center = ComposeCenter(ewPos, nsPos) - new Vector3(0, 0, 5f);
+
+                var dp = sa.Data.GetDefaultDrawProperties();
+                dp.Name = $"P3_凶兆3_安全Rect_{Environment.TickCount64}";
+                dp.Owner = 0;
+                dp.Position = center;
+                dp.Rotation = 0f;
+                dp.DestoryAt = 3000;
+                dp.Color = sa.Data.DefaultSafeColor;
+                dp.ScaleMode = ScaleMode.None;
+                dp.Scale = new Vector2(10f, 10f);
+
+                sa.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Rect, dp);
+                sa.tts("去安全角", TTSMode, TTSOpen);
+
+                // 收尾本轮
+                lock (_p3O3Lock)
+                {
+                    _p3O3LastExecMs = Environment.TickCount64;
+                    _p3O3TaskScheduled = false;
+                    _p3O3WavePos.Clear();
+                }
+            }
+            catch
+            {
+                lock (_p3O3Lock)
+                {
+                    _p3O3TaskScheduled = false;
+                }
+            }
+        });
+    }
+
+    private List<uint> GetMyStatusIdsSafe(ScriptAccessory sa)
+    {
+        try
+        {
+            uint me = sa.Data.Me;
+            var obj = sa.Data.Objects.FirstOrDefault(o => o.GameObjectId == me);
+            if (obj == null) return new List<uint>();
+
+            // 常见状态列表属性名
+            var t = obj.GetType();
+            object? statusListObj =
+                t.GetProperty("StatusList")?.GetValue(obj) ??
+                t.GetProperty("Statuses")?.GetValue(obj) ??
+                t.GetProperty("Status")?.GetValue(obj);
+
+            if (statusListObj is not System.Collections.IEnumerable enumerable)
+                return new List<uint>();
+
+            var result = new List<uint>();
+
+            foreach (var s in enumerable)
+            {
+                if (s == null) continue;
+                var st = s.GetType();
+
+                object? idObj =
+                    st.GetProperty("StatusId")?.GetValue(s) ??
+                    st.GetProperty("StatusID")?.GetValue(s) ??
+                    st.GetProperty("Id")?.GetValue(s) ??
+                    st.GetProperty("ID")?.GetValue(s);
+
+                if (idObj == null) continue;
+
+                try
+                {
+                    result.Add(Convert.ToUInt32(idObj));
+                }
+                catch
+                {
+                    // ignore
+                }
+            }
+
+            return result;
+        }
+        catch
+        {
+            return new List<uint>();
+        }
+    }
+
+    [ScriptMethod(
+        name: "剑术大师-P3-四方凶兆3-清除绘图",
+        eventType: EventTypeEnum.ActionEffect,
+        eventCondition: ["ActionId:regex:^(46749)$"],
+        userControl: false)]
+    public void 剑术大师_P3_四方凶兆3_清除绘图(Event evt, ScriptAccessory sa)
+    {
+        if (_phase != 4) return;
+
+        sa.Method.RemoveDraw($"^P3_凶兆3_安全Rect_.*$");
+        ClearP3O3();
+    }
+
+    private static long HiTs() => System.Diagnostics.Stopwatch.GetTimestamp();
+    
+    [ScriptMethod(
+        name: "剑术大师-P3-四方凶兆3-第四轮",
+        eventType: EventTypeEnum.Tether,
+        eventCondition: ["Id:regex:^(0165|0166|0167|0168)$"])]
+    public void 剑术大师_P3_四方凶兆3_第四轮(Event evt, ScriptAccessory sa)
+    {
+        long ts = HiTs();
+        sa.Method.SendChat($"/e [O3-4] ts={ts} id={evt["Id"]} src=0x{evt.SourceId():X} tgt=0x{evt.TargetId():X}");
+        if (_phase != 4) return;
+
+        uint me = sa.Data.Me;
+        if (me == 0) return;
+
+        uint tid = evt.SourceId();
+        if (tid == 0 || tid != me) return;
+        string idStr = evt["Id"] ?? "";
+
+        P3O3Dir? danger = null;
+        if (idStr.Equals("0165", StringComparison.OrdinalIgnoreCase))
+            danger = P3O3Dir.North; // 北凶
+        else if (idStr.Equals("0168", StringComparison.OrdinalIgnoreCase))
+            danger = P3O3Dir.South; // 南凶
+        else if (idStr.Equals("0166", StringComparison.OrdinalIgnoreCase))
+            danger = P3O3Dir.East; // 东凶
+        else if (idStr.Equals("0167", StringComparison.OrdinalIgnoreCase))
+            danger = P3O3Dir.West; // 西凶
+        else
+            return;
+
+        lock (_p3O3Lock)
+        {
+            _p3O3FourthDanger = danger;
+            _p3O3FourthMs = Environment.TickCount64;
+        }
+    }
+
+    [ScriptMethod(
+        name: "剑术大师-P4-落石运动会-集合",
+        eventType: EventTypeEnum.TargetIcon,
+        eventCondition: ["Id:regex:^(028D)$"])]
+    public void 剑术大师_P4_落石运动会_集合(Event evt, ScriptAccessory sa)
+    {
+        if (_phase < 4) return;
+
+        uint me = sa.Data.Me;
+        if (me == 0) return;
+
+        uint tid = evt.TargetId();
+        if (tid == 0 || tid != me) return; // 只对自己被点名时提示
+
+        sa.tts("疾跑 中间集合", TTSMode, TTSOpen);
+        DrawWaypointToMe(sa, P4Gather, 5000, $"P4_落石_集合_{Environment.TickCount64}");
+    }
+
+    [ScriptMethod(
+        name: "剑术大师-P4-落石运动会-拉线",
+        eventType: EventTypeEnum.Tether,
+        eventCondition: ["Id:regex:^(00A3)$"])]
+    public void 剑术大师_P4_落石运动会_拉线(Event evt, ScriptAccessory sa)
+    {
+        if (_phase < 4) return;
+
+        uint me = sa.Data.Me;
+        if (me == 0) return;
+
+        uint sid = evt.SourceId();
+        uint tid = evt.TargetId();
+        if (sid == 0 || tid == 0) return;
+
+        bool relateMe = (sid == me) || (tid == me);
+        if (!relateMe) return;
+
+        sa.tts("拉线", TTSMode, TTSOpen);
+        _phase = 5;
+        ResetP4O4();
+        var myIdx = sa.MyIndex();
+        if (myIdx < 0) return;
+
+        _ = Task.Run(async () =>
+        {
+            await Task.Delay(200);
+
+            List<Vector3> rocks;
+            lock (_p4RockLock)
+                rocks = _p4RockPositions.ToList();
+
+            bool nearRef = false;
+            foreach (var p in rocks)
+            {
+                if (NearXZ(p, P4RockRef, 1.0f))
+                {
+                    nearRef = true;
+                    break;
+                }
+            }
+
+            Vector3 go = Vector3.Zero;
+
+            int idx4 = myIdx; 
+            if (idx4 > 3) idx4 %= 4;
+
+            bool is02 = (idx4 == 0 || idx4 == 2);
+            bool is13 = (idx4 == 1 || idx4 == 3);
+
+            if (nearRef)
+            {
+                if (is02) go = P4_A_02;
+                else if (is13) go = P4_A_13;
+            }
+            else
+            {
+                if (is02) go = P4_B_02;
+                else if (is13) go = P4_B_13;
+            }
+
+            if (go == Vector3.Zero) return;
+
+            DrawWaypointToMe(sa, go, 5500, $"P4_落石_拉线指路_{(nearRef ? "A" : "B")}_{Environment.TickCount64}");
+        });
+    }
+
+    [ScriptMethod(
+        name: "剑术大师-P4-落石运动会-记录陨石位置",
+        eventType: EventTypeEnum.SetObjPos,
+        eventCondition: ["SourceDataId:19229"],
+        userControl: false)]
+    public void 剑术大师_P4_落石运动会_记录陨石位置(Event evt, ScriptAccessory sa)
+    {
+        if (_phase < 4) return;
+        var pos = evt.SourcePosition();
+        if (pos == Vector3.Zero) return;
+        lock (_p4RockLock)
+        {
+            foreach (var p in _p4RockPositions)
+                if (NearXZ(p, pos, P4RockEps))
+                    return;
+
+            if (_p4RockPositions.Count >= 2) return;
+            _p4RockPositions.Add(pos);
+        }
+    }
+
+
+    [ScriptMethod(
+        name: "剑术大师-P4-四方凶兆4-灵击波(找落石挡箭头)",
+        eventType: EventTypeEnum.StartCasting,
+        eventCondition: ["ActionId:47763"],
+        userControl: false)]
+    public void 剑术大师_P4_四方凶兆4_灵击波(Event evt, ScriptAccessory sa)
+    {
+        if (_phase != 5) return;
+
+        var pos = evt.SourcePosition();
+        if (pos == Vector3.Zero) return;
+
+        // 1) 分类到 East/West/North/South
+        if (!TryClassifyP4O4Dir(pos, out var dir))
+            return;
+
+        // 2) 写入 wavePos
+        bool shouldSchedule = false;
+        lock (_p4O4Lock)
+        {
+            _p4O4WavePos[dir] = pos;
+
+            if (!_p4O4TaskScheduled)
+            {
+                _p4O4TaskScheduled = true;
+                shouldSchedule = true;
+            }
+        }
+        if (!shouldSchedule) return;
+
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                // ===== A) 先读自己安全方向 =====
+                var myStatuses = GetMyStatusIdsSafe(sa);
+                if (!TryGetP4O4SafeDir(myStatuses, out var safeDir))
+                {
+                    sa.tts("没读到安全方向buff", TTSMode, TTSOpen);
+                    lock (_p4O4Lock) { _p4O4TaskScheduled = false; }
+                    return;
+                }
+
+                bool safeIsEW = (safeDir == P3O3Dir.East || safeDir == P3O3Dir.West);
+
+                // ===== B) 等齐需要的方向=====
+                Dictionary<P3O3Dir, Vector3> wave = new();
+                for (int i = 0; i < 12; i++) // 12*100=1200ms
+                {
+                    lock (_p4O4Lock)
+                        wave = _p4O4WavePos.ToDictionary(k => k.Key, v => v.Value);
+
+                    bool hasSafe = wave.ContainsKey(safeDir);
+                    bool hasNS = wave.ContainsKey(P3O3Dir.North) && wave.ContainsKey(P3O3Dir.South);
+                    bool hasEW = wave.ContainsKey(P3O3Dir.East)  && wave.ContainsKey(P3O3Dir.West);
+
+                    if (hasSafe && (safeIsEW ? hasNS : hasEW))
+                        break;
+
+                    await Task.Delay(100);
+                }
+
+                // ===== C) copy rocks =====
+                List<Vector3> rocks;
+                lock (_p4RockLock)
+                    rocks = _p4RockPositions.ToList();
+
+                if (rocks.Count < 2)
+                {
+                    sa.tts("没记录到两颗落石", TTSMode, TTSOpen);
+                    lock (_p4O4Lock) { _p4O4TaskScheduled = false; }
+                    return;
+                }
+
+                if (!wave.TryGetValue(safeDir, out var safeWavePos))
+                {
+                    sa.tts("没抓到安全边灵击波", TTSMode, TTSOpen);
+                    lock (_p4O4Lock) { _p4O4TaskScheduled = false; }
+                    return;
+                }
+
+                // 安全东/西（靠 X 边） -> 取 Z
+                // 安全南/北（靠 Z 边） -> 取 X
+                float innerCoord = safeIsEW ? safeWavePos.Z : safeWavePos.X;
+
+                // ===== E) 选出更匹配的落石 =====
+                var chosenRock = PickRockByAxis(rocks, compareZ: safeIsEW, innerCoord: innerCoord);
+                if (chosenRock == Vector3.Zero)
+                {
+                    lock (_p4O4Lock) { _p4O4TaskScheduled = false; }
+                    return;
+                }
+
+                // ===== F) 用另一组边判断靠哪边，偏移 3 =====
+                Vector3 go = chosenRock;
+
+                if (safeIsEW)
+                {
+                    // 需要 North/South
+                    if (!wave.TryGetValue(P3O3Dir.North, out var nPos) ||
+                        !wave.TryGetValue(P3O3Dir.South, out var sPos))
+                    {
+                        sa.tts("没抓到南北灵击波", TTSMode, TTSOpen);
+                        // sa.Method.SendChat($"/e [P4O4] missing NS, keys=[{string.Join(",", wave.Keys)}]");
+                        lock (_p4O4Lock) { _p4O4TaskScheduled = false; }
+                        return;
+                    }
+
+                    float dN = MathF.Abs(chosenRock.X - nPos.X);
+                    float dS = MathF.Abs(chosenRock.X - sPos.X);
+
+                    // 南更近 -> 往北 5（Z 更小）
+                    // 北更近 -> 往南 5（Z 更大）
+                    go = (dS <= dN) ? chosenRock + new Vector3(0, 0, -4f)
+                                    : chosenRock + new Vector3(0, 0, +4f);
+                }
+                else
+                {
+                    // 需要 East/West
+                    if (!wave.TryGetValue(P3O3Dir.East, out var ePos) ||
+                        !wave.TryGetValue(P3O3Dir.West, out var wPos))
+                    {
+                        sa.tts("没抓到东西灵击波", TTSMode, TTSOpen);
+                        // sa.Method.SendChat($"/e [P4O4] missing EW, keys=[{string.Join(",", wave.Keys)}]");
+                        lock (_p4O4Lock) { _p4O4TaskScheduled = false; }
+                        return;
+                    }
+
+                    float dE = MathF.Abs(chosenRock.Z - ePos.Z);
+                    float dW = MathF.Abs(chosenRock.Z - wPos.Z);
+
+                    go = (dE <= dW) ? chosenRock + new Vector3(-4f, 0, 0)
+                                    : chosenRock + new Vector3(+4f, 0, 0);
+                }
+
+                // ===== G) 指路 =====
+                sa.tts("去落石挡灵击波", TTSMode, TTSOpen);
+                DrawWaypointToMe(sa, go, 5500, $"P4_凶兆4_落石指路");
+
+                lock (_p4O4Lock) { _p4O4TaskScheduled = false; }
+            }
+            catch (Exception ex)
+            {
+                sa.Method.SendChat($"/e [P4凶兆4] EX={ex.GetType().Name}: {ex.Message}");
+                lock (_p4O4Lock) { _p4O4TaskScheduled = false; }
+            }
+        });
     }
     #endregion
 }
