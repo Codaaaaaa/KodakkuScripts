@@ -21,9 +21,9 @@ namespace Codaaaaaa.MerchantsTale;
     guid: "a2c7f9d1-4b6e-4f3a-9c18-7d2e6a5b8c41",
     name: "多变迷宫 异闻商客奇谭 指路+画图",
     territorys: [1317],
-    version: "0.0.0.2",
+    version: "0.0.0.3",
     author: "Codaaaaaa",
-    note: "目前只完成了剑术大师，其他boss得等arr\n感谢Tou_uTou佬的arr\n攻略使用的是mmw: https://mmw-ffxiv.feishu.cn/wiki/KvdJwQqfziIab3kPBAAcbCYvn5r")]
+    note: "目前只完成了剑术大师，老一老三可以用Ryou佬的画图\n感谢Tou_uTou佬和Angelways佬的arr\n攻略使用的是mmw: https://mmw-ffxiv.feishu.cn/wiki/KvdJwQqfziIab3kPBAAcbCYvn5r")]
 public class MerchantsTale
 {
     #region 用户设置
@@ -529,14 +529,16 @@ public class MerchantsTale
             if (mj1IdLocal != 0)
             {
                 var t = TypeForMj(mj1Target);
-                DrawOnTarget(mj1IdLocal, "TJ_MJ1", t, 8f, sa.Data.DefaultDangerColor, durMs+2000);
+                var durMs_mj1 = isCircle ? durMs : durMs+2000;
+                DrawOnTarget(mj1IdLocal, "TJ_MJ1", t, 8f, sa.Data.DefaultDangerColor, durMs_mj1);
             }
 
             // 3) 麻将2
             if (mj2IdLocal != 0)
             {
                 var t = TypeForMj(mj2Target);
-                DrawOnTarget(mj2IdLocal, "TJ_MJ2", t, 8f, sa.Data.DefaultDangerColor, durMs+2000);
+                var durMs_mj2 = isCircle ? durMs+2000 : durMs;
+                DrawOnTarget(mj2IdLocal, "TJ_MJ2", t, 8f, sa.Data.DefaultDangerColor, durMs_mj2);
             }
 
             // 指路
@@ -1981,7 +1983,7 @@ public class MerchantsTale
         {
             try
             {
-                // ===== A) 先读自己安全方向 =====
+                await Task.Delay(500);
                 var myStatuses = GetMyStatusIdsSafe(sa);
                 if (!TryGetP4O4SafeDir(myStatuses, out var safeDir))
                 {
@@ -2084,7 +2086,7 @@ public class MerchantsTale
 
                 // ===== G) 指路 =====
                 sa.tts("去落石挡灵击波", TTSMode, TTSOpen);
-                DrawWaypointToMe(sa, go, 5500, $"P4_凶兆4_落石指路");
+                DrawWaypointToMe(sa, go, 4500, $"P4_凶兆4_落石指路");
 
                 lock (_p4O4Lock) { _p4O4TaskScheduled = false; }
             }
