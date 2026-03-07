@@ -21,7 +21,7 @@ namespace Codaaaaaa.MerchantsTale;
     guid: "a2c7f9d1-4b6e-4f3a-9c18-7d2e6a5b8c41",
     name: "多变迷宫 异闻商客奇谭 指路+画图",
     territorys: [1317],
-    version: "0.0.0.3",
+    version: "0.0.0.4",
     author: "Codaaaaaa",
     note: "目前只完成了剑术大师，老一老三可以用Ryou佬的画图\n感谢Tou_uTou佬和Angelways佬的arr\n攻略使用的是mmw: https://mmw-ffxiv.feishu.cn/wiki/KvdJwQqfziIab3kPBAAcbCYvn5r")]
 public class MerchantsTale
@@ -29,6 +29,8 @@ public class MerchantsTale
     #region 用户设置
     [UserSetting("是否开启TTS")] public static bool TTSOpen { get; set; } = true;
     [UserSetting("TTS播报方式")] public static TTS播报方式 TTSMode { get; set; } = TTS播报方式.原生TTS;
+    // [UserSetting("剑术大师-P3打法")] public static 剑术大师P3打法 剑术大师_P3打法 { get; set; } = 剑术大师P3打法.MMW;
+    [UserSetting("Debug")] public static bool 是否展示调试信息 { get; set; } = false;
     #endregion
 
     #region 设置enum
@@ -38,6 +40,11 @@ public class MerchantsTale
         EdgeTTS,
         DrTTS
     }
+    // public enum 剑术大师P3打法
+    // {
+    //     MMW,
+    //     美式
+    // }
     #endregion
 
     // 换P
@@ -83,8 +90,6 @@ public class MerchantsTale
     private static readonly Vector4 XZGreen = new(0f, 1f, 0f, 0.55f);
     private readonly object _p3O3Lock = new();
     private P3O3Dir? _p3O3FourthDanger = null;
-    private long _p3O3FourthMs = 0;
-
     private readonly Dictionary<P3O3Dir, Vector3> _p3O3WavePos = new();
     private long _p3O3LastExecMs = 0;
     private bool _p3O3TaskScheduled = false;
@@ -122,9 +127,7 @@ public class MerchantsTale
     private readonly object _p4O4Lock = new();
     private readonly Dictionary<P3O3Dir, Vector3> _p4O4WavePos = new();
     private bool _p4O4TaskScheduled = false;
-    private long _p4O4LastMs = 0;
 
-    private const int P4O4DupWindowMs = 250;
     private const float P4O4MatchEps = 0.8f;
 
     #endregion
@@ -255,7 +258,6 @@ public class MerchantsTale
         lock (_p3O3Lock)
         {
             _p3O3FourthDanger = null;
-            _p3O3FourthMs = 0;
             _p3O3FourthTicks = long.MinValue;
         }
     }
@@ -298,40 +300,10 @@ public class MerchantsTale
         return false;
     }
 
-    private static P3O3Quadrant Opposite(P3O3Quadrant q) => q switch
-    {
-        P3O3Quadrant.NW => P3O3Quadrant.SE,
-        P3O3Quadrant.NE => P3O3Quadrant.SW,
-        P3O3Quadrant.SW => P3O3Quadrant.NE,
-        P3O3Quadrant.SE => P3O3Quadrant.NW,
-        _ => P3O3Quadrant.Unknown
-    };
-
-    private static (P3O3Dir ew, P3O3Dir ns) SafeDirsBySafeQuadrant(P3O3Quadrant safe) => safe switch
-    {
-        // 安全象限：NW = West+North
-        P3O3Quadrant.NW => (P3O3Dir.West, P3O3Dir.North),
-        // NE = East+North
-        P3O3Quadrant.NE => (P3O3Dir.East, P3O3Dir.North),
-        // SW = West+South
-        P3O3Quadrant.SW => (P3O3Dir.West, P3O3Dir.South),
-        // SE = East+South
-        P3O3Quadrant.SE => (P3O3Dir.East, P3O3Dir.South),
-        _ => (P3O3Dir.West, P3O3Dir.North)
-    };
-
     private static Vector3 ComposeCenter(Vector3 ewPos, Vector3 nsPos)
     {
         return new Vector3(nsPos.X, -16f, ewPos.Z);
     }
-
-    private static readonly Dictionary<P3O3Dir, Vector3> P3O3SafePosByDir = new()
-    {
-        [P3O3Dir.East]  = new Vector3(150.00f, -16.00f, -810.00f),
-        [P3O3Dir.West]  = new Vector3(179.85f, -16.00f, -820.14f),
-        [P3O3Dir.South] = new Vector3(160.02f, -16.00f, -830.39f),
-        [P3O3Dir.North] = new Vector3(170.01f, -16.00f, -799.37f),
-    };
 
     private static IEnumerable<P3O3Dir> AllDirs()
     {
@@ -355,9 +327,6 @@ public class MerchantsTale
         {
             _p3O3WavePos.Clear();
             _p3O3TaskScheduled = false;
-            // _p3O3FourthDanger = null;
-            _p3O3FourthMs = 0;
-            // _p3O3FourthTicks = long.MinValue;
         }
     }
     private static float DistXZ2P4(Vector3 a, Vector3 b)
@@ -381,15 +350,10 @@ public class MerchantsTale
         {
             _p4O4WavePos.Clear();
             _p4O4TaskScheduled = false;
-            _p4O4LastMs = 0;
         }
     }
     private static bool TryClassifyP4O4Dir(Vector3 p, out P3O3Dir dir)
     {
-        // if (Near(p.X, 150f, P4O4MatchEps)) { dir = P3O3Dir.East; return true; }
-        // if (Near(p.X, 190f, P4O4MatchEps)) { dir = P3O3Dir.West; return true; }
-        // if (Near(p.Z, -835f, P4O4MatchEps)) { dir = P3O3Dir.North; return true; }
-        // if (Near(p.Z, -795f, P4O4MatchEps)) { dir = P3O3Dir.South; return true; }
         if (Near(p.X, 150f, P4O4MatchEps)) { dir = P3O3Dir.West; return true; }
         if (Near(p.X, 190f, P4O4MatchEps)) { dir = P3O3Dir.East; return true; }
         if (Near(p.Z, -835f, P4O4MatchEps)) { dir = P3O3Dir.North; return true; }
@@ -507,7 +471,7 @@ public class MerchantsTale
                 dp.Owner = targetId;
                 dp.DestoryAt = (uint)Math.Max(500, dur);
                 dp.Color = color;
-                dp.ScaleMode = ScaleMode.None;
+                dp.ScaleMode = ScaleMode.ByTime;
                 if (type == DrawTypeEnum.Circle)
                 {
                     dp.Scale = new Vector2(radius);
@@ -1639,6 +1603,8 @@ public class MerchantsTale
 
                     // sa.Method.SendChat($"/e [P3O3DBG] dangerSet=[{string.Join(",", dangerSet.Select(d => d.ToString()))}] " +
                     //     $"se={se} sw={sw} ne={ne} nw={nw} fourth={fourthDanger?.ToString() ?? "null"} p303={_p3O3FourthDanger}");
+                    sa.Debug($"[P3O3DBG] dangerSet=[{string.Join(",", dangerSet.Select(d => d.ToString()))}] " + 
+                            $"se={se} sw={sw} ne={ne} nw={nw} fourth={fourthDanger?.ToString() ?? "null"} p303={_p3O3FourthDanger}", 是否展示调试信息);
 
                     // 3) 找唯一安全方向
                     var safeDirs = AllDirs().Where(d => !dangerSet.Contains(d)).ToList();
@@ -1649,31 +1615,76 @@ public class MerchantsTale
                     else
                     {
                         var safeDir = safeDirs[0];
-                        var anchor = new Vector3(150.00f, -16.00f, -820.00f);
-                        
-                        bool hasAnchorWave = waveCopy.Values.Any(p => DistXZ2(p, anchor) <= (P3O3MatchEps * P3O3MatchEps));
-                        // 如果四个灵击波都不在 anchor 上 -> 安全点互换（东去西，西去东，南去北，北去南）
-                        var finalSafeDir = hasAnchorWave ? safeDir : (safeDir switch
-                        {
-                            P3O3Dir.East  => P3O3Dir.West,
-                            P3O3Dir.West  => P3O3Dir.East,
-                            P3O3Dir.North => P3O3Dir.South,
-                            P3O3Dir.South => P3O3Dir.North,
-                            _ => safeDir
-                        });
 
-                        if (!P3O3SafePosByDir.TryGetValue(finalSafeDir, out var safePos))
+                        // 先找 safeDir 那一边的灵击波
+                        if (!waveCopy.TryGetValue(safeDir, out var safeWavePos))
                         {
+                            sa.Debug($"[P3O3DBG] missing safeDir wave: {safeDir}", 是否展示调试信息);
                             ClearP3O3();
                             return;
                         }
-                        // sa.Method.SendChat($"/e safeDir={safeDir} finalSafeDir={finalSafeDir} hasAnchorWave={hasAnchorWave}");
+
+                        // 四个固定安全点
+                        var candidatePoints = new Dictionary<P3O3Dir, Vector3>
+                        {
+                            [P3O3Dir.East]  = new Vector3(155.00f, -16.00f, -810.00f),
+                            [P3O3Dir.West]  = new Vector3(185.00f, -16.00f, -820.00f),
+                            [P3O3Dir.North] = new Vector3(175.00f, -16.00f, -800.00f),
+                            [P3O3Dir.South] = new Vector3(165.00f, -16.00f, -830.00f),
+                        };
+
+                        // safeDir 是东西时，看 Z；safeDir 是南北时，看 X
+                        bool safeIsEW = (safeDir == P3O3Dir.East || safeDir == P3O3Dir.West);
+                        float otherCoord = safeIsEW ? safeWavePos.Z : safeWavePos.X;
+
+                        // 只在同轴的两个候选点里选“另一轴最接近”的那个
+                        List<KeyValuePair<P3O3Dir, Vector3>> candidates;
+                        if (safeDir == P3O3Dir.East || safeDir == P3O3Dir.West)
+                        {
+                            candidates = candidatePoints
+                                .Where(kv => kv.Key == P3O3Dir.East || kv.Key == P3O3Dir.West)
+                                .ToList();
+                        }
+                        else
+                        {
+                            candidates = candidatePoints
+                                .Where(kv => kv.Key == P3O3Dir.North || kv.Key == P3O3Dir.South)
+                                .ToList();
+                        }
+
+                        float bestDelta = float.MaxValue;
+                        Vector3 safePos = Vector3.Zero;
+                        P3O3Dir finalSafeDir = safeDir;
+
+                        foreach (var kv in candidates)
+                        {
+                            float candidateOtherCoord = safeIsEW ? kv.Value.Z : kv.Value.X;
+                            float delta = MathF.Abs(candidateOtherCoord - otherCoord);
+                            if (delta < bestDelta)
+                            {
+                                bestDelta = delta;
+                                safePos = kv.Value;
+                                finalSafeDir = kv.Key;
+                            }
+                        }
+
+                        if (safePos == Vector3.Zero)
+                        {
+                            sa.Debug($"[P3O3DBG] failed to match safe point. safeDir={safeDir} wave=({safeWavePos.X:0.0},{safeWavePos.Z:0.0})", 是否展示调试信息);
+                            ClearP3O3();
+                            return;
+                        }
+
+                        sa.Debug(
+                            $"safeDir={safeDir} finalSafeDir={finalSafeDir} safeWave=({safeWavePos.X:0.0},{safeWavePos.Z:0.0}) otherCoord={otherCoord:0.0} safePos=({safePos.X:0.0},{safePos.Z:0.0})",
+                            是否展示调试信息
+                        );
 
                         // 画固定安全点 rect
                         var dp2 = sa.Data.GetDefaultDrawProperties();
                         dp2.Name = $"P3_凶兆3_第四轮安全Rect_{Environment.TickCount64}";
                         dp2.Owner = 0;
-                        dp2.Position = safePos;
+                        dp2.Position = safePos - new Vector3(5f,0f,0f);
                         dp2.Rotation = MathF.PI / 2f;
                         dp2.DestoryAt = 3500;
                         dp2.Color = sa.Data.DefaultSafeColor;
@@ -1681,26 +1692,6 @@ public class MerchantsTale
                         dp2.Scale = new Vector2(10f, 10f);
 
                         sa.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Rect, dp2);
-
-                        // TTS
-                        // string ttsText = safeDir switch
-                        // {
-                        //     P3O3Dir.West  => "去西安全",
-                        //     P3O3Dir.East  => "去东安全",
-                        //     P3O3Dir.North => "去北安全",
-                        //     P3O3Dir.South => "去南安全",
-                        //     _ => "去安全点"
-                        // };
-                        // sa.tts(ttsText, TTSMode, TTSOpen);
-
-                        // 结束本轮收集
-                        lock (_p3O3Lock)
-                        {
-                            _p3O3LastExecMs = Environment.TickCount64;
-                            _p3O3TaskScheduled = false;
-                            _p3O3WavePos.Clear();
-                        }
-                        return;
                     }
                     return;
                 }
@@ -1712,7 +1703,7 @@ public class MerchantsTale
                 dp.Owner = 0;
                 dp.Position = center;
                 dp.Rotation = 0f;
-                dp.DestoryAt = 3000;
+                dp.DestoryAt = 4000;
                 dp.Color = sa.Data.DefaultSafeColor;
                 dp.ScaleMode = ScaleMode.None;
                 dp.Scale = new Vector2(10f, 10f);
@@ -1840,7 +1831,7 @@ public class MerchantsTale
                 _p3O3FourthTicks = t;
                 _p3O3FourthDanger = danger;
                 // sa.Method.SendChat($"/e [O3-4] ticks={t} 已更新危险区danger={_p3O3FourthDanger}");
-                _p3O3FourthMs = Environment.TickCount64;
+                sa.Debug($"{danger}", 是否展示调试信息);
             }
         }
     }
@@ -2143,6 +2134,11 @@ public static class ScriptAccessoryExtensions
                 sa.Method.SendChat($"/pdr tts {text}");
                 break;
         }
+    }
+    public static void Debug(this ScriptAccessory sa, string text, bool debugOpen)
+    {
+        if (!debugOpen) return;
+        sa.Method.SendChat($"/e {text}");
     }
 
     public static DrawPropertiesEdit FastDp(this ScriptAccessory sa, string name, Vector3 pos, uint duration, Vector2 scale, bool safe = false)
