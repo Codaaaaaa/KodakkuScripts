@@ -48,9 +48,19 @@ public class Enuo
     #endregion
 
     #region 变量和初始化
+    private readonly object _commonMechanicLock = new();
+    private readonly List<(uint OrbId, uint PlayerId, DateTime Time)> _blackBallTethers = new();
+
+    // 混沌激流
+    private readonly List<Vector3> 混沌激流最初两个黑球位置 = new();
+
     public void Init(ScriptAccessory sa)
     {
         _phase = 1;
+        lock (_commonMechanicLock)
+        {
+            _blackBallTethers.Clear();
+        }
         sa.Method.RemoveDraw(".*");
     }
 
@@ -71,57 +81,352 @@ public class Enuo
     [ScriptMethod(name: "通用机制-无之膨胀", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:regex:^(49977|49978)$"])]
     public async void 通用机制_无之膨胀(Event evt, ScriptAccessory sa)
     {
-        // 画图钢铁月环 49977是钢铁(40) 49978是月环(60,10)
+        var sourceId = evt.SourceId();
+        if (sourceId == 0) return;
+
+        const uint duration = 7700;
+        var actionId = evt.ActionId();
+
+        if (actionId == 49977)
+        {
+            // 49977 钢铁：半径 40
+            DrawCircleOwner(sa, "通用机制-无之膨胀-钢铁", sourceId, 40f, duration, sa.Data.DefaultDangerColor);
+        }
+        else if (actionId == 49978)
+        {
+            // 49978 月环：外圈 60，内圈 10
+            DrawDonutOwner(sa, "通用机制-无之膨胀-月环", sourceId, 60f, 40f, duration, sa.Data.DefaultDangerColor);
+        }
     }
-    [ScriptMethod(name: "通用机制-回归重波动(单奶妈黑球)", eventType: EventTypeEnum.Tether, eventCondition: ["Id:regex:^(01AE)$"])]
+
+    [ScriptMethod(name: "通用机制-回归重波动(单奶妈黑球)", eventType: EventTypeEnum.TargetIcon, eventCondition: ["Id:regex:^(02BE)$"])]
     public async void 通用机制_回归重波动(Event evt, ScriptAccessory sa)
     {
-        // 被点名的人画矩形 (以场内为中心，从场外连线的黑球到被点名的人)
-        // 用safeColor
+        if (!TryGetTetherOrbAndPlayer(evt, sa, out var orbId, out var playerId, out _)) return;
+
+        RecordBlackBallTether(orbId, playerId);
+
+        // 单奶黑球：被点名的人连线矩形固定 safeColor。
+        DrawRectFromOwnerToTarget(sa,
+            name: $"通用机制-回归重波动-{orbId:X}-{playerId:X}",
+            ownerId: orbId,
+            targetId: playerId,
+            width: 8f,
+            length: 15f,
+            duration: 7700,
+            color: sa.Data.DefaultSafeColor);
     }
-    [ScriptMethod(name: "通用机制-回归波动(双奶妈黑球)", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:regex:^(|)$"])]
+
+    [ScriptMethod(name: "通用机制-回归波动(双奶妈黑球)", eventType: EventTypeEnum.TargetIcon, eventCondition: ["Id:regex:^(02BD)$"])]
     public async void 通用机制_回归波动(Event evt, ScriptAccessory sa)
     {
-        // 被点名的人画矩形 (从场外连线的黑球到被点名的人)
-        // 但是要判断index。
-            // 如果被点名的index是1,然后你是1 3 5 7，用safeColor。
-            // 如果被点名的index是1,然后你是0 2 4 8，用dangerColor。
-            // 如果被点名的index是2,然后你是0 2 4 8，用safeColor
-            // 如果被点名的index是2,然后你是1 3 5 7，用dangerColor
+        var myIdx = sa.MyIndex();
+        var targetId = evt.TargetId();
+        var targetIdx = sa.Data.PartyList.IndexOf(targetId);
+        var orbId = evt.SourceId();
+
+        if (orbId == 0) return;
+        if (!IsValidPartyIndex(targetIdx)) return;
+
+        // 按你的 comment：被点名 index 为奇数时 1/3/5/7 safe；为偶数时 0/2/4/6 safe。
+        var isSafeForMe = (myIdx % 2) == (targetIdx % 2);
+        DrawRectFromOwnerToTarget(sa,
+            name: $"通用机制-回归波动-{targetIdx}",
+            ownerId: orbId,
+            targetId: targetId,
+            width: 6f,
+            length: 15f,
+            duration: 9500,
+            color: isSafeForMe ? sa.Data.DefaultSafeColor : sa.Data.DefaultDangerColor);
+
     }
+
     [ScriptMethod(name: "通用机制-集束波动(双奶扇形分摊)", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:regex:^(50033)$"])]
     public async void 通用机制_集束波动(Event evt, ScriptAccessory sa)
     {
-        // 两个index 2 3画120扇形 (从boss到两个index)
-        // index 2指路左边 3指路右边
-        // 其他人
-            // 如果是0 2 4 6，index 2的扇形用safeColor，index 1的扇形用dangerColor
-            // 如果是1 3 5 7，index 1的扇形用safeColor，index 2的扇形用dangerColor
+        var sourceId = evt.SourceId();
+        if (sourceId == 0) return;
+
+        var myIdx = sa.MyIndex();
+        if (!IsValidPartyIndex(myIdx)) return;
+
+        const uint duration = 4800;
+        const float range = 60f;
+        const float radian = MathF.PI * 10f / 18f; // 110°
+
+        // index 2 左边，index 3 右边。偶数组 0/2/4/6 吃 index 2，奇数组 1/3/5/7 吃 index 3。
+        DrawFanFromOwnerToPartyIndex(sa, "通用机制-集束波动-index2", sourceId, 2, range, radian, duration,
+            IsEvenGroup(myIdx) ? sa.Data.DefaultSafeColor : sa.Data.DefaultDangerColor);
+        DrawFanFromOwnerToPartyIndex(sa, "通用机制-集束波动-index3", sourceId, 3, range, radian, duration,
+            IsOddGroup(myIdx) ? sa.Data.DefaultSafeColor : sa.Data.DefaultDangerColor);
+
+        if (myIdx == 2)
+        {
+            var dp = sa.WaypointDp(new Vector3(88f, 0f, 100f), duration, 0, "集束波动-index2-左边");
+            sa.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
+        }
+        else if (myIdx == 3)
+        {
+            var dp = sa.WaypointDp(new Vector3(112f, 0f, 100f), duration, 0, "集束波动-index3-右边");
+            sa.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
+        }
     }
-    [ScriptMethod(name: "通用机制-扩散波动(两两扇形分摊)", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:regex:^(|)$"])]
+
+    [ScriptMethod(name: "通用机制-扩散波动(两两扇形分摊)", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:regex:^(50032)$"])]
     public async void 通用机制_扩散波动(Event evt, ScriptAccessory sa)
     {
-        // 看 有没有写点名，没有的话就画0 1 2 3，45度扇形
-        // 其他人
-            // 如果是0 4，index 0 4的扇形用safeColor，其他的扇形用dangerColor
-            // 如果是1 5，index 1 5的扇形用safeColor，其他的扇形用dangerColor
-            // 如果是2 6，index 2 6的扇形用safeColor，其他的扇形用dangerColor
-            // 如果是3 7，index 3 7的扇形用safeColor，其他的扇形用dangerColor
+        var sourceId = evt.SourceId();
+        if (sourceId == 0) return;
+
+        var myIdx = sa.MyIndex();
+        if (!IsValidPartyIndex(myIdx)) return;
+
+        const uint duration = 6500;
+        const float range = 60f;
+        const float radian = MathF.PI / 4f; // 45°
+
+        var safeFanIndex = myIdx % 4; // 0/4 -> 0, 1/5 -> 1, 2/6 -> 2, 3/7 -> 3
+        for (var targetIdx = 0; targetIdx < 4; targetIdx++)
+        {
+            DrawFanFromOwnerToPartyIndex(sa,
+                name: $"通用机制-扩散波动-index{targetIdx}",
+                ownerId: sourceId,
+                targetPartyIndex: targetIdx,
+                range: range,
+                radian: radian,
+                duration: duration,
+                color: targetIdx == safeFanIndex ? sa.Data.DefaultSafeColor : sa.Data.DefaultDangerColor);
+        }
     }
-    [ScriptMethod(name: "通用机制-混沌激流(黑球转转乐)", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:regex:^(|)$"])]
+
+    [ScriptMethod(name: "通用机制-混沌激流(黑球转转乐)", eventType: EventTypeEnum.AddCombatant, eventCondition: ["DataId:regex:^(19909|19910)$"])]
     public async void 通用机制_混沌激流(Event evt, ScriptAccessory sa)
     {
-        // 画扇形 具体怎么没想好
+        var 黑球位置 = evt.SourcePosition();
+        var 场地中心 = new Vector3(100f, 0f, 100f);
 
-        // 记录被打两次的黑球的位置
+        // 只记录最先出现的两个黑球位置
+        if (混沌激流最初两个黑球位置.Count < 2)
+        {
+            混沌激流最初两个黑球位置.Add(黑球位置);
 
-        // 分成四个半场。按照先黄后紫的顺序撞
+            // 第一个黑球出现时，安排一段时间后清空，避免影响下一轮
+            if (混沌激流最初两个黑球位置.Count == 1)
+            {
+                _ = Task.Run(async () =>
+                {
+                    await Task.Delay(20000);
+                    混沌激流最初两个黑球位置.Clear();
+                });
+            }
+        }
+
+        // 画扇形：从场地中心指向当前黑球位置
+        DrawFanFromCenterToPosition(
+            sa,
+            name: $"通用机制-混沌激流-黑球扇形",
+            center: 场地中心,
+            targetPos: 黑球位置,
+            degree: 45f,
+            radius: 30f,
+            duration: 7000,
+            color: sa.Data.DefaultDangerColor
+        );
+
+        // 这里不追踪最初两个黑球位置，而是按照时间顺序记录所有黑球出现的位置 index前的先出现。只记录19909的
     }
-    [ScriptMethod(name: "通用机制-零次元(多段分摊)", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:regex:^(|)$"], userControl: false)]
+
+    [ScriptMethod(name: "通用机制-混沌激流-撞球", eventType: EventTypeEnum.Tether, eventCondition: ["Id:regex:^(0196|0197)$"])]
+    public async void 通用机制_混沌激流_撞球(Event evt, ScriptAccessory sa)
+    {
+        // 按照时间顺序来排， index 0 1去撞  时间顺序出现的黑球的位置中第一个出现的0196和0197,然后0196延迟4000ms，0197延迟2000ms
+        // 按照时间顺序来排， index 2 3去撞  时间顺序出现的黑球的位置中第二个出现的0196和0197,然后0196延迟4000ms，0197延迟2000ms
+        // 按照时间顺序来排， index 4 5去撞  时间顺序出现的黑球的位置中第三个出现的0196和0197,然后0196延迟4000ms，0197延迟2000ms
+        // 按照时间顺序来排， index 6 7去撞  时间顺序出现的黑球的位置中第四个出现的0196和0197,然后0196延迟4000ms，0197延迟2000ms
+
+    }
+    
+    [ScriptMethod(name: "通用机制-零次元(多段分摊)", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:regex:^(|)$"])]
     public async void 通用机制_零次元(Event evt, ScriptAccessory sa)
     {
         // 被点的人画一个safecolor的矩形
     }
+
+    [ScriptMethod(name: "通用机制-奔流", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:regex:^(49995|49996|49997)$"])]
+    public async void 通用机制_奔流(Event evt, ScriptAccessory sa)
+    {
+        // 记录EffectPosition. 画一个3200ms的5m的圈
+    }
+
+    #region 通用机制 helpers
+    private static bool IsValidPartyIndex(int idx) => idx >= 0 && idx <= 7;
+    private static bool IsEvenGroup(int idx) => idx is 0 or 2 or 4 or 6;
+    private static bool IsOddGroup(int idx) => idx is 1 or 3 or 5 or 7;
+
+    private void DrawCircleOwner(ScriptAccessory sa, string name, uint ownerId, float radius, uint duration, Vector4 color, uint delay = 0)
+    {
+        var dp = sa.Data.GetDefaultDrawProperties();
+        dp.Name = name;
+        dp.Owner = ownerId;
+        dp.Scale = new Vector2(radius);
+        dp.Color = color;
+        dp.Delay = delay;
+        dp.DestoryAt = duration;
+        dp.ScaleMode = ScaleMode.ByTime;
+        sa.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Circle, dp);
+    }
+
+    private void DrawDonutOwner(ScriptAccessory sa, string name, uint ownerId, float outerRadius, float innerRadius, uint duration, Vector4 color, uint delay = 0)
+    {
+        var dp = sa.Data.GetDefaultDrawProperties();
+        dp.Name = name;
+        dp.Owner = ownerId;
+        dp.Scale = new Vector2(outerRadius);
+        dp.InnerScale = new Vector2(innerRadius);
+        dp.Radian = MathF.PI * 2f;
+        dp.Color = color;
+        dp.Delay = delay;
+        dp.DestoryAt = duration;
+        dp.ScaleMode = ScaleMode.ByTime;
+        sa.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Donut, dp);
+    }
+
+    private void DrawRectFromOwnerToTarget(ScriptAccessory sa, string name, uint ownerId, uint targetId, float width, float length, uint duration, Vector4 color, uint delay = 0)
+    {
+        var dp = sa.Data.GetDefaultDrawProperties();
+        dp.Name = name;
+        dp.Owner = ownerId;
+        dp.Scale = new Vector2(width, length);
+        dp.Color = color;
+        dp.Delay = delay;
+        dp.DestoryAt = duration;
+        dp.ScaleMode = ScaleMode.ByTime;
+        SetDrawTargetObject(dp, targetId);
+        sa.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Rect, dp);
+    }
+
+    private void DrawFanFromOwnerToPartyIndex(ScriptAccessory sa, string name, uint ownerId, int targetPartyIndex, float range, float radian, uint duration, Vector4 color, uint delay = 0)
+    {
+        if (!IsValidPartyIndex(targetPartyIndex)) return;
+        var targetId = sa.Data.PartyList[targetPartyIndex];
+        if (targetId == 0) return;
+
+        var dp = sa.Data.GetDefaultDrawProperties();
+        dp.Name = name;
+        dp.Owner = ownerId;
+        dp.Scale = new Vector2(range);
+        dp.Radian = radian;
+        dp.Color = color;
+        dp.Delay = delay;
+        dp.DestoryAt = duration;
+        dp.ScaleMode = ScaleMode.ByTime;
+        SetDrawTargetObject(dp, targetId);
+        sa.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Fan, dp);
+    }
+
+    private void DrawFanFromCenterToPosition(
+        ScriptAccessory sa,
+        string name,
+        Vector3 center,
+        Vector3 targetPos,
+        float degree,
+        float radius,
+        uint duration,
+        Vector4 color)
+    {
+        var dp = sa.Data.GetDefaultDrawProperties();
+
+        dp.Name = name;
+        dp.Owner = 0;
+        dp.Position = center;
+        dp.Rotation = GetRadian(center, targetPos);
+        dp.Radian = degree * MathF.PI / 180f;
+        dp.Scale = new Vector2(radius);
+        dp.Color = color;
+        dp.DestoryAt = duration;
+        dp.ScaleMode = ScaleMode.ByTime;
+
+        sa.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Fan, dp);
+    }
+
+    private float GetRadian(Vector3 from, Vector3 to)
+    {
+        var dx = to.X - from.X;
+        var dz = to.Z - from.Z;
+
+        return MathF.Atan2(dx, dz);
+    }
+
+    private bool TryGetTetherOrbAndPlayer(Event evt, ScriptAccessory sa, out uint orbId, out uint playerId, out int playerIndex)
+    {
+        var sourceId = evt.SourceId();
+        var targetId = evt.TargetId();
+        var sourceIndex = sa.Data.PartyList.IndexOf(sourceId);
+        var targetIndex = sa.Data.PartyList.IndexOf(targetId);
+
+        if (IsValidPartyIndex(sourceIndex))
+        {
+            playerId = sourceId;
+            playerIndex = sourceIndex;
+            orbId = targetId;
+            return orbId != 0 && playerId != 0;
+        }
+
+        if (IsValidPartyIndex(targetIndex))
+        {
+            playerId = targetId;
+            playerIndex = targetIndex;
+            orbId = sourceId;
+            return orbId != 0 && playerId != 0;
+        }
+
+        orbId = sourceId;
+        playerId = targetId;
+        playerIndex = targetIndex;
+        return orbId != 0 && playerId != 0;
+    }
+
+    private void RecordBlackBallTether(uint orbId, uint playerId)
+    {
+        lock (_commonMechanicLock)
+        {
+            var now = DateTime.UtcNow;
+            _blackBallTethers.RemoveAll(x => (now - x.Time).TotalMilliseconds > 15000 || x.PlayerId == playerId);
+            _blackBallTethers.Add((orbId, playerId, now));
+        }
+    }
+
+    private static void SetDrawTargetObject(DrawPropertiesEdit dp, uint targetId)
+    {
+        // 不同 KodakkuAssist 版本里目标字段名可能不完全一致；用反射避免因为字段名差异直接编译失败。
+        if (TrySetDrawProperty(dp, "TargetObject", targetId)) return;
+        if (TrySetDrawProperty(dp, "TargetId", targetId)) return;
+        TrySetDrawProperty(dp, "TargetID", targetId);
+    }
+
+    private static bool TrySetDrawProperty<T>(DrawPropertiesEdit dp, string propertyName, T value)
+    {
+        try
+        {
+            var prop = typeof(DrawPropertiesEdit).GetProperty(propertyName, BindingFlags.Public | BindingFlags.Instance);
+            if (prop == null || !prop.CanWrite) return false;
+
+            var targetType = Nullable.GetUnderlyingType(prop.PropertyType) ?? prop.PropertyType;
+            object converted = value;
+            if (targetType != typeof(T))
+            {
+                converted = Convert.ChangeType(value, targetType);
+            }
+            prop.SetValue(dp, converted);
+            return true;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+    #endregion
+
     #endregion
 
     #region P1
