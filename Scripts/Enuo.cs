@@ -1156,7 +1156,7 @@ public class Enuo
 
         P2_尝试分配无之涡流(sa);
     }
-    
+
     #endregion
 
     #region P3
@@ -1196,7 +1196,7 @@ public class Enuo
         }
         else if (actionId == 49986)
         {
-            // 49986 辣翅：类似神圣之翼，画 boss 身侧偏移矩形
+            // 49986 辣翅
             var dp = sa.Data.GetDefaultDrawProperties();
             dp.Name = $"P3-聚能波动-辣翅-{sourceId:X}";
             dp.Owner = sourceId;
@@ -1255,17 +1255,6 @@ public class Enuo
         dp3.DestoryAt = duration;
         dp3.ScaleMode = ScaleMode.ByTime;
         sa.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Circle, dp3);
-    }
-
-    [ScriptMethod(name: "P3-核心熔毁集合分散", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:regex:^(|)$"])]
-    public async void P3_核心熔毁(Event evt, ScriptAccessory sa)
-    {
-        if (_phase != 3) return;
-        // 无之漩涡看最短的线的object在哪。
-        // 先指路去以object到中心为圆心为面向的前面(10,5)的距离
-        
-        // 八方分散指路+画图+时间
-
     }
     
     #endregion
