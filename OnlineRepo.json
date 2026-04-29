@@ -43,5 +43,14 @@
     "TerritoryIds": [1317],
     "DownloadUrl": "https://raw.githubusercontent.com/Codaaaaaa/KodakkuScripts/main/Scripts/MerchantsTale.cs",
     "UpdateInfo": "0.0.0.4\n修复P3四方凶兆3第四轮连线东西凶兆安全区相反的问题\n\n0.0.0.3\n优化了一下天界交叉斩麻将1和麻将2画图结束的时机, 修复了P4陨石指路两个点的问题\n\n0.0.0.2\n修复了P2四方凶兆可能会出错的问题，P3四方凶兆3第四轮连线+弱点刀时序问题导致安全点错误的问题，P4落石运动会拉线指路错误，以及其他一些小问题\n\n0.0.0.1目前只完成了剑术大师的基本所有机制的指路画图tts，其他boss得等arr\n感谢Tou_uTou佬的arr"
+  },
+  {
+    "Name": "恩欧歼殛战画图",
+    "Guid": "8c4a9f2d-6b31-4e0a-9f27-1d7c5b8a3e46",
+    "Version": "0.0.0.1",
+    "Author": "Codaaaaaa",
+    "TerritoryIds": [1362],
+    "DownloadUrl": "https://raw.githubusercontent.com/Codaaaaaa/KodakkuScripts/main/Scripts/Enuo.cs",
+    "UpdateInfo": "0.0.0.1\n mmw文档+nocchh\n谢谢两位亲友提供的arr"
   }
 ]

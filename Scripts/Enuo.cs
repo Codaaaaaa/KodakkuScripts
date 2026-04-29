@@ -19,7 +19,7 @@ namespace Codaaaaaa.Enuo;
 
 [ScriptType(
     guid: "8c4a9f2d-6b31-4e0a-9f27-1d7c5b8a3e46",
-    name: "恩欧画图",
+    name: "恩欧歼殛战画图",
     territorys: [1362],
     version: "0.0.0.1",
     author: "Codaaaaaa",
@@ -52,7 +52,53 @@ public class Enuo
     private readonly List<(uint OrbId, uint PlayerId, DateTime Time)> _blackBallTethers = new();
 
     // 混沌激流
-    private readonly List<Vector3> 混沌激流最初两个黑球位置 = new();
+    private readonly List<Vector3> 混沌激流黑球生成位置 = new();
+    private readonly List<(int GlobalOrder, Vector3 Pos)> 混沌激流_0196tethers = new();
+    private readonly List<(int GlobalOrder, Vector3 Pos)> 混沌激流_0197tethers = new();
+    private bool 混沌激流_0196已分配 = false;
+    private bool 混沌激流_0197已分配 = false;
+
+    private readonly object P1深度冻结锁 = new();
+    private bool P1深度冻结冷却已提醒 = false;
+
+    // P2 无之涡流
+    private readonly object P2无之涡流锁 = new();
+    private readonly List<int> P2无之涡流点名玩家 = new();
+    private readonly bool[] P2无之涡流塔出现 = new bool[8];
+    private readonly Vector3[] P2无之涡流塔位置 = new Vector3[8];
+    private int P2无之涡流塔数量 = 0;
+    private bool P2无之涡流已分配 = false;
+    private static readonly Vector3[] P2_无之涡流固定点位 =
+    [
+        new Vector3(109.54f, -0.02f, 76.89f),   // 0
+        new Vector3(123.09f, -0.02f, 90.41f),   // 1
+        new Vector3(123.09f, -0.02f, 109.54f),  // 2 
+        new Vector3(109.54f, -0.02f, 123.09f),  // 3 
+        new Vector3(90.41f, -0.02f, 123.09f),   // 4 
+        new Vector3(76.89f, -0.02f, 109.54f),   // 5 
+        new Vector3(76.89f, -0.02f, 90.41f),    // 6 
+        new Vector3(90.41f, -0.02f, 76.89f),    // 7 
+        
+    ];
+    private uint P2无之涡流BossId = 0;
+
+    private int P2_获取无之涡流塔Index(Vector3 pos)
+    {
+        var bestIndex = -1;
+        var bestDist = float.MaxValue;
+
+        for (int i = 0; i < P2_无之涡流固定点位.Length; i++)
+        {
+            var dist = Vector3.Distance(pos, P2_无之涡流固定点位[i]);
+            if (dist < bestDist)
+            {
+                bestDist = dist;
+                bestIndex = i;
+            }
+        }
+
+        return bestDist <= 5f ? bestIndex : -1;
+    }
 
     public void Init(ScriptAccessory sa)
     {
@@ -61,6 +107,20 @@ public class Enuo
         {
             _blackBallTethers.Clear();
         }
+
+        lock (P1深度冻结锁)
+        {
+            P1深度冻结冷却已提醒 = false;
+        }
+
+        混沌激流黑球生成位置.Clear();
+        混沌激流_0196tethers.Clear();
+        混沌激流_0197tethers.Clear();
+        混沌激流_0196已分配 = false;
+        混沌激流_0197已分配 = false;
+
+        P2_重置无之涡流();
+
         sa.Method.RemoveDraw(".*");
     }
 
@@ -74,11 +134,14 @@ public class Enuo
 
     [ScriptMethod(name: "Set Phase 2", eventType: EventTypeEnum.Chat, eventCondition: ["Type:Echo", "Message:KASP2"], userControl: false)]
     public void SetP2(Event evt, ScriptAccessory sa) => _phase = 2;
+
+    [ScriptMethod(name: "Set Phase 3", eventType: EventTypeEnum.Chat, eventCondition: ["Type:Echo", "Message:KASP3"], userControl: false)]
+    public void SetP3(Event evt, ScriptAccessory sa) => _phase = 3;
     #endregion
 
     #region 通用机制
 
-    [ScriptMethod(name: "通用机制-无之膨胀", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:regex:^(49977|49978)$"])]
+    [ScriptMethod(name: "通用机制-无之膨胀", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:regex:^(49977|49978|49979|49980)$"])]
     public async void 通用机制_无之膨胀(Event evt, ScriptAccessory sa)
     {
         var sourceId = evt.SourceId();
@@ -97,6 +160,16 @@ public class Enuo
             // 49978 月环：外圈 60，内圈 10
             DrawDonutOwner(sa, "通用机制-无之膨胀-月环", sourceId, 60f, 40f, duration, sa.Data.DefaultDangerColor);
         }
+        else if (actionId == 49979)
+        {
+            // 49979 钢铁：半径 20
+            DrawCircleOwner(sa, "通用机制-无之膨胀-本体-钢铁", sourceId, 12f, duration, sa.Data.DefaultDangerColor);
+        }
+        else if (actionId == 49980)
+        {
+            // 49978 月环：外圈 60，内圈 10
+            DrawDonutOwner(sa, "通用机制-无之膨胀-本体-月环", sourceId, 40f, 6f, duration, sa.Data.DefaultDangerColor);
+        }
     }
 
     [ScriptMethod(name: "通用机制-回归重波动(单奶妈黑球)", eventType: EventTypeEnum.TargetIcon, eventCondition: ["Id:regex:^(02BE)$"])]
@@ -111,7 +184,7 @@ public class Enuo
             name: $"通用机制-回归重波动-{orbId:X}-{playerId:X}",
             ownerId: orbId,
             targetId: playerId,
-            width: 8f,
+            width: 6f,
             length: 15f,
             duration: 7700,
             color: sa.Data.DefaultSafeColor);
@@ -183,9 +256,17 @@ public class Enuo
 
         const uint duration = 6500;
         const float range = 60f;
-        const float radian = MathF.PI / 4f; // 45°
+        const float radian = MathF.PI / 3f;
 
-        var safeFanIndex = myIdx % 4; // 0/4 -> 0, 1/5 -> 1, 2/6 -> 2, 3/7 -> 3
+        var safeFanIndex = myIdx switch
+        {
+            0 or 6 => 0,
+            1 or 5 => 1,
+            2 or 4 => 2,
+            3 or 7 => 3,
+            _ => -1
+        };
+
         for (var targetIdx = 0; targetIdx < 4; targetIdx++)
         {
             DrawFanFromOwnerToPartyIndex(sa,
@@ -195,67 +276,195 @@ public class Enuo
                 range: range,
                 radian: radian,
                 duration: duration,
-                color: targetIdx == safeFanIndex ? sa.Data.DefaultSafeColor : sa.Data.DefaultDangerColor);
+                color: targetIdx == safeFanIndex
+                    ? sa.Data.DefaultSafeColor
+                    : sa.Data.DefaultDangerColor);
         }
     }
 
     [ScriptMethod(name: "通用机制-混沌激流(黑球转转乐)", eventType: EventTypeEnum.AddCombatant, eventCondition: ["DataId:regex:^(19909|19910)$"])]
     public async void 通用机制_混沌激流(Event evt, ScriptAccessory sa)
     {
-        var 黑球位置 = evt.SourcePosition();
-        var 场地中心 = new Vector3(100f, 0f, 100f);
+        var pos = evt.SourcePosition();
+        var sourceId = evt.SourceId();
 
-        // 只记录最先出现的两个黑球位置
-        if (混沌激流最初两个黑球位置.Count < 2)
+        var dataId = evt.DataId();
+
+        bool firstOfRound = false;
+        int countAfter;
+        lock (_commonMechanicLock)
         {
-            混沌激流最初两个黑球位置.Add(黑球位置);
-
-            // 第一个黑球出现时，安排一段时间后清空，避免影响下一轮
-            if (混沌激流最初两个黑球位置.Count == 1)
+            if (dataId == 19909)
             {
-                _ = Task.Run(async () =>
-                {
-                    await Task.Delay(20000);
-                    混沌激流最初两个黑球位置.Clear();
-                });
+                if (混沌激流黑球生成位置.Count == 0)
+                    {
+                        混沌激流_0196tethers.Clear();
+                        混沌激流_0197tethers.Clear();
+                        混沌激流_0196已分配 = false;
+                        混沌激流_0197已分配 = false;
+                    }
+
+                混沌激流黑球生成位置.Add(pos);
+                countAfter = 混沌激流黑球生成位置.Count;
+                firstOfRound = countAfter == 1;
             }
+            
         }
 
-        // 画扇形：从场地中心指向当前黑球位置
+        if (firstOfRound)
+        {
+            _ = Task.Run(async () =>
+            {
+                await Task.Delay(30000);
+                lock (_commonMechanicLock)
+                {
+                    混沌激流黑球生成位置.Clear();
+                    混沌激流_0196tethers.Clear();
+                    混沌激流_0197tethers.Clear();
+                    混沌激流_0196已分配 = false;
+                    混沌激流_0197已分配 = false;
+                }
+            });
+        }
+
         DrawFanFromCenterToPosition(
             sa,
-            name: $"通用机制-混沌激流-黑球扇形",
-            center: 场地中心,
-            targetPos: 黑球位置,
+            name: $"通用机制-混沌激流-黑球扇形-{sourceId:X}",
+            center: new Vector3(100f, 0f, 100f),
+            targetPos: pos,
             degree: 45f,
             radius: 30f,
             duration: 7000,
-            color: sa.Data.DefaultDangerColor
-        );
-
-        // 这里不追踪最初两个黑球位置，而是按照时间顺序记录所有黑球出现的位置 index前的先出现。只记录19909的
+            color: sa.Data.DefaultDangerColor);
     }
 
     [ScriptMethod(name: "通用机制-混沌激流-撞球", eventType: EventTypeEnum.Tether, eventCondition: ["Id:regex:^(0196|0197)$"])]
     public async void 通用机制_混沌激流_撞球(Event evt, ScriptAccessory sa)
     {
-        // 按照时间顺序来排， index 0 1去撞  时间顺序出现的黑球的位置中第一个出现的0196和0197,然后0196延迟4000ms，0197延迟2000ms
-        // 按照时间顺序来排， index 2 3去撞  时间顺序出现的黑球的位置中第二个出现的0196和0197,然后0196延迟4000ms，0197延迟2000ms
-        // 按照时间顺序来排， index 4 5去撞  时间顺序出现的黑球的位置中第三个出现的0196和0197,然后0196延迟4000ms，0197延迟2000ms
-        // 按照时间顺序来排， index 6 7去撞  时间顺序出现的黑球的位置中第四个出现的0196和0197,然后0196延迟4000ms，0197延迟2000ms
+        var myIdx = sa.MyIndex();
+        var srcId = evt.SourceId();
+        var tgtId = evt.TargetId();
+        var sourcePos = evt.SourcePosition();
+        var rawId = (evt["Id"] ?? string.Empty);
 
-    }
-    
-    [ScriptMethod(name: "通用机制-零次元(多段分摊)", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:regex:^(|)$"])]
-    public async void 通用机制_零次元(Event evt, ScriptAccessory sa)
-    {
-        // 被点的人画一个safecolor的矩形
+        if (!IsValidPartyIndex(myIdx))
+        {
+            return;
+        }
+
+        bool is0196;
+        var cleanId = rawId.Replace("0x", "").Trim();
+        if (cleanId.Equals("0196", StringComparison.OrdinalIgnoreCase)) is0196 = true;
+        else if (cleanId.Equals("0197", StringComparison.OrdinalIgnoreCase)) is0196 = false;
+        else
+        {
+            return;
+        }
+
+        Vector3 myTargetPos = default;
+        bool shouldDraw = false;
+        int myTypeOrder = myIdx / 2;
+        int globalOrder = -1;
+        float minDist = float.MaxValue;
+        int listCountAfterAdd = 0;
+        bool deduped = false;
+        bool alreadyAssigned = false;
+
+        lock (_commonMechanicLock)
+        {
+            if (混沌激流黑球生成位置.Count == 0)
+            {
+                return;
+            }
+
+            // 打印当前黑球list
+            var ballListStr = string.Join(" | ", 混沌激流黑球生成位置.Select((p, i) => $"[{i}]({p.X:F1},{p.Z:F1})"));
+
+            for (int i = 0; i < 混沌激流黑球生成位置.Count; i++)
+            {
+                var dist = Vector3.Distance(sourcePos, 混沌激流黑球生成位置[i]);
+                if (dist < minDist)
+                {
+                    minDist = dist;
+                    globalOrder = i;
+                }
+            }
+
+            if (globalOrder < 0) return;
+            var matchedPos = 混沌激流黑球生成位置[globalOrder];
+
+            var list = is0196 ? 混沌激流_0196tethers : 混沌激流_0197tethers;
+
+            if (list.Any(t => t.GlobalOrder == globalOrder))
+            {
+                deduped = true;
+                return;
+            }
+
+            list.Add((globalOrder, matchedPos));
+            listCountAfterAdd = list.Count;
+
+            var listStr = string.Join(",", list.Select(t => t.GlobalOrder));
+
+            if (list.Count < 4)
+            {
+                return;
+            }
+
+            alreadyAssigned = is0196 ? 混沌激流_0196已分配 : 混沌激流_0197已分配;
+            if (alreadyAssigned)
+            {
+                return;
+            }
+
+            var 标准顺序 = 获取混沌激流标准顺时针顺序(sa);
+
+            var rankMap = 标准顺序
+                .Select((globalOrder, rank) => new { globalOrder, rank })
+                .ToDictionary(x => x.globalOrder, x => x.rank);
+
+            var sorted = list
+                .OrderBy(t => rankMap.TryGetValue(t.GlobalOrder, out var rank) ? rank : 999)
+                .ToList();
+
+            var sortedStr = string.Join(",", sorted.Select((t, i) =>
+                $"#{i}=global{t.GlobalOrder}({t.Pos.X:F1},{t.Pos.Z:F1})"));
+
+            if (myTypeOrder >= sorted.Count)
+            {
+                return;
+            }
+            myTargetPos = sorted[myTypeOrder].Pos;
+            myTargetPos = myTargetPos + Vector3.Normalize(new Vector3(100f, 0f, 100f) - sorted[myTypeOrder].Pos) * 8f;
+            shouldDraw = true;
+
+            if (is0196) 混沌激流_0196已分配 = true;
+            else 混沌激流_0197已分配 = true;
+        }
+
+        if (!shouldDraw) return;
+
+        uint delay = is0196 ? 6000u : 2000u;
+        uint duration = is0196 ? 6000u : 4000u;
+
+        var dp = sa.WaypointDp(myTargetPos, duration, delay,
+            $"混沌激流-撞球-{(is0196 ? "0196" : "0197")}-{myTypeOrder}");
+        sa.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
     }
 
     [ScriptMethod(name: "通用机制-奔流", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:regex:^(49995|49996|49997)$"])]
     public async void 通用机制_奔流(Event evt, ScriptAccessory sa)
     {
-        // 记录EffectPosition. 画一个3200ms的5m的圈
+        var pos = evt.EffectPosition();
+
+        var dp = sa.Data.GetDefaultDrawProperties();
+        dp.Name = $"通用机制-奔流-{pos.X:F1}-{pos.Z:F1}-{evt.SourceId():X}";
+        dp.Position = pos;
+        dp.Scale = new Vector2(7f);
+        dp.Color = sa.Data.DefaultDangerColor;
+        dp.DestoryAt = 6000;
+        dp.ScaleMode = ScaleMode.ByTime;
+        sa.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Circle, dp);
     }
 
     #region 通用机制 helpers
@@ -287,7 +496,7 @@ public class Enuo
         dp.Color = color;
         dp.Delay = delay;
         dp.DestoryAt = duration;
-        dp.ScaleMode = ScaleMode.ByTime;
+        // dp.ScaleMode = ScaleMode.ByTime;
         sa.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Donut, dp);
     }
 
@@ -345,6 +554,35 @@ public class Enuo
         dp.Color = color;
         dp.DestoryAt = duration;
         dp.ScaleMode = ScaleMode.ByTime;
+
+        sa.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Fan, dp);
+    }
+
+    private void DrawFanFromPositionToTarget(
+        ScriptAccessory sa,
+        string name,
+        Vector3 fromPos,
+        uint targetId,
+        float range,
+        float radian,
+        uint duration,
+        Vector4 color,
+        uint delay = 0)
+    {
+        if (targetId == 0) return;
+
+        var dp = sa.Data.GetDefaultDrawProperties();
+        dp.Name = name;
+        dp.Owner = 0;
+        dp.Position = fromPos;
+        dp.Scale = new Vector2(range);
+        dp.Radian = radian;
+        dp.Color = color;
+        dp.Delay = delay;
+        dp.DestoryAt = duration;
+        dp.ScaleMode = ScaleMode.ByTime;
+
+        SetDrawTargetObject(dp, targetId);
 
         sa.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Fan, dp);
     }
@@ -425,6 +663,230 @@ public class Enuo
             return false;
         }
     }
+
+    private List<int> 获取混沌激流标准顺时针顺序(ScriptAccessory sa)
+    {
+        // 默认 AddCombatant 顺序
+        var normal = Enumerable.Range(0, 混沌激流黑球生成位置.Count).ToList();
+
+        if (混沌激流黑球生成位置.Count < 8)
+        {
+            return normal;
+        }
+
+        var center = new Vector3(100f, 0f, 100f);
+        float totalDelta = 0f;
+
+        for (int i = 0; i < 8; i++)
+        {
+            var p1 = 混沌激流黑球生成位置[i];
+            var p2 = 混沌激流黑球生成位置[(i + 1) % 8];
+
+            var a1 = MathF.Atan2(p1.Z - center.Z, p1.X - center.X);
+            var a2 = MathF.Atan2(p2.Z - center.Z, p2.X - center.X);
+
+            var delta = NormalizeRadian(a2 - a1);
+            totalDelta += delta;
+        }
+
+        // 这里用 totalDelta < 0 当作 0->1->2->... 是顺时针。
+        // 如果你实测发现完全反了，就把这里改成 totalDelta > 0。
+        var isClockwise = totalDelta > 0f;
+
+        if (isClockwise)
+        {
+            // 0 1 2 3 4 5 6 7
+            return new List<int> { 0, 1, 2, 3, 4, 5, 6, 7 };
+        }
+
+        // 0 1 2 3 4 5 6 7 -> 1 0 7 6 5 4 3 2
+        return new List<int> { 1, 0, 7, 6, 5, 4, 3, 2 };
+    }
+
+    private static float NormalizeRadian(float rad)
+    {
+        while (rad > MathF.PI) rad -= MathF.PI * 2f;
+        while (rad < -MathF.PI) rad += MathF.PI * 2f;
+        return rad;
+    }
+    private void P2_尝试分配无之涡流(ScriptAccessory sa)
+    {
+        var myIdx = sa.MyIndex();
+        if (!IsValidPartyIndex(myIdx)) return;
+
+        Vector3 targetPos = default;
+        bool shouldDraw = false;
+
+        lock (P2无之涡流锁)
+        {
+            if (P2无之涡流已分配) return;
+            if (P2无之涡流点名玩家.Count < 4) return;
+            if (P2无之涡流塔数量 < 4) return;
+
+            var towers = Enumerable.Range(0, 8)
+                .Where(i => P2无之涡流塔出现[i])
+                .OrderBy(i => i)
+                .ToList();
+
+            var empties = Enumerable.Range(0, 8)
+                .Where(i => !P2无之涡流塔出现[i])
+                .OrderBy(i => i)
+                .ToList();
+
+            var marked = P2无之涡流点名玩家
+                .Distinct()
+                .OrderBy(i => i)
+                .ToList();
+
+            var unmarked = Enumerable.Range(0, 8)
+                .Where(i => !marked.Contains(i))
+                .OrderBy(i => i)
+                .ToList();
+
+            int assignedSpot = -1;
+
+            if (P2打法 == P2打法法enum.MMW)
+            {
+                assignedSpot = P2_无之涡流_MMW分配(myIdx, marked, unmarked, towers, empties);
+            }
+            else
+            {
+                assignedSpot = P2_无之涡流_NOCCHH分配(myIdx, marked, unmarked, towers, empties);
+            }
+
+            if (assignedSpot < 0 || assignedSpot > 7) return;
+
+            targetPos = P2_无之涡流固定点位[assignedSpot];
+
+            if (P2无之涡流塔出现[assignedSpot])
+            {
+                targetPos = P2无之涡流塔位置[assignedSpot];
+            }
+
+            P2无之涡流已分配 = true;
+            shouldDraw = true;
+        }
+
+        if (!shouldDraw) return;
+
+        var dp = sa.WaypointDp(
+            targetPos,
+            duration: 9000,
+            delay: 0,
+            name: $"P2-无之涡流-指路-{myIdx}"
+        );
+        sa.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
+
+        var circle = sa.FastDp(
+            name: $"P2-无之涡流-目标点-{myIdx}",
+            pos: targetPos,
+            duration: 7000,
+            scale: new Vector2(6f),
+            safe: true
+        );
+        sa.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Circle, circle);
+
+        _ = Task.Run(async () =>
+        {
+            await Task.Delay(10000);
+            P2_重置无之涡流();
+        });
+    }
+
+    private int P2_无之涡流_MMW分配(
+        int myIdx,
+        List<int> marked,
+        List<int> unmarked,
+        List<int> towers,
+        List<int> empties)
+    {
+        // 没点名的人去塔
+        if (unmarked.Contains(myIdx))
+        {
+            var rank = unmarked.IndexOf(myIdx);
+            if (rank < 0 || rank >= towers.Count) return -1;
+            return towers[rank];
+        }
+
+        // 被点名的人去空地
+        if (marked.Contains(myIdx))
+        {
+            var rank = marked.IndexOf(myIdx);
+            if (rank < 0 || rank >= empties.Count) return -1;
+            return empties[rank];
+        }
+
+        return -1;
+    }
+
+    private int P2_无之涡流_NOCCHH分配(
+        int myIdx,
+        List<int> marked,
+        List<int> unmarked,
+        List<int> towers,
+        List<int> empties)
+    {
+        var isMarked = marked.Contains(myIdx);
+        var isUnmarked = unmarked.Contains(myIdx);
+        if (!isMarked && !isUnmarked) return -1;
+
+        var isEven = IsEvenGroup(myIdx);
+
+        var playerGroup = isMarked
+            ? marked.Where(i => IsEvenGroup(i) == isEven).OrderBy(i => i).ToList()
+            : unmarked.Where(i => IsEvenGroup(i) == isEven).OrderBy(i => i).ToList();
+
+        var rank = playerGroup.IndexOf(myIdx);
+        if (rank < 0) return -1;
+
+        var sourceSpots = isMarked ? empties : towers;
+
+        List<int> targetSpots;
+
+        if (isEven)
+        {
+            // 0/2/4/6 去左半场：index 4-7，按 index 从大到小
+            targetSpots = sourceSpots
+                .Where(i => i >= 4 && i <= 7)
+                .OrderByDescending(i => i)
+                .ToList();
+        }
+        else
+        {
+            // 1/3/5/7 去右半场：index 0-3，按 index 从小到大
+            targetSpots = sourceSpots
+                .Where(i => i >= 0 && i <= 3)
+                .OrderBy(i => i)
+                .ToList();
+        }
+
+        if (rank >= targetSpots.Count)
+        {
+            return P2_无之涡流_MMW分配(myIdx, marked, unmarked, towers, empties);
+        }
+
+        return targetSpots[rank];
+    }
+
+    private void P2_重置无之涡流()
+    {
+        lock (P2无之涡流锁)
+        {
+            P2无之涡流点名玩家.Clear();
+
+            for (int i = 0; i < 8; i++)
+            {
+                P2无之涡流塔出现[i] = false;
+                P2无之涡流塔位置[i] = default;
+            }
+
+            P2无之涡流塔数量 = 0;
+            P2无之涡流已分配 = false;
+        }
+
+        P2无之涡流BossId = 0;
+    }
+
     #endregion
 
     #endregion
@@ -433,7 +895,6 @@ public class Enuo
     [ScriptMethod(name: "P1-核心熔毁集合分散", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:regex:^(50040)$"])]
     public async void P1_核心熔毁(Event evt, ScriptAccessory sa)
     {
-        if (_phase != 1) return;
         var targetId = evt.TargetId();
         // if (targetId !=sa.Data.Me) return;
         // sa.Method.SendChat($"/e {targetId}");
@@ -446,13 +907,7 @@ public class Enuo
             sa.Method.SendChat("/e DurationMilliseconds2");
             return;
         }
-        
-        // 先指路boss脚底
-        var wpos = new Vector3(100f, 0f, 100f);
-        sa.WaypointDp(wpos, durationMilliseconds, 0, "核心熔毁集合");
-        sa.Method.SendChat("/e Test");
 
-        // 把热病提示移到这里
         await Task.Delay(5000);
         P1_热病buff提醒(evt, sa);
 
@@ -460,6 +915,39 @@ public class Enuo
         // 八方分散指路+画图+时间
 
         await Task.Delay(2500);
+        for (int i = 0; i < sa.Data.PartyList.Count; i++)
+        {
+            var playerId = sa.Data.PartyList[i];
+
+            var dpFoot = sa.Data.GetDefaultDrawProperties();
+            dpFoot.Name = $"核心熔毁-脚下黄圈-{i}-{playerId:X}";
+            dpFoot.Owner = playerId;
+            dpFoot.Color = sa.Data.DefaultDangerColor;
+            dpFoot.DestoryAt = 3300;
+            dpFoot.ScaleMode = ScaleMode.ByTime;
+            dpFoot.Scale = new Vector2(5f);
+
+            sa.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Circle, dpFoot);
+        }
+        for (int i = 0; i < sa.Data.PartyList.Count; i++)
+        {
+            var playerId = sa.Data.PartyList[i];
+
+            var obj = sa.Data.Objects.SearchById(playerId);
+            if (obj == null) continue;
+
+            var pos = obj.Position;
+
+            var dpFoot = sa.Data.GetDefaultDrawProperties();
+            dpFoot.Name = $"核心熔毁-脚下定点黄圈-{i}-{playerId:X}";
+            dpFoot.Position = pos;                  // 定点位置
+            dpFoot.Color = sa.Data.DefaultDangerColor;
+            dpFoot.DestoryAt = 2300;
+            dpFoot.ScaleMode = ScaleMode.ByTime;
+            dpFoot.Scale = new Vector2(5f);
+
+            sa.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Circle, dpFoot);
+        }
         var dp = sa.Data.GetDefaultDrawProperties();
         dp.Name = $"核心熔毁-八方分散-{targetId:X}";
         dp.Owner = targetId;
@@ -491,7 +979,6 @@ public class Enuo
 
     }
 
-    // [ScriptMethod(name: "P1-热病buff提醒", eventType: EventTypeEnum.StatusAdd, eventCondition:["StatusID:4562"])]
     private async void P1_热病buff提醒(Event evt, ScriptAccessory sa)
     {
         int durationMilliseconds = 1509;
@@ -515,43 +1002,62 @@ public class Enuo
         }
     }
 
-    [ScriptMethod(name: "P1-深度冻结(双T核爆)", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:regex:^(|)$"])]
+    [ScriptMethod(name: "P1-深度冻结(双T核爆)", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:regex:^(50044)$"])]
     public async void P1_深度冻结(Event evt, ScriptAccessory sa)
     {
-        // index 0指路左上
-        // index 1指路右上
+        if (_phase != 1) return;
 
+        var myIdx = sa.MyIndex();
+        if (!IsValidPartyIndex(myIdx)) return;
+
+        const uint duration = 6000;
+
+        if (myIdx == 0)
+        {
+            var dp = sa.WaypointDp(new Vector3(88f, 0f, 88f), duration, 0, "深度冻结-MT-左上");
+            sa.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
+        }
+        else if (myIdx == 1)
+        {
+            var dp = sa.WaypointDp(new Vector3(112f, 0f, 88f), duration, 0, "深度冻结-ST-右上");
+            sa.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
+        }
+
+        await Task.Delay(5000);
+
+        if (!P1_尝试设置深度冻结提醒())
+            return;
+
+        P1_冷却buff提醒(sa);
+
+        await Task.Delay(10000);
+        P1_重置深度冻结提醒();
+    }
+    private bool P1_尝试设置深度冻结提醒()
+    {
+        lock (P1深度冻结锁)
+        {
+            if (P1深度冻结冷却已提醒) return false;
+
+            P1深度冻结冷却已提醒 = true;
+            return true;
+        }
     }
 
-    [ScriptMethod(name: "P1-冷却buff提醒", eventType: EventTypeEnum.StatusAdd, eventCondition:["StatusID:4563"])]
-    public async void P1_冷却buff提醒(Event evt, ScriptAccessory sa)
+    private void P1_重置深度冻结提醒()
     {
-        int durationMilliseconds = 0;
-        var targetId = evt.TargetId();
-
-        if (targetId!=sa.Data.Me)
+        lock (P1深度冻结锁)
         {
-            return;
+            P1深度冻结冷却已提醒 = false;
         }
-        
-        try
-        {
-            durationMilliseconds=JsonConvert.DeserializeObject<int>(evt["DurationMilliseconds"]);
-        }
-        catch(Exception e)
-        {
-            sa.Log.Error("DurationMilliseconds deserialization failed.");
-            return;
-        }
-
-        if (durationMilliseconds<=0||durationMilliseconds>=7200000)
-        {
-            return;
-        }
+    }
+    private void P1_冷却buff提醒(ScriptAccessory sa)
+    {
+        int durationMilliseconds = 2509;
 
         if (热病冷却提示 == 热病提示enum.横幅)
         {
-            sa.Method.TextInfo("持续移动,直到这行提示消失",durationMilliseconds,true);
+            sa.Method.TextInfo("持续移动,直到这行提示消失", durationMilliseconds, true);
         }
         else if (热病冷却提示 == 热病提示enum.默语)
         {
@@ -566,14 +1072,24 @@ public class Enuo
     #endregion
 
     #region P2
-    [ScriptMethod(name: "P2转阶段", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:regex:^(|)$"], userControl: false)]
+    [ScriptMethod(name: "P2-无之涡流-Boss记录", eventType: EventTypeEnum.AddCombatant, eventCondition: ["DataId:regex:^(19911)$"], userControl: false)]
+    public void P2_无之涡流_Boss记录(Event evt, ScriptAccessory sa)
+    {
+        if (_phase != 2) return;
+
+        var sourceId = evt.SourceId();
+        if (sourceId == 0) return;
+
+        P2无之涡流BossId = sourceId;
+    }
+    [ScriptMethod(name: "P2转阶段", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:regex:^(50010)$"], userControl: false)]
     public async void P2转阶段(Event evt, ScriptAccessory sa)
     {
         // 无之领域
         _phase = 2;
     }
 
-    [ScriptMethod(name: "P2-虚无大冲击自动防击退", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:regex:^(|)$"])]
+    [ScriptMethod(name: "P2-虚无大冲击自动防击退", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:regex:^(49369)$"])]
     public async void 虚无大冲击自动防击退(Event evt, ScriptAccessory sa)
     {
         await Task.Delay(1000);
@@ -582,67 +1098,189 @@ public class Enuo
         sa.Method.SendChat("/ac 亲疏自行");
     }
 
-    [ScriptMethod(name: "P2-无之涡流(扇形踩塔)", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:regex:^(|)$"])]
+    [ScriptMethod(name: "P2-无之涡流-点名记录", eventType: EventTypeEnum.TargetIcon, eventCondition: ["Id:regex:^(02D1)$"])]
+    public async void P2_无之涡流_点名记录(Event evt, ScriptAccessory sa)
+    {
+        if (_phase != 2) return;
+
+        var targetId = evt.TargetId();   // 被点名玩家
+        var targetIdx = sa.Data.PartyList.IndexOf(targetId);
+        if (!IsValidPartyIndex(targetIdx)) return;
+
+        lock (P2无之涡流锁)
+        {
+            if (!P2无之涡流点名玩家.Contains(targetIdx))
+            {
+                P2无之涡流点名玩家.Add(targetIdx);
+            }
+        }
+
+        // 给所有被点名的人画一个 60° 危险扇形（从 boss 到人）
+        // 60° = PI / 3
+        DrawFanFromPositionToTarget(
+            sa,
+            name: $"P2-无之涡流-点名扇形-{targetIdx}",
+            fromPos: new Vector3(100f, 0f, 100f),
+            targetId: targetId,
+            range: 60f,
+            radian: MathF.PI / 3f,
+            duration: 8000,
+            color: sa.Data.DefaultDangerColor
+        );
+
+        P2_尝试分配无之涡流(sa);
+    }
+
+    [ScriptMethod(name: "P2-无之涡流(扇形踩塔)", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:regex:^(50013)$"])]
     public async void P2_无之涡流(Event evt, ScriptAccessory sa)
     {
-        // 这里才initialize list，因为这个机制会重复多遍
+        if (_phase != 2) return;
+
         await Task.Delay(200);
-        // 场上一共八个固定地方会出现塔，是刚好以场地中心为圆心的一圈的八个点。
-        // 以上偏右为第一个塔，依次右偏上，右偏下，下偏右....一直到上偏左记录index 0-7。有塔的为1，没有的是0
-        // 会刷新两波每次只会出现四个塔
 
-        // 看谁被点名了，只可能是0 1 2 3被点名或者4 5 6 7被点名
-        // 首先是mmw
-            // 看塔出现的位置，按照index顺序绘图指路被点名的index最小的去塔index最小的塔，index第二小的去第二index塔，index第三小的去第三index塔，index第四小的去第四index塔。
-            // 看塔没有出现的位置，按照index顺序绘图指路没有被点名的index最小的去index最小的空地，index第二小的去第二index空地，index第三小的去第三index空地，index第四小的去第四indexv。
+        var pos = evt.SourcePosition();
+        var towerIndex = P2_获取无之涡流塔Index(pos);
+        if (towerIndex < 0) return;
 
-        // 其次是优化
-            // 0 2 4 6去左半场
-            // 1 3 5 7去右半场
-            // 看塔出现的位置，按照index顺序绘图指路
-                // 如果是0 2 4 6，被点名的index最小的去塔index(4-7)最大的塔，index第二小的去第二大的index塔(4-7)
-                // 如果是1 3 5 7，被点名的index最小的去塔index(0-3)最小的塔，index第二小的去第二小的index塔(0-3)
-            // 看塔没有出现的位置，按照index顺序绘图指路
-                // 如果是0 2 4 6，被点名的index最小的去塔index(4-7)最大的空地，index第二小的去第二大的index空地(4-7)
-                // 如果是1 3 5 7，被点名的index最小的去塔index(0-3)最小的空地，index第二小的去第二小的index空地(0-3)
+        lock (P2无之涡流锁)
+        {
+            if (P2无之涡流塔出现[towerIndex])
+            {
+                return;
+            }
+
+            P2无之涡流塔出现[towerIndex] = true;
+            P2无之涡流塔位置[towerIndex] = pos;
+            P2无之涡流塔数量++;
+        }
+
+        P2_尝试分配无之涡流(sa);
     }
+
+    // [ScriptMethod(name: "P2-无之涡流(扇形踩塔)", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:regex:^(|)$"])]
+    // public async void P2_无之涡流(Event evt, ScriptAccessory sa)
+    // {
+    //     // 这里才initialize list，因为这个机制会重复多遍
+    //     await Task.Delay(200);
+    //     // 场上一共八个固定地方会出现塔，是刚好以场地中心为圆心的一圈的八个点。
+    //     // 塔可以通过StartCasting 50013来判断 其中SourcePosition就是位置。这是几个出现的sample位置{"X":76.89,"Y":-0.02,"Z":90.41}{"X":90.41,"Y":-0.02,"Z":123.09}{"X":123.09,"Y":-0.02,"Z":109.54}{"X":123.09,"Y":-0.02,"Z":90.41}
+    //     // 以上偏右为第一个塔，依次右偏上，右偏下，下偏右....一直到上偏左记录index 0-7。有塔的为1，没有的是0
+    //     // 会刷新两波每次只会出现四个塔
+
+    //     // 看谁被点名了，点名是(TargetIcon Id:02D1，然后可以保存TargetId)只可能是0 1 2 3被点名或者4 5 6 7被点名
+    //     // 首先是mmw
+    //         // 看塔出现的位置，按照index顺序绘图指路被点名的index最小的去塔index最小的塔，index第二小的去第二index塔，index第三小的去第三index塔，index第四小的去第四index塔。
+    //         // 看塔没有出现的位置，按照index顺序绘图指路没有被点名的index最小的去index最小的空地，index第二小的去第二index空地，index第三小的去第三index空地，index第四小的去第四indexv。
+
+    //     // 其次是优化
+    //         // 0 2 4 6去左半场
+    //         // 1 3 5 7去右半场
+    //         // 看塔出现的位置，按照index顺序绘图指路
+    //             // 如果是0 2 4 6，被点名的index最小的去塔index(4-7)最大的塔，index第二小的去第二大的index塔(4-7)
+    //             // 如果是1 3 5 7，被点名的index最小的去塔index(0-3)最小的塔，index第二小的去第二小的index塔(0-3)
+    //         // 看塔没有出现的位置，按照index顺序绘图指路
+    //             // 如果是0 2 4 6，被点名的index最小的去塔index(4-7)最大的空地，index第二小的去第二大的index空地(4-7)
+    //             // 如果是1 3 5 7，被点名的index最小的去塔index(0-3)最小的空地，index第二小的去第二小的index空地(0-3)
+    // }
 
     #endregion
 
     #region P3
-    [ScriptMethod(name: "P3转场", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:regex:^(|)$"], userControl: false)]
+    [ScriptMethod(name: "P3转场", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:regex:^(50029)$"], userControl: false)]
     public async void P3转场(Event evt, ScriptAccessory sa)
     {
         // 无光的世界
         _phase = 3;
     }
 
-    [ScriptMethod(name: "P3-辣翅", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:regex:^(|)$"], userControl: false)]
-    public async void P3_辣翅(Event evt, ScriptAccessory sa)
-    {
-        // 这里活性之后的技能，可能不是活性。应该是聚能波动 但要注意限制，发动了好多次
-        if (_phase != 3) return;
-
-        // 两组辣翅 得进去看 只用画图
-    }
-
-    [ScriptMethod(name: "P3-辣尾", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:regex:^(|)$"], userControl: false)]
-    public async void P3_辣尾(Event evt, ScriptAccessory sa)
+    [ScriptMethod(name: "P3-聚能波动", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:regex:^(49985|49986)$"], userControl: false)]
+    public async void P3_聚能波动(Event evt, ScriptAccessory sa)
     {
         if (_phase != 3) return;
 
-        // 得进去看 只用画图
+        var actionId = evt.ActionId();
+        var sourceId = evt.SourceId();
+        if (sourceId == 0) return;
+
+        var pos = evt.SourcePosition();
+        var rot = evt.SourceRotation();
+
+        if (actionId == 49985)
+        {
+            // 49985 矩形
+            var dp = sa.Data.GetDefaultDrawProperties();
+            dp.Name = $"P3-聚能波动-矩形-{sourceId:X}";
+            dp.Owner = 0;
+            dp.Position = pos;
+            dp.Rotation = rot;
+            dp.Scale = new Vector2(16f, 80f);
+            dp.Color = sa.Data.DefaultDangerColor;
+            dp.DestoryAt = 6300;
+            dp.ScaleMode = ScaleMode.ByTime;
+
+            sa.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Rect, dp);
+        }
+        else if (actionId == 49986)
+        {
+            // 49986 辣翅：类似神圣之翼，画 boss 身侧偏移矩形
+            var dp = sa.Data.GetDefaultDrawProperties();
+            dp.Name = $"P3-聚能波动-辣翅-{sourceId:X}";
+            dp.Owner = sourceId;
+            dp.Scale = new Vector2(16f, 80f);
+            dp.Offset = new Vector3(-16f, 0f, 0f);
+            dp.Color = sa.Data.DefaultDangerColor;
+            dp.DestoryAt = 5700;
+            dp.ScaleMode = ScaleMode.ByTime;
+
+            sa.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Rect, dp);
+
+            var dp2 = sa.Data.GetDefaultDrawProperties();
+            dp2.Name = $"P3-聚能波动-辣翅-{sourceId:X}";
+            dp2.Owner = sourceId;
+            dp2.Scale = new Vector2(16f, 800f);
+            dp2.Offset = new Vector3(16f, 0f, 0f);
+            dp2.Color = sa.Data.DefaultDangerColor;
+            dp2.DestoryAt = 5700;
+            dp2.ScaleMode = ScaleMode.ByTime;
+
+            sa.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Rect, dp2);
+        }
     }
 
-    [ScriptMethod(name: "P3-暗影神圣(双奶分摊)", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:regex:^(|)$"], userControl: false)]
+    [ScriptMethod(name: "P3-暗影神圣(双奶分摊)", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:regex:^(50045)$"], userControl: false)]
     public async void P3_暗影神圣(Event evt, ScriptAccessory sa)
     {
         if (_phase != 3) return;
 
-        // 两个index 2 3画range为5的圈
-        // 其他人
-            // 如果是0 2 4 6，index 2的圈用safeColor，index 1的圈用dangerColor
-            // 如果是1 3 5 7，index 1的圈用safeColor，index 2的圈用dangerColor
+        var myIdx = sa.MyIndex();
+        if (!IsValidPartyIndex(myIdx)) return;
+
+        const uint duration = 6000;
+        const float range = 6f;
+
+        var index2Id = sa.Data.PartyList[2];
+        var index3Id = sa.Data.PartyList[3];
+        if (index2Id == 0 || index3Id == 0) return;
+
+        // 偶数组安全，奇数组危险
+        var dp2 = sa.Data.GetDefaultDrawProperties();
+        dp2.Name = "P3-暗影神圣-index2";
+        dp2.Owner = index2Id;
+        dp2.Scale = new Vector2(range);
+        dp2.Color = IsEvenGroup(myIdx) ? sa.Data.DefaultSafeColor : sa.Data.DefaultDangerColor;
+        dp2.DestoryAt = duration;
+        dp2.ScaleMode = ScaleMode.ByTime;
+        sa.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Circle, dp2);
+
+        // 奇数组安全，偶数组危险
+        var dp3 = sa.Data.GetDefaultDrawProperties();
+        dp3.Name = "P3-暗影神圣-index3";
+        dp3.Owner = index3Id;
+        dp3.Scale = new Vector2(range);
+        dp3.Color = IsOddGroup(myIdx) ? sa.Data.DefaultSafeColor : sa.Data.DefaultDangerColor;
+        dp3.DestoryAt = duration;
+        dp3.ScaleMode = ScaleMode.ByTime;
+        sa.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Circle, dp3);
     }
 
     [ScriptMethod(name: "P3-核心熔毁集合分散", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:regex:^(|)$"])]
@@ -682,6 +1320,7 @@ public static class EventExtensions
     }
 
     public static uint ActionId(this Event evt) => JsonConvert.DeserializeObject<uint>(evt["ActionId"]);
+    public static uint DataId(this Event evt) => JsonConvert.DeserializeObject<uint>(evt["DataId"]);
     public static uint SourceId(this Event evt) => ParseHexId(evt["SourceId"], out var id) ? id : 0;
     public static uint TargetId(this Event evt) => ParseHexId(evt["TargetId"], out var id) ? id : 0;
     public static Vector3 SourcePosition(this Event evt) => JsonConvert.DeserializeObject<Vector3>(evt["SourcePosition"]);
