@@ -1156,33 +1156,7 @@ public class Enuo
 
         P2_尝试分配无之涡流(sa);
     }
-
-    // [ScriptMethod(name: "P2-无之涡流(扇形踩塔)", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:regex:^(|)$"])]
-    // public async void P2_无之涡流(Event evt, ScriptAccessory sa)
-    // {
-    //     // 这里才initialize list，因为这个机制会重复多遍
-    //     await Task.Delay(200);
-    //     // 场上一共八个固定地方会出现塔，是刚好以场地中心为圆心的一圈的八个点。
-    //     // 塔可以通过StartCasting 50013来判断 其中SourcePosition就是位置。这是几个出现的sample位置{"X":76.89,"Y":-0.02,"Z":90.41}{"X":90.41,"Y":-0.02,"Z":123.09}{"X":123.09,"Y":-0.02,"Z":109.54}{"X":123.09,"Y":-0.02,"Z":90.41}
-    //     // 以上偏右为第一个塔，依次右偏上，右偏下，下偏右....一直到上偏左记录index 0-7。有塔的为1，没有的是0
-    //     // 会刷新两波每次只会出现四个塔
-
-    //     // 看谁被点名了，点名是(TargetIcon Id:02D1，然后可以保存TargetId)只可能是0 1 2 3被点名或者4 5 6 7被点名
-    //     // 首先是mmw
-    //         // 看塔出现的位置，按照index顺序绘图指路被点名的index最小的去塔index最小的塔，index第二小的去第二index塔，index第三小的去第三index塔，index第四小的去第四index塔。
-    //         // 看塔没有出现的位置，按照index顺序绘图指路没有被点名的index最小的去index最小的空地，index第二小的去第二index空地，index第三小的去第三index空地，index第四小的去第四indexv。
-
-    //     // 其次是优化
-    //         // 0 2 4 6去左半场
-    //         // 1 3 5 7去右半场
-    //         // 看塔出现的位置，按照index顺序绘图指路
-    //             // 如果是0 2 4 6，被点名的index最小的去塔index(4-7)最大的塔，index第二小的去第二大的index塔(4-7)
-    //             // 如果是1 3 5 7，被点名的index最小的去塔index(0-3)最小的塔，index第二小的去第二小的index塔(0-3)
-    //         // 看塔没有出现的位置，按照index顺序绘图指路
-    //             // 如果是0 2 4 6，被点名的index最小的去塔index(4-7)最大的空地，index第二小的去第二大的index空地(4-7)
-    //             // 如果是1 3 5 7，被点名的index最小的去塔index(0-3)最小的空地，index第二小的去第二小的index空地(0-3)
-    // }
-
+    
     #endregion
 
     #region P3
