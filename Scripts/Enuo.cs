@@ -21,7 +21,7 @@ namespace Codaaaaaa.Enuo;
     guid: "8c4a9f2d-6b31-4e0a-9f27-1d7c5b8a3e46",
     name: "恩欧歼殛战画图",
     territorys: [1362],
-    version: "0.0.0.1",
+    version: "0.0.0.2",
     author: "Codaaaaaa",
     note: "mmw文档+NOCCHH")]
 public class Enuo
@@ -52,11 +52,12 @@ public class Enuo
     private readonly List<(uint OrbId, uint PlayerId, DateTime Time)> _blackBallTethers = new();
 
     // 混沌激流
-    private readonly List<Vector3> 混沌激流黑球生成位置 = new();
-    private readonly List<(int GlobalOrder, Vector3 Pos)> 混沌激流_0196tethers = new();
-    private readonly List<(int GlobalOrder, Vector3 Pos)> 混沌激流_0197tethers = new();
+    private readonly List<(Vector3 vector3, uint sourceId)> 混沌激流黑球生成位置 = new();
+    private readonly List<(int GlobalOrder, Vector3 Pos, uint SourceId)> 混沌激流_0196tethers = new();
+    private readonly List<(int GlobalOrder, Vector3 Pos, uint SourceId)> 混沌激流_0197tethers = new();
     private bool 混沌激流_0196已分配 = false;
     private bool 混沌激流_0197已分配 = false;
+    private DateTime 撞球易伤上次提示时间 = DateTime.MinValue;
 
     private readonly object P1深度冻结锁 = new();
     private bool P1深度冻结冷却已提醒 = false;
@@ -118,6 +119,7 @@ public class Enuo
         混沌激流_0197tethers.Clear();
         混沌激流_0196已分配 = false;
         混沌激流_0197已分配 = false;
+        撞球易伤上次提示时间 = DateTime.MinValue;
 
         P2_重置无之涡流();
 
@@ -186,7 +188,7 @@ public class Enuo
             targetId: playerId,
             width: 6f,
             length: 15f,
-            duration: 7700,
+            duration: 9500,
             color: sa.Data.DefaultSafeColor);
     }
 
@@ -254,7 +256,7 @@ public class Enuo
         var myIdx = sa.MyIndex();
         if (!IsValidPartyIndex(myIdx)) return;
 
-        const uint duration = 6500;
+        const uint duration = 4800;
         const float range = 60f;
         const float radian = MathF.PI / 3f;
 
@@ -302,9 +304,10 @@ public class Enuo
                         混沌激流_0197tethers.Clear();
                         混沌激流_0196已分配 = false;
                         混沌激流_0197已分配 = false;
+                        撞球易伤上次提示时间 = DateTime.MinValue;
                     }
 
-                混沌激流黑球生成位置.Add(pos);
+                混沌激流黑球生成位置.Add((pos, sourceId));
                 countAfter = 混沌激流黑球生成位置.Count;
                 firstOfRound = countAfter == 1;
             }
@@ -323,6 +326,7 @@ public class Enuo
                     混沌激流_0197tethers.Clear();
                     混沌激流_0196已分配 = false;
                     混沌激流_0197已分配 = false;
+                    撞球易伤上次提示时间 = DateTime.MinValue;
                 }
             });
         }
@@ -362,6 +366,7 @@ public class Enuo
         }
 
         Vector3 myTargetPos = default;
+        uint myTargetObjectId = 0;
         bool shouldDraw = false;
         int myTypeOrder = myIdx / 2;
         int globalOrder = -1;
@@ -378,11 +383,11 @@ public class Enuo
             }
 
             // 打印当前黑球list
-            var ballListStr = string.Join(" | ", 混沌激流黑球生成位置.Select((p, i) => $"[{i}]({p.X:F1},{p.Z:F1})"));
+            var ballListStr = string.Join(" | ", 混沌激流黑球生成位置.Select((p, i) => $"[{i}]({p.vector3.X:F1},{p.vector3.Z:F1})"));
 
             for (int i = 0; i < 混沌激流黑球生成位置.Count; i++)
             {
-                var dist = Vector3.Distance(sourcePos, 混沌激流黑球生成位置[i]);
+                var dist = Vector3.Distance(sourcePos, 混沌激流黑球生成位置[i].vector3);
                 if (dist < minDist)
                 {
                     minDist = dist;
@@ -391,7 +396,9 @@ public class Enuo
             }
 
             if (globalOrder < 0) return;
-            var matchedPos = 混沌激流黑球生成位置[globalOrder];
+            var matchedBall = 混沌激流黑球生成位置[globalOrder];
+            var matchedPos = matchedBall.vector3;
+            var matchedSourceId = matchedBall.sourceId;
 
             var list = is0196 ? 混沌激流_0196tethers : 混沌激流_0197tethers;
 
@@ -401,7 +408,7 @@ public class Enuo
                 return;
             }
 
-            list.Add((globalOrder, matchedPos));
+            list.Add((globalOrder, matchedPos, matchedSourceId));
             listCountAfterAdd = list.Count;
 
             var listStr = string.Join(",", list.Select(t => t.GlobalOrder));
@@ -434,9 +441,12 @@ public class Enuo
             {
                 return;
             }
-            myTargetPos = sorted[myTypeOrder].Pos;
-            myTargetPos = myTargetPos + Vector3.Normalize(new Vector3(100f, 0f, 100f) - sorted[myTypeOrder].Pos) * 8f;
-            shouldDraw = true;
+            var myTarget = sorted[myTypeOrder];
+
+            myTargetPos = myTarget.Pos;
+            myTargetObjectId = myTarget.SourceId;
+
+            shouldDraw = myTargetObjectId != 0;
 
             if (is0196) 混沌激流_0196已分配 = true;
             else 混沌激流_0197已分配 = true;
@@ -447,8 +457,13 @@ public class Enuo
         uint delay = is0196 ? 6000u : 2000u;
         uint duration = is0196 ? 6000u : 4000u;
 
-        var dp = sa.WaypointDp(myTargetPos, duration, delay,
-            $"混沌激流-撞球-{(is0196 ? "0196" : "0197")}-{myTypeOrder}");
+        var dp = sa.WaypointToObjectDp(
+            myTargetObjectId,
+            duration,
+            delay,
+            $"混沌激流-撞球-{(is0196 ? "0196" : "0197")}-{myTypeOrder}-{myTargetObjectId:X}"
+        );
+
         sa.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
     }
 
@@ -465,6 +480,48 @@ public class Enuo
         dp.DestoryAt = 6000;
         dp.ScaleMode = ScaleMode.ByTime;
         sa.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Circle, dp);
+    }
+
+    [ScriptMethod(name: "通用机制-撞球易伤提示", eventType: EventTypeEnum.StatusAdd, eventCondition: ["StatusID:regex:^(2941)$"])]
+    public async void 通用机制_撞球易伤提示(Event evt, ScriptAccessory sa)
+    {
+        int durationMilliseconds = 4450;
+        var targetId = evt.TargetId();
+        if (targetId !=sa.Data.Me) return;
+
+        if ((DateTime.UtcNow - 撞球易伤上次提示时间).TotalSeconds < 30)
+        {
+            return;
+        }
+
+        var sourceId = evt.SourceId();
+        if (sourceId == 0) return;
+
+        var sourceObj = sa.Data.Objects.SearchByEntityId(sourceId);
+        if (sourceObj == null) return;
+
+        var dataId = sourceObj.DataId;
+
+        // 只处理混沌激流黑球
+        if (dataId != 19909 && dataId != 19910)
+        {
+            return;
+        }
+
+        撞球易伤上次提示时间 = DateTime.UtcNow;
+
+        if (热病冷却提示 == 热病提示enum.横幅)
+        {
+            sa.Method.TextInfo("等这行提示消失再去撞球", durationMilliseconds, true);
+        }
+        else if (热病冷却提示 == 热病提示enum.默语)
+        {
+            sa.Method.SendChat("/e 等提示消失再去撞球");
+        }
+        else if (热病冷却提示 == 热病提示enum.TTS)
+        {
+            sa.Method.TTS("等提示消失再去撞球");
+        }
     }
 
     #region 通用机制 helpers
@@ -636,7 +693,6 @@ public class Enuo
 
     private static void SetDrawTargetObject(DrawPropertiesEdit dp, uint targetId)
     {
-        // 不同 KodakkuAssist 版本里目标字段名可能不完全一致；用反射避免因为字段名差异直接编译失败。
         if (TrySetDrawProperty(dp, "TargetObject", targetId)) return;
         if (TrySetDrawProperty(dp, "TargetId", targetId)) return;
         TrySetDrawProperty(dp, "TargetID", targetId);
@@ -679,8 +735,8 @@ public class Enuo
 
         for (int i = 0; i < 8; i++)
         {
-            var p1 = 混沌激流黑球生成位置[i];
-            var p2 = 混沌激流黑球生成位置[(i + 1) % 8];
+            var p1 = 混沌激流黑球生成位置[i].vector3;
+            var p2 = 混沌激流黑球生成位置[(i + 1) % 8].vector3;
 
             var a1 = MathF.Atan2(p1.Z - center.Z, p1.X - center.X);
             var a2 = MathF.Atan2(p2.Z - center.Z, p2.X - center.X);
@@ -716,6 +772,7 @@ public class Enuo
 
         Vector3 targetPos = default;
         bool shouldDraw = false;
+        bool isMyMarked = false;
 
         lock (P2无之涡流锁)
         {
@@ -743,6 +800,8 @@ public class Enuo
                 .OrderBy(i => i)
                 .ToList();
 
+            isMyMarked = marked.Contains(myIdx);
+
             int assignedSpot = -1;
 
             if (P2打法 == P2打法法enum.MMW)
@@ -769,23 +828,39 @@ public class Enuo
 
         if (!shouldDraw) return;
 
+        var drawTargetPos = targetPos;
+
+        if (isMyMarked)
+        {
+            var center = new Vector3(100f, 0f, 100f);
+            var dirToCenter = center - targetPos;
+
+            if (dirToCenter.LengthSquared() > 0.001f)
+            {
+                drawTargetPos = targetPos + Vector3.Normalize(dirToCenter) * 10f;
+            }
+        }
+
         var dp = sa.WaypointDp(
-            targetPos,
-            duration: 9000,
+            drawTargetPos,
+            duration: 7000,
             delay: 0,
             name: $"P2-无之涡流-指路-{myIdx}"
         );
         sa.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
 
-        var circle = sa.FastDp(
-            name: $"P2-无之涡流-目标点-{myIdx}",
-            pos: targetPos,
-            duration: 7000,
-            scale: new Vector2(6f),
-            safe: true
-        );
-        sa.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Circle, circle);
-
+        if (!isMyMarked)
+        {
+            var circle = sa.FastDp(
+                name: $"P2-无之涡流-目标点-{myIdx}",
+                pos: drawTargetPos,
+                duration: 7000,
+                scale: new Vector2(6f),
+                safe: true
+            );
+            sa.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Circle, circle);
+        }
+        
         _ = Task.Run(async () =>
         {
             await Task.Delay(10000);
@@ -1306,6 +1381,43 @@ public static class ScriptAccessoryExtensions
         return dp;
     }
 
+    public static DrawPropertiesEdit WaypointToObjectDp(
+        this ScriptAccessory sa,
+        uint targetObjectId,
+        uint duration,
+        uint delay = 0,
+        string name = "WaypointToObject",
+        Vector4? color = null)
+    {
+        var dp = sa.Data.GetDefaultDrawProperties();
+        dp.Name = name;
+        dp.Color = color ?? sa.Data.DefaultSafeColor;
+        dp.Owner = sa.Data.Me;
+        dp.DestoryAt = duration;
+        dp.Delay = delay;
+        dp.Scale = new Vector2(2);
+        dp.ScaleMode = ScaleMode.YByDistance;
+
+        var prop =
+            typeof(DrawPropertiesEdit).GetProperty("TargetObject") ??
+            typeof(DrawPropertiesEdit).GetProperty("TargetId") ??
+            typeof(DrawPropertiesEdit).GetProperty("TargetID");
+
+        if (prop != null && prop.CanWrite)
+        {
+            var targetType = Nullable.GetUnderlyingType(prop.PropertyType) ?? prop.PropertyType;
+            object value = targetObjectId;
+
+            if (targetType != typeof(uint))
+            {
+                value = Convert.ChangeType(targetObjectId, targetType);
+            }
+
+            prop.SetValue(dp, value);
+        }
+
+        return dp;
+    }
     public static DrawPropertiesEdit WaypointDp(this ScriptAccessory sa, Vector3 target, uint duration, uint delay = 0, string name = "Waypoint", Vector4? color = null)
     {
         var dp = sa.Data.GetDefaultDrawProperties();
