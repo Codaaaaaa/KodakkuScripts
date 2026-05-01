@@ -21,7 +21,7 @@ namespace Codaaaaaa.Enuo;
     guid: "8c4a9f2d-6b31-4e0a-9f27-1d7c5b8a3e46",
     name: "恩欧歼殛战画图",
     territorys: [1362],
-    version: "0.0.0.2",
+    version: "0.0.0.3",
     author: "Codaaaaaa",
     note: "mmw文档+NOCCHH")]
 public class Enuo
@@ -57,6 +57,7 @@ public class Enuo
     private readonly List<(int GlobalOrder, Vector3 Pos, uint SourceId)> 混沌激流_0197tethers = new();
     private bool 混沌激流_0196已分配 = false;
     private bool 混沌激流_0197已分配 = false;
+    private int 混沌激流_AddCombatantCount = 0;
     private DateTime 撞球易伤上次提示时间 = DateTime.MinValue;
 
     private readonly object P1深度冻结锁 = new();
@@ -119,6 +120,7 @@ public class Enuo
         混沌激流_0197tethers.Clear();
         混沌激流_0196已分配 = false;
         混沌激流_0197已分配 = false;
+        混沌激流_AddCombatantCount = 0;
         撞球易伤上次提示时间 = DateTime.MinValue;
 
         P2_重置无之涡流();
@@ -289,29 +291,63 @@ public class Enuo
     {
         var pos = evt.SourcePosition();
         var sourceId = evt.SourceId();
-
         var dataId = evt.DataId();
 
         bool firstOfRound = false;
-        int countAfter;
+        bool shouldDraw = true;
+
         lock (_commonMechanicLock)
         {
+            // 新一轮开始：第一个 19909 出现时初始化
+            if (dataId == 19909 && 混沌激流_AddCombatantCount == 0)
+            {
+                混沌激流黑球生成位置.Clear();
+
+                混沌激流_0196tethers.Clear();
+                混沌激流_0197tethers.Clear();
+                混沌激流_0196已分配 = false;
+                混沌激流_0197已分配 = false;
+                撞球易伤上次提示时间 = DateTime.MinValue;
+
+                firstOfRound = true;
+            }
+
+            混沌激流_AddCombatantCount++;
+
             if (dataId == 19909)
             {
-                if (混沌激流黑球生成位置.Count == 0)
-                    {
-                        混沌激流_0196tethers.Clear();
-                        混沌激流_0197tethers.Clear();
-                        混沌激流_0196已分配 = false;
-                        混沌激流_0197已分配 = false;
-                        撞球易伤上次提示时间 = DateTime.MinValue;
-                    }
-
-                混沌激流黑球生成位置.Add((pos, sourceId));
-                countAfter = 混沌激流黑球生成位置.Count;
-                firstOfRound = countAfter == 1;
+                // 正常前 8 个黑球
+                if (混沌激流_AddCombatantCount <= 8)
+                {
+                    混沌激流黑球生成位置.Add((pos, sourceId));
+                }
+                else
+                {
+                    // 理论上不该发生，防止后续异常污染 list
+                    shouldDraw = false;
+                    sa.Method.SendChat($"/e [混沌激流] 异常：第 {混沌激流_AddCombatantCount} 次仍然收到 19909");
+                }
             }
-            
+            else if (dataId == 19910)
+            {
+                int replaceIndex = 混沌激流_AddCombatantCount switch
+                {
+                    9 => 0,
+                    10 => 1,
+                    _ => -1
+                };
+
+                if (replaceIndex >= 0 && replaceIndex < 混沌激流黑球生成位置.Count)
+                {
+                    // 第 9 次覆盖 index 0，第 10 次覆盖 index 1
+                    混沌激流黑球生成位置[replaceIndex] = (pos, sourceId);
+                }
+                else
+                {
+                    shouldDraw = false;
+                    sa.Method.SendChat($"/e [混沌激流] 异常：第 {混沌激流_AddCombatantCount} 次 19910 无法覆盖 index {replaceIndex}，当前数量={混沌激流黑球生成位置.Count}");
+                }
+            }
         }
 
         if (firstOfRound)
@@ -319,17 +355,23 @@ public class Enuo
             _ = Task.Run(async () =>
             {
                 await Task.Delay(30000);
+
                 lock (_commonMechanicLock)
                 {
                     混沌激流黑球生成位置.Clear();
+
                     混沌激流_0196tethers.Clear();
                     混沌激流_0197tethers.Clear();
                     混沌激流_0196已分配 = false;
                     混沌激流_0197已分配 = false;
                     撞球易伤上次提示时间 = DateTime.MinValue;
+
+                    混沌激流_AddCombatantCount = 0;
                 }
             });
         }
+
+        if (!shouldDraw) return;
 
         DrawFanFromCenterToPosition(
             sa,
