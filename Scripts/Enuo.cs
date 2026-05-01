@@ -21,7 +21,7 @@ namespace Codaaaaaa.Enuo;
     guid: "8c4a9f2d-6b31-4e0a-9f27-1d7c5b8a3e46",
     name: "恩欧歼殛战画图",
     territorys: [1362],
-    version: "0.0.0.3",
+    version: "0.0.0.4",
     author: "Codaaaaaa",
     note: "mmw文档+NOCCHH")]
 public class Enuo
@@ -271,6 +271,25 @@ public class Enuo
             _ => -1
         };
 
+        // 06 左上，15 右下，24 左下，37 右上
+        var myGuidePos = myIdx switch
+        {
+            0 or 6 => new Vector3(95f, 0f, 95f),   // 左上
+            1 or 5 => new Vector3(105f, 0f, 105f), // 右下
+            2 or 4 => new Vector3(95f, 0f, 105f),  // 左下
+            3 or 7 => new Vector3(105f, 0f, 95f),  // 右上
+            _ => new Vector3(100f, 0f, 100f)
+        };
+
+        // 指路
+        var guideDp = sa.WaypointDp(
+            myGuidePos,
+            duration,
+            0,
+            $"通用机制-扩散波动-指路-{myIdx}"
+        );
+        sa.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, guideDp);
+
         for (var targetIdx = 0; targetIdx < 4; targetIdx++)
         {
             DrawFanFromOwnerToPartyIndex(sa,
@@ -496,8 +515,8 @@ public class Enuo
 
         if (!shouldDraw) return;
 
-        uint delay = is0196 ? 6000u : 2000u;
-        uint duration = is0196 ? 6000u : 4000u;
+        uint delay = is0196 ? 6000u : 1000u;
+        uint duration = is0196 ? 6000u : 5000u;
 
         var dp = sa.WaypointToObjectDp(
             myTargetObjectId,
