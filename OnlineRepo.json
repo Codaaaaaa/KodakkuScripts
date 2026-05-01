@@ -47,10 +47,10 @@
   {
     "Name": "恩欧歼殛战画图",
     "Guid": "8c4a9f2d-6b31-4e0a-9f27-1d7c5b8a3e46",
-    "Version": "0.0.0.2",
+    "Version": "0.0.0.1",
     "Author": "Codaaaaaa",
     "TerritoryIds": [1362],
     "DownloadUrl": "https://raw.githubusercontent.com/Codaaaaaa/KodakkuScripts/main/Scripts/Enuo.cs",
-    "UpdateInfo": "0.0.0.2\n1. 延迟了一下单黑球的判定时间\n2. P2拉扇形修改了一下引导位置\n3. P1撞黑球加了易伤提示\n4.P1撞黑球引导直接连接球而不是固定点位\n5.我电\n\n0.0.0.1\n mmw文档+nocchh\n谢谢两位亲友提供的arr"
+    "UpdateInfo": "0.0.0.1\n mmw文档+nocchh\n谢谢两位亲友提供的arr"
   }
 ]
