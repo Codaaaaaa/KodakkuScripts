@@ -21,7 +21,7 @@ namespace Codaaaaaa.Enuo;
     guid: "8c4a9f2d-6b31-4e0a-9f27-1d7c5b8a3e46",
     name: "恩欧歼殛战画图",
     territorys: [1362],
-    version: "0.0.0.4",
+    version: "0.0.0.5",
     author: "Codaaaaaa",
     note: "mmw文档+NOCCHH")]
 public class Enuo
@@ -124,6 +124,12 @@ public class Enuo
         撞球易伤上次提示时间 = DateTime.MinValue;
 
         P2_重置无之涡流();
+
+        lock (_p2EyeLock)
+        {
+            _p2EyeTargets.Clear();
+            _p2EyeRefreshing = false;
+        }
 
         sa.Method.RemoveDraw(".*");
     }
@@ -1291,6 +1297,117 @@ public class Enuo
         }
 
         P2_尝试分配无之涡流(sa);
+    }
+
+    private readonly object _p2EyeLock = new();
+    private readonly HashSet<uint> _p2EyeTargets = new();
+    private bool _p2EyeRefreshing = false;
+
+    [ScriptMethod(
+        name: "P2-恶魔之瞳(背对)",
+        eventType: EventTypeEnum.StartCasting,
+        eventCondition: ["ActionId:regex:^(50022)$"]
+    )]
+    public async void P2_恶魔之瞳(Event evt, ScriptAccessory sa)
+    {
+        if (_phase != 2) return;
+
+        var sourceId = evt.SourceId();
+        if (sourceId == 0) return;
+
+        // 画一个20m的imgui环。
+        var dp2 = sa.Data.GetDefaultDrawProperties();
+        dp2.Name = $"P2 恶魔之瞳-圈-{sourceId:X}";
+        dp2.Owner = sourceId;
+        dp2.Scale = new Vector2(20f);
+        dp2.Color = new Vector4(1f, 1f, 0f, 0.1f);
+        dp2.DestoryAt = 4700;
+        // dp2.ScaleMode = ScaleMode.ByTime;
+
+        sa.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Circle, dp2);
+
+        lock (_p2EyeLock)
+        {
+            _p2EyeTargets.Add(sourceId);
+
+            if (_p2EyeRefreshing)
+                return;
+
+            _p2EyeRefreshing = true;
+        }
+
+        const uint refreshDuration = 300;
+        const int refreshInterval = 250;
+        const int totalDuration = 4700;
+        const float validRange = 20f;
+
+        try
+        {
+            var startTime = DateTime.Now;
+
+            while ((DateTime.Now - startTime).TotalMilliseconds < totalDuration)
+            {
+                if (_phase != 2)
+                    break;
+
+                List<uint> targets;
+
+                lock (_p2EyeLock)
+                {
+                    targets = _p2EyeTargets.ToList();
+                }
+
+                var myObj = sa.Data.Objects.SearchById(sa.Data.Me);
+                if (myObj == null)
+                {
+                    await Task.Delay(refreshInterval);
+                    continue;
+                }
+
+                var myPos = myObj.Position;
+
+                foreach (var targetId in targets)
+                {
+                    var targetObj = sa.Data.Objects.SearchById(targetId);
+                    if (targetObj == null)
+                        continue;
+
+                    var targetPos = targetObj.Position;
+                    var distance = Vector3.Distance(myPos, targetPos);
+
+                    // 只有目标在 validRange 内，才参与 SightAvoid
+                    if (distance > validRange)
+                        continue;
+
+                    // sa.Method.SendChat($"/e sourceid: {sourceId} distance: {distance}");
+                    var dp = sa.Data.GetDefaultDrawProperties();
+
+                    dp.Name = $"P2 恶魔之瞳-{targetId:X}";
+                    dp.Color = sa.Data.DefaultDangerColor;
+                    dp.Owner = sa.Data.Me;
+                    dp.TargetObject = targetId;
+                    dp.DestoryAt = refreshDuration;
+
+                    sa.Method.SendDraw(
+                        DrawModeEnum.Default,
+                        DrawTypeEnum.SightAvoid,
+                        dp
+                    );
+                }
+
+                await Task.Delay(refreshInterval);
+            }
+        }
+        finally
+        {
+            lock (_p2EyeLock)
+            {
+                _p2EyeTargets.Clear();
+                _p2EyeRefreshing = false;
+            }
+
+            sa.Method.RemoveDraw("P2 恶魔之瞳-.*");
+        }
     }
 
     #endregion
