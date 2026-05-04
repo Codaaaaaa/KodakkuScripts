@@ -21,7 +21,7 @@ namespace Codaaaaaa.Enuo;
     guid: "8c4a9f2d-6b31-4e0a-9f27-1d7c5b8a3e46",
     name: "恩欧歼殛战画图",
     territorys: [1362],
-    version: "0.0.0.5",
+    version: "0.0.0.6",
     author: "Codaaaaaa",
     note: "mmw文档+NOCCHH")]
 public class Enuo
@@ -1539,9 +1539,60 @@ public static class EventExtensions
     public static uint DataId(this Event evt) => JsonConvert.DeserializeObject<uint>(evt["DataId"]);
     public static uint SourceId(this Event evt) => ParseHexId(evt["SourceId"], out var id) ? id : 0;
     public static uint TargetId(this Event evt) => ParseHexId(evt["TargetId"], out var id) ? id : 0;
-    public static Vector3 SourcePosition(this Event evt) => JsonConvert.DeserializeObject<Vector3>(evt["SourcePosition"]);
-    public static Vector3 EffectPosition(this Event evt) => JsonConvert.DeserializeObject<Vector3>(evt["EffectPosition"]);
+    public static Vector3 SourcePosition(this Event evt) => ParseVector3(evt["SourcePosition"]);
+    public static Vector3 EffectPosition(this Event evt) => ParseVector3(evt["EffectPosition"]);
     public static uint DirectorId(this Event evt) => ParseHexId(evt["DirectorId"], out var id) ? id : 0;
+
+    private static Vector3 ParseVector3(string? raw)
+    {
+        if (string.IsNullOrWhiteSpace(raw))
+            return Vector3.Zero;
+
+        raw = raw.Trim();
+
+        // 1. 先尝试标准 JSON
+        try
+        {
+            return JsonConvert.DeserializeObject<Vector3>(raw);
+        }
+        catch
+        {
+        }
+
+        // 非标准格式
+        try
+        {
+            float x = ExtractFloat(raw, "X");
+            float y = ExtractFloat(raw, "Y");
+            float z = ExtractFloat(raw, "Z");
+            return new Vector3(x, y, z);
+        }
+        catch
+        {
+            return Vector3.Zero;
+        }
+    }
+
+    private static float ExtractFloat(string raw, string key)
+    {
+        var pattern = $@"{key}\s*[:=]\s*(-?\d+(?:[\.,]\d+)?)";
+        var match = System.Text.RegularExpressions.Regex.Match(
+            raw,
+            pattern,
+            System.Text.RegularExpressions.RegexOptions.IgnoreCase
+        );
+
+        if (!match.Success)
+            return 0f;
+
+        // 兼容小数点是 comma 的情况，比如 100,25
+        var value = match.Groups[1].Value.Replace(',', '.');
+
+        return float.Parse(
+            value,
+            System.Globalization.CultureInfo.InvariantCulture
+        );
+    }
 }
 
 public static class ScriptAccessoryExtensions
