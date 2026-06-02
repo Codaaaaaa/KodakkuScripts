@@ -52,5 +52,14 @@
     "TerritoryIds": [1362],
     "DownloadUrl": "https://raw.githubusercontent.com/Codaaaaaa/KodakkuScripts/main/Scripts/Enuo.cs",
     "UpdateInfo": "0.0.0.6\n尝试修复了一下国际服SourcePosition格式不同导致爆炸的问题\n\n0.0.0.5\n加了P2小怪背对的安全范围以及有效范围\n\n0.0.0.4\n1. 延迟了一下单黑球的判定时间\n2. P2拉扇形修改了一下引导位置\n3. P1撞黑球加了易伤提示\n4.P1撞黑球引导直接连接球而不是固定点位\n5. 扩散波动加了指路\n6.我电\n\n0.0.0.1\n mmw文档+nocchh\n谢谢两位亲友提供的arr"
+  },
+  {
+    "Name": "绝凯夫卡先行版补丁",
+    "Guid": "cc2c6d88-abe5-40be-89da-5f231b9d21d8",
+    "Version": "0.0.0.1",
+    "Author": "Codaaaaaa",
+    "TerritoryIds": [1363],
+    "DownloadUrl": "https://raw.githubusercontent.com/Codaaaaaa/KodakkuScripts/main/Scripts/Kefka.cs",
+    "UpdateInfo": "0.0.0.1\n作为灵视佬和K佬画图的一个小补充，等佬们明天更新完应该就删了，爱信等。\n谢谢两位亲友提供的arr"
   }
 ]
