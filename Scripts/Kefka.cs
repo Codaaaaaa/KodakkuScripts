@@ -26,7 +26,7 @@ namespace Codaaaaaa.Kefka;
     guid: "cc2c6d88-abe5-40be-89da-5f231b9d21d8",
     name: "绝凯夫卡先行版补丁",
     territorys: [1363],
-    version: "0.0.0.1",
+    version: "0.0.0.2",
     author: "Codaaaaaa",
     note: "自用。请支持K佬&灵视佬")]
 public class Kefka
@@ -48,8 +48,18 @@ public class Kefka
         盗火
     }
 
+    [UserSetting("P1_神像1攻略")]
+    public XuanHuHuGuideMode XuanHuHuMode { get; set; } = XuanHuHuGuideMode.盗火烬;
+
     [UserSetting("扩大大冰封指路方式")]
     public BigIceSealGuideMode BigIceSealMode { get; set; } = BigIceSealGuideMode.十字放黑泥;
+
+    public enum XuanHuHuGuideMode
+    {
+        固定半场,
+        盗火烬,
+        
+    }
 
     #endregion
 
@@ -76,6 +86,10 @@ public class Kefka
 
     private static readonly Vector3 UpperLeftPoint = new(93.90f, 0.00f, 93.94f);
     private static readonly Vector3 UpperRightPoint = new(106.09f, 0.00f, 93.93f);
+
+    // 上场点沿 Z=100 镜像得到的下场点（固定半场不连线用），数值可按实际场地微调
+    private static readonly Vector3 LowerLeftPoint = new(93.90f, 0.00f, 106.06f);
+    private static readonly Vector3 LowerRightPoint = new(106.09f, 0.00f, 106.07f);
 
     private const uint RealIceAction = 47768;
     private const uint StackIcon = 0x0080;
@@ -212,12 +226,15 @@ public class Kefka
     }
 
     [ScriptMethod(
-        name: "P1_冰爆_玄乎乎魔法指路",
+        name: "P1_冰爆_玄乎乎魔法指路_盗火烬",
         eventType: EventTypeEnum.StartCasting,
         eventCondition: ["ActionId:47764"])]
-    public void P1_冰爆_玄乎乎魔法指路(Event evt, ScriptAccessory sa)
+    public void P1_冰爆_玄乎乎魔法指路_盗火烬(Event evt, ScriptAccessory sa)
     {
         if (_phase != 1)
+            return;
+
+        if (XuanHuHuMode != XuanHuHuGuideMode.盗火烬)
             return;
 
         Task.Run(async () =>
@@ -358,6 +375,75 @@ public class Kefka
             DrawName=P1_冰爆_玄乎乎魔法指路_第二段_{myIdx}
             RightMembers={string.Join(",", rightSideMembers.Select(x => party.IndexOf(x)))}
             LeftMembers={string.Join(",", leftSideMembers.Select(x => party.IndexOf(x)))}
+            """);
+        });
+    }
+
+    [ScriptMethod(
+        name: "P1_冰爆_玄乎乎魔法指路_固定半场",
+        eventType: EventTypeEnum.StartCasting,
+        eventCondition: ["ActionId:47764"])]
+    public void P1_冰爆_玄乎乎魔法指路_固定半场(Event evt, ScriptAccessory sa)
+    {
+        if (_phase != 1)
+            return;
+
+        if (XuanHuHuMode != XuanHuHuGuideMode.固定半场)
+            return;
+
+        Task.Run(async () =>
+        {
+            await Task.Delay(100);
+
+            bool? iceDiagonalIsLeftUpRightDown;
+            HashSet<uint> waveCannonTargetsSnapshot;
+
+            lock (_iceFireLock)
+            {
+                iceDiagonalIsLeftUpRightDown = _iceDiagonalIsLeftUpRightDown;
+                waveCannonTargetsSnapshot = new HashSet<uint>(_waveCannonTargets);
+            }
+
+            if (iceDiagonalIsLeftUpRightDown == null)
+            {
+                sa.Debug("固定半场指路失败：没有记录到冰方向。");
+                return;
+            }
+
+            int myIdx = sa.MyIndex();
+            if (myIdx < 0 || myIdx > 7)
+            {
+                sa.Debug($"固定半场指路失败：自己的 index 异常。MyIndex={myIdx}");
+                return;
+            }
+
+            // 0/1/2/3 固定左半场，4/5/6/7 固定右半场
+            bool isLeftHalf = myIdx <= 3;
+            bool meHas002D = waveCannonTargetsSnapshot.Contains(sa.Data.Me);
+            // _iceDiagonalIsLeftUpRightDown == true 表示左上右下覆盖，即左上有冰
+            bool upperLeftHasIce = iceDiagonalIsLeftUpRightDown.Value;
+
+            Vector3 myGuidePos = GetFixedHalfPos(isLeftHalf, meHas002D, upperLeftHasIce);
+
+            uint duration = 8000;
+
+            var guideDp = sa.WaypointDp(
+                myGuidePos,
+                duration,
+                0,
+                $"P1_冰爆_玄乎乎魔法指路_固定半场_{myIdx}"
+            );
+
+            sa.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, guideDp);
+
+            sa.Debug($"""
+            固定半场指路:
+            MyIndex={myIdx}
+            Half={(isLeftHalf ? "左半场" : "右半场")}
+            MeHas002D={meHas002D}
+            UpperLeftHasIce={upperLeftHasIce}
+            TargetPoint={myGuidePos}
+            DrawName=P1_冰爆_玄乎乎魔法指路_固定半场_{myIdx}
             """);
         });
     }
@@ -575,6 +661,30 @@ public class Kefka
             1 or 7 => new Vector3(119.50f, 0.00f, 100.00f),  // 右
             _ => null
         };
+    }
+
+    // 固定半场点位
+    // 连线的(002D)：基准点 = 本半场的“之前的点”(左半场 UpperLeftPoint / 右半场 UpperRightPoint)
+    //   - 左上有冰 => 基准点
+    //   - 左上没冰 => 基准点往上 10 (Z - 10)
+    // 不连线的：去本半场没冰的那一格(上场 or 下场)
+    //   upperLeftHasIce(左上右下有冰): 左半场没冰在下(SW)，右半场没冰在上(NE)
+    //  !upperLeftHasIce(左下右上有冰): 左半场没冰在上(NW)，右半场没冰在下(SE)
+    private static Vector3 GetFixedHalfPos(bool isLeftHalf, bool tethered, bool upperLeftHasIce)
+    {
+        Vector3 basePoint = isLeftHalf ? UpperLeftPoint : UpperRightPoint;
+
+        if (tethered)
+        {
+            return upperLeftHasIce
+                ? basePoint
+                : new Vector3(basePoint.X, basePoint.Y, basePoint.Z - 10f);
+        }
+
+        if (isLeftHalf)
+            return upperLeftHasIce ? LowerLeftPoint : UpperLeftPoint;
+
+        return upperLeftHasIce ? UpperRightPoint : LowerRightPoint;
     }
 
     private static Vector3? Get47784GuidePosForGroup(
