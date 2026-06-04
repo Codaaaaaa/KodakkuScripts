@@ -26,7 +26,7 @@ namespace Codaaaaaa.Kefka;
     guid: "cc2c6d88-abe5-40be-89da-5f231b9d21d8",
     name: "绝凯夫卡先行版补丁",
     territorys: [1363],
-    version: "0.0.0.2",
+    version: "0.0.0.3",
     author: "Codaaaaaa",
     note: "自用。请支持K佬&灵视佬")]
 public class Kefka
@@ -45,20 +45,20 @@ public class Kefka
     public enum BigIceSealGuideMode
     {
         十字放黑泥,
-        盗火
+        盗火,
+        一A改
     }
 
     [UserSetting("P1_神像1攻略")]
     public XuanHuHuGuideMode XuanHuHuMode { get; set; } = XuanHuHuGuideMode.盗火烬;
 
     [UserSetting("扩大大冰封指路方式")]
-    public BigIceSealGuideMode BigIceSealMode { get; set; } = BigIceSealGuideMode.十字放黑泥;
+    public BigIceSealGuideMode BigIceSealMode { get; set; } = BigIceSealGuideMode.一A改;
 
     public enum XuanHuHuGuideMode
     {
         固定半场,
         盗火烬,
-        
     }
 
     #endregion
@@ -94,6 +94,10 @@ public class Kefka
     private const uint RealIceAction = 47768;
     private const uint StackIcon = 0x0080;
     private const uint SpreadIcon = 0x007F;
+
+    #region 锁
+    private readonly object _bigIceSealLock = new();
+    #endregion
 
     public void Init(ScriptAccessory sa)
     {
@@ -226,15 +230,12 @@ public class Kefka
     }
 
     [ScriptMethod(
-        name: "P1_冰爆_玄乎乎魔法指路_盗火烬",
+        name: "P1_冰爆_玄乎乎魔法指路",
         eventType: EventTypeEnum.StartCasting,
         eventCondition: ["ActionId:47764"])]
-    public void P1_冰爆_玄乎乎魔法指路_盗火烬(Event evt, ScriptAccessory sa)
+    public void P1_冰爆_玄乎乎魔法指路(Event evt, ScriptAccessory sa)
     {
         if (_phase != 1)
-            return;
-
-        if (XuanHuHuMode != XuanHuHuGuideMode.盗火烬)
             return;
 
         Task.Run(async () =>
@@ -260,7 +261,15 @@ public class Kefka
                 return;
             }
 
+            var party = sa.Data.PartyList;
             int myIdx = sa.MyIndex();
+
+            if (myIdx < 0 || myIdx > 7)
+            {
+                sa.Debug($"玄乎乎魔法指路失败：自己的 index 异常。MyIndex={myIdx}");
+                return;
+            }
+
             bool meHas002D = waveCannonTargetsSnapshot.Contains(sa.Data.Me);
 
             Vector3 coveredUpperPoint = iceDiagonalIsLeftUpRightDown.Value
@@ -271,9 +280,40 @@ public class Kefka
                 ? UpperRightPoint
                 : UpperLeftPoint;
 
-            Vector3 myFirstGuidePos = meHas002D
-                ? coveredUpperPoint
-                : uncoveredUpperPoint;
+            Vector3 GetFirstGuidePos(uint playerId)
+            {
+                bool has002D = waveCannonTargetsSnapshot.Contains(playerId);
+                int playerIdx = PartyIndex(party, playerId);
+
+                if (XuanHuHuMode == XuanHuHuGuideMode.固定半场)
+                {
+                    // 固定半场：0/1/2/3 固定左半场，4/5/6/7 固定右半场。
+                    bool isLeftHalf = playerIdx <= 3;
+                    bool upperLeftHasIce = iceDiagonalIsLeftUpRightDown.Value;
+                    return GetFixedHalfPos(isLeftHalf, has002D, upperLeftHasIce);
+                }
+
+                // 盗火烬：002D 去上半场有冰点，其他人去上半场无冰点。
+                return has002D
+                    ? coveredUpperPoint
+                    : uncoveredUpperPoint;
+            }
+
+            bool IsRightHalfForSecondGuide(uint playerId)
+            {
+                int playerIdx = PartyIndex(party, playerId);
+
+                if (XuanHuHuMode == XuanHuHuGuideMode.固定半场)
+                {
+                    // 固定半场只有第一段半场判定不同；第二段仍按对应半场分左右点。
+                    return playerIdx >= 4;
+                }
+
+                // 盗火烬按第一段实际去到的点决定左右半场。
+                return GetFirstGuidePos(playerId).X > 100.0f;
+            }
+
+            Vector3 myFirstGuidePos = GetFirstGuidePos(sa.Data.Me);
 
             uint firstDuration = 3000;
 
@@ -281,19 +321,22 @@ public class Kefka
                 myFirstGuidePos,
                 firstDuration,
                 0,
-                $"P1_冰爆_玄乎乎魔法指路_第一段_{myIdx}"
+                $"P1_冰爆_玄乎乎魔法指路_第一段_{XuanHuHuMode}_{myIdx}"
             );
 
             sa.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, firstGuideDp);
 
             sa.Debug($"""
             玄乎乎魔法第一段指路:
+            Mode={XuanHuHuMode}
             IceIsReal={iceIsReal}
             ActualStack={actualStack}
             ActualDiagonal={(iceDiagonalIsLeftUpRightDown.Value ? "左上右下" : "左下右上")}
+            MyIndex={myIdx}
             MeHas002D={meHas002D}
+            FirstSide={(IsRightHalfForSecondGuide(sa.Data.Me) ? "右半场" : "左半场")}
             TargetPoint={myFirstGuidePos}
-            DrawName=P1_冰爆_玄乎乎魔法指路_第一段_{myIdx}
+            DrawName=P1_冰爆_玄乎乎魔法指路_第一段_{XuanHuHuMode}_{myIdx}
             """);
 
             await Task.Delay(5000);
@@ -314,26 +357,14 @@ public class Kefka
                 new(81.00f, 0.00f, 100.00f),
             };
 
-            var party = sa.Data.PartyList;
-
             var rightSideMembers = party
-                .Where(id =>
-                {
-                    bool has002D = waveCannonTargetsSnapshot.Contains(id);
-                    Vector3 firstPos = has002D ? coveredUpperPoint : uncoveredUpperPoint;
-                    return firstPos.X > 100.0f;
-                })
-                .OrderBy(id => party.IndexOf(id))
+                .Where(IsRightHalfForSecondGuide)
+                .OrderBy(id => PartyIndex(party, id))
                 .ToList();
 
             var leftSideMembers = party
-                .Where(id =>
-                {
-                    bool has002D = waveCannonTargetsSnapshot.Contains(id);
-                    Vector3 firstPos = has002D ? coveredUpperPoint : uncoveredUpperPoint;
-                    return firstPos.X < 100.0f;
-                })
-                .OrderBy(id => party.IndexOf(id))
+                .Where(id => !IsRightHalfForSecondGuide(id))
+                .OrderBy(id => PartyIndex(party, id))
                 .ToList();
 
             Vector3? mySecondGuidePos = null;
@@ -358,7 +389,7 @@ public class Kefka
                 mySecondGuidePos.Value,
                 secondDuration,
                 0,
-                $"P1_冰爆_玄乎乎魔法指路_第二段_{myIdx}"
+                $"P1_冰爆_玄乎乎魔法指路_第二段_{XuanHuHuMode}_{myIdx}"
             );
 
             sa.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, secondGuideDp);
@@ -368,82 +399,14 @@ public class Kefka
 
             sa.Debug($"""
             玄乎乎魔法第二段指路:
+            Mode={XuanHuHuMode}
             Side={side}
             Order={order}
             MyIndex={myIdx}
             TargetPoint={mySecondGuidePos.Value}
-            DrawName=P1_冰爆_玄乎乎魔法指路_第二段_{myIdx}
-            RightMembers={string.Join(",", rightSideMembers.Select(x => party.IndexOf(x)))}
-            LeftMembers={string.Join(",", leftSideMembers.Select(x => party.IndexOf(x)))}
-            """);
-        });
-    }
-
-    [ScriptMethod(
-        name: "P1_冰爆_玄乎乎魔法指路_固定半场",
-        eventType: EventTypeEnum.StartCasting,
-        eventCondition: ["ActionId:47764"])]
-    public void P1_冰爆_玄乎乎魔法指路_固定半场(Event evt, ScriptAccessory sa)
-    {
-        if (_phase != 1)
-            return;
-
-        if (XuanHuHuMode != XuanHuHuGuideMode.固定半场)
-            return;
-
-        Task.Run(async () =>
-        {
-            await Task.Delay(100);
-
-            bool? iceDiagonalIsLeftUpRightDown;
-            HashSet<uint> waveCannonTargetsSnapshot;
-
-            lock (_iceFireLock)
-            {
-                iceDiagonalIsLeftUpRightDown = _iceDiagonalIsLeftUpRightDown;
-                waveCannonTargetsSnapshot = new HashSet<uint>(_waveCannonTargets);
-            }
-
-            if (iceDiagonalIsLeftUpRightDown == null)
-            {
-                sa.Debug("固定半场指路失败：没有记录到冰方向。");
-                return;
-            }
-
-            int myIdx = sa.MyIndex();
-            if (myIdx < 0 || myIdx > 7)
-            {
-                sa.Debug($"固定半场指路失败：自己的 index 异常。MyIndex={myIdx}");
-                return;
-            }
-
-            // 0/1/2/3 固定左半场，4/5/6/7 固定右半场
-            bool isLeftHalf = myIdx <= 3;
-            bool meHas002D = waveCannonTargetsSnapshot.Contains(sa.Data.Me);
-            // _iceDiagonalIsLeftUpRightDown == true 表示左上右下覆盖，即左上有冰
-            bool upperLeftHasIce = iceDiagonalIsLeftUpRightDown.Value;
-
-            Vector3 myGuidePos = GetFixedHalfPos(isLeftHalf, meHas002D, upperLeftHasIce);
-
-            uint duration = 8000;
-
-            var guideDp = sa.WaypointDp(
-                myGuidePos,
-                duration,
-                0,
-                $"P1_冰爆_玄乎乎魔法指路_固定半场_{myIdx}"
-            );
-
-            sa.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, guideDp);
-
-            sa.Debug($"""
-            固定半场指路:
-            MyIndex={myIdx}
-            Half={(isLeftHalf ? "左半场" : "右半场")}
-            MeHas002D={meHas002D}
-            UpperLeftHasIce={upperLeftHasIce}
-            TargetPoint={myGuidePos}
-            DrawName=P1_冰爆_玄乎乎魔法指路_固定半场_{myIdx}
+            DrawName=P1_冰爆_玄乎乎魔法指路_第二段_{XuanHuHuMode}_{myIdx}
+            RightMembers={string.Join(",", rightSideMembers.Select(x => PartyIndex(party, x)))}
+            LeftMembers={string.Join(",", leftSideMembers.Select(x => PartyIndex(party, x)))}
             """);
         });
     }
@@ -572,6 +535,7 @@ public class Kefka
         {
             BigIceSealGuideMode.十字放黑泥 => GetBigIceSealCrossBlackMudPos(myIdx),
             BigIceSealGuideMode.盗火 => GetBigIceSealStealFirePos(myIdx),
+            BigIceSealGuideMode.一A改 => GetBigIceSeal1AChangedPos(myIdx),
             _ => null
         };
 
@@ -581,7 +545,7 @@ public class Kefka
             return;
         }
 
-        uint duration = 6000;
+        uint duration = 5000;
 
         var guideDp = sa.WaypointDp(
             myGuidePos.Value,
@@ -599,6 +563,55 @@ public class Kefka
         MyIndex={myIdx}
         TargetPoint={myGuidePos.Value}
         """);
+
+        _ = Task.Run(async () =>
+        {
+            await Task.Delay(19000);
+
+            Vector3? myGuidePos2;
+            BigIceSealGuideMode modeSnapshot;
+            double phaseSnapshot;
+
+            lock (_bigIceSealLock)
+            {
+                phaseSnapshot = _phase;
+                modeSnapshot = BigIceSealMode;
+
+                if (phaseSnapshot >= 2)
+                    return;
+
+                myGuidePos2 = modeSnapshot switch
+                {
+                    BigIceSealGuideMode.一A改 => GetBigIceSeal1AChangedPos2(myIdx),
+                    _ => null
+                };
+            }
+
+            if (myGuidePos2 == null)
+            {
+                sa.Debug($"扩大大冰封第二段指路跳过：当前模式没有第二段点位。Mode={modeSnapshot}, MyIndex={myIdx}");
+                return;
+            }
+
+            var guideDp2 = sa.WaypointDp(
+                myGuidePos2.Value,
+                5000,
+                0,
+                $"P1_第二次扩大大冰封指路_第二段_{modeSnapshot}_{myIdx}"
+            );
+
+            sa.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, guideDp2);
+
+            sa.Debug($"""
+            第二次扩大大冰封第二段指路:
+            Phase={phaseSnapshot}
+            Mode={modeSnapshot}
+            MyIndex={myIdx}
+            TargetPoint={myGuidePos2.Value}
+            DrawName=P1_第二次扩大大冰封指路_第二段_{modeSnapshot}_{myIdx}
+            """);
+        });
+
     }
 
     [ScriptMethod(
@@ -663,6 +676,26 @@ public class Kefka
         };
     }
 
+    private static Vector3? GetBigIceSeal1AChangedPos(int index)
+    {
+        return index switch
+        {
+            2 or 3 or 6 or 7 => new Vector3(100.00f, 0.00f, 80.50f), // 上面北点
+            0 or 1 or 4 or 5 => new Vector3(100.00f, 0.00f, 87.50f), // 近北点
+            _ => null
+        };
+    }
+
+    private static Vector3? GetBigIceSeal1AChangedPos2(int index)
+    {
+        return index switch
+        {
+            2 or 3 or 6 or 7 => new Vector3(100.00f, 0.00f, 119.5f), // 下面南点
+            0 or 1 or 4 or 5 => new Vector3(100.00f, 0.00f, 112.5f), // 近南点
+            _ => null
+        };
+    }
+
     // 固定半场点位
     // 连线的(002D)：基准点 = 本半场的“之前的点”(左半场 UpperLeftPoint / 右半场 UpperRightPoint)
     //   - 左上有冰 => 基准点
@@ -709,7 +742,6 @@ public class Kefka
             .OrderBy(id => PartyIndex(party, id))
             .ToList();
 
-        // 正常每组应该是 2 个被点，2 个没被点?
         if (targetedMembers.Count != 2 || untargetedMembers.Count != 2)
             return null;
 
@@ -843,7 +875,6 @@ public static class EventExtensions
 
         raw = raw.Trim();
 
-        // 1. 先尝试标准 JSON
         try
         {
             return JsonConvert.DeserializeObject<Vector3>(raw);
@@ -852,7 +883,6 @@ public static class EventExtensions
         {
         }
 
-        // 2. 再尝试非标准格式：X:100, Y:0, Z:100
         try
         {
             float x = ExtractFloat(raw, "X");
