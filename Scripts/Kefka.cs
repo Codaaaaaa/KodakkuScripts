@@ -26,7 +26,7 @@ namespace Codaaaaaa.Kefka;
     guid: "cc2c6d88-abe5-40be-89da-5f231b9d21d8",
     name: "绝凯夫卡先行版补丁",
     territorys: [1363],
-    version: "0.0.0.3",
+    version: "0.0.0.4",
     author: "Codaaaaaa",
     note: "自用。请支持K佬&灵视佬")]
 public class Kefka
@@ -614,40 +614,6 @@ public class Kefka
 
     }
 
-    [ScriptMethod(
-        name: "P1_众神之像1_扩大大冰封_假技能范围",
-        eventType: EventTypeEnum.StartCasting,
-        eventCondition: ["ActionId:regex:^(47768|47774)$"])]
-    public void P1_众神之像1_扩大大冰封_假技能范围(Event evt, ScriptAccessory sa)
-    {
-        var sourceId = evt.SourceId();
-
-        var dp = sa.Data.GetDefaultDrawProperties();
-        dp.Scale = new(40);
-        dp.Radian = float.Pi / 2;
-        dp.Owner = sourceId;
-        dp.Color = sa.Data.DefaultDangerColor;
-        dp.DestoryAt = 5000;
-
-        sa.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Fan, dp);
-    }
-
-    #endregion
-
-    #region P1 屏蔽特效
-
-    [ScriptMethod(
-        name: "P1_屏蔽假雷假冰",
-        eventType: EventTypeEnum.StartCasting,
-        eventCondition: ["ActionId:regex:^(47776|47771)$"])]
-    public void P1_屏蔽假雷假冰(Event evt, ScriptAccessory sa)
-    {
-        var obj = sa.GetById((uint)evt.SourceId);
-        if (obj == null) return;
-
-        sa.WriteVisible(obj, false);
-    }
-
     #endregion
 
     #region 工具方法
@@ -1025,32 +991,6 @@ public static class ScriptAccessoryExtensions
         dp.Scale = new Vector2(2);
         dp.ScaleMode = ScaleMode.YByDistance;
         return dp;
-    }
-}
-
-public static class HideVfxHelper
-{
-    public static IGameObject? GetById(this ScriptAccessory sa, ulong gameObjectId)
-    {
-        return sa.Data.Objects.SearchById(gameObjectId);
-    }
-
-    public static unsafe void WriteVisible(this ScriptAccessory sa, IGameObject? actor, bool visible)
-    {
-        if (actor == null || !actor.IsValid()) return;
-
-        try
-        {
-            var gameObject = (GameObject*)actor.Address;
-
-            gameObject->RenderFlags = visible
-                ? VisibilityFlags.None
-                : VisibilityFlags.Model;
-        }
-        catch (Exception e)
-        {
-            sa.Log.Error(e.ToString());
-        }
     }
 }
 
