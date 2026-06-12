@@ -17,7 +17,7 @@ namespace Codaaaaaa.Kefka;
     guid: "cc2c6d88-abe5-40be-89da-5f231b9d21d8",
     name: "绝凯夫卡P1指路先行版",
     territorys: [1363],
-    version: "0.0.0.6",
+    version: "0.0.0.7",
     author: "Codaaaaaa",
     note: "自用拼好挂。请支持K佬&灵视佬")]
 public class Kefka
@@ -605,7 +605,7 @@ public class Kefka
             _bigIceSealSafeIsLeftUpRightDown = safeIsLeftUpRightDown;
         }
 
-        sa.Debug($"神像2 47774安全对角: SourceRotation={evt.SourceRotation()}, HitDiagonal={(hitIsLeftUpRightDown ? "左上右下" : "左下右上")}, SafeDiagonal={(safeIsLeftUpRightDown ? "左上右下" : "左下右上")}");
+        sa.Debug($"神像2安全对角: ActionId={evt.ActionId()}, Rot={evt.SourceRotation()}, Hit={(hitIsLeftUpRightDown?"左上右下":"左下右上")}, Safe={(safeIsLeftUpRightDown?"左上右下":"左下右上")}");
     }
 
     [ScriptMethod(
@@ -617,71 +617,73 @@ public class Kefka
         if (_phase >= 2)
             return;
 
-        int myIdx = sa.MyIndex();
-
-        if (myIdx < 0 || myIdx > 7)
+        _ = Task.Run(async () =>
         {
-            sa.Debug($"扩大大冰封指路失败：自己的 index 异常。MyIndex={myIdx}");
-            return;
-        }
+            await Task.Delay(100);
 
-        bool safeIsLeftUpRightDown;
+            int myIdx = sa.MyIndex();
 
-        lock (_bigIceSealLock)
-        {
-            if (_bigIceSealGuideStarted)
+            if (myIdx < 0 || myIdx > 7)
             {
-                sa.Debug($"扩大大冰封指路跳过：本次 init 后已经触发过。Mode={BigIceSealMode}, MyIndex={myIdx}");
+                sa.Debug($"扩大大冰封指路失败：自己的 index 异常。MyIndex={myIdx}");
                 return;
             }
 
-            if (_bigIceSealSafeIsLeftUpRightDown == null)
+            bool safeIsLeftUpRightDown;
+
+            lock (_bigIceSealLock)
             {
-                sa.Debug($"扩大大冰封指路失败：没有记录到 47774 安全对角。Mode={BigIceSealMode}, MyIndex={myIdx}");
+                if (_bigIceSealGuideStarted)
+                {
+                    sa.Debug($"扩大大冰封指路跳过：本次 init 后已经触发过。Mode={BigIceSealMode}, MyIndex={myIdx}");
+                    return;
+                }
+
+                if (_bigIceSealSafeIsLeftUpRightDown == null)
+                {
+                    sa.Debug($"扩大大冰封指路失败：没有记录到 47774 安全对角。Mode={BigIceSealMode}, MyIndex={myIdx}");
+                    return;
+                }
+
+                _bigIceSealGuideStarted = true;
+                safeIsLeftUpRightDown = _bigIceSealSafeIsLeftUpRightDown.Value;
+            }
+
+            Vector3? myGuidePos = GetBigIceSealInitialPos(BigIceSealMode, myIdx, safeIsLeftUpRightDown);
+
+            if (myGuidePos == null)
+            {
+                sa.Debug($"扩大大冰封指路失败：没有匹配到点位。Mode={BigIceSealMode}, MyIndex={myIdx}, SafeDiagonal={(safeIsLeftUpRightDown ? "左上右下" : "左下右上")}");
                 return;
             }
-            
-            _bigIceSealGuideStarted = true;
-            safeIsLeftUpRightDown = _bigIceSealSafeIsLeftUpRightDown.Value;
-        }
 
-        Vector3? myGuidePos = GetBigIceSealInitialPos(BigIceSealMode, myIdx, safeIsLeftUpRightDown);
+            lock (_bigIceSealLock)
+            {
+                _lastBigIceSealGuidePos = myGuidePos.Value;
+                _bigIceSealTetherTargets.Clear();
+                _bigIceSealActive = true;
+                _bigIceSealTetherDetectionEnabled = false;
+                _bigIceSealTetherDetectionWindowStarted = false;
+            }
 
-        if (myGuidePos == null)
-        {
-            sa.Debug($"扩大大冰封指路失败：没有匹配到点位。Mode={BigIceSealMode}, MyIndex={myIdx}, SafeDiagonal={(safeIsLeftUpRightDown ? "左上右下" : "左下右上")}");
-            return;
-        }
+            var guideDp = sa.WaypointDp(
+                myGuidePos.Value,
+                5000,
+                0,
+                $"P1_第二次扩大大冰封指路_{BigIceSealMode}_{myIdx}"
+            );
 
-        lock (_bigIceSealLock)
-        {
-            _lastBigIceSealGuidePos = myGuidePos.Value;
-            _bigIceSealTetherTargets.Clear();
-            _bigIceSealActive = true;
-            // _bigIceSealGuideStarted = true;
-            // _bigIceSealSecondGuideDone = false;
-            _bigIceSealTetherDetectionEnabled = false;
-            _bigIceSealTetherDetectionWindowStarted = false;
-        }
+            sa.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, guideDp);
 
-        var guideDp = sa.WaypointDp(
-            myGuidePos.Value,
-            5000,
-            0,
-            $"P1_第二次扩大大冰封指路_{BigIceSealMode}_{myIdx}"
-        );
-
-        sa.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, guideDp);
-
-        sa.Debug($"""
-        第二次扩大大冰封指路:
-        Phase={_phase}
-        Mode={BigIceSealMode}
-        MyIndex={myIdx}
-        SafeDiagonal={(safeIsLeftUpRightDown ? "左上右下" : "左下右上")}
-        TargetPoint={myGuidePos.Value}
-        """);
-
+            sa.Debug($"""
+            第二次扩大大冰封指路:
+            Phase={_phase}
+            Mode={BigIceSealMode}
+            MyIndex={myIdx}
+            SafeDiagonal={(safeIsLeftUpRightDown ? "左上右下" : "左下右上")}
+            TargetPoint={myGuidePos.Value}
+            """);
+        });
     }
 
     [ScriptMethod(
