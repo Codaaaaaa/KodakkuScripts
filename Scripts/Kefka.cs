@@ -17,7 +17,7 @@ namespace Codaaaaaa.Kefka;
     guid: "cc2c6d88-abe5-40be-89da-5f231b9d21d8",
     name: "绝凯夫卡P1指路先行版",
     territorys: [1363],
-    version: "0.0.0.7",
+    version: "0.0.0.8",
     author: "Codaaaaaa",
     note: "自用拼好挂。请支持K佬&灵视佬")]
 public class Kefka
@@ -41,6 +41,12 @@ public class Kefka
         Yan式八人全分摊,
     }
 
+    public enum BigIceSealMtUpperHalfTankMode
+    {
+        不交换分组_MT上半场,
+        交换分组_ST上半场,
+    }
+
     public enum Statue3ArrowGuideMode
     {
         _1A,
@@ -54,6 +60,9 @@ public class Kefka
 
     [UserSetting("P1_神像2攻略")]
     public BigIceSealGuideMode BigIceSealMode { get; set; } = BigIceSealGuideMode.斜角黑泥;
+
+    [UserSetting("P1_神像2指路_双T是否交换位置 只影响'斜角黑泥'和'_1A四人分摊_MT组上半场'")]
+    public BigIceSealMtUpperHalfTankMode BigIceSealMtUpperHalfTank { get; set; } = BigIceSealMtUpperHalfTankMode.不交换分组_MT上半场;
 
     [UserSetting("P1_神像3箭头攻略")]
     public Statue3ArrowGuideMode Statue3ArrowMode { get; set; } = Statue3ArrowGuideMode.方逆;
@@ -649,7 +658,12 @@ public class Kefka
                 safeIsLeftUpRightDown = _bigIceSealSafeIsLeftUpRightDown.Value;
             }
 
-            Vector3? myGuidePos = GetBigIceSealInitialPos(BigIceSealMode, myIdx, safeIsLeftUpRightDown);
+            Vector3? myGuidePos = GetBigIceSealInitialPos(
+                BigIceSealMode,
+                myIdx,
+                safeIsLeftUpRightDown,
+                BigIceSealMtUpperHalfTank
+            );
 
             if (myGuidePos == null)
             {
@@ -666,11 +680,19 @@ public class Kefka
                 _bigIceSealTetherDetectionWindowStarted = false;
             }
 
+            bool useTankGroupSwapSetting = BigIceSealMode is
+                BigIceSealGuideMode.斜角黑泥 or
+                BigIceSealGuideMode._1A四人分摊_MT组上半场;
+
+            string initialDrawName = useTankGroupSwapSetting
+                ? $"P1_第二次扩大大冰封指路_{BigIceSealMode}_{BigIceSealMtUpperHalfTank}_{myIdx}"
+                : $"P1_第二次扩大大冰封指路_{BigIceSealMode}_{myIdx}";
+
             var guideDp = sa.WaypointDp(
                 myGuidePos.Value,
                 5000,
                 0,
-                $"P1_第二次扩大大冰封指路_{BigIceSealMode}_{myIdx}"
+                initialDrawName
             );
 
             sa.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, guideDp);
@@ -679,9 +701,11 @@ public class Kefka
             第二次扩大大冰封指路:
             Phase={_phase}
             Mode={BigIceSealMode}
+            TankGroupSwapSetting={BigIceSealMtUpperHalfTank}
             MyIndex={myIdx}
             SafeDiagonal={(safeIsLeftUpRightDown ? "左上右下" : "左下右上")}
             TargetPoint={myGuidePos.Value}
+            DrawName={initialDrawName}
             """);
         });
     }
@@ -1102,21 +1126,31 @@ public class Kefka
         };
     }
 
-    private static Vector3? GetBigIceSealInitialPos(BigIceSealGuideMode mode, int index, bool safeIsLeftUpRightDown)
+    private static Vector3? GetBigIceSealInitialPos(
+        BigIceSealGuideMode mode,
+        int index,
+        bool safeIsLeftUpRightDown,
+        BigIceSealMtUpperHalfTankMode mtUpperHalfTankMode)
     {
         return mode switch
         {
-            BigIceSealGuideMode.斜角黑泥 => GetBigIceSealDiagonalBlackMudPos(index, safeIsLeftUpRightDown),
+            BigIceSealGuideMode.斜角黑泥 => GetBigIceSealDiagonalBlackMudPos(index, safeIsLeftUpRightDown, mtUpperHalfTankMode),
             BigIceSealGuideMode._1A四人分摊_TH上半场 => GetBigIceSeal1AThUpperHalfPos(index, safeIsLeftUpRightDown),
-            BigIceSealGuideMode._1A四人分摊_MT组上半场 => GetBigIceSeal1AMtUpperHalfPos(index, safeIsLeftUpRightDown),
+            BigIceSealGuideMode._1A四人分摊_MT组上半场 => GetBigIceSeal1AMtUpperHalfPos(index, safeIsLeftUpRightDown, mtUpperHalfTankMode),
             BigIceSealGuideMode.Yan式八人全分摊 => GetBigIceSealYanEightStackPos(safeIsLeftUpRightDown),
             _ => null
         };
     }
 
-    private static Vector3? GetBigIceSealDiagonalBlackMudPos(int index, bool safeIsLeftUpRightDown)
+    private static Vector3? GetBigIceSealDiagonalBlackMudPos(
+        int index,
+        bool safeIsLeftUpRightDown,
+        BigIceSealMtUpperHalfTankMode mtUpperHalfTankMode)
     {
-        return index switch
+        // 交换分组_ST上半场
+        int groupIndex = GetBigIceSealTankGroupIndex(index, mtUpperHalfTankMode);
+
+        return groupIndex switch
         {
             2 or 4 => safeIsLeftUpRightDown
                 ? new Vector3(84.39f, 0.00f, 90.18f)
@@ -1154,9 +1188,15 @@ public class Kefka
         };
     }
 
-    private static Vector3? GetBigIceSeal1AMtUpperHalfPos(int index, bool safeIsLeftUpRightDown)
+    private static Vector3? GetBigIceSeal1AMtUpperHalfPos(
+        int index,
+        bool safeIsLeftUpRightDown,
+        BigIceSealMtUpperHalfTankMode mtUpperHalfTankMode)
     {
-        return index switch
+        // 交换分组_ST上半场
+        int groupIndex = GetBigIceSealTankGroupIndex(index, mtUpperHalfTankMode);
+
+        return groupIndex switch
         {
             0 or 2 or 4 or 6 => safeIsLeftUpRightDown
                 ? new Vector3(99.50f, 0.00f, 81.00f)
@@ -1167,6 +1207,19 @@ public class Kefka
                 : new Vector3(99.50f, 0.00f, 119.00f),
 
             _ => null
+        };
+    }
+
+    private static int GetBigIceSealTankGroupIndex(int index, BigIceSealMtUpperHalfTankMode mtUpperHalfTankMode)
+    {
+        if (mtUpperHalfTankMode != BigIceSealMtUpperHalfTankMode.交换分组_ST上半场)
+            return index;
+
+        return index switch
+        {
+            0 => 1,
+            1 => 0,
+            _ => index
         };
     }
 
