@@ -17,7 +17,7 @@ namespace Codaaaaaa.Kefka;
     guid: "cc2c6d88-abe5-40be-89da-5f231b9d21d8",
     name: "绝凯夫卡P1指路先行版",
     territorys: [1363],
-    version: "0.0.0.8",
+    version: "0.0.1.0",
     author: "Codaaaaaa",
     note: "自用拼好挂。请支持K佬&灵视佬")]
 public class Kefka
@@ -38,6 +38,7 @@ public class Kefka
         斜角黑泥,
         _1A四人分摊_TH上半场,
         _1A四人分摊_MT组上半场,
+        _1A四人分摊_T远北奶近南,
         Yan式八人全分摊,
     }
 
@@ -55,6 +56,26 @@ public class Kefka
         方顺,
     }
 
+    public enum Statue3TetherGuideMode
+    {
+        魅惑在外,
+        魅惑在内,
+        全固定,
+    }
+
+    private enum Statue3TetherType
+    {
+        Unknown,
+        睡眠,
+        魅惑,
+    }
+
+    public enum XuanHuHuGuideMode
+    {
+        固定半场,
+        盗火烬,
+    }
+
     [UserSetting("P1_神像1攻略")]
     public XuanHuHuGuideMode XuanHuHuMode { get; set; } = XuanHuHuGuideMode.盗火烬;
 
@@ -67,21 +88,27 @@ public class Kefka
     [UserSetting("P1_神像3箭头攻略")]
     public Statue3ArrowGuideMode Statue3ArrowMode { get; set; } = Statue3ArrowGuideMode.方逆;
 
-    public enum XuanHuHuGuideMode
-    {
-        固定半场,
-        盗火烬,
-    }
+    [UserSetting("P1_神像3_睡眠魅惑攻略")]
+    public Statue3TetherGuideMode Statue3TetherMode { get; set; } = Statue3TetherGuideMode.魅惑在外;
 
     #endregion
 
     #region 全局变量与初始化
 
-    private double _phase = 1;
+    // P1 子阶段：
+    // 1.0 = P1 开场/未记录神像
+    // 1.1 = P1 神像1
+    // 1.2 = P1 神像2
+    // 1.3 = P1 神像3
+    // 2.0 = P2
+    // 3.0 = P3
+    private double _phase = 1.0;
+    private int _p1StatueCount = 0;
 
     public void Init(ScriptAccessory sa)
     {
-        _phase = 1;
+        _phase = 1.0;
+        _p1StatueCount = 0;
 
         lock (_iceFireLock)
         {
@@ -92,6 +119,7 @@ public class Kefka
             _waveCannonTargets.Clear();
             _action47784Targets.Clear();
             _action47784GuideSent = false;
+            _action47784Started = false;
         }
 
         lock (_bigIceSealLock)
@@ -116,16 +144,62 @@ public class Kefka
     #region 阶段控制
 
     [ScriptMethod(name: "Set Phase 1", eventType: EventTypeEnum.Chat, eventCondition: ["Type:Echo", "Message:KASP1"], userControl: false)]
-    public void SetP1(Event evt, ScriptAccessory sa) => _phase = 1;
+    public void SetP1(Event evt, ScriptAccessory sa)
+    {
+        _phase = 1.1;
+        _p1StatueCount = 1;
+        ResetStatue3ArrowState();
+    }
 
     [ScriptMethod(name: "Set Phase 2", eventType: EventTypeEnum.Chat, eventCondition: ["Type:Echo", "Message:KASP2"], userControl: false)]
-    public void SetP2(Event evt, ScriptAccessory sa) => _phase = 2;
+    public void SetP2(Event evt, ScriptAccessory sa) => _phase = 2.0;
 
     [ScriptMethod(name: "Set Phase 3", eventType: EventTypeEnum.Chat, eventCondition: ["Type:Echo", "Message:KASP3"], userControl: false)]
-    public void SetP3(Event evt, ScriptAccessory sa) => _phase = 3;
+    public void SetP3(Event evt, ScriptAccessory sa) => _phase = 3.0;
 
     [ScriptMethod(name: "Show Phase", eventType: EventTypeEnum.Chat, eventCondition: ["Type:Echo", "Message:phase"], userControl: false)]
-    public void ShowPhase(Event evt, ScriptAccessory sa) => sa.Debug(_phase);
+    public void ShowPhase(Event evt, ScriptAccessory sa) => sa.Debug($"当前 Phase={_phase}, P1StatueCount={_p1StatueCount}");
+
+    [ScriptMethod(
+        name: "P1_众神之像_阶段控制",
+        eventType: EventTypeEnum.StartCasting,
+        eventCondition: ["ActionId:48370"],
+        userControl: false)]
+    public void P1_众神之像_阶段控制(Event evt, ScriptAccessory sa)
+    {
+        if (_phase >= 2.0)
+            return;
+
+        _p1StatueCount++;
+
+        _phase = _p1StatueCount switch
+        {
+            1 => 1.1,
+            2 => 1.2,
+            3 => 1.3,
+            _ => _phase,
+        };
+
+        if (IsPhase(_phase, 1.3))
+            ResetStatue3ArrowState();
+
+        sa.Debug($"P1众神之像阶段控制：Count={_p1StatueCount}, Phase={_phase}");
+    }
+
+    [ScriptMethod(
+        name: "P1结束_切换到P2",
+        eventType: EventTypeEnum.StartCasting,
+        eventCondition: ["ActionId:47804"],
+        userControl: false)]
+    public void P1结束_切换到P2(Event evt, ScriptAccessory sa)
+    {
+        if (!IsPhase(_phase, 1.3))
+            return;
+
+        _phase = 2.0;
+
+        sa.Debug($"P1结束检测到 47804，切换到 P2。Phase={_phase}");
+    }
 
     #endregion
 
@@ -145,11 +219,11 @@ public class Kefka
     private bool? _actualStack = null;
 
     private readonly HashSet<uint> _iceFireTargets = new();
-
     private readonly HashSet<uint> _waveCannonTargets = new();
 
     private readonly Dictionary<uint, Vector3> _action47784Targets = new();
     private bool _action47784GuideSent = false;
+    private bool _action47784Started = false;
 
     private static readonly Vector3 UpperLeftPoint = new(93.90f, 0.00f, 93.94f);
     private static readonly Vector3 UpperRightPoint = new(106.09f, 0.00f, 93.93f);
@@ -170,7 +244,8 @@ public class Kefka
         userControl: false)]
     public void P1_冰爆_记录冰真假与方向(Event evt, ScriptAccessory sa)
     {
-        if (_phase > 1) return;
+        if (!IsPhase(_phase, 1.1))
+            return;
 
         var actionId = evt.ActionId();
 
@@ -191,6 +266,7 @@ public class Kefka
 
         sa.Debug($"""
         Ice cast:
+        Phase={_phase}
         ActionId={actionId}
         SourceRotation={evt.SourceRotation()}
         IceIsReal={iceIsReal}
@@ -207,6 +283,9 @@ public class Kefka
         userControl: false)]
     public void P1_冰爆_记录分摊散开(Event evt, ScriptAccessory sa)
     {
+        if (!IsPhase(_phase, 1.1))
+            return;
+
         uint iconId = evt.IconId();
         uint targetId = evt.TargetId();
 
@@ -228,6 +307,7 @@ public class Kefka
 
         sa.Debug($"""
         Fire icon:
+        Phase={_phase}
         IconId=0x{iconId:X4}
         TargetId=0x{targetId:X}
         TargetCount={_iceFireTargets.Count}
@@ -254,47 +334,61 @@ public class Kefka
         if (tetherPlayerId == 0)
             return;
 
-        lock (_iceFireLock)
+        // 神像1：只记录玄乎乎魔法需要的 002D。
+        if (IsPhase(_phase, 1.1))
         {
-            _waveCannonTargets.Add(tetherPlayerId);
+            lock (_iceFireLock)
+            {
+                _waveCannonTargets.Add(tetherPlayerId);
+            }
+
+            sa.Debug($"神像1 002D记录：Player=0x{tetherPlayerId:X}, Source=0x{sourceId:X}, Target=0x{targetId:X}, IsMe={tetherPlayerId == sa.Data.Me}, Phase={_phase}");
+            return;
         }
 
-        bool shouldSendBigIceSealSecondGuide = false;
-        bool bigIceSealDetectionEnabledSnapshot = false;
-        BigIceSealGuideMode modeSnapshot = BigIceSealMode;
-        double phaseSnapshot = _phase;
-        Vector3? firstGuidePosSnapshot = null;
-
-        lock (_bigIceSealLock)
+        // 神像2：只在扩大大冰封结算后 5 秒检测窗打开时，才接受 002D 并触发第二段。
+        if (IsPhase(_phase, 1.2))
         {
-            bigIceSealDetectionEnabledSnapshot = _bigIceSealTetherDetectionEnabled;
+            bool shouldSendBigIceSealSecondGuide = false;
+            bool bigIceSealDetectionEnabledSnapshot = false;
+            BigIceSealGuideMode modeSnapshot = BigIceSealMode;
+            double phaseSnapshot = _phase;
+            Vector3? firstGuidePosSnapshot = null;
 
-            // 神像2第二段 002D 只在“扩大大冰封结算后 5 秒”的检测窗口开启后才接受。
-            // 检测窗口开启前出现的 002D 仍保留给神像1使用，但不写入神像2、不触发神像2第二段。
-            if (_bigIceSealActive
-                && _bigIceSealTetherDetectionEnabled
-                && !_bigIceSealSecondGuideDone)
+            lock (_bigIceSealLock)
             {
-                _bigIceSealTetherTargets.Add(tetherPlayerId);
+                bigIceSealDetectionEnabledSnapshot = _bigIceSealTetherDetectionEnabled;
 
-                if (_phase < 2 && tetherPlayerId == sa.Data.Me)
+                if (_bigIceSealActive
+                    && _bigIceSealTetherDetectionEnabled
+                    && !_bigIceSealSecondGuideDone)
                 {
-                    modeSnapshot = BigIceSealMode;
-                    phaseSnapshot = _phase;
-                    firstGuidePosSnapshot = _lastBigIceSealGuidePos;
+                    _bigIceSealTetherTargets.Add(tetherPlayerId);
 
-                    _bigIceSealSecondGuideDone = true;
-                    _bigIceSealActive = false;
-                    _bigIceSealTetherDetectionEnabled = false;
-                    shouldSendBigIceSealSecondGuide = true;
+                    if (tetherPlayerId == sa.Data.Me)
+                    {
+                        modeSnapshot = BigIceSealMode;
+                        phaseSnapshot = _phase;
+                        firstGuidePosSnapshot = _lastBigIceSealGuidePos;
+
+                        _bigIceSealSecondGuideDone = true;
+                        _bigIceSealActive = false;
+                        _bigIceSealTetherDetectionEnabled = false;
+                        shouldSendBigIceSealSecondGuide = true;
+                    }
                 }
             }
+
+            sa.Debug($"神像2 002D：Player=0x{tetherPlayerId:X}, Source=0x{sourceId:X}, Target=0x{targetId:X}, IsMe={tetherPlayerId == sa.Data.Me}, DetectionEnabled={bigIceSealDetectionEnabledSnapshot}, Phase={_phase}");
+
+            if (shouldSendBigIceSealSecondGuide)
+                SendBigIceSeal002DSecondGuide(sa, modeSnapshot, phaseSnapshot, firstGuidePosSnapshot);
+
+            return;
         }
 
-        sa.Debug($"002D tether: Player=0x{tetherPlayerId:X}, Source=0x{sourceId:X}, Target=0x{targetId:X}, IsMe={tetherPlayerId == sa.Data.Me}, BigIceSealDetectionEnabled={bigIceSealDetectionEnabledSnapshot}");
-
-        if (shouldSendBigIceSealSecondGuide)
-            SendBigIceSeal002DSecondGuide(sa, modeSnapshot, phaseSnapshot, firstGuidePosSnapshot);
+        // 神像3 002D 由 P1_神像3_002D指路 单独处理。
+        sa.Debug($"002D忽略：当前 Phase={_phase}, Player=0x{tetherPlayerId:X}, Source=0x{sourceId:X}, Target=0x{targetId:X}");
     }
 
     [ScriptMethod(
@@ -303,7 +397,7 @@ public class Kefka
         eventCondition: ["ActionId:47764"])]
     public void P1_冰爆_玄乎乎魔法指路(Event evt, ScriptAccessory sa)
     {
-        if (_phase != 1)
+        if (!IsPhase(_phase, 1.1))
             return;
 
         Task.Run(async () =>
@@ -394,6 +488,7 @@ public class Kefka
 
             sa.Debug($"""
             玄乎乎魔法第一段指路:
+            Phase={_phase}
             Mode={XuanHuHuMode}
             IceIsReal={iceIsReal}
             ActualStack={actualStack}
@@ -463,6 +558,7 @@ public class Kefka
 
             sa.Debug($"""
             玄乎乎魔法第二段指路:
+            Phase={_phase}
             Mode={XuanHuHuMode}
             Side={side}
             Order={order}
@@ -482,25 +578,33 @@ public class Kefka
         userControl: false)]
     public void P1_冰爆_47784换位指路(Event evt, ScriptAccessory sa)
     {
+        if (!IsPhase(_phase, 1.1))
+            return;
+
         uint targetId = evt.TargetId();
         Vector3 effectPosition = evt.TargetPosition();
 
         if (targetId == 0)
             return;
 
-        _phase = 1.5;
+        _phase = 1.2;
 
         Dictionary<uint, Vector3>? snapshot = null;
 
         lock (_iceFireLock)
         {
+            // 47784 已经完成过一次指路，后面的重复 ActionEffect 直接丢掉
             if (_action47784GuideSent)
                 return;
 
+            _action47784Started = true;
             _action47784Targets[targetId] = effectPosition;
 
             sa.Debug($"""
             47784 ActionEffect:
+            Phase={_phase}
+            Started={_action47784Started}
+            GuideSent={_action47784GuideSent}
             TargetId=0x{targetId:X}
             TargetIndex={sa.Data.PartyList.IndexOf(targetId)}
             TargetPosition={effectPosition}
@@ -562,6 +666,7 @@ public class Kefka
 
             sa.Debug($"""
             47784换位指路:
+            Phase={_phase}
             MyIndex={myIdx}
             TargetPoint={myGuidePos.Value}
             DrawName=P1_冰爆_47784换位指路_{myIdx}
@@ -603,7 +708,7 @@ public class Kefka
         userControl: false)]
     public void P1_神像2_记录47774安全对角(Event evt, ScriptAccessory sa)
     {
-        if (_phase >= 2)
+        if (!IsPhase(_phase, 1.2))
             return;
 
         bool hitIsLeftUpRightDown = IsLeftUpRightDownByRotation(evt.SourceRotation());
@@ -614,7 +719,7 @@ public class Kefka
             _bigIceSealSafeIsLeftUpRightDown = safeIsLeftUpRightDown;
         }
 
-        sa.Debug($"神像2安全对角: ActionId={evt.ActionId()}, Rot={evt.SourceRotation()}, Hit={(hitIsLeftUpRightDown?"左上右下":"左下右上")}, Safe={(safeIsLeftUpRightDown?"左上右下":"左下右上")}");
+        sa.Debug($"神像2安全对角: Phase={_phase}, ActionId={evt.ActionId()}, Rot={evt.SourceRotation()}, Hit={(hitIsLeftUpRightDown ? "左上右下" : "左下右上")}, Safe={(safeIsLeftUpRightDown ? "左上右下" : "左下右上")}");
     }
 
     [ScriptMethod(
@@ -623,12 +728,15 @@ public class Kefka
         eventCondition: ["ActionId:47765"])]
     public void P1_第二次扩大大冰封指路(Event evt, ScriptAccessory sa)
     {
-        if (_phase >= 2)
+        if (!IsPhase(_phase, 1.2))
             return;
 
         _ = Task.Run(async () =>
         {
             await Task.Delay(100);
+
+            if (!IsPhase(_phase, 1.2))
+                return;
 
             int myIdx = sa.MyIndex();
 
@@ -676,6 +784,7 @@ public class Kefka
                 _lastBigIceSealGuidePos = myGuidePos.Value;
                 _bigIceSealTetherTargets.Clear();
                 _bigIceSealActive = true;
+                _bigIceSealSecondGuideDone = false;
                 _bigIceSealTetherDetectionEnabled = false;
                 _bigIceSealTetherDetectionWindowStarted = false;
             }
@@ -717,7 +826,7 @@ public class Kefka
         userControl: false)]
     public void P1_神像2_扩大大冰封结算后开启002D检测(Event evt, ScriptAccessory sa)
     {
-        if (_phase >= 2)
+        if (!IsPhase(_phase, 1.2))
             return;
 
         bool shouldStartWindowTask = false;
@@ -746,13 +855,13 @@ public class Kefka
 
             lock (_bigIceSealLock)
             {
-                if (_phase >= 2 || !_bigIceSealActive || _bigIceSealSecondGuideDone)
+                if (!IsPhase(_phase, 1.2) || !_bigIceSealActive || _bigIceSealSecondGuideDone)
                     return;
 
                 _bigIceSealTetherDetectionEnabled = true;
             }
 
-            sa.Debug("神像2第二段002D检测已开启：现在收到自己的002D才会指路。" );
+            sa.Debug("神像2第二段002D检测已开启：现在收到自己的002D才会指路。");
         });
     }
 
@@ -790,15 +899,15 @@ public class Kefka
         Vector3 finalGuidePos = myGuidePos2.Value;
         string drawName = $"P1_第二次扩大大冰封指路_002D第二段_{modeSnapshot}_{myIdx}";
 
-        sa.Debug($"第二次扩大大冰封002D第二段已触发：5秒后显示指路。Mode={modeSnapshot}, MyIndex={myIdx}, TargetPoint={finalGuidePos}");
+        sa.Debug($"第二次扩大大冰封002D第二段已触发：4.5秒后显示指路。Mode={modeSnapshot}, MyIndex={myIdx}, TargetPoint={finalGuidePos}");
 
         _ = Task.Run(async () =>
         {
             await Task.Delay(4500);
 
-            if (_phase >= 2)
+            if (!IsPhase(_phase, 1.2))
             {
-                sa.Debug($"扩大大冰封002D第二段跳过：延迟5秒后 Phase={_phase}，已进入后续阶段。");
+                sa.Debug($"扩大大冰封002D第二段跳过：延迟后 Phase={_phase}，已经不在神像2。");
                 return;
             }
 
@@ -813,8 +922,9 @@ public class Kefka
 
             sa.Debug($"""
             第二次扩大大冰封002D第二段指路:
-            Trigger=Self002D_Delay5s
+            Trigger=Self002D_Delay
             Phase={phaseSnapshot}
+            CurrentPhase={_phase}
             Mode={modeSnapshot}
             MyIndex={myIdx}
             FirstPoint={firstGuidePosSnapshot}
@@ -826,7 +936,7 @@ public class Kefka
 
     #endregion
 
-    #region P1 神像3（箭头）
+    #region P1 神像3（箭头 + 002D）
 
     #region 神像3 变量
 
@@ -837,9 +947,14 @@ public class Kefka
     private int? _statue3LargeDir4 = null;
     private bool? _statue3SmallIsShort = null;
     private bool _statue3ArrowGuideSent = false;
+    private bool _statue3TetherGuideDone = false;
 
     private const uint Statue3SmallArrowMinStatus = 0x130C;
     private const uint Statue3SmallArrowMaxStatus = 0x130F;
+
+    private static readonly Vector3 Statue3SleepSourcePos = new(107.00f, 8.50f, 43.00f);
+
+    private static readonly Vector3 Statue3CharmSourcePos = new(95f, 27f, 25f);
 
     #endregion
 
@@ -849,8 +964,16 @@ public class Kefka
         eventCondition: ["StatusID:regex:^(4876|4877|4878|4879|5079|5080|5081|5082|130C|130D|130E|130F|13D7|13D8|13D9|13DA)$"])]
     public void P1_神像3_箭头指路(Event evt, ScriptAccessory sa)
     {
-        if (_phase >= 2)
+        if (_phase >= 2.0)
             return;
+
+        // 神像3箭头 buff 是神像3专属；如果阶段控制 48370 漏了，用它兜底切到 1.3。
+        if (!IsPhase(_phase, 1.3))
+        {
+            _phase = 1.3;
+            _p1StatueCount = Math.Max(_p1StatueCount, 3);
+            sa.Debug($"神像3箭头触发，兜底修正 Phase=1.3。Old status event entered with Phase={_phase}");
+        }
 
         uint targetId = evt.TargetId();
         if (targetId != 0 && targetId != sa.Data.Me)
@@ -892,7 +1015,7 @@ public class Kefka
 
             if (_statue3ArrowCount < 2)
             {
-                sa.Debug($"神像3箭头记录：Count={_statue3ArrowCount}, StatusID=0x{statusId:X}, IsSmall={isSmallId}, Dir4={dir4.Value}, Duration={duration}");
+                sa.Debug($"神像3箭头记录：Count={_statue3ArrowCount}, StatusID=0x{statusId:X}, IsSmall={isSmallId}, Dir4={dir4.Value}, Duration={duration}, Phase={_phase}");
                 return;
             }
 
@@ -944,6 +1067,7 @@ public class Kefka
 
         sa.Debug($"""
         神像3箭头指路:
+        Phase={_phase}
         Mode={Statue3ArrowMode}
         SameBuff={sameBuff}
         SmallIsShort={smallIsShort}
@@ -958,6 +1082,79 @@ public class Kefka
         """);
     }
 
+    [ScriptMethod(
+        name: "P1_神像3_魅惑睡眠指路",
+        eventType: EventTypeEnum.Tether,
+        eventCondition: ["Id:002D"])]
+    public void P1_神像3_魅惑睡眠指路(Event evt, ScriptAccessory sa)
+    {
+        if (!IsPhase(_phase, 1.3))
+            return;
+
+        uint sourceId = evt.SourceId(); // 众神之像
+        uint targetId = evt.TargetId(); // 被连线玩家
+
+        if (targetId != sa.Data.Me)
+            return;
+
+        int myIdx = sa.MyIndex();
+
+        if (myIdx < 0 || myIdx > 7)
+        {
+            sa.Debug($"神像3 002D指路失败：自己的 index 异常。MyIndex={myIdx}");
+            return;
+        }
+
+        Vector3 statueSourcePos = evt.SourcePosition();
+
+        Statue3TetherType tetherType = GetStatue3TetherType(statueSourcePos);
+        Vector3? wpos = GetStatue3TetherGuidePos(myIdx, tetherType, Statue3TetherMode);
+
+        if (wpos == null)
+        {
+            sa.Debug($"""
+            神像3 002D指路失败：没有匹配到点位或未识别睡眠/魅惑。
+            Phase={_phase}
+            Mode={Statue3TetherMode}
+            TetherType={tetherType}
+            MyIndex={myIdx}
+            SourceId=0x{sourceId:X}
+            TargetId=0x{targetId:X}
+            StatueSourcePos={statueSourcePos}
+            """);
+            return;
+        }
+
+        lock (_statue3ArrowLock)
+        {
+            if (_statue3TetherGuideDone)
+                return;
+
+            _statue3TetherGuideDone = true;
+        }
+
+        var dp = sa.WaypointDp(
+            wpos.Value,
+            5000,
+            5000,
+            $"P1_神像3_002D指路_{Statue3TetherMode}_{tetherType}_{myIdx}"
+        );
+
+        sa.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
+
+        sa.Debug($"""
+        神像3 002D指路:
+        Phase={_phase}
+        Mode={Statue3TetherMode}
+        TetherType={tetherType}
+        MyIndex={myIdx}
+        SourceId=0x{sourceId:X}
+        TargetId=0x{targetId:X}
+        StatueSourcePos={statueSourcePos}
+        TargetPoint={wpos.Value}
+        """);
+    }
+
     private void ResetStatue3ArrowState()
     {
         lock (_statue3ArrowLock)
@@ -967,6 +1164,7 @@ public class Kefka
             _statue3LargeDir4 = null;
             _statue3SmallIsShort = null;
             _statue3ArrowGuideSent = false;
+            _statue3TetherGuideDone = false;
         }
     }
 
@@ -998,7 +1196,7 @@ public class Kefka
             0x130D or 0x13D8 => 2,
             0x130E or 0x13D9 => 3,
             0x130F or 0x13DA => 1,
-            _ => null
+            _ => null,
         };
     }
 
@@ -1084,7 +1282,7 @@ public class Kefka
             1 => (z, -x),
             2 => (-x, -z),
             3 => (-z, x),
-            _ => (x, z)
+            _ => (x, z),
         };
 
         return new Vector3(100.00f + rotatedX, 0.00f, 100.00f + rotatedZ);
@@ -1098,7 +1296,7 @@ public class Kefka
             1 => "左西",
             2 => "下南",
             3 => "右东",
-            _ => "未知"
+            _ => "未知",
         };
     }
 
@@ -1110,7 +1308,7 @@ public class Kefka
             1 => "左下",
             2 => "右下",
             3 => "右上",
-            _ => "未知"
+            _ => "未知",
         };
     }
 
@@ -1122,7 +1320,84 @@ public class Kefka
             1 => "左上",
             2 => "左下",
             3 => "右下",
-            _ => "未知"
+            _ => "未知",
+        };
+    }
+
+    private static Statue3TetherType GetStatue3TetherType(Vector3 statueSourcePos)
+    {
+        const float deviation = 1.0f;
+
+        if (Vector3.Distance(statueSourcePos, Statue3SleepSourcePos) < deviation)
+            return Statue3TetherType.睡眠;
+
+        if (Vector3.Distance(statueSourcePos, Statue3CharmSourcePos) < deviation)
+            return Statue3TetherType.魅惑;
+
+        return Statue3TetherType.Unknown;
+    }
+
+    private static Vector3? GetStatue3TetherGuidePos(
+        int myIdx,
+        Statue3TetherType tetherType,
+        Statue3TetherGuideMode mode)
+    {
+        if (myIdx < 0 || myIdx > 7)
+            return null;
+
+        if (mode == Statue3TetherGuideMode.全固定)
+        {
+            return myIdx switch
+            {
+                0 => new Vector3(100f, 0.00f, 91f),
+                1 => new Vector3(109f, 0.00f, 100f),
+                2 => new Vector3(85f, 0.00f, 100f),
+                3 => new Vector3(100f, 0.00f, 115f),
+                4 => new Vector3(91f, 0.00f, 100f),
+                5 => new Vector3(100f, 0.00f, 109f),
+                6 => new Vector3(100f, 0.00f, 85f),
+                7 => new Vector3(115f, 0.00f, 100f),
+                _ => null,
+            };
+        }
+
+        return tetherType switch
+        {
+            // 魅惑在外：睡眠走内侧，魅惑走外侧。
+            // 魅惑在内：睡眠/魅惑点位反过来。
+            Statue3TetherType.睡眠 => mode == Statue3TetherGuideMode.魅惑在内
+                ? GetStatue3TetherOuterPos(myIdx)
+                : GetStatue3TetherInnerPos(myIdx),
+
+            Statue3TetherType.魅惑 => mode == Statue3TetherGuideMode.魅惑在内
+                ? GetStatue3TetherInnerPos(myIdx)
+                : GetStatue3TetherOuterPos(myIdx),
+
+            _ => null,
+        };
+    }
+
+    private static Vector3? GetStatue3TetherInnerPos(int myIdx)
+    {
+        return myIdx switch
+        {
+            0 or 6 => new Vector3(100f, 0.00f, 91f),
+            1 or 7 => new Vector3(109f, 0.00f, 100f),
+            2 or 4 => new Vector3(91f, 0.00f, 100f),
+            3 or 5 => new Vector3(100f, 0.00f, 109f),
+            _      => null,
+        };
+    }
+
+    private static Vector3? GetStatue3TetherOuterPos(int myIdx)
+    {
+        return myIdx switch
+        {
+            0 or 6 => new Vector3(100f, 0.00f, 85f),
+            1 or 7 => new Vector3(115f, 0.00f, 100f),
+            2 or 4 => new Vector3(85f, 0.00f, 100f),
+            3 or 5 => new Vector3(100f, 0.00f, 115f),
+            _      => null,
         };
     }
 
@@ -1137,8 +1412,9 @@ public class Kefka
             BigIceSealGuideMode.斜角黑泥 => GetBigIceSealDiagonalBlackMudPos(index, safeIsLeftUpRightDown, mtUpperHalfTankMode),
             BigIceSealGuideMode._1A四人分摊_TH上半场 => GetBigIceSeal1AThUpperHalfPos(index, safeIsLeftUpRightDown),
             BigIceSealGuideMode._1A四人分摊_MT组上半场 => GetBigIceSeal1AMtUpperHalfPos(index, safeIsLeftUpRightDown, mtUpperHalfTankMode),
+            BigIceSealGuideMode._1A四人分摊_T远北奶近南 => GetBigIceSeal1ATFarNorthHealerNearSouthPos(index, safeIsLeftUpRightDown),
             BigIceSealGuideMode.Yan式八人全分摊 => GetBigIceSealYanEightStackPos(safeIsLeftUpRightDown),
-            _ => null
+            _ => null,
         };
     }
 
@@ -1147,7 +1423,6 @@ public class Kefka
         bool safeIsLeftUpRightDown,
         BigIceSealMtUpperHalfTankMode mtUpperHalfTankMode)
     {
-        // 交换分组_ST上半场
         int groupIndex = GetBigIceSealTankGroupIndex(index, mtUpperHalfTankMode);
 
         return groupIndex switch
@@ -1168,7 +1443,7 @@ public class Kefka
                 ? new Vector3(115.83f, 0.00f, 109.33f)
                 : new Vector3(115.92f, 0.00f, 90.07f),
 
-            _ => null
+            _ => null,
         };
     }
 
@@ -1184,7 +1459,24 @@ public class Kefka
                 ? new Vector3(100.00f, 0.00f, 119.50f)
                 : new Vector3(100.00f, 0.00f, 118.50f),
 
-            _ => null
+            _ => null,
+        };
+    }
+
+    private static Vector3? GetBigIceSeal1ATFarNorthHealerNearSouthPos(int index, bool safeIsLeftUpRightDown)
+    {
+        // T远北奶近南：固定 0/1/6/7 去北，2/3/4/5 去南。
+        return index switch
+        {
+            0 or 1 or 6 or 7 => safeIsLeftUpRightDown
+                ? new Vector3(99.50f, 0.00f, 81.00f)
+                : new Vector3(100.50f, 0.00f, 81.00f),
+
+            2 or 3 or 4 or 5 => safeIsLeftUpRightDown
+                ? new Vector3(100.50f, 0.00f, 119f)
+                : new Vector3(100.00f, 0.00f, 118.50f),
+
+            _ => null,
         };
     }
 
@@ -1193,7 +1485,6 @@ public class Kefka
         bool safeIsLeftUpRightDown,
         BigIceSealMtUpperHalfTankMode mtUpperHalfTankMode)
     {
-        // 交换分组_ST上半场
         int groupIndex = GetBigIceSealTankGroupIndex(index, mtUpperHalfTankMode);
 
         return groupIndex switch
@@ -1206,24 +1497,26 @@ public class Kefka
                 ? new Vector3(100.50f, 0.00f, 119.00f)
                 : new Vector3(99.50f, 0.00f, 119.00f),
 
-            _ => null
+            _ => null,
         };
     }
 
     private static int GetBigIceSealTankGroupIndex(int index, BigIceSealMtUpperHalfTankMode mtUpperHalfTankMode)
     {
-        if (mtUpperHalfTankMode != BigIceSealMtUpperHalfTankMode.交换分组_ST上半场)
-            return index;
-
-        return index switch
+        if (mtUpperHalfTankMode == BigIceSealMtUpperHalfTankMode.交换分组_ST上半场)
         {
-            0 => 1,
-            1 => 0,
-            _ => index
-        };
+            return index switch
+            {
+                0 => 1,
+                1 => 0,
+                _ => index,
+            };
+        }
+
+        return index;
     }
 
-    private static Vector3 GetBigIceSealYanEightStackPos(bool safeIsLeftUpRightDown)
+    private static Vector3? GetBigIceSealYanEightStackPos(bool safeIsLeftUpRightDown)
     {
         return safeIsLeftUpRightDown
             ? new Vector3(100.50f, 0.00f, 112.00f)
@@ -1232,43 +1525,14 @@ public class Kefka
 
     private static Vector3 MoveTowards(Vector3 from, Vector3 to, float distance)
     {
-        Vector3 delta = to - from;
-        delta.Y = 0.00f;
+        Vector3 dir = to - from;
+        dir.Y = 0;
 
-        float length = delta.Length();
-
-        if (length <= 0.001f)
+        if (dir.LengthSquared() <= 0.0001f)
             return from;
 
-        if (length <= distance)
-            return new Vector3(to.X, from.Y, to.Z);
-
-        Vector3 result = from + delta / length * distance;
-        return new Vector3(result.X, from.Y, result.Z);
-    }
-
-    // 固定半场点位
-    // 连线的(002D)：基准点 = 本半场的“之前的点”(左半场 UpperLeftPoint / 右半场 UpperRightPoint)
-    //   - 左上有冰 => 基准点
-    //   - 左上没冰 => 基准点往上 10 (Z - 10)
-    // 不连线的：去本半场没冰的那一格(上场 or 下场)
-    //   upperLeftHasIce(左上右下有冰): 左半场没冰在下(SW)，右半场没冰在上(NE)
-    //  !upperLeftHasIce(左下右上有冰): 左半场没冰在上(NW)，右半场没冰在下(SE)
-    private static Vector3 GetFixedHalfPos(bool isLeftHalf, bool tethered, bool upperLeftHasIce)
-    {
-        Vector3 basePoint = isLeftHalf ? UpperLeftPoint : UpperRightPoint;
-
-        if (tethered)
-        {
-            return upperLeftHasIce
-                ? basePoint
-                : new Vector3(basePoint.X, basePoint.Y, basePoint.Z - 10f);
-        }
-
-        if (isLeftHalf)
-            return upperLeftHasIce ? LowerLeftPoint : UpperLeftPoint;
-
-        return upperLeftHasIce ? UpperRightPoint : LowerRightPoint;
+        dir = Vector3.Normalize(dir);
+        return from + dir * distance;
     }
 
     private static Vector3? Get47784GuidePosForGroup(
@@ -1306,15 +1570,36 @@ public class Kefka
         return targetPositions[targetToGo];
     }
 
-    private static int PartyIndex(IReadOnlyList<uint> party, uint id)
+    private static Vector3 GetFixedHalfPos(bool isLeftHalf, bool has002D, bool upperLeftHasIce)
+    {
+        if (isLeftHalf)
+        {
+            if (has002D)
+                return upperLeftHasIce ? UpperLeftPoint : LowerLeftPoint;
+
+            return upperLeftHasIce ? LowerLeftPoint : UpperLeftPoint;
+        }
+
+        if (has002D)
+            return upperLeftHasIce ? LowerRightPoint : UpperRightPoint;
+
+        return upperLeftHasIce ? UpperRightPoint : LowerRightPoint;
+    }
+
+    private static int PartyIndex(IReadOnlyList<uint> party, uint playerId)
     {
         for (int i = 0; i < party.Count; i++)
         {
-            if (party[i] == id)
+            if (party[i] == playerId)
                 return i;
         }
 
-        return 999;
+        return -1;
+    }
+
+    private static bool IsPhase(double current, double target)
+    {
+        return Math.Abs(current - target) < 0.0001;
     }
 
     private static bool IsLeftUpRightDownByRotation(float rotation)
@@ -1530,15 +1815,17 @@ public static class EventExtensions
 
 public static class ScriptAccessoryExtensions
 {
-    public static int MyIndex(this ScriptAccessory sa)
-        => sa.Data.PartyList.IndexOf(sa.Data.Me);
+    public static int MyIndex(this ScriptAccessory sa) => sa.Data.PartyList.IndexOf(sa.Data.Me);
 
-    public static void Debug(this ScriptAccessory sa, object? text)
+    public static DrawPropertiesEdit FastDp(this ScriptAccessory sa, string name, Vector3 pos, uint duration, Vector2 scale, bool safe = false)
     {
-        if (!Kefka.DebugEnabled)
-            return;
-
-        sa.Method.SendChat($"/e [Debug]{text?.ToString() ?? "null"}");
+        var dp = sa.Data.GetDefaultDrawProperties();
+        dp.Name = name;
+        dp.Color = safe ? sa.Data.DefaultSafeColor : sa.Data.DefaultDangerColor;
+        dp.Position = pos;
+        dp.DestoryAt = duration;
+        dp.Scale = scale;
+        return dp;
     }
 
     public static DrawPropertiesEdit WaypointDp(
@@ -1559,6 +1846,36 @@ public static class ScriptAccessoryExtensions
         dp.Scale = new Vector2(2);
         dp.ScaleMode = ScaleMode.YByDistance;
         return dp;
+    }
+
+    public static DrawPropertiesEdit WaypointFromToDp(
+        this ScriptAccessory sa,
+        Vector3 from,
+        Vector3 to,
+        uint duration,
+        uint delay = 0,
+        string name = "WaypointFromTo",
+        Vector4? color = null)
+    {
+        var dp = sa.Data.GetDefaultDrawProperties();
+        dp.Name = name;
+        dp.Color = color ?? sa.Data.DefaultSafeColor;
+        dp.Position = from;
+        dp.Owner = 0;
+        dp.TargetPosition = to;
+        dp.DestoryAt = duration;
+        dp.Delay = delay;
+        dp.Scale = new Vector2(2);
+        dp.ScaleMode = ScaleMode.YByDistance;
+        return dp;
+    }
+
+    public static void Debug(this ScriptAccessory sa, object message)
+    {
+        if (!Kefka.DebugEnabled)
+            return;
+
+        sa.Method.SendChat($"/e [Kefka] {message}");
     }
 }
 
