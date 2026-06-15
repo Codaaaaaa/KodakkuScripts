@@ -17,7 +17,7 @@ namespace Codaaaaaa.Kefka;
     guid: "cc2c6d88-abe5-40be-89da-5f231b9d21d8",
     name: "绝凯夫卡P1指路先行版",
     territorys: [1363],
-    version: "0.0.1.1",
+    version: "0.0.1.2",
     author: "Codaaaaaa",
     note: "自用拼好挂。请支持K佬&灵视佬")]
 public class Kefka
@@ -227,6 +227,9 @@ public class Kefka
 
     private static readonly Vector3 UpperLeftPoint = new(93.90f, 0.00f, 93.94f);
     private static readonly Vector3 UpperRightPoint = new(106.09f, 0.00f, 93.93f);
+    
+    private static readonly Vector3 UpperLeftAreaUpperPoint = new(94.67f, 0.00f, 88.49f);
+    private static readonly Vector3 UpperRightAreaUpperPoint = new(108.29f, 0.00f, 88.06f);
 
     private static readonly Vector3 LowerLeftPoint = new(93.90f, 0.00f, 106.06f);
     private static readonly Vector3 LowerRightPoint = new(106.09f, 0.00f, 106.07f);
@@ -305,14 +308,14 @@ public class Kefka
                 _actualStack = false;
         }
 
-        sa.Debug($"""
-        Fire icon:
-        Phase={_phase}
-        IconId=0x{iconId:X4}
-        TargetId=0x{targetId:X}
-        TargetCount={_iceFireTargets.Count}
-        ActualStack={_actualStack}
-        """);
+        // sa.Debug($"""
+        // Fire icon:
+        // Phase={_phase}
+        // IconId=0x{iconId:X4}
+        // TargetId=0x{targetId:X}
+        // TargetCount={_iceFireTargets.Count}
+        // ActualStack={_actualStack}
+        // """);
     }
 
     [ScriptMethod(
@@ -505,17 +508,17 @@ public class Kefka
             var rightSidePoints = new List<Vector3>
             {
                 new(103.00f, 0.00f, 100.00f),
-                new(109.00f, 0.00f, 100.00f),
-                new(113.00f, 0.00f, 100.00f),
-                new(119.00f, 0.00f, 100.00f),
+                new(107.00f, 0.00f, 100.00f),
+                new(111.00f, 0.00f, 100.00f),
+                new(117.00f, 0.00f, 100.00f),
             };
 
             var leftSidePoints = new List<Vector3>
             {
                 new(97.00f, 0.00f, 100.00f),
-                new(91.00f, 0.00f, 100.00f),
-                new(87.00f, 0.00f, 100.00f),
-                new(81.00f, 0.00f, 100.00f),
+                new(93.00f, 0.00f, 100.00f),
+                new(89.00f, 0.00f, 100.00f),
+                new(83.00f, 0.00f, 100.00f),
             };
 
             var rightSideMembers = party
@@ -1242,7 +1245,7 @@ public class Kefka
             case Statue3ArrowGuideMode.方顺:
                 dir4 = sameBuff ? (Math.Max(smallDir4, largeDir4) + 1) % 4 : (largeDir4 + 2) % 4;
                 first = sameBuff
-                    ? new Vector2(0, -12)
+                    ? new Vector2(0, -11)
                     : smallIsShort ? new Vector2(6, -12) : new Vector2(12, -12);
                 second = sameBuff
                     ? new Vector2(-6, -12)
@@ -1256,7 +1259,7 @@ public class Kefka
             default:
                 dir4 = sameBuff ? (Math.Max(smallDir4, largeDir4) + 3) % 4 : (smallDir4 + 2) % 4;
                 first = sameBuff
-                    ? new Vector2(0, -12)
+                    ? new Vector2(0, -11)
                     : smallIsShort ? new Vector2(-12, -12) : new Vector2(-6, -12);
                 second = sameBuff
                     ? new Vector2(6, -12)
@@ -1573,16 +1576,32 @@ public class Kefka
     {
         if (isLeftHalf)
         {
+            // 0/1/2/3：固定左半场
             if (has002D)
-                return upperLeftHasIce ? UpperLeftPoint : LowerLeftPoint;
+            {
+                return upperLeftHasIce
+                    ? UpperLeftPoint
+                    : UpperLeftAreaUpperPoint;
+            }
 
-            return upperLeftHasIce ? LowerLeftPoint : UpperLeftPoint;
+            // 没002D
+            return upperLeftHasIce
+                ? LowerLeftPoint
+                : UpperLeftPoint;
         }
 
+        // 4/5/6/7：固定右半场
         if (has002D)
-            return upperLeftHasIce ? LowerRightPoint : UpperRightPoint;
+        {
+            return upperLeftHasIce
+                ? UpperRightAreaUpperPoint
+                : UpperRightPoint;
+        }
 
-        return upperLeftHasIce ? UpperRightPoint : LowerRightPoint;
+        // 没002D
+        return upperLeftHasIce
+            ? UpperRightPoint
+            : LowerRightPoint;
     }
 
     private static int PartyIndex(IReadOnlyList<uint> party, uint playerId)
