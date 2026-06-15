@@ -17,7 +17,7 @@ namespace Codaaaaaa.Kefka;
     guid: "cc2c6d88-abe5-40be-89da-5f231b9d21d8",
     name: "绝凯夫卡P1指路先行版",
     territorys: [1363],
-    version: "0.0.1.0",
+    version: "0.0.1.1",
     author: "Codaaaaaa",
     note: "自用拼好挂。请支持K佬&灵视佬")]
 public class Kefka
@@ -587,8 +587,6 @@ public class Kefka
         if (targetId == 0)
             return;
 
-        _phase = 1.2;
-
         Dictionary<uint, Vector3>? snapshot = null;
 
         lock (_iceFireLock)
@@ -614,6 +612,7 @@ public class Kefka
             if (_action47784Targets.Count < 4)
                 return;
 
+            _phase = 1.2;
             _action47784GuideSent = true;
             snapshot = new Dictionary<uint, Vector3>(_action47784Targets);
         }
