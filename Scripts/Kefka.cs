@@ -17,7 +17,7 @@ namespace Codaaaaaa.Kefka;
     guid: "cc2c6d88-abe5-40be-89da-5f231b9d21d8",
     name: "绝凯夫卡P1指路先行版",
     territorys: [1363],
-    version: "0.0.1.2",
+    version: "0.0.1.3",
     author: "Codaaaaaa",
     note: "自用拼好挂。请支持K佬&灵视佬")]
 public class Kefka
@@ -982,6 +982,7 @@ public class Kefka
             return;
 
         uint statusId = evt.StatusId();
+        sa.Debug($"神像3statusID: StatusID={statusId}");
         int? dir4 = GetStatue3ArrowDir4(statusId);
         if (dir4 == null)
         {
@@ -989,8 +990,24 @@ public class Kefka
             return;
         }
 
-        bool isSmallId = statusId >= Statue3SmallArrowMinStatus && statusId <= Statue3SmallArrowMaxStatus;
+        uint sourceId = evt.SourceId();
+        Vector3 sourcePos = evt.SourcePosition();
         double duration = evt.Duration();
+
+        if (sourceId == 0 || sourcePos == Vector3.Zero || duration > 100)
+        {
+            sa.Debug($"""
+            神像3箭头忽略旧/无效StatusAdd:
+            StatusID=0x{statusId:X}
+            SourceId=0x{sourceId:X}
+            SourcePos={sourcePos}
+            Duration={duration}
+            Phase={_phase}
+            """);
+            return;
+        }
+
+        bool isSmallId = statusId >= Statue3SmallArrowMinStatus && statusId <= Statue3SmallArrowMaxStatus;
 
         bool shouldSendGuide = false;
         bool sameBuff;
@@ -1021,10 +1038,13 @@ public class Kefka
                 return;
             }
 
+            
             sameBuff = !_statue3SmallDir4.HasValue || !_statue3LargeDir4.HasValue;
             smallIsShort = _statue3SmallIsShort ?? false;
             smallDir4 = _statue3SmallDir4 ?? 0;
             largeDir4 = _statue3LargeDir4 ?? 0;
+
+            sa.Debug($"神像3箭头记录完毕：Count={_statue3ArrowCount}, StatusID=0x{statusId:X}, IsSmall={isSmallId}, Dir4={dir4.Value}, Duration={duration}, sameBuff={sameBuff}, smallIsShort={smallIsShort}, ");
 
             _statue3ArrowGuideSent = true;
             shouldSendGuide = true;
