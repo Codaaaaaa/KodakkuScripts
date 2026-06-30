@@ -56,7 +56,7 @@
   {
     "Name": "绝凯夫卡P1指路先行版",
     "Guid": "cc2c6d88-abe5-40be-89da-5f231b9d21d8",
-    "Version": "0.0.1.3",
+    "Version": "0.0.1.4",
     "Author": "Codaaaaaa",
     "TerritoryIds": [1363],
     "DownloadUrl": "https://raw.githubusercontent.com/Codaaaaaa/KodakkuScripts/main/Scripts/Kefka.cs",

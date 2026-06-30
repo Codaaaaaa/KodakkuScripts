@@ -17,7 +17,7 @@ namespace Codaaaaaa.Kefka;
     guid: "cc2c6d88-abe5-40be-89da-5f231b9d21d8",
     name: "绝凯夫卡P1指路先行版",
     territorys: [1363],
-    version: "0.0.1.3",
+    version: "0.0.1.4",
     author: "Codaaaaaa",
     note: "自用拼好挂。请支持K佬&灵视佬")]
 public class Kefka
@@ -1265,7 +1265,7 @@ public class Kefka
             case Statue3ArrowGuideMode.方顺:
                 dir4 = sameBuff ? (Math.Max(smallDir4, largeDir4) + 1) % 4 : (largeDir4 + 2) % 4;
                 first = sameBuff
-                    ? new Vector2(0, -11)
+                    ? new Vector2(0, -12)
                     : smallIsShort ? new Vector2(6, -12) : new Vector2(12, -12);
                 second = sameBuff
                     ? new Vector2(-6, -12)
@@ -1279,7 +1279,7 @@ public class Kefka
             default:
                 dir4 = sameBuff ? (Math.Max(smallDir4, largeDir4) + 3) % 4 : (smallDir4 + 2) % 4;
                 first = sameBuff
-                    ? new Vector2(0, -11)
+                    ? new Vector2(0, -12)
                     : smallIsShort ? new Vector2(-12, -12) : new Vector2(-6, -12);
                 second = sameBuff
                     ? new Vector2(6, -12)
