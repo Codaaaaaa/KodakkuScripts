@@ -17,7 +17,7 @@ namespace Codaaaaaa.Kefka;
     guid: "cc2c6d88-abe5-40be-89da-5f231b9d21d8",
     name: "绝凯夫卡P1指路先行版",
     territorys: [1363],
-    version: "0.0.1.4",
+    version: "0.0.1.5",
     author: "Codaaaaaa",
     note: "自用拼好挂。请支持K佬&灵视佬")]
 public class Kefka
@@ -507,18 +507,18 @@ public class Kefka
 
             var rightSidePoints = new List<Vector3>
             {
-                new(103.00f, 0.00f, 100.00f),
-                new(107.00f, 0.00f, 100.00f),
-                new(111.00f, 0.00f, 100.00f),
-                new(117.00f, 0.00f, 100.00f),
+                new(102.25f, 0.00f, 100.00f),
+                new(106.81f, 0.00f, 100.00f),
+                new(111.45f, 0.00f, 100.00f),
+                new(116.25f, 0.00f, 100.00f),
             };
 
             var leftSidePoints = new List<Vector3>
             {
-                new(97.00f, 0.00f, 100.00f),
-                new(93.00f, 0.00f, 100.00f),
-                new(89.00f, 0.00f, 100.00f),
-                new(83.00f, 0.00f, 100.00f),
+                new(97.75f, 0.00f, 100.00f),
+                new(93.19f, 0.00f, 100.00f),
+                new(88.55f, 0.00f, 100.00f),
+                new(83.75f, 0.00f, 100.00f),
             };
 
             var rightSideMembers = party
