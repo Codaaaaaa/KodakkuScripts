@@ -18,7 +18,7 @@ namespace Codaaaaaa.BlueMage;
     guid: "76fb14c3-1185-4580-b020-1f9a25e6f978",
     name: "青魔魔界花整合",
     territorys: [245, 358, 196, 452, 532, 587],
-    version: "0.0.0.1",
+    version: "0.0.0.2",
     author: "Codaaaaaa",
     note: "攻略参考二二二二乱 A12S为拉一起复仇\n\n副本说明:\nT5:1T1N6D注意T青需要在MT位，其他随意，但每个人的kdy排序需相同\nT9:同上\nT13:同上\nA4S:1T1N6D，按照kdy排序1T青2N青345为拉小怪D青678为打腿组D青\nA8S:1T2N5D，按照kdy排序1T2N3盾N456D一组月78D二组月\nA12S:1T1N6D\n\nT青笔记：\nT5：-2s开怪\nT9: -2s预读小侦测开场，即刻白风稳仇+醒梦\nT13: 拉南 -2s预读小侦测开怪，即刻白风稳仇+醒梦\nA4S: 龙之力开场，MT全程远离人群\nA8S: 随意\nA12S: -5s龙之力 -2s魔法锤")]
 public class BlueMage
@@ -493,7 +493,7 @@ public class BlueMage
         dp.Scale = new Vector2(11f, 30f);
         dp.Rotation = evt.SourceRotation();
         dp.FixRotation = true;
-        dp.ScaleMode = ScaleMode.None;
+        dp.ScaleMode = ScaleMode.ByTime;
         dp.DestoryAt = 900;
         sa.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Rect, dp);
     }
@@ -2204,7 +2204,7 @@ public class BlueMage
         dp.Color = sa.Data.DefaultDangerColor;
         dp.Position = evt.EffectPosition;
         dp.Scale = new Vector2(8f);     // 半径 8m
-        dp.ScaleMode = ScaleMode.None;
+        dp.ScaleMode = ScaleMode.ByTime;
         dp.DestoryAt = 5000;
         sa.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Circle, dp);
     }
@@ -2224,7 +2224,7 @@ public class BlueMage
         dp.Scale = new Vector2(60f);        // 外半径 60
         dp.InnerScale = new Vector2(8f);    // 内半径 8
         dp.Radian = 2f * MathF.PI;
-        dp.ScaleMode = ScaleMode.None;
+        dp.ScaleMode = ScaleMode.ByTime;
         dp.DestoryAt = 6000;
         sa.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Donut, dp);
     }
@@ -2246,7 +2246,7 @@ public class BlueMage
             dp.Rotation = evt.SourceRotation() + k * MathF.PI / 2f;
             dp.FixRotation = true;
             dp.Scale = new Vector2(16f, 60f);   // 宽 16 × 长 60
-            dp.ScaleMode = ScaleMode.None;
+            dp.ScaleMode = ScaleMode.ByTime;
             dp.DestoryAt = 6000;
             sa.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Rect, dp);
         }
@@ -2451,16 +2451,24 @@ public class BlueMage
         _a12sNear.Sort(Cmp);
         _a12sFar.Sort(Cmp);
 
-        // 点名标记全员可见：紫圈 30m LockOn45，分摊 4m LockOn62
+        // 点名标记全员可见：紫圈 30m LockOn45，分摊 4m LockOn62。
+        // LockOn 是 ActorVfx，位置/缩放每帧被插件按目标重算，创建后单次 SetVfxScale 会被覆盖
+        // （且创建当帧 VFXList 里还没登记，调用会被静默忽略）；须用 setVfxStateFunc 每帧写入 scale。
+        // 紫圈用 Omen 53：地面特效不跟人，setVfxStateFunc 每帧把位置更新到被点名者脚下
         foreach (var id in _a12sPurple)
         {
-            nint h = sa.Method.VfxMethod.CreateLockOn(45, id, null, 10000);
-            if (h != 0) sa.Method.VfxMethod.SetVfxScale(h, new Vector3(30f));
+            Dbg(sa, "输出紫圈");
+            var pos0 = (sa.Data.Objects.SearchByEntityId(id) as IBattleChara)?.Position ?? default;
+            sa.Method.VfxMethod.CreateOmen(201, new Vector3(30f, 1f, 30f), pos0, 0f, null, 12000,
+                (ref Vector4 color, ref Vector4 pos, ref Vector3 scale) =>
+                {
+                    if (sa.Data.Objects.SearchByEntityId(id) is IBattleChara t)
+                        pos = new Vector4(t.Position, pos.W);
+                });
         }
         foreach (var id in _a12sStack)
         {
-            nint h = sa.Method.VfxMethod.CreateLockOn(62, id, null, 10000);
-            if (h != 0) sa.Method.VfxMethod.SetVfxScale(h, new Vector3(4f));
+            持续LockOn(sa, 62, id, 50000, 1f);
         }
 
         uint me = sa.Data.Me;
@@ -2638,9 +2646,15 @@ public class BlueMage
             return;
         }
         var dest = A12SCrystalSpots[_a12sCrystalCount++];
+        // 每次都计数推进落点序列，但只有点名自己时才发指路
+        if (evt.TargetId() != sa.Data.Me)
+        {
+            Dbg(sa, $"审判结晶6660：第{_a12sCrystalCount}次，点名非自己，只计数");
+            return;
+        }
         sa.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement,
             sa.WaypointDp(dest, 4500, 0, "A12S审判结晶指路", sa.Data.DefaultSafeColor));
-        Dbg(sa, $"审判结晶6660：第{_a12sCrystalCount}次 → {dest:F1}");
+        Dbg(sa, $"审判结晶6660：第{_a12sCrystalCount}次 点名自己 → {dest:F1}");
     }
 
     // StartCasting 6634 净化射线：被点名的是自己 → 2s 后超硬化
@@ -2658,6 +2672,19 @@ public class BlueMage
     }
 
     // ---------------- A12S 辅助 ----------------
+
+    // LockOn 是一次性 avfx，自然播放约 5s 就自行结束，destroyAt 只能提前删除不能延长；
+    // 每段最多 5s，到期前重建接力，直到覆盖 totalMs。目标消失/死亡时停止接力（兜团灭）。
+    private void 持续LockOn(ScriptAccessory sa, uint index, uint targetId, int totalMs, float scaleXZ)
+    {
+        if (sa.Data.Objects.SearchByEntityId(targetId) is not IBattleChara t || t.IsDead) return;
+
+        int segment = Math.Min(totalMs, 5000);
+        sa.Method.VfxMethod.CreateLockOn(index, targetId, null, segment,
+            (ref Vector4 color, ref Vector4 pos, ref Vector3 scale) => scale = new Vector3(scaleXZ, scale.Y, scaleXZ));
+        int remain = totalMs - segment;
+        if (remain > 0) DelayAction(sa, segment, () => 持续LockOn(sa, index, targetId, remain, scaleXZ));
+    }
 
     // 复仇血量监控：自身血量（不含盾）高于 20% 时播报 stopText 并停止
     private void StartA12SRevengeHpWatch(ScriptAccessory sa, string stopText)
