@@ -61,5 +61,14 @@
     "TerritoryIds": [1363],
     "DownloadUrl": "https://raw.githubusercontent.com/Codaaaaaa/KodakkuScripts/main/Scripts/Kefka.cs",
     "UpdateInfo": "0.0.0.1\n作为灵视佬和K佬画图的一个小补充，等佬们明天更新完应该就删了，爱信等。\n谢谢两位亲友提供的arr"
+  },
+  {
+    "Name": "魔之塔画图",
+    "Guid": "45819e25-cb2d-4d84-a508-f110dc6a381a",
+    "Version": "0.0.0.1",
+    "Author": "Codaaaaaa",
+    "TerritoryIds": [1346],
+    "DownloadUrl": "https://raw.githubusercontent.com/Codaaaaaa/KodakkuScripts/main/Scripts/TheForkedTowerMagic.cs",
+    "UpdateInfo": "0.0.0.1\n目前只完成老一"
   }
 ]
