@@ -22,9 +22,9 @@ namespace Codaaaaaa.TheForkedTowerMagic;
     guid: "45819e25-cb2d-4d84-a508-f110dc6a381a",
     name: "魔之塔画图",
     territorys: [1346],
-    version: "0.0.0.2",
+    version: "0.0.0.3",
     author: "Codaaaaaa",
-    note: "0.0.0.2\n目前只完成老一二三，老二有点问题之后修")]
+    note: "0.0.0.3\n老二有点问题之后修")]
 public class TheForkedTowerMagic
 {
     #region 用户设置
@@ -432,6 +432,217 @@ public class TheForkedTowerMagic
         dp.Rotation = rot;
         dp.ScaleMode = ScaleMode.ByTime;
         sa.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Rect, dp);
+    }
+
+    #endregion
+
+    #region BOSS4 目录
+
+    // 48385 封印武器-竖琴：7s，15m危险圈；48387 封印武器-弓：7s，11m危险圈
+    [ScriptMethod(name: "BOSS4 - 封印武器", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:regex:^(48385|48387)$"])]
+    public void 封印武器(Event evt, ScriptAccessory sa)
+    {
+        var isHarp = evt.ActionId() == 48385;
+        var radius = isHarp ? 15f : 11f;
+        Dbg(sa, $"封印武器-{(isHarp ? "竖琴" : "弓")}({evt.ActionId()})：pos {evt.EffectPosition():F1} 半径 {radius}");
+
+        var dp = sa.FastDp($"封印武器-{evt.SourceId()}", evt.EffectPosition(), 7000, new Vector2(radius));
+        dp.ScaleMode = ScaleMode.ByTime;
+        sa.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Circle, dp);
+    }
+
+    private static readonly Vector3 Boss4中心 = new(0f, -684f, -628f);
+
+    private readonly object _zoneLock = new();
+    private float? _fireZoneRot;      // 2015240 火区朝向（上下对称）
+    private float? _waterZoneRot;     // 2015241 水区朝向（上下对称）
+    private float? _thunderZoneRot;   // 2015242 雷区朝向（上下对称）
+    private readonly List<Vector3> _fireballPositions = [];      // 19301 火球，每波两个
+    private readonly List<Vector3> _iceballPositions = [];       // 19300 冰球，每波两个
+    private readonly List<Vector3> _thunderballPositions = [];   // 19302 雷球，每波两个
+
+    // 2015240 火区 / 2015241 水区 / 2015242 雷区：记录SourceRotation，rotation及其对面就是对应元素区
+    [ScriptMethod(name: "BOSS4 - 火区记录", eventType: EventTypeEnum.ObjectChanged, eventCondition: ["Operate:Add", "DataId:2015240"], userControl: false)]
+    public void 火区记录(Event evt, ScriptAccessory sa)
+    {
+        lock (_zoneLock) _fireZoneRot = evt.SourceRotation();
+        Dbg(sa, $"火区记录：rot {evt.SourceRotation():F2}");
+    }
+
+    [ScriptMethod(name: "BOSS4 - 水区记录", eventType: EventTypeEnum.ObjectChanged, eventCondition: ["Operate:Add", "DataId:2015241"], userControl: false)]
+    public void 水区记录(Event evt, ScriptAccessory sa)
+    {
+        lock (_zoneLock) _waterZoneRot = evt.SourceRotation();
+        Dbg(sa, $"水区记录：rot {evt.SourceRotation():F2}");
+    }
+
+    [ScriptMethod(name: "BOSS4 - 雷区记录", eventType: EventTypeEnum.ObjectChanged, eventCondition: ["Operate:Add", "DataId:2015242"], userControl: false)]
+    public void 雷区记录(Event evt, ScriptAccessory sa)
+    {
+        lock (_zoneLock) _thunderZoneRot = evt.SourceRotation();
+        Dbg(sa, $"雷区记录：rot {evt.SourceRotation():F2}");
+    }
+
+    // 元素球每波两个：收齐后按中心→球朝向顺时针转到对应区的角度算duration，
+    // 在上下对应区各画一个60度30m扇形；duration多于3s时只在最后3s显示
+    [ScriptMethod(name: "BOSS4 - 火球扇形", eventType: EventTypeEnum.AddCombatant, eventCondition: ["DataId:19301"], userControl: false)]
+    public void 火球扇形(Event evt, ScriptAccessory sa)
+        => 元素球扇形(sa, _fireballPositions, () => _fireZoneRot, evt.SourcePosition(), "火");
+
+    [ScriptMethod(name: "BOSS4 - 冰球扇形", eventType: EventTypeEnum.AddCombatant, eventCondition: ["DataId:19300"], userControl: false)]
+    public void 冰球扇形(Event evt, ScriptAccessory sa)
+        => 元素球扇形(sa, _iceballPositions, () => _waterZoneRot, evt.SourcePosition(), "冰");
+
+    [ScriptMethod(name: "BOSS4 - 雷球扇形", eventType: EventTypeEnum.AddCombatant, eventCondition: ["DataId:19302"], userControl: false)]
+    public void 雷球扇形(Event evt, ScriptAccessory sa)
+        => 元素球扇形(sa, _thunderballPositions, () => _thunderZoneRot, evt.SourcePosition(), "雷");
+
+    private void 元素球扇形(ScriptAccessory sa, List<Vector3> balls, Func<float?> getZoneRot, Vector3 pos, string tag)
+    {
+        float zoneRot;
+        lock (_zoneLock)
+        {
+            if (balls.Any(p => DistXZ(p, pos) <= 1f)) return;
+            balls.Add(pos);
+            Dbg(sa, $"{tag}球记录 #{balls.Count}：{pos:F1}");
+            if (balls.Count < 2) return;
+
+            pos = balls[0];
+            balls.Clear();   // 收齐一波即清空，等下一波
+
+            var rot = getZoneRot();
+            if (rot is null)
+            {
+                Dbg(sa, $"{tag}球已收齐但{tag}区未记录，跳过");
+                return;
+            }
+            zoneRot = rot.Value;
+        }
+
+        // 中心→球的朝向；该角度约定逆时针增加，顺时针转动即角度减小；区域上下对称，对180度取模
+        var ballRad = MathF.Atan2(pos.X - Boss4中心.X, pos.Z - Boss4中心.Z);
+        var deltaRad = ((ballRad - zoneRot) % MathF.PI + MathF.PI) % MathF.PI;
+        var deltaDeg = deltaRad * 180f / MathF.PI;
+        var duration = (uint)(7000 + deltaDeg / 30f * 1000f);
+        // duration多于3s时加延迟，只在最后3s显示扇形
+        var delay = duration > 3000 ? duration - 3000 : 0;
+        var show = duration - delay;
+        Dbg(sa, $"{tag}球→{tag}区顺时针 {deltaDeg:F1}度，duration {duration}ms（延迟{delay}ms后显示{show}ms）");
+
+        foreach (var (rot, dirTag) in new[] { (zoneRot, "上"), (zoneRot + MathF.PI, "下") })
+        {
+            var dp = sa.FastDp($"{tag}区扇形-{dirTag}", Boss4中心, show, new Vector2(30f));
+            dp.Delay = delay;
+            dp.Rotation = rot;
+            dp.Radian = 60f * MathF.PI / 180f;
+            dp.ScaleMode = ScaleMode.ByTime;
+            sa.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Fan, dp);
+        }
+    }
+
+    private bool _inIceZone = true;   // true=自己在冰区，false=在火区（冰区取水区2015241的朝向）
+
+    // 48399：指路冰火交界（偏冰区10度、离中心9m）3s，并初始化自己在冰区
+    [ScriptMethod(name: "BOSS4 - 冰火交界初始指路", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:48399"])]
+    public void 冰火交界初始指路(Event evt, ScriptAccessory sa)
+    {
+        var guidePos = 冰火交界指路点(sa, 靠近冰: true);
+        if (guidePos is null)
+        {
+            Dbg(sa, $"48399：火区/水区未记录，无法指路");
+            return;
+        }
+        lock (_zoneLock) _inIceZone = true;   // 初始化：自己在冰区
+        Dbg(sa, $"48399 初始指路：{guidePos.Value:F1}，标记自己在冰区");
+        sa.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement,
+            sa.WaypointDp(guidePos.Value, 3000, 0, "冰火交界初始指路"));
+    }
+
+    // 圆环 2015243火 / 2015244水(视为冰属性) / 2015245雷：出现7s后AOE。
+    [ScriptMethod(name: "BOSS4 - 元素圆环换区", eventType: EventTypeEnum.ObjectChanged, eventCondition: ["Operate:Add", "DataId:regex:^(201524[345])$"], suppress: 1000)]
+    public async void 元素圆环换区(Event evt, ScriptAccessory sa)
+    {
+        if (!uint.TryParse(evt["DataId"], out var dataId)) return;
+        var ringElement = dataId switch
+        {
+            2015243u => "火",
+            2015244u => "冰",
+            _ => "雷"
+        };
+        Dbg(sa, $"圆环出现：{ringElement}({dataId})，7s后AOE");
+
+        await Task.Delay(5000);   // 还剩2s时判断
+
+        bool goIce;
+        lock (_zoneLock)
+        {
+            var myElement = _inIceZone ? "冰" : "火";
+            if (ringElement != myElement)
+            {
+                Dbg(sa, $"圆环{ringElement}与自身{myElement}不同属性，忽略");
+                return;
+            }
+            goIce = !_inIceZone;      // 自己是冰去火，是火去冰
+            _inIceZone = goIce;       // 判定时刻立即更新计划区域，防止后续圆环读到旧值
+        }
+
+        var guidePos = 冰火交界指路点(sa, goIce);
+        if (guidePos is null)
+        {
+            Dbg(sa, $"圆环换区：火区/水区未记录，无法指路");
+            return;
+        }
+        Dbg(sa, $"圆环{ringElement}命中自身区域，指路换区到{(goIce ? "冰" : "火")}区：{guidePos.Value:F1}");
+        sa.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement,
+            sa.WaypointDp(guidePos.Value, 2000, 0, "冰火换区指路"));
+
+        sa.Method.TTS("穿", 3);
+        sa.Method.TextInfo("穿", 2000, false);
+        Dbg(sa, $"已换区：现在在{(goIce ? "冰" : "火")}区");
+    }
+
+    // 求冰火两区交界方向：取上下4种组合中夹角最小的相邻交界、离我最近的一处，向目标区偏10度，中心往外9m
+    private Vector3? 冰火交界指路点(ScriptAccessory sa, bool 靠近冰)
+    {
+        float fireRot, iceRot;
+        lock (_zoneLock)
+        {
+            if (_fireZoneRot is null || _waterZoneRot is null) return null;
+            fireRot = _fireZoneRot.Value;
+            iceRot = _waterZoneRot.Value;
+        }
+
+        var mePos = sa.Data.MyObject?.Position ?? Boss4中心;
+        var meRad = MathF.Atan2(mePos.X - Boss4中心.X, mePos.Z - Boss4中心.Z);
+
+        List<(float Guide, float AbsDiff)> candidates = [];
+        foreach (var i in new[] { iceRot, iceRot + MathF.PI })
+        {
+            foreach (var f in new[] { fireRot, fireRot + MathF.PI })
+            {
+                var diff = WrapPi(f - i);                 // 冰→火最短转角
+                var boundary = i + diff / 2f;
+                var bias = 10f * MathF.PI / 180f * MathF.Sign(diff);
+                var guide = 靠近冰 ? boundary - bias : boundary + bias;
+                candidates.Add((guide, MathF.Abs(diff)));
+            }
+        }
+
+        var minDiff = candidates.Min(c => c.AbsDiff);
+        var best = candidates
+            .Where(c => c.AbsDiff <= minDiff + 0.01f)
+            .OrderBy(c => MathF.Abs(WrapPi(c.Guide - meRad)))
+            .First();
+
+        return Boss4中心 + new Vector3(MathF.Sin(best.Guide), 0, MathF.Cos(best.Guide)) * 9f;
+    }
+
+    private static float WrapPi(float rad)
+    {
+        rad %= 2f * MathF.PI;
+        if (rad > MathF.PI) rad -= 2f * MathF.PI;
+        if (rad < -MathF.PI) rad += 2f * MathF.PI;
+        return rad;
     }
 
     #endregion
