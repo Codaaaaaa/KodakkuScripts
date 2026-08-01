@@ -22,15 +22,22 @@ namespace Codaaaaaa.TheForkedTowerMagic;
     guid: "45819e25-cb2d-4d84-a508-f110dc6a381a",
     name: "魔之塔画图",
     territorys: [1346],
-    version: "0.0.0.1",
+    version: "0.0.0.2",
     author: "Codaaaaaa",
-    note: "0.0.0.1\n目前只完成老一")]
+    note: "0.0.0.2\n目前只完成老一二三，老二有点问题之后修")]
 public class TheForkedTowerMagic
 {
     #region 用户设置
     [UserSetting("双头决战：只能选中自己Buff对应的头")] public static bool DualHeadTargetLock { get; set; } = false;
+    [UserSetting("测试")] public static bool Debug输出 { get; set; } = false;
     // [UserSetting("是否开启TTS")] public static bool TTSOpen { get; set; } = true;
     #endregion
+
+    private void Dbg(ScriptAccessory sa, string msg)
+    {
+        if (!Debug输出) return;
+        sa.Method.SendChat($"/e [魔之塔] {msg}");
+    }
 
     // Map: 1136 魔之塔下层 Boss1
     // Map: 1178 魔之塔下层 小怪+Boss2
@@ -270,6 +277,162 @@ public class TheForkedTowerMagic
 
     private static float DistXZ(Vector3 a, Vector3 b)
         => new Vector2(a.X - b.X, a.Z - b.Z).Length();
+
+    #endregion
+
+    #region BOSS2 剑舞者
+    private static readonly Vector3 Boss2场中 = new(600f, -674f, 704f);
+    private readonly object _leapLock = new();
+    private readonly List<Vector3> _leapPositions = [];   // 49594 跃进步法落点，按触发顺序
+
+    // 49585 半圆：SourcePosition为圆心，面对SourceRotation
+    [ScriptMethod(name: "BOSS2 - 秘法剑", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:49585"])]
+    public void 半圆斩(Event evt, ScriptAccessory sa)
+    {
+        Dbg(sa, $"半圆斩(49585)：src {evt.SourceId():X8} pos {evt.SourcePosition():F1} rot {evt.SourceRotation():F2}");
+        var dp = sa.FastDp($"半圆斩-{evt.SourceId()}", evt.SourcePosition(), 5500, new Vector2(96f));
+        dp.Rotation = evt.SourceRotation();
+        dp.Radian = MathF.PI;
+        dp.ScaleMode = ScaleMode.ByTime;
+        sa.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Fan, dp);
+    }
+
+    // 49594 跃进步法：TargetDataId不是19830时，按触发顺序记录EffectPosition，排除(0,0,0)
+    [ScriptMethod(name: "BOSS2 - 跃进步法记录", eventType: EventTypeEnum.ActionEffect, eventCondition: ["ActionId:regex:^(49596|49597)$"], userControl: false)]
+    public void 跃进步法记录(Event evt, ScriptAccessory sa)
+    {
+        var pos = evt.EffectPosition();
+        if (pos.Length() < 0.01f) return;   // 排除(0,0,0)
+
+        lock (_leapLock)
+        {
+            if (_leapPositions.All(p => DistXZ(p, pos) > 1f))
+            {
+                _leapPositions.Add(pos);
+                Dbg(sa, $"跃进步法记录 #{_leapPositions.Count}：{pos:F1}");
+            }
+        }
+    }
+
+    // 49685 剑技爆发：按顺序指路各落点
+    [ScriptMethod(name: "BOSS2 - 剑技爆发指路", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:49685"])]
+    public void 剑技爆发指路(Event evt, ScriptAccessory sa)
+    {
+        List<Vector3> points;
+        lock (_leapLock)
+        {
+            points = _leapPositions.Select(p => 朝场中偏移(p, 9f)).ToList();
+            _leapPositions.Clear();   // 用完清空
+        }
+        if (points.Count == 0)
+        {
+            Dbg(sa, $"剑技爆发(49685)：落点list为空，跳过指路");
+            return;
+        }
+        Dbg(sa, $"剑技爆发(49685)：共 {points.Count} 个落点，偏移后 [{string.Join(" | ", points.Select(p => p.ToString("F1")))}]");
+
+        var green = new Vector4(0f, 1f, 0f, 1f);
+        var white = new Vector4(1f, 1f, 1f, 1f);
+
+        for (var k = 0; k < points.Count; k++)
+        {
+            // 第一段显示5s，之后每段3s
+            var delay = (uint)(k == 0 ? 0 : 5000 + (k - 1) * 2500);
+            var duration = (uint)(k == 0 ? 5000 : 2500);
+            sa.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement,
+                sa.WaypointDp(points[k], duration, delay, $"剑技爆发-me到{k + 1}", green));
+            for (var j = k; j < points.Count - 1; j++)
+                sa.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement,
+                    sa.WaypointFromToDp(points[j], points[j + 1], duration, delay, $"剑技爆发-{j + 1}到{j + 2}-阶段{k + 1}", white));
+        }
+    }
+
+    // 将pos沿水平方向朝场中移动dist米
+    private static Vector3 朝场中偏移(Vector3 pos, float dist)
+    {
+        var dir = new Vector3(Boss2场中.X - pos.X, 0, Boss2场中.Z - pos.Z);
+        return dir.Length() < 0.01f ? pos : pos + Vector3.Normalize(dir) * dist;
+    }
+
+    // 49616 突进：30m长6m宽矩形，4s
+    [ScriptMethod(name: "BOSS2 - 突进", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:49616"])]
+    public void 突进(Event evt, ScriptAccessory sa)
+    {
+        Dbg(sa, $"突进(49616)：pos {evt.SourcePosition():F1} rot {evt.SourceRotation():F2}");
+        var dp = sa.FastDp("突进", evt.SourcePosition(), 4000, new Vector2(6f, 30f));
+        dp.Rotation = evt.SourceRotation();
+        dp.ScaleMode = ScaleMode.ByTime;
+        sa.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Rect, dp);
+    }
+
+    #endregion
+
+    #region BOSS3 惧死者
+    // 47465 魔具联动-爆炎 / 47468 古代爆炎：5.5s，施法者上18m危险圈
+    [ScriptMethod(name: "BOSS3 - 爆炎", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:regex:^(47465|47468)$"])]
+    public void 爆炎(Event evt, ScriptAccessory sa)
+    {
+        Dbg(sa, $"爆炎({evt.ActionId()})：src {evt.SourceId():X8}");
+        var dp = sa.Data.GetDefaultDrawProperties();
+        dp.Name = $"爆炎-{evt.SourceId()}";
+        dp.Color = sa.Data.DefaultDangerColor;
+        dp.Owner = evt.SourceId();
+        dp.DestoryAt = 5500;
+        dp.Scale = new Vector2(18f);
+        dp.ScaleMode = ScaleMode.ByTime;
+        sa.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Circle, dp);
+    }
+
+    // 47466 魔具联动-冰封 / 47469 古代冰封：5.5s，以施法者rotation为正面，前后左右各45长15宽的rect十字
+    [ScriptMethod(name: "BOSS3 - 冰封十字", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:regex:^(47466|47469)$"])]
+    public void 冰封十字(Event evt, ScriptAccessory sa)
+    {
+        Dbg(sa, $"冰封十字({evt.ActionId()})：src {evt.SourceId():X8}");
+        List<(float Rot, string Tag)> dirs = [(0f, "前"), (MathF.PI / 2, "左"), (MathF.PI, "后"), (-MathF.PI / 2, "右")];
+        foreach (var (rot, tag) in dirs)
+        {
+            var dp = sa.Data.GetDefaultDrawProperties();
+            dp.Name = $"冰封十字-{evt.SourceId()}-{tag}";
+            dp.Color = sa.Data.DefaultDangerColor;
+            dp.Owner = evt.SourceId();
+            dp.Rotation = rot;
+            dp.DestoryAt = 5500;
+            dp.Scale = new Vector2(15f, 45f);
+            dp.ScaleMode = ScaleMode.ByTime;
+            sa.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Rect, dp);
+        }
+    }
+
+    // 47471 古代暴雷：5.5s，SourcePosition上以SourceRotation为正面的45度60m扇形
+    [ScriptMethod(name: "BOSS3 - 古代暴雷", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:47471"])]
+    public void 古代暴雷(Event evt, ScriptAccessory sa)
+    {
+        Dbg(sa, $"古代暴雷(47479)：pos {evt.SourcePosition():F1} rot {evt.SourceRotation():F2}");
+        var dp = sa.FastDp($"古代暴雷-{evt.SourceId()}", evt.SourcePosition(), 5500, new Vector2(60f));
+        dp.Rotation = evt.SourceRotation();
+        dp.Radian = 45f * MathF.PI / 180f;
+        dp.ScaleMode = ScaleMode.ByTime;
+        sa.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Fan, dp);
+    }
+
+    [ScriptMethod(name: "BOSS3 - 灭亡射线", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:47475"])]
+    public async void 骷髅头47475(Event evt, ScriptAccessory sa)
+    {
+        var srcId = evt.SourceId();
+        var pos = evt.SourcePosition();
+
+        await Task.Delay(1000);
+
+        // 0.5s后取施法者当前实时朝向，取不到则回退用事件快照
+        var srcObj = sa.Data.Objects.SearchById(srcId);
+        var rot = srcObj?.Rotation ?? evt.SourceRotation();
+        Dbg(sa, $"灭亡射线(47475)：pos {pos:F1} rot {rot:F2}（实时:{srcObj != null}）");
+
+        var dp = sa.FastDp($"灭亡射线-{srcId}", pos, 4000, new Vector2(6f, 30f));
+        dp.Rotation = rot;
+        dp.ScaleMode = ScaleMode.ByTime;
+        sa.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Rect, dp);
+    }
 
     #endregion
 }
