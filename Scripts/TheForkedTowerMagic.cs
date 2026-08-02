@@ -22,9 +22,9 @@ namespace Codaaaaaa.TheForkedTowerMagic;
     guid: "45819e25-cb2d-4d84-a508-f110dc6a381a",
     name: "魔之塔画图",
     territorys: [1346],
-    version: "0.0.0.4",
+    version: "0.0.0.5",
     author: "Codaaaaaa",
-    note: "0.0.0.4\n修了老二的月环钢铁")]
+    note: "0.0.0.5\n修了老二的月环钢铁")]
 public class TheForkedTowerMagic
 {
     #region 用户设置
@@ -285,6 +285,9 @@ public class TheForkedTowerMagic
     private readonly object _leapLock = new();
     private readonly List<Vector3> _leapPositions = [];   // 49594 跃进步法落点，按触发顺序
 
+    private readonly object _bladeRectLock = new();
+    private readonly List<(Vector3 Pos, float Rot)> _bladeRects = [];   // 2015283 剑刃矩形，按触发顺序
+
     // 49585 半圆：SourcePosition为圆心，面对SourceRotation
     [ScriptMethod(name: "BOSS2 - 秘法剑", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:49585"])]
     public void 半圆斩(Event evt, ScriptAccessory sa)
@@ -295,6 +298,42 @@ public class TheForkedTowerMagic
         dp.Radian = MathF.PI;
         dp.ScaleMode = ScaleMode.ByTime;
         sa.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Fan, dp);
+    }
+
+    [ScriptMethod(name: "BOSS2 - 剑舞", eventType: EventTypeEnum.ObjectEffect, eventCondition: ["Id1:1", "Id2:2"], userControl: false)]
+    public void 剑刃矩形(Event evt, ScriptAccessory sa)
+    {
+        var obj = sa.Data.Objects.SearchById(evt.SourceId());
+        if (obj is null || obj.DataId != 2015283) return;
+
+        var pos = evt.SourcePosition();
+        var rot = evt.SourceRotation();
+
+        List<(Vector3 Pos, float Rot)> rects;
+        lock (_bladeRectLock)
+        {
+            if (_bladeRects.Any(r => DistXZ(r.Pos, pos) < 1f && MathF.Abs(WrapPi(r.Rot - rot)) < 0.1f)) return;
+            _bladeRects.Add((pos, rot));
+            Dbg(sa, $"剑刃矩形记录 #{_bladeRects.Count}：pos {pos:F1} rot {rot:F2}");
+            if (_bladeRects.Count < 4) return;
+
+            rects = [.. _bladeRects];
+            _bladeRects.Clear();   // 用完清空以便下次使用
+        }
+
+        for (var i = 0; i < rects.Count; i++)
+        {
+            var delay = (uint)(i == 0 ? 0 : 6000 + (i - 1) * 2500);
+            var duration = (uint)(i == 0 ? 6000 : 2500);
+            foreach (var (extraRot, tag) in new[] { (0f, "正"), (MathF.PI, "反") })
+            {
+                var dp = sa.FastDp($"剑刃矩形-{i + 1}-{tag}", rects[i].Pos, duration, new Vector2(20f, 60f));
+                dp.Rotation = rects[i].Rot + extraRot;
+                dp.Delay = delay;
+                dp.ScaleMode = ScaleMode.ByTime;
+                sa.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Rect, dp);
+            }
+        }
     }
 
     // 49594 跃进步法：TargetDataId不是19830时，按触发顺序记录EffectPosition，排除(0,0,0)
@@ -543,21 +582,31 @@ public class TheForkedTowerMagic
     // 在上下对应区各画一个60度30m扇形；duration多于3s时只在最后3s显示
     [ScriptMethod(name: "BOSS4 - 火球扇形", eventType: EventTypeEnum.AddCombatant, eventCondition: ["DataId:19301"], userControl: false)]
     public void 火球扇形(Event evt, ScriptAccessory sa)
-        => 元素球扇形(sa, _fireballPositions, () => _fireZoneRot, evt.SourcePosition(), "火");
+        => 元素球扇形(sa, _fireballPositions, () => _fireZoneRot, evt.SourceId(), evt.SourcePosition(), "火");
 
     [ScriptMethod(name: "BOSS4 - 冰球扇形", eventType: EventTypeEnum.AddCombatant, eventCondition: ["DataId:19300"], userControl: false)]
     public void 冰球扇形(Event evt, ScriptAccessory sa)
-        => 元素球扇形(sa, _iceballPositions, () => _waterZoneRot, evt.SourcePosition(), "冰");
+        => 元素球扇形(sa, _iceballPositions, () => _waterZoneRot, evt.SourceId(), evt.SourcePosition(), "冰");
 
     [ScriptMethod(name: "BOSS4 - 雷球扇形", eventType: EventTypeEnum.AddCombatant, eventCondition: ["DataId:19302"], userControl: false)]
     public void 雷球扇形(Event evt, ScriptAccessory sa)
-        => 元素球扇形(sa, _thunderballPositions, () => _thunderZoneRot, evt.SourcePosition(), "雷");
+        => 元素球扇形(sa, _thunderballPositions, () => _thunderZoneRot, evt.SourceId(), evt.SourcePosition(), "雷");
 
-    private void 元素球扇形(ScriptAccessory sa, List<Vector3> balls, Func<float?> getZoneRot, Vector3 pos, string tag)
+    private readonly Dictionary<ulong, DateTime> _ballSeenAt = [];
+
+    private void 元素球扇形(ScriptAccessory sa, List<Vector3> balls, Func<float?> getZoneRot, ulong sourceId, Vector3 pos, string tag)
     {
         float zoneRot;
         lock (_zoneLock)
         {
+            var now = DateTime.Now;
+            if (_ballSeenAt.TryGetValue(sourceId, out var seen) && (now - seen).TotalSeconds < 20)
+            {
+                Dbg(sa, $"{tag}球 {sourceId:X8} 为{(now - seen).TotalSeconds:F1}s内复读事件，忽略");
+                return;
+            }
+            _ballSeenAt[sourceId] = now;
+
             if (balls.Any(p => DistXZ(p, pos) <= 1f)) return;
             balls.Add(pos);
             Dbg(sa, $"{tag}球记录 #{balls.Count}：{pos:F1}");
