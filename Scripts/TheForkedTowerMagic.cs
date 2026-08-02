@@ -22,9 +22,9 @@ namespace Codaaaaaa.TheForkedTowerMagic;
     guid: "45819e25-cb2d-4d84-a508-f110dc6a381a",
     name: "魔之塔画图",
     territorys: [1346],
-    version: "0.0.0.6",
+    version: "0.0.0.7",
     author: "Codaaaaaa",
-    note: "0.0.0.6\n更新超魔Boss1\n\n0.0.0.5\n修了老二的月环钢铁")]
+    note: "0.0.0.7\n更新超魔Boss2\n\n0.0.0.5\n修了老二的月环钢铁")]
 public class TheForkedTowerMagic
 {
     #region 用户设置
@@ -38,7 +38,10 @@ public class TheForkedTowerMagic
         if (!Debug输出) return;
         sa.Method.SendChat($"/e [魔之塔] {msg}");
     }
-    // 超魔会有buff 4228，普通没有
+    // 超魔自身会有Status 4228，普通没有
+    private const uint 超魔Buff = 4228;
+    private static bool Is超魔(ScriptAccessory sa)
+        => sa.Data.Objects.Any(o => o is IBattleChara bc && bc.HasStatus(超魔Buff));
     // Map: 1136 魔之塔下层 Boss1
     // Map: 1178 魔之塔下层 小怪+Boss2
     // 换P
@@ -52,6 +55,24 @@ public class TheForkedTowerMagic
     
     [ScriptMethod(name: "Show Phase", eventType: EventTypeEnum.Chat, eventCondition: ["Type:Echo", "Message:KASP2"], userControl: false)]
     public void ShowPhase(Event evt, ScriptAccessory sa) => sa.Method.SendChat($"/e Phase: {_phase}");
+
+    // 测试
+    [ScriptMethod(name: "Debug - 19842状态查询", eventType: EventTypeEnum.Chat, eventCondition: ["Type:Echo", "Message:test"], userControl: false)]
+    public void Debug19842状态(Event evt, ScriptAccessory sa)
+    {
+        var found = false;
+        foreach (var obj in sa.Data.Objects)
+        {
+            if (obj is not IBattleChara bc || bc.DataId != 19833) continue;
+            found = true;
+            var statuses = bc.StatusList
+                .Where(s => s.StatusId != 0)
+                .Select(s => $"{s.StatusId}x{s.Param}({s.RemainingTime:F1}s)")
+                .ToList();
+            sa.Method.SendChat($"/e [19842] {bc.Name} {bc.EntityId:X8} pos {bc.Position:F1}: {(statuses.Count == 0 ? "无状态" : string.Join(", ", statuses))}");
+        }
+        if (!found) sa.Method.SendChat("/e [19842] 场上未找到该对象");
+    }
 
     // 普魔
     #region Boss 1 双头
@@ -131,7 +152,7 @@ public class TheForkedTowerMagic
     [ScriptMethod(name: "BOSS1 - 绿头风暴吐息", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:47616"])]
     public void 绿头风暴吐息(Event evt, ScriptAccessory sa)
     {
-        sa.Method.VfxMethod.CreateOmen(386, new Vector3(30f),
+        sa.Method.VfxMethod.CreateOmen(530, new Vector3(30f),
             evt.EffectPosition(), evt.SourceRotation(), sa.Data.DefaultDangerColor, 8000);
     }
 
@@ -297,13 +318,13 @@ public class TheForkedTowerMagic
         var dp = sa.FastDp($"半圆斩-{evt.SourceId()}", evt.SourcePosition(), 5500, new Vector2(96f));
         dp.Rotation = evt.SourceRotation();
         dp.Radian = MathF.PI;
-        dp.ScaleMode = ScaleMode.ByTime;
         sa.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Fan, dp);
     }
 
     [ScriptMethod(name: "BOSS2 - 剑舞", eventType: EventTypeEnum.ObjectEffect, eventCondition: ["Id1:1", "Id2:2"], userControl: false)]
     public void 剑刃矩形(Event evt, ScriptAccessory sa)
     {
+        if (Is超魔(sa)) return;   // 该机制仅普通触发，超魔由舞动之剑预判处理
         var obj = sa.Data.Objects.SearchById(evt.SourceId());
         if (obj is null || obj.DataId != 2015283) return;
 
@@ -394,6 +415,25 @@ public class TheForkedTowerMagic
         return dir.Length() < 0.01f ? pos : pos + Vector3.Normalize(dir) * dist;
     }
 
+    // 将pos绕场中水平旋转rad弧度
+    private static Vector3 绕场中旋转(Vector3 pos, float rad)
+    {
+        var dx = pos.X - Boss2场中.X;
+        var dz = pos.Z - Boss2场中.Z;
+        var cos = MathF.Cos(rad);
+        var sin = MathF.Sin(rad);
+        return new Vector3(Boss2场中.X + dx * cos - dz * sin, pos.Y, Boss2场中.Z + dx * sin + dz * cos);
+    }
+
+    // 将pos绕场中旋转deg度，方向取远离awayFrom的一侧
+    private static Vector3 绕场中旋转远离(Vector3 pos, Vector3 awayFrom, float deg = 10f)
+    {
+        var rad = deg * MathF.PI / 180f;
+        var a = 绕场中旋转(pos, rad);
+        var b = 绕场中旋转(pos, -rad);
+        return DistXZ(a, awayFrom) >= DistXZ(b, awayFrom) ? a : b;
+    }
+
     // 49616 突进：30m长6m宽矩形，4s
     [ScriptMethod(name: "BOSS2 - 突进", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:49616"])]
     public void 突进(Event evt, ScriptAccessory sa)
@@ -424,19 +464,21 @@ public class TheForkedTowerMagic
         return c->Timeline.ModelState;
     }
 
-    private void B2DrawSwordAoe(ScriptAccessory sa, uint sid, Vector3 pos, bool isDonut, uint duration)
+    private void B2DrawSwordAoe(ScriptAccessory sa, uint sid, Vector3 pos, bool isDonut, uint duration, uint delay=0)
     {
         if (isDonut)
         {
-            var dp = sa.FastDp($"剑月环-{sid}", pos, duration, new Vector2(剑月环外半径));
+            var dp = sa.FastDp($"剑月环-{sid}-{delay}", pos, duration, new Vector2(剑月环外半径));
             dp.InnerScale = new Vector2(剑月环内半径);
             dp.Radian = float.Pi * 2;
+            dp.Delay = delay;
             sa.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Donut, dp);
         }
         else
         {
-            var dp = sa.FastDp($"剑钢铁-{sid}", pos, duration, new Vector2(15f));
+            var dp = sa.FastDp($"剑钢铁-{sid}-{delay}", pos, duration, new Vector2(15f));
             dp.ScaleMode = ScaleMode.ByTime;
+            dp.Delay = delay;
             sa.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Circle, dp);
         }
     }
@@ -452,6 +494,21 @@ public class TheForkedTowerMagic
             case 4:     // idle_sp_1 → 月环
                 B2DrawSwordAoe(sa, sid, evt.SourcePosition(), true, 9000);
                 break;
+            case 5:     // idle_sp_2 → 大月环(内20外40)
+            {
+                var donut = sa.FastDp($"剑月环-{sid}-0", evt.SourcePosition(), 9000, new Vector2(40f));
+                donut.InnerScale = new Vector2(20f);
+                donut.Radian = float.Pi * 2;
+                sa.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Donut, donut);
+                break;
+            }
+            case 6:     // idle_sp_3 → 小钢铁(10)
+            {
+                var circle = sa.FastDp($"剑钢铁-{sid}-0", evt.SourcePosition(), 9000, new Vector2(10f));
+                circle.ScaleMode = ScaleMode.ByTime;
+                sa.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Circle, circle);
+                break;
+            }
             case 7:     // idle_sp_4 → 钢铁
                 B2DrawSwordAoe(sa, sid, evt.SourcePosition(), false, 9000);
                 break;
@@ -507,7 +564,6 @@ public class TheForkedTowerMagic
         var dp = sa.FastDp($"古代暴雷-{evt.SourceId()}", evt.SourcePosition(), 5500, new Vector2(60f));
         dp.Rotation = evt.SourceRotation();
         dp.Radian = 45f * MathF.PI / 180f;
-        dp.ScaleMode = ScaleMode.ByTime;
         sa.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Fan, dp);
     }
 
@@ -753,7 +809,7 @@ public class TheForkedTowerMagic
     #endregion
 
     // 超魔
-    #region Boss 1 双头
+    #region 超魔Boss 1 双头
 
     // 47639 蓝头剧毒吐息：9s，EffectPosition 18m危险圈
     [ScriptMethod(name: "超魔BOSS1 - 蓝头剧毒吐息", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:47639"])]
@@ -787,7 +843,7 @@ public class TheForkedTowerMagic
     public void 超魔蓝头冰柱赋格(Event evt, ScriptAccessory sa)
     {
         var dp = sa.FastDp("超魔蓝头冰柱赋格", evt.EffectPosition(), 9000, new Vector2(20f));
-        // dp.Color = new Vector4(0.7f, 0.3f, 1f, 1f);   // 紫色
+        dp.Color = new Vector4(1f, 0f, 0f, 1f);
         dp.ScaleMode = ScaleMode.ByTime;
         sa.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Circle, dp);
     }
@@ -802,7 +858,7 @@ public class TheForkedTowerMagic
         {
             var dp = sa.FastDp($"冰焰交错-{tag}", evt.SourcePosition(), 2000, new Vector2(11f, 35f));
             dp.Rotation = evt.SourceRotation() + rot;
-            dp.ScaleMode = ScaleMode.ByTime;
+            // dp.ScaleMode = ScaleMode.ByTime;
             sa.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Rect, dp);
         }
     }
@@ -841,7 +897,7 @@ public class TheForkedTowerMagic
     {
         var dp = sa.FastDp("双头恐惧", evt.TargetPosition, 7000, new Vector2(10f, 40f));
         dp.Rotation = evt.SourceRotation();
-        dp.ScaleMode = ScaleMode.ByTime;
+        // dp.ScaleMode = ScaleMode.ByTime;
         sa.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Rect, dp);
     }
 
@@ -886,7 +942,7 @@ public class TheForkedTowerMagic
                 lineDp.Rotation = extraRot;
                 lineDp.DestoryAt = 7000;
                 lineDp.Scale = new Vector2(5f, 60f);
-                lineDp.ScaleMode = ScaleMode.ByTime;
+                // lineDp.ScaleMode = ScaleMode.ByTime;
                 sa.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Rect, lineDp);
             }
         }
@@ -965,7 +1021,7 @@ public class TheForkedTowerMagic
         if (delayMs > 0) await Task.Delay(delayMs);
 
         var dp = sa.FastDp($"麻将{index}圈-{sid:X8}", pos, duration, new Vector2(15f));
-        dp.ScaleMode = ScaleMode.ByTime;
+        // dp.ScaleMode = ScaleMode.ByTime;
         sa.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Circle, dp);
 
         // 15m内同属性导流球画扇形并删除
@@ -982,7 +1038,7 @@ public class TheForkedTowerMagic
             var fan = sa.FastDp($"麻将{index}扇形-{i}", hit[i].Pos, duration, new Vector2(60f));
             fan.Rotation = hit[i].Rot;
             fan.Radian = 50f * MathF.PI / 180f;
-            fan.ScaleMode = ScaleMode.ByTime;
+            // fan.ScaleMode = ScaleMode.ByTime;
             sa.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Fan, fan);
         }
     }
@@ -1021,7 +1077,7 @@ public class TheForkedTowerMagic
                 dp.Delay = delay;
                 dp.DestoryAt = duration;
                 dp.Scale = new Vector2(5f, 60f);
-                dp.ScaleMode = ScaleMode.ByTime;
+                // dp.ScaleMode = ScaleMode.ByTime;
                 sa.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Rect, dp);
             }
         }
@@ -1074,8 +1130,299 @@ public class TheForkedTowerMagic
 
         触发魔法阵直线(sa, 小蓝头DataId, "后冰柱赋格", 7000, 4000);
     }
+    #endregion
 
+    #region 超魔BOSS2
 
+    // 49622：3.5s
+    [ScriptMethod(name: "超魔BOSS2 - 突进", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:49622"])]
+    public void 超魔B2突进(Event evt, ScriptAccessory sa)
+    {
+        foreach (var (extraRot, tag) in new[] { (0f, "正"), (MathF.PI, "反") })
+        {
+            var dp = sa.FastDp($"超魔B2突进-{evt.SourceId()}-{tag}", evt.SourcePosition(), 3500, new Vector2(7f, 48f));
+            dp.Rotation = evt.SourceRotation() + extraRot;
+            dp.ScaleMode = ScaleMode.ByTime;
+            sa.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Rect, dp);
+        }
+    }
+
+    // 49635：3.5s
+    [ScriptMethod(name: "超魔BOSS2 - 小回旋", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:49635"])]
+    public void 超魔B2小回旋(Event evt, ScriptAccessory sa)
+    {
+        var dp = sa.FastDp($"超魔B2小回旋-{evt.SourceId()}", evt.SourcePosition(), 3500, new Vector2(14f));
+        dp.InnerScale = new Vector2(9f);
+        dp.Rotation = evt.SourceRotation() - MathF.PI / 4;
+        dp.Radian = float.Pi / 2;
+        sa.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Donut, dp);
+    }
+
+    [ScriptMethod(name: "超魔BOSS2 - 中回旋", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:49636"])]
+    public void 超魔B2中回旋(Event evt, ScriptAccessory sa)
+    {
+        var dp = sa.FastDp($"超魔B2中回旋-{evt.SourceId()}", evt.SourcePosition(), 3500, new Vector2(19f));
+        dp.InnerScale = new Vector2(14f);
+        dp.Rotation = evt.SourceRotation() - MathF.PI / 4;
+        dp.Radian = float.Pi / 2;
+        sa.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Donut, dp);
+    }
+
+    // 49637：3.5s
+    [ScriptMethod(name: "超魔BOSS2 - 大回旋", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:49637"])]
+    public void 超魔B2大回旋(Event evt, ScriptAccessory sa)
+    {
+        var dp = sa.FastDp($"超魔B2大回旋-{evt.SourceId()}", evt.SourcePosition(), 3500, new Vector2(24f));
+        dp.InnerScale = new Vector2(19f);
+        dp.Rotation = evt.SourceRotation() - MathF.PI / 4;
+        dp.Radian = float.Pi / 2;
+        sa.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Donut, dp);
+    }
+
+    // 49616 突进：30m长6m宽矩形，6s
+    [ScriptMethod(name: "超魔BOSS2 - 突进", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:49674"])]
+    public void 超魔B2突进2(Event evt, ScriptAccessory sa)
+    {
+        Dbg(sa, $"突进(49616)：pos {evt.SourcePosition():F1} rot {evt.SourceRotation():F2}");
+        var dp = sa.FastDp("突进", evt.SourcePosition(), 6000, new Vector2(6f, 30f));
+        dp.Rotation = evt.SourceRotation();
+        dp.ScaleMode = ScaleMode.ByTime;
+        sa.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Rect, dp);
+    }
+
+    // 49585 半圆：SourcePosition为圆心，面对SourceRotation
+    [ScriptMethod(name: "超魔BOSS2 - 秘法剑", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:49645"])]
+    public void 超魔B2秘法剑(Event evt, ScriptAccessory sa)
+    {
+        Dbg(sa, $"半圆斩(49645)：src {evt.SourceId():X8} pos {evt.SourcePosition():F1} rot {evt.SourceRotation():F2}");
+        var dp = sa.FastDp($"半圆斩-{evt.SourceId()}", evt.SourcePosition(), 5500, new Vector2(96f));
+        dp.Rotation = evt.SourceRotation();
+        dp.Radian = MathF.PI;
+        sa.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Fan, dp);
+    }
+
+    private readonly object _swordPredictLock = new();
+    private readonly List<(uint Sid, Vector3 Pos, int Pose)> _swordPredicts = [];
+
+    [ScriptMethod(name: "超魔BOSS2 - 舞动之剑预判", eventType: EventTypeEnum.PlayActionTimeline, eventCondition: ["Id:9710"])]
+    public void 超魔B2舞动之剑预判(Event evt, ScriptAccessory sa)
+    {
+        var sid = evt.SourceId();
+        var obj = sa.Data.Objects.SearchById(sid);
+        if (obj is null || obj.DataId == 19833) return;   // 19833 由普通BOSS2方法处理
+
+        var pose = B2GetModelState(sa, sid);
+        var pos = evt.SourcePosition();
+        Dbg(sa, $"超魔舞动之剑9710：src {sid:X8} DataId {obj.DataId} 姿势 {pose}");
+        switch (pose)
+        {
+            case 4:     // idle_sp_1 → 月环(内15外40)
+                B2DrawSwordAoe(sa, sid, pos, true, 20000);
+                break;
+            case 5:     // idle_sp_2 → 大月环(内20外40)
+            {
+                var donut = sa.FastDp($"剑月环-{sid}-0", pos, 20000, new Vector2(40f));
+                donut.InnerScale = new Vector2(20f);
+                donut.Radian = float.Pi * 2;
+                sa.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Donut, donut);
+                break;
+            }
+            case 6:     // idle_sp_3 → 小钢铁(10)
+            {
+                var circle = sa.FastDp($"剑钢铁-{sid}-0", pos, 20000, new Vector2(10f));
+                sa.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Circle, circle);
+                break;
+            }
+            case 7:     // idle_sp_4 → 钢铁(15)
+            {
+                var circle = sa.FastDp($"剑钢铁-{sid}-0", pos, 20000, new Vector2(15f));
+                sa.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Circle, circle);
+                break;
+            }
+            default:
+                Dbg(sa, $"超魔舞动之剑9710：未知姿势{pose}，不绘图");
+                return;
+        }
+        lock (_swordPredictLock) _swordPredicts.Add((sid, pos, pose));
+    }
+
+    // 49647 定时：第一段显示到读条开始后4s，第二段读条开始4s后显示4.5s
+    [ScriptMethod(name: "超魔BOSS2 - 舞动之剑定时", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:49647"], userControl: false)]
+    public async void 超魔B2舞动之剑定时(Event evt, ScriptAccessory sa)
+    {
+        List<(uint Sid, Vector3 Pos, int Pose)> swords;
+        lock (_swordPredictLock)
+        {
+            if (_swordPredicts.Count == 0) return;   // 双剑各读一次时只按首个定时
+            swords = [.. _swordPredicts];
+            _swordPredicts.Clear();
+        }
+        Dbg(sa, $"超魔舞动之剑49647：定时 {swords.Count} 把剑");
+
+        foreach (var (sid, pos, pose) in swords)
+        {
+            switch (pose)
+            {
+                case 4:     // 月环 → 接钢铁(15)
+                    B2DrawSwordAoe(sa, sid, pos, false, 4000, 4000);
+                    break;
+                case 5:     // 大月环 → 接大钢铁(20)
+                {
+                    var circle = sa.FastDp($"剑钢铁-{sid}-4000", pos, 4000, new Vector2(20f));
+                    circle.ScaleMode = ScaleMode.ByTime;
+                    circle.Delay = 4000;
+                    sa.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Circle, circle);
+                    break;
+                }
+                case 6:     // 小钢铁 → 接小月环(内10外40)
+                {
+                    var donut = sa.FastDp($"剑月环-{sid}-4000", pos, 4000, new Vector2(40f));
+                    donut.InnerScale = new Vector2(10f);
+                    donut.Radian = float.Pi * 2;
+                    donut.Delay = 4000;
+                    sa.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Donut, donut);
+                    break;
+                }
+                case 7:     // 钢铁 → 接月环(内15外40)
+                    B2DrawSwordAoe(sa, sid, pos, true, 4000, 4000);
+                    break;
+            }
+        }
+
+        await Task.Delay(4000);
+        foreach (var (sid, _, _) in swords)
+            sa.Method.RemoveDraw($"^剑(月环|钢铁)-{sid}-0$");
+    }
+
+    [ScriptMethod(name: "超魔BOSS2 - 剑舞", eventType: EventTypeEnum.ObjectEffect, eventCondition: ["Id1:1", "Id2:2"], userControl: false)]
+    public void 超魔剑刃矩形(Event evt, ScriptAccessory sa)
+    {
+        if (!Is超魔(sa)) return;   // 该机制仅超魔触发
+        var obj = sa.Data.Objects.SearchById(evt.SourceId());
+        if (obj is null || obj.DataId != 2015283) return;
+
+        var pos = evt.SourcePosition();
+        var rot = evt.SourceRotation();
+
+        List<(Vector3 Pos, float Rot)> rects;
+        lock (_bladeRectLock)
+        {
+            if (_bladeRects.Any(r => DistXZ(r.Pos, pos) < 1f && MathF.Abs(WrapPi(r.Rot - rot)) < 0.1f)) return;
+            _bladeRects.Add((pos, rot));
+            Dbg(sa, $"剑刃矩形记录 #{_bladeRects.Count}：pos {pos:F1} rot {rot:F2}");
+            if (_bladeRects.Count < 4) return;
+
+            rects = [.. _bladeRects];
+            _bladeRects.Clear();
+        }
+
+        for (var i = 0; i < rects.Count; i++)
+        {
+            var delay = (uint)(i == 0 ? 0 : 5000 + (i - 1) * 1500);
+            var duration = (uint)(i == 0 ? 6500 : 3000);
+            foreach (var (extraRot, tag) in new[] { (0f, "正"), (MathF.PI, "反") })
+            {
+                var dp = sa.FastDp($"剑刃矩形-{i + 1}-{tag}", rects[i].Pos, duration, new Vector2(20f, 60f));
+                dp.Rotation = rects[i].Rot + extraRot;
+                dp.Delay = delay;
+                // dp.ScaleMode = ScaleMode.ByTime;
+                sa.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Rect, dp);
+            }
+        }
+    }
+
+    [ScriptMethod(name: "超魔BOSS2 - 跃进步法记录", eventType: EventTypeEnum.ActionEffect, eventCondition: ["ActionId:regex:^(49656|49657)$"], userControl: false)]
+    public void 超魔跃进步法记录(Event evt, ScriptAccessory sa)
+    {
+        var pos = evt.EffectPosition();
+        if (pos.Length() < 0.01f) return;   // 排除(0,0,0)
+
+        lock (_leapLock)
+        {
+            if (_leapPositions.All(p => DistXZ(p, pos) > 1f))
+            {
+                _leapPositions.Add(pos);
+                Dbg(sa, $"跃进步法记录 #{_leapPositions.Count}：{pos:F1}");
+            }
+        }
+    }
+
+    // 49687 剑技爆发：按顺序指路各落点
+    [ScriptMethod(name: "超魔BOSS2 - 剑技爆发指路", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:49687"])]
+    public void 超魔剑技爆发指路(Event evt, ScriptAccessory sa)
+    {
+        List<Vector3> rawPoints;
+        lock (_leapLock)
+        {
+            rawPoints = [.. _leapPositions];
+            _leapPositions.Clear();   // 用完清空
+        }
+        if (rawPoints.Count == 0)
+        {
+            Dbg(sa, $"剑技爆发(49687)：落点list为空，跳过指路");
+            return;
+        }
+
+        // 检测场上19842中带 Status 2056 且 Param 1173 的剑，按位置匹配落点轮次
+        var steelSwordPos = sa.Data.Objects
+            .Where(o => o is IBattleChara bc && bc.DataId == 19842
+                        && bc.StatusList.Any(s => s.StatusId == 2056 && s.Param == 1173))
+            .Select(o => o.Position)
+            .ToList();
+        var isSteel = rawPoints.Select(p => steelSwordPos.Any(sp => DistXZ(sp, p) < 3f)).ToList();
+        Dbg(sa, $"剑技爆发(49687)：共 {rawPoints.Count} 个落点，1173钢铁轮 [{string.Join(",", isSteel.Select((s, i) => (s, i)).Where(t => t.s).Select(t => t.i + 1))}]，" +
+                $"1173剑位 [{string.Join(" | ", steelSwordPos.Select(p => p.ToString("F1")))}]");
+
+        var points = rawPoints.Select(p => 朝场中偏移(p, 5f)).ToList();
+        var n = points.Count;
+
+        // 钢铁轮前一轮的指路点：绕场中朝远离下一轮钢铁的方向旋转10°
+        for (var k = 0; k + 1 < n; k++)
+            if (isSteel[k + 1])
+                points[k] = 绕场中旋转远离(points[k], rawPoints[k + 1]);
+
+        var delays = new uint[n];
+        var durations = new uint[n];
+        var steelCount = 0;
+        for (var k = 0; k < n; k++)
+        {
+            if (isSteel[k]) steelCount++;
+            delays[k] = (uint)((k == 0 ? 0 : 5000 + (k - 1) * 2500) + steelCount * 2500);
+            durations[k] = (uint)(k == 0 ? 5000 : 2500);
+        }
+
+        var green = new Vector4(0f, 1f, 0f, 1f);
+        var white = new Vector4(1f, 1f, 1f, 1f);
+
+        for (var k = 0; k < n; k++)
+        {
+            var delay = delays[k];
+            var duration = durations[k];
+
+            if (isSteel[k])
+            {
+                // 钢铁圈与前一轮指路同时出现，显示4s
+                var dp = sa.FastDp($"剑技爆发-钢铁-{k + 1}", rawPoints[k], 3000, new Vector2(15f));
+                dp.Delay = k == 0 ? 0 : delays[k - 1];
+                dp.ScaleMode = ScaleMode.ByTime;
+                sa.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Circle, dp);
+
+                // 钢铁时段同步显示本轮指路，全白色
+                sa.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement,
+                    sa.WaypointDp(points[k], 2500, delay - 2500, $"剑技爆发-钢铁轮-me到{k + 1}", white));
+                for (var j = k; j < n - 1; j++)
+                    sa.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement,
+                        sa.WaypointFromToDp(points[j], points[j + 1], 2500, delay - 2500, $"剑技爆发-{j + 1}到{j + 2}-钢铁轮{k + 1}", white));
+            }
+
+            sa.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement,
+                sa.WaypointDp(points[k], duration, delay, $"剑技爆发-me到{k + 1}", green));
+            for (var j = k; j < n - 1; j++)
+                sa.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement,
+                    sa.WaypointFromToDp(points[j], points[j + 1], duration, delay, $"剑技爆发-{j + 1}到{j + 2}-阶段{k + 1}", white));
+        }
+    }
+    
     #endregion
 }
 
