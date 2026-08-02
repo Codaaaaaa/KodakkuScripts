@@ -22,9 +22,9 @@ namespace Codaaaaaa.TheForkedTowerMagic;
     guid: "45819e25-cb2d-4d84-a508-f110dc6a381a",
     name: "魔之塔画图",
     territorys: [1346],
-    version: "0.0.0.5",
+    version: "0.0.0.6",
     author: "Codaaaaaa",
-    note: "0.0.0.5\n修了老二的月环钢铁")]
+    note: "0.0.0.6\n更新超魔Boss1\n\n0.0.0.5\n修了老二的月环钢铁")]
 public class TheForkedTowerMagic
 {
     #region 用户设置
@@ -38,7 +38,7 @@ public class TheForkedTowerMagic
         if (!Debug输出) return;
         sa.Method.SendChat($"/e [魔之塔] {msg}");
     }
-
+    // 超魔会有buff 4228，普通没有
     // Map: 1136 魔之塔下层 Boss1
     // Map: 1178 魔之塔下层 小怪+Boss2
     // 换P
@@ -53,12 +53,13 @@ public class TheForkedTowerMagic
     [ScriptMethod(name: "Show Phase", eventType: EventTypeEnum.Chat, eventCondition: ["Type:Echo", "Message:KASP2"], userControl: false)]
     public void ShowPhase(Event evt, ScriptAccessory sa) => sa.Method.SendChat($"/e Phase: {_phase}");
 
+    // 普魔
     #region Boss 1 双头
 
-    private const uint 绿头Buff = 4192;      // 只能打 19474 绿头
-    private const uint 蓝头Buff = 4194;      // 只能打 19475 蓝头
-    private const uint 绿头DataId = 19474;
-    private const uint 蓝头DataId = 19475;
+    private const uint 绿头Buff = 4192;      // 只能打绿头
+    private const uint 蓝头Buff = 4194;      // 只能打蓝头
+    private static readonly uint[] 绿头DataIds = [19474, 19481];   // 普魔 / 超魔
+    private static readonly uint[] 蓝头DataIds = [19475, 19482];   // 普魔 / 超魔
 
     private bool _dualHeadLockOn = false;
     private int _dualHeadLockState = 0;
@@ -94,8 +95,8 @@ public class TheForkedTowerMagic
             };
             if (currentState == _dualHeadLockState) return;
 
-            var green = sa.FindByDataId(绿头DataId);
-            var blue = sa.FindByDataId(蓝头DataId);
+            var green = sa.FindByDataId(绿头DataIds);
+            var blue = sa.FindByDataId(蓝头DataIds);
             if (green is null || blue is null) return;   // 找不到目标则下帧重试
             _dualHeadLockState = currentState;
 
@@ -212,8 +213,8 @@ public class TheForkedTowerMagic
         }
     }
 
-    // 47735 雷霜暴风雨(绿头19474)：所有剩余雷球/冰球位置画15m危险圈5s，然后清空两个list
-    [ScriptMethod(name: "BOSS1 - 雷霜暴风雨", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:47735", "SourceDataId:19474"])]
+    // 47735 雷霜暴风雨(绿头19474/超魔19481)：所有剩余雷球/冰球位置画15m危险圈5s，然后清空两个list
+    [ScriptMethod(name: "BOSS1 - 雷霜暴风雨", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:47735", "SourceDataId:regex:^(19474|19481)$"])]
     public void 雷霜暴风雨(Event evt, ScriptAccessory sa)
     {
         List<Vector3> remains = [];
@@ -750,6 +751,332 @@ public class TheForkedTowerMagic
     }
 
     #endregion
+
+    // 超魔
+    #region Boss 1 双头
+
+    // 47639 蓝头剧毒吐息：9s，EffectPosition 18m危险圈
+    [ScriptMethod(name: "超魔BOSS1 - 蓝头剧毒吐息", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:47639"])]
+    public void 超魔蓝头剧毒吐息(Event evt, ScriptAccessory sa)
+    {
+        var dp = sa.FastDp("超魔蓝头剧毒吐息", evt.EffectPosition(), 9000, new Vector2(18f));
+        dp.ScaleMode = ScaleMode.ByTime;
+        sa.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Circle, dp);
+    }
+
+    // 47638 绿头风暴吐息：9s，EffectPosition 上 CreateOmen 386
+    [ScriptMethod(name: "超魔BOSS1 - 绿头风暴吐息", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:47638"])]
+    public void 超魔绿头风暴吐息(Event evt, ScriptAccessory sa)
+    {
+        sa.Method.VfxMethod.CreateOmen(530, new Vector3(30f),
+            evt.EffectPosition(), evt.SourceRotation(), sa.Data.DefaultDangerColor, 8000);
+    }
+
+    // 47640 绿头雷电赋格：9s，EffectPosition 月环 内15外60
+    [ScriptMethod(name: "超魔BOSS1 - 绿头雷电赋格", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:47632"])]
+    public void 超魔绿头雷电赋格(Event evt, ScriptAccessory sa)
+    {
+        var dp = sa.FastDp("超魔绿头雷电赋格", evt.EffectPosition(), 9000, new Vector2(60f));
+        dp.InnerScale = new Vector2(15f);
+        dp.Radian = float.Pi * 2;
+        sa.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Donut, dp);
+    }
+
+    // 47641 蓝头冰柱赋格：9s，EffectPosition 20m危险圈，Imgui
+    [ScriptMethod(name: "超魔BOSS1 - 蓝头冰柱赋格", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:47641"])]
+    public void 超魔蓝头冰柱赋格(Event evt, ScriptAccessory sa)
+    {
+        var dp = sa.FastDp("超魔蓝头冰柱赋格", evt.EffectPosition(), 9000, new Vector2(20f));
+        // dp.Color = new Vector4(0.7f, 0.3f, 1f, 1f);   // 紫色
+        dp.ScaleMode = ScaleMode.ByTime;
+        sa.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Circle, dp);
+    }
+
+    // 47685 冰焰交错：2s，SourcePosition上以SourceRotation为正面，前后左右各35长11宽的rect十字
+    [ScriptMethod(name: "超魔BOSS1 - 冰焰交错", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:47685"])]
+    public void 冰焰交错(Event evt, ScriptAccessory sa)
+    {
+        Dbg(sa, $"冰焰交错(47685)：pos {evt.SourcePosition():F1} rot {evt.SourceRotation():F2}");
+        List<(float Rot, string Tag)> dirs = [(0f, "前"), (MathF.PI / 2, "左"), (MathF.PI, "后"), (-MathF.PI / 2, "右")];
+        foreach (var (rot, tag) in dirs)
+        {
+            var dp = sa.FastDp($"冰焰交错-{tag}", evt.SourcePosition(), 2000, new Vector2(11f, 35f));
+            dp.Rotation = evt.SourceRotation() + rot;
+            dp.ScaleMode = ScaleMode.ByTime;
+            sa.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Rect, dp);
+        }
+    }
+
+    // 47686 冰焰凝环：2s，SourcePosition 月环 内10外60
+    [ScriptMethod(name: "超魔BOSS1 - 冰焰凝环", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:47686"])]
+    public void 超魔冰焰凝环(Event evt, ScriptAccessory sa)
+    {
+        var dp = sa.FastDp("超魔冰焰凝环", evt.SourcePosition(), 2000, new Vector2(60f));
+        dp.InnerScale = new Vector2(5f);
+        dp.Radian = float.Pi * 2;
+        sa.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Donut, dp);
+    }
+
+    private const uint 小绿头DataId = 19490;
+    private const uint 小蓝头DataId = 19491;
+    private readonly object _smallHeadLock = new();
+    private readonly List<(uint SourceId, uint DataId)> _smallHeads = [];   // 19491蓝 / 19490绿 小双头
+
+    // AddCombatant DataId 19491（蓝） and 19490 (绿)，记录SourceId and DataId list
+    [ScriptMethod(name: "超魔BOSS1 - 魔法阵记录", eventType: EventTypeEnum.AddCombatant, eventCondition: ["DataId:regex:^(1949[01])$"], userControl: false)]
+    public void 超魔小双头记录(Event evt, ScriptAccessory sa)
+    {
+        if (!uint.TryParse(evt["DataId"], out var dataId)) return;
+        var sid = evt.SourceId();
+        lock (_smallHeadLock)
+        {
+            if (_smallHeads.Any(h => h.SourceId == sid)) return;
+            _smallHeads.Add((sid, dataId));
+            Dbg(sa, $"小双头记录 #{_smallHeads.Count}：{(dataId == 小蓝头DataId ? "蓝" : "绿")} {sid:X8}");
+        }
+    }
+
+    [ScriptMethod(name: "超魔BOSS1 - 小双头恐惧", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:47703"])]
+    public void 超魔小双头恐惧(Event evt, ScriptAccessory sa)
+    {
+        var dp = sa.FastDp("双头恐惧", evt.TargetPosition, 7000, new Vector2(10f, 40f));
+        dp.Rotation = evt.SourceRotation();
+        dp.ScaleMode = ScaleMode.ByTime;
+        sa.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Rect, dp);
+    }
+
+    // 47702 大双头恐惧：SourceName判色（Green/绿 或 Blue/蓝），
+    // 在已记录的对应颜色小双头身上以其rotation为正，画正反两个rect 60长5宽 6s
+    [ScriptMethod(name: "超魔BOSS1 - 大双头恐惧", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:47702"])]
+    public void 超魔大双头恐惧(Event evt, ScriptAccessory sa)
+    {
+        var dp = sa.FastDp("双头恐惧", evt.TargetPosition, 7000, new Vector2(20f, 40f));
+        dp.Rotation = evt.SourceRotation();
+        dp.ScaleMode = ScaleMode.ByTime;
+        sa.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Rect, dp);
+
+        var srcName = evt["SourceName"] ?? "";
+        uint? headDataId = null;
+        if (srcName.Contains("Green", StringComparison.OrdinalIgnoreCase) || srcName.Contains('绿'))
+            headDataId = 小绿头DataId;
+        else if (srcName.Contains("Blue", StringComparison.OrdinalIgnoreCase) || srcName.Contains('蓝'))
+            headDataId = 小蓝头DataId;
+        if (headDataId is null)
+        {
+            Dbg(sa, $"大双头恐惧(47702)：SourceName [{srcName}] 无法判色，跳过小双头直线");
+            return;
+        }
+
+        List<uint> heads;
+        lock (_smallHeadLock)
+        {
+            heads = _smallHeads.Where(h => h.DataId == headDataId).Select(h => h.SourceId).ToList();
+            _smallHeads.Clear();   // 用完清空以便下一波重新记录
+        }
+        Dbg(sa, $"大双头恐惧(47702)：{(headDataId == 小蓝头DataId ? "蓝" : "绿")}色小双头 {heads.Count} 个");
+
+        foreach (var sid in heads)
+        {
+            foreach (var (extraRot, tag) in new[] { (0f, "正"), (MathF.PI, "反") })
+            {
+                var lineDp = sa.Data.GetDefaultDrawProperties();
+                lineDp.Name = $"大双头恐惧直线-{sid:X8}-{tag}";
+                lineDp.Color = sa.Data.DefaultDangerColor;
+                lineDp.Owner = sid;
+                lineDp.Rotation = extraRot;
+                lineDp.DestoryAt = 7000;
+                lineDp.Scale = new Vector2(5f, 60f);
+                lineDp.ScaleMode = ScaleMode.ByTime;
+                sa.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Rect, lineDp);
+            }
+        }
+    }
+
+    private const uint 大绿头DataId = 19483;   // 绿=雷
+    private const uint 大蓝头DataId = 19484;   // 蓝=冰
+    private readonly object _conduitLock = new();
+    private readonly List<(bool IsThunder, Vector3 Pos, float Rot)> _conduitBalls = [];   // 19487导流雷球 / 19488导流冰球
+    private readonly Dictionary<uint, bool> _mahjongTethers = [];                         // Tether 019B：TargetId → 是否绿头(雷)
+    private readonly List<(bool IsGreen, Vector3 Pos, int Index)> _mahjongMarks = [];     // 麻将点名记录：头颜色/点名者位置/麻将几
+
+    // AddCombatant 19487导流雷球 / 19488导流冰球：记录属性、SourcePos、SourceRotation
+    [ScriptMethod(name: "超魔BOSS1 - 导流球记录", eventType: EventTypeEnum.AddCombatant, eventCondition: ["DataId:regex:^(1948[78])$"], userControl: false)]
+    public void 超魔导流球记录(Event evt, ScriptAccessory sa)
+    {
+        if (!uint.TryParse(evt["DataId"], out var dataId)) return;
+        var isThunder = dataId == 19487u;
+        var pos = evt.SourcePosition();
+        var rot = evt.SourceRotation();
+        lock (_conduitLock)
+        {
+            if (_conduitBalls.Any(b => DistXZ(b.Pos, pos) < 1f)) return;
+            _conduitBalls.Add((isThunder, pos, rot));
+            Dbg(sa, $"导流{(isThunder ? "雷" : "冰")}球记录 #{_conduitBalls.Count}：pos {pos:F1} rot {rot:F2}");
+        }
+    }
+
+    // Tether 019B：SourceId是大蓝头19484或大绿头19483，记录TargetId对应的头颜色。一次机制两条线，一蓝一绿
+    [ScriptMethod(name: "超魔BOSS1 - 麻将连线记录", eventType: EventTypeEnum.Tether, eventCondition: ["Id:019B"], userControl: false)]
+    public void 超魔麻将连线记录(Event evt, ScriptAccessory sa)
+    {
+        var srcObj = sa.Data.Objects.SearchById(evt.SourceId());
+        if (srcObj is null || (srcObj.DataId != 大绿头DataId && srcObj.DataId != 大蓝头DataId))
+        {
+            Dbg(sa, $"麻将连线(019B)：SourceId {evt.SourceId():X8} 不是大双头，忽略");
+            return;
+        }
+        var isGreen = srcObj.DataId == 大绿头DataId;
+        lock (_conduitLock) _mahjongTethers[evt.TargetId()] = isGreen;
+        Dbg(sa, $"麻将连线(019B)：{(isGreen ? "绿" : "蓝")}头 → {evt.TargetId():X8}");
+    }
+
+    // TargetIcon 02D2~02D5 麻将1~4，各触发两次(一蓝一绿)：
+    // 麻将1立即画15s；麻将2/3/4等15s后画4s。
+    // 点名者位置画15m危险圈；15m内同属性导流球(绿头=雷19487/蓝头=冰19488)画60度60m扇形并从list删除
+    [ScriptMethod(name: "超魔BOSS1 - 麻将1", eventType: EventTypeEnum.TargetIcon, eventCondition: ["Id:02D2"])]
+    public void 超魔麻将1(Event evt, ScriptAccessory sa) => 麻将处理(evt, sa, 1, 0, 17000);
+
+    [ScriptMethod(name: "超魔BOSS1 - 麻将2", eventType: EventTypeEnum.TargetIcon, eventCondition: ["Id:02D3"])]
+    public void 超魔麻将2(Event evt, ScriptAccessory sa) => 麻将处理(evt, sa, 2, 12500, 4000);
+
+    [ScriptMethod(name: "超魔BOSS1 - 麻将3", eventType: EventTypeEnum.TargetIcon, eventCondition: ["Id:02D4"])]
+    public void 超魔麻将3(Event evt, ScriptAccessory sa) => 麻将处理(evt, sa, 3, 12000, 4000);
+
+    [ScriptMethod(name: "超魔BOSS1 - 麻将4", eventType: EventTypeEnum.TargetIcon, eventCondition: ["Id:02D5"])]
+    public void 超魔麻将4(Event evt, ScriptAccessory sa) => 麻将处理(evt, sa, 4, 11500, 4000);
+
+    private async void 麻将处理(Event evt, ScriptAccessory sa, int index, int delayMs, uint duration)
+    {
+        var sid = evt.SourceId();
+        bool isGreen;
+        bool found;
+        lock (_conduitLock) found = _mahjongTethers.TryGetValue(sid, out isGreen);
+        if (!found)
+        {
+            Dbg(sa, $"麻将{index}：{sid:X8} 没有对应的连线记录，跳过");
+            return;
+        }
+
+        var obj = sa.Data.Objects.SearchById(sid);
+        var pos = obj?.Position ?? evt.SourcePosition();
+        lock (_conduitLock) _mahjongMarks.Add((isGreen, pos, index));
+        Dbg(sa, $"麻将{index}记录：{(isGreen ? "绿(雷)" : "蓝(冰)")} {sid:X8} pos {pos:F1}");
+
+        if (delayMs > 0) await Task.Delay(delayMs);
+
+        var dp = sa.FastDp($"麻将{index}圈-{sid:X8}", pos, duration, new Vector2(15f));
+        dp.ScaleMode = ScaleMode.ByTime;
+        sa.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Circle, dp);
+
+        // 15m内同属性导流球画扇形并删除
+        List<(bool IsThunder, Vector3 Pos, float Rot)> hit;
+        lock (_conduitLock)
+        {
+            hit = _conduitBalls.Where(b => b.IsThunder == isGreen && DistXZ(b.Pos, pos) <= 15f).ToList();
+            _conduitBalls.RemoveAll(b => b.IsThunder == isGreen && DistXZ(b.Pos, pos) <= 15f);
+        }
+        Dbg(sa, $"麻将{index}：命中导流{(isGreen ? "雷" : "冰")}球 {hit.Count} 个");
+
+        for (var i = 0; i < hit.Count; i++)
+        {
+            var fan = sa.FastDp($"麻将{index}扇形-{i}", hit[i].Pos, duration, new Vector2(60f));
+            fan.Rotation = hit[i].Rot;
+            fan.Radian = 50f * MathF.PI / 180f;
+            fan.ScaleMode = ScaleMode.ByTime;
+            sa.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Fan, fan);
+        }
+    }
+
+    // 赋格触发对应属性魔法阵(19490绿=雷/19491蓝=冰)：正反两个rect 60长5宽，只清除被影响颜色的记录
+    private void 触发魔法阵直线(ScriptAccessory sa, uint headDataId, string name, uint delay, uint duration)
+    {
+        List<uint> heads;
+        lock (_smallHeadLock)
+        {
+            heads = _smallHeads.Where(h => h.DataId == headDataId).Select(h => h.SourceId).ToList();
+            _smallHeads.RemoveAll(h => h.DataId == headDataId);   // 只清除对应颜色
+        }
+
+        // 兜底：AddCombatant大量同帧刷新时事件可能被丢，扫一遍对象表补上漏记的
+        var missed = sa.Data.Objects
+            .Where(o => o != null && o.DataId == headDataId && !heads.Contains(o.EntityId))
+            .Select(o => o.EntityId)
+            .ToList();
+        if (missed.Count > 0)
+        {
+            heads.AddRange(missed);
+            Dbg(sa, $"{name}：对象表补漏 {missed.Count} 个 [{string.Join(" ", missed.Select(m => m.ToString("X8")))}]");
+        }
+        Dbg(sa, $"{name}：{(headDataId == 小蓝头DataId ? "蓝" : "绿")}色魔法阵 {heads.Count} 个");
+
+        foreach (var sid in heads)
+        {
+            foreach (var (extraRot, tag) in new[] { (0f, "正"), (MathF.PI, "反") })
+            {
+                var dp = sa.Data.GetDefaultDrawProperties();
+                dp.Name = $"{name}直线-{sid:X8}-{tag}";
+                dp.Color = sa.Data.DefaultDangerColor;
+                dp.Owner = sid;
+                dp.Rotation = extraRot;
+                dp.Delay = delay;
+                dp.DestoryAt = duration;
+                dp.Scale = new Vector2(5f, 60f);
+                dp.ScaleMode = ScaleMode.ByTime;
+                sa.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Rect, dp);
+            }
+        }
+    }
+
+    // 50727 前雷电赋格：11s，EffectPosition 月环 内15外60 + 绿色魔法阵直线11s
+    [ScriptMethod(name: "超魔BOSS1 - 前雷电赋格", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:50727"])]
+    public void 超魔前雷电赋格(Event evt, ScriptAccessory sa)
+    {
+        var dp = sa.FastDp("超魔前雷电赋格", evt.EffectPosition(), 11000, new Vector2(60f));
+        dp.InnerScale = new Vector2(15f);
+        dp.Radian = float.Pi * 2;
+        sa.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Donut, dp);
+
+        触发魔法阵直线(sa, 小绿头DataId, "前雷电赋格", 0, 11000);
+    }
+
+    // 50728 前冰柱赋格：11s，EffectPosition 钢铁 20m + 蓝色魔法阵直线11s
+    [ScriptMethod(name: "超魔BOSS1 - 前冰柱赋格", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:50728"])]
+    public void 超魔前冰柱赋格(Event evt, ScriptAccessory sa)
+    {
+        var dp = sa.FastDp("超魔前冰柱赋格", evt.EffectPosition(), 11000, new Vector2(20f));
+        dp.ScaleMode = ScaleMode.ByTime;
+        sa.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Circle, dp);
+
+        触发魔法阵直线(sa, 小蓝头DataId, "前冰柱赋格", 0, 11000);
+    }
+
+    // 47629 后雷电赋格：延迟11s后显示4s，EffectPosition 月环 内15外60 + 绿色魔法阵直线(同延迟)
+    [ScriptMethod(name: "超魔BOSS1 - 后雷电赋格", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:47629"])]
+    public void 超魔后雷电赋格(Event evt, ScriptAccessory sa)
+    {
+        var dp = sa.FastDp("超魔后雷电赋格", evt.EffectPosition(), 4000, new Vector2(60f));
+        dp.Delay = 7000;
+        dp.InnerScale = new Vector2(15f);
+        dp.Radian = float.Pi * 2;
+        sa.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Donut, dp);
+
+        触发魔法阵直线(sa, 小绿头DataId, "后雷电赋格", 7000, 4000);
+    }
+
+    // 47630 后冰柱赋格：延迟11s后显示4s，EffectPosition 钢铁 20m + 蓝色魔法阵直线(同延迟)
+    [ScriptMethod(name: "超魔BOSS1 - 后冰柱赋格", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:47630"])]
+    public void 超魔后冰柱赋格(Event evt, ScriptAccessory sa)
+    {
+        var dp = sa.FastDp("超魔后冰柱赋格", evt.EffectPosition(), 4000, new Vector2(20f));
+        dp.Delay = 7000;
+        dp.ScaleMode = ScaleMode.ByTime;
+        sa.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Circle, dp);
+
+        触发魔法阵直线(sa, 小蓝头DataId, "后冰柱赋格", 7000, 4000);
+    }
+
+
+    #endregion
 }
 
 #region Helpers
@@ -786,8 +1113,8 @@ public static class ScriptAccessoryExtensions
 {
     public static int MyIndex(this ScriptAccessory sa) => sa.Data.PartyList.IndexOf(sa.Data.Me);
 
-    public static IGameObject? FindByDataId(this ScriptAccessory sa, uint dataId)
-        => sa.Data.Objects.FirstOrDefault(x => x != null && x.DataId == dataId);
+    public static IGameObject? FindByDataId(this ScriptAccessory sa, params uint[] dataIds)
+        => sa.Data.Objects.FirstOrDefault(x => x != null && dataIds.Contains(x.DataId));
 
     // 修改物体可选中状态
     public static void SetTargetable(this ScriptAccessory sa, IGameObject? obj, bool targetable)
