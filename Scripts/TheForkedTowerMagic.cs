@@ -22,9 +22,9 @@ namespace Codaaaaaa.TheForkedTowerMagic;
     guid: "45819e25-cb2d-4d84-a508-f110dc6a381a",
     name: "魔之塔画图",
     territorys: [1346],
-    version: "0.0.0.3",
+    version: "0.0.0.4",
     author: "Codaaaaaa",
-    note: "0.0.0.3\n老二有点问题之后修")]
+    note: "0.0.0.4\n修了老二的月环钢铁")]
 public class TheForkedTowerMagic
 {
     #region 用户设置
@@ -365,6 +365,62 @@ public class TheForkedTowerMagic
         sa.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Rect, dp);
     }
 
+    private const float 剑月环内半径 = 15f;
+    private const float 剑月环外半径 = 40f;
+    private long _b2SwordTtsAt;
+
+    private void B2SwordTts(ScriptAccessory sa, string word)
+    {
+        var now = Environment.TickCount64;
+        if (now - Interlocked.Exchange(ref _b2SwordTtsAt, now) < 800) return;   // 双剑同触发时只报一次
+        sa.Method.TTS(word, 3);
+    }
+
+    private static unsafe int B2GetModelState(ScriptAccessory sa, uint entityId)
+    {
+        var obj = sa.Data.Objects.SearchById(entityId);
+        if (obj is null || !obj.IsValid()) return -1;
+        var c = (FFXIVClientStructs.FFXIV.Client.Game.Character.Character*)obj.Address;
+        return c->Timeline.ModelState;
+    }
+
+    private void B2DrawSwordAoe(ScriptAccessory sa, uint sid, Vector3 pos, bool isDonut, uint duration)
+    {
+        if (isDonut)
+        {
+            var dp = sa.FastDp($"剑月环-{sid}", pos, duration, new Vector2(剑月环外半径));
+            dp.InnerScale = new Vector2(剑月环内半径);
+            dp.Radian = float.Pi * 2;
+            sa.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Donut, dp);
+        }
+        else
+        {
+            var dp = sa.FastDp($"剑钢铁-{sid}", pos, duration, new Vector2(15f));
+            dp.ScaleMode = ScaleMode.ByTime;
+            sa.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Circle, dp);
+        }
+    }
+
+    [ScriptMethod(name: "BOSS2 - 舞动之剑预判", eventType: EventTypeEnum.PlayActionTimeline, eventCondition: ["Id:9710", "SourceDataId:19833"])]
+    public void 舞动之剑预判(Event evt, ScriptAccessory sa)
+    {
+        var sid = evt.SourceId();
+        var pose = B2GetModelState(sa, sid);
+        Dbg(sa, $"舞动之剑9710：src {sid:X8} 姿势 {pose}");
+        switch (pose)
+        {
+            case 4:     // idle_sp_1 → 月环
+                B2DrawSwordAoe(sa, sid, evt.SourcePosition(), true, 9000);
+                break;
+            case 7:     // idle_sp_4 → 钢铁
+                B2DrawSwordAoe(sa, sid, evt.SourcePosition(), false, 9000);
+                break;
+            default:    // 未知姿势
+                Dbg(sa, $"舞动之剑9710：未知姿势{pose}，不绘图");
+                break;
+        }
+    }
+
     #endregion
 
     #region BOSS3 惧死者
@@ -539,7 +595,6 @@ public class TheForkedTowerMagic
             sa.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Fan, dp);
         }
     }
-
     private bool _inIceZone = true;   // true=自己在冰区，false=在火区（冰区取水区2015241的朝向）
 
     // 48399：指路冰火交界（偏冰区10度、离中心9m）3s，并初始化自己在冰区
