@@ -23,9 +23,9 @@ namespace Codaaaaaa.TheForkedTowerMagic;
     guid: "45819e25-cb2d-4d84-a508-f110dc6a381a",
     name: "魔之塔画图",
     territorys: [1346],
-    version: "0.0.0.8",
+    version: "0.0.1.0",
     author: "Codaaaaaa",
-    note: "0.0.0.8\n更新超魔Boss3\n\n0.0.0.7\n更新超魔Boss2\n\n0.0.0.5\n修了老二的月环钢铁")]
+    note: "0.0.1.0\n写完喽\n\n0.0.0.8\n更新超魔Boss3\n\n0.0.0.7\n更新超魔Boss2\n\n0.0.0.5\n修了老二的月环钢铁")]
 public class TheForkedTowerMagic
 {
     #region 用户设置
@@ -64,7 +64,7 @@ public class TheForkedTowerMagic
         var found = false;
         foreach (var obj in sa.Data.Objects)
         {
-            if (obj is not IBattleChara bc || bc.DataId != 19432) continue;
+            if (obj is not IBattleChara bc || bc.DataId != 19307) continue;
             found = true;
             var statuses = bc.StatusList
                 .Where(s => s.StatusId != 0)
@@ -163,7 +163,7 @@ public class TheForkedTowerMagic
     {
         var dp = sa.FastDp("双头恐惧", evt.TargetPosition, 6000, new Vector2(10f, 40f));
         dp.Rotation = evt.SourceRotation();
-        dp.ScaleMode = ScaleMode.ByTime;
+        // dp.ScaleMode = ScaleMode.ByTime;
         sa.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Rect, dp);
     }
 
@@ -590,8 +590,38 @@ public class TheForkedTowerMagic
 
         var dp = sa.FastDp($"灭亡射线-{srcId}", pos, 4000, new Vector2(6f, 30f));
         dp.Rotation = rot;
-        dp.ScaleMode = ScaleMode.ByTime;
+        // dp.ScaleMode = ScaleMode.ByTime;
         sa.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Rect, dp);
+    }
+
+    // 47477 黑暗奔流：EffectPosition 沿 SourceRotation 的 60长10宽矩形，CreateOmen 689（rect omen：X=半宽 Z=全长）
+    [ScriptMethod(name: "BOSS3 - 黑暗奔流", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:47477"])]
+    public void B3黑暗奔流(Event evt, ScriptAccessory sa)
+    {
+        Dbg(sa, $"黑暗奔流(47477)：pos {evt.EffectPosition():F1} rot {evt.SourceRotation():F2}");
+        sa.Method.VfxMethod.CreateOmen(689, new Vector3(5f, 10f, 60f),
+            evt.EffectPosition(), evt.SourceRotation(), null, 4000);
+    }
+
+    // 47477 读条开始后：左右两侧步进地火，60长10宽矩形，每轮向外步进10m，每轮画3.5s紧接下一轮
+    [ScriptMethod(name: "BOSS3 - 黑暗奔流地火", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:47477"])]
+    public void B3黑暗奔流地火(Event evt, ScriptAccessory sa)
+    {
+        var pos = evt.EffectPosition();
+        var rot = evt.SourceRotation();
+        Dbg(sa, $"黑暗奔流地火(47477)：pos {pos:F1} rot {rot:F2}");
+        for (var i = 0; i < 2; i++)
+        {
+            foreach (var (sign, tag) in new[] { (1f, "左"), (-1f, "右") })
+            {
+                var side = rot + sign * MathF.PI / 2;
+                var center = pos + new Vector3(MathF.Sin(side), 0f, MathF.Cos(side)) * (10f * (i + 1));
+                var dp = sa.FastDp($"黑暗奔流地火-{tag}-{i}", center, 4500, new Vector2(10f, 60f));
+                dp.Rotation = rot;
+                dp.Delay = (uint)(3500 + i * 2000);
+                sa.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Rect, dp);
+            }
+        }
     }
 
     #endregion
@@ -709,27 +739,16 @@ public class TheForkedTowerMagic
             sa.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Fan, dp);
         }
     }
-    private bool _inIceZone = true;   // true=自己在冰区，false=在火区（冰区取水区2015241的朝向）
-
-    // 48399：指路冰火交界（偏冰区10度、离中心9m）3s，并初始化自己在冰区
-    [ScriptMethod(name: "BOSS4 - 冰火交界初始指路", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:48399"])]
-    public void 冰火交界初始指路(Event evt, ScriptAccessory sa)
-    {
-        var guidePos = 冰火交界指路点(sa, 靠近冰: true);
-        if (guidePos is null)
-        {
-            Dbg(sa, $"48399：火区/水区未记录，无法指路");
-            return;
-        }
-        lock (_zoneLock) _inIceZone = true;   // 初始化：自己在冰区
-        Dbg(sa, $"48399 初始指路：{guidePos.Value:F1}，标记自己在冰区");
-        sa.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement,
-            sa.WaypointDp(guidePos.Value, 3000, 0, "冰火交界初始指路"));
-    }
-
     // 圆环 2015243火 / 2015244水(视为冰属性) / 2015245雷：出现7s后AOE。
     [ScriptMethod(name: "BOSS4 - 元素圆环换区", eventType: EventTypeEnum.ObjectChanged, eventCondition: ["Operate:Add", "DataId:regex:^(201524[345])$"], suppress: 1000)]
-    public async void 元素圆环换区(Event evt, ScriptAccessory sa)
+    public void 元素圆环换区(Event evt, ScriptAccessory sa)
+    {
+        if (Is超魔(sa)) return;   // 普魔专用，超魔由下方方法处理（间隔更短）
+        if (元素创造中()) return;   // 元素创造期间由安全区指路接管
+        _ = 元素圆环换区核心(evt, sa, 5000);
+    }
+
+    private async Task 元素圆环换区核心(Event evt, ScriptAccessory sa, int waitMs)
     {
         if (!uint.TryParse(evt["DataId"], out var dataId)) return;
         var ringElement = dataId switch
@@ -740,70 +759,59 @@ public class TheForkedTowerMagic
         };
         Dbg(sa, $"圆环出现：{ringElement}({dataId})，7s后AOE");
 
-        await Task.Delay(5000);   // 还剩2s时判断
+        await Task.Delay(waitMs);
 
-        bool goIce;
-        lock (_zoneLock)
+        var sectors = 元素扇区中心();
+        if (sectors is null)
         {
-            var myElement = _inIceZone ? "冰" : "火";
-            if (ringElement != myElement)
-            {
-                Dbg(sa, $"圆环{ringElement}与自身{myElement}不同属性，忽略");
-                return;
-            }
-            goIce = !_inIceZone;      // 自己是冰去火，是火去冰
-            _inIceZone = goIce;       // 判定时刻立即更新计划区域，防止后续圆环读到旧值
-        }
-
-        var guidePos = 冰火交界指路点(sa, goIce);
-        if (guidePos is null)
-        {
-            Dbg(sa, $"圆环换区：火区/水区未记录，无法指路");
+            Dbg(sa, $"圆环换区：元素区未记录齐，无法判断");
             return;
-        }
-        Dbg(sa, $"圆环{ringElement}命中自身区域，指路换区到{(goIce ? "冰" : "火")}区：{guidePos.Value:F1}");
-        sa.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement,
-            sa.WaypointDp(guidePos.Value, 2000, 0, "冰火换区指路"));
-
-        sa.Method.TTS("穿", 3);
-        sa.Method.TextInfo("穿", 2000, false);
-        Dbg(sa, $"已换区：现在在{(goIce ? "冰" : "火")}区");
-    }
-
-    // 求冰火两区交界方向：取上下4种组合中夹角最小的相邻交界、离我最近的一处，向目标区偏10度，中心往外9m
-    private Vector3? 冰火交界指路点(ScriptAccessory sa, bool 靠近冰)
-    {
-        float fireRot, iceRot;
-        lock (_zoneLock)
-        {
-            if (_fireZoneRot is null || _waterZoneRot is null) return null;
-            fireRot = _fireZoneRot.Value;
-            iceRot = _waterZoneRot.Value;
         }
 
         var mePos = sa.Data.MyObject?.Position ?? Boss4中心;
         var meRad = MathF.Atan2(mePos.X - Boss4中心.X, mePos.Z - Boss4中心.Z);
-
-        List<(float Guide, float AbsDiff)> candidates = [];
-        foreach (var i in new[] { iceRot, iceRot + MathF.PI })
+        var mine = sectors.OrderBy(s => MathF.Abs(WrapPi(s.Rot - meRad))).First();
+        if (mine.Element != ringElement)
         {
-            foreach (var f in new[] { fireRot, fireRot + MathF.PI })
-            {
-                var diff = WrapPi(f - i);                 // 冰→火最短转角
-                var boundary = i + diff / 2f;
-                var bias = 10f * MathF.PI / 180f * MathF.Sign(diff);
-                var guide = 靠近冰 ? boundary - bias : boundary + bias;
-                candidates.Add((guide, MathF.Abs(diff)));
-            }
+            Dbg(sa, $"圆环{ringElement}，自己站在{mine.Element}区，忽略");
+            return;
         }
 
-        var minDiff = candidates.Min(c => c.AbsDiff);
-        var best = candidates
-            .Where(c => c.AbsDiff <= minDiff + 0.01f)
-            .OrderBy(c => MathF.Abs(WrapPi(c.Guide - meRad)))
-            .First();
+        // 自己区左右两条交界取离自己近的一条，向邻区偏10度，中心往外9m
+        var neighbors = sectors
+            .Where(s => s.Element != mine.Element)
+            .Select(s => (s.Element, Delta: WrapPi(s.Rot - mine.Rot)))
+            .ToList();
+        var pick = WrapPi(meRad - mine.Rot) >= 0
+            ? neighbors.Where(n => n.Delta > 0).OrderBy(n => n.Delta).First()
+            : neighbors.Where(n => n.Delta < 0).OrderByDescending(n => n.Delta).First();
+        var boundary = mine.Rot + pick.Delta / 2f;
+        var guide = boundary + 10f * MathF.PI / 180f * MathF.Sign(pick.Delta);
+        var guidePos = Boss4中心 + new Vector3(MathF.Sin(guide), 0, MathF.Cos(guide)) * 9f;
 
-        return Boss4中心 + new Vector3(MathF.Sin(best.Guide), 0, MathF.Cos(best.Guide)) * 9f;
+        var showMs = (uint)Math.Max(7000 - waitMs, 1000);
+        Dbg(sa, $"圆环{ringElement}命中所在区，指路穿到{pick.Element}区交界：{guidePos:F1}");
+        sa.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement,
+            sa.WaypointDp(guidePos, showMs, 0, "元素圆环穿区指路"));
+
+        sa.Method.TTS("穿", 3);
+        sa.Method.TextInfo("穿", (int)showMs, false);
+    }
+
+    // 6个扇区中心朝向（每元素上下各一个）；任一元素区未记录则返回null
+    private List<(float Rot, string Element)>? 元素扇区中心()
+    {
+        lock (_zoneLock)
+        {
+            if (_fireZoneRot is null || _waterZoneRot is null || _thunderZoneRot is null) return null;
+            List<(float Rot, string Element)> sectors = [];
+            foreach (var (rot, elem) in new[] { (_fireZoneRot.Value, "火"), (_waterZoneRot.Value, "冰"), (_thunderZoneRot.Value, "雷") })
+            {
+                sectors.Add((rot, elem));
+                sectors.Add((rot + MathF.PI, elem));
+            }
+            return sectors;
+        }
     }
 
     private static float WrapPi(float rad)
@@ -837,11 +845,11 @@ public class TheForkedTowerMagic
     }
 
     // 47640 绿头雷电赋格：9s，EffectPosition 月环 内15外60
-    [ScriptMethod(name: "超魔BOSS1 - 绿头雷电赋格", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:47632"])]
+    [ScriptMethod(name: "超魔BOSS1 - 绿头雷电赋格", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:47640"])]
     public void 超魔绿头雷电赋格(Event evt, ScriptAccessory sa)
     {
         var dp = sa.FastDp("超魔绿头雷电赋格", evt.EffectPosition(), 9000, new Vector2(60f));
-        dp.InnerScale = new Vector2(15f);
+        dp.InnerScale = new Vector2(18f);
         dp.Radian = float.Pi * 2;
         sa.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Donut, dp);
     }
@@ -916,7 +924,7 @@ public class TheForkedTowerMagic
     {
         var dp = sa.FastDp("双头恐惧", evt.TargetPosition, 7000, new Vector2(20f, 40f));
         dp.Rotation = evt.SourceRotation();
-        dp.ScaleMode = ScaleMode.ByTime;
+        // dp.ScaleMode = ScaleMode.ByTime;
         sa.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Rect, dp);
 
         var srcName = evt["SourceName"] ?? "";
@@ -1096,7 +1104,7 @@ public class TheForkedTowerMagic
     public void 超魔前雷电赋格(Event evt, ScriptAccessory sa)
     {
         var dp = sa.FastDp("超魔前雷电赋格", evt.EffectPosition(), 11000, new Vector2(60f));
-        dp.InnerScale = new Vector2(15f);
+        dp.InnerScale = new Vector2(18f);
         dp.Radian = float.Pi * 2;
         sa.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Donut, dp);
 
@@ -1120,7 +1128,7 @@ public class TheForkedTowerMagic
     {
         var dp = sa.FastDp("超魔后雷电赋格", evt.EffectPosition(), 4000, new Vector2(60f));
         dp.Delay = 7000;
-        dp.InnerScale = new Vector2(15f);
+        dp.InnerScale = new Vector2(18f);
         dp.Radian = float.Pi * 2;
         sa.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Donut, dp);
 
@@ -1138,6 +1146,41 @@ public class TheForkedTowerMagic
 
         触发魔法阵直线(sa, 小蓝头DataId, "后冰柱赋格", 7000, 4000);
     }
+
+    // —— 位移吐息：自己身上的status决定方向 ——
+    private static int B1位移吐息时长(uint actionId) => actionId == 50708 ? 6000 : 11000;
+
+    // SourceName判色（Green/绿 或 Blue/蓝）；统一只画最后3s，只有delay随读条长短不同
+    [ScriptMethod(name: "超魔BOSS1 - 位移吐息", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:regex:^5070[6-8]$"])]
+    public async void 超魔B1位移吐息(Event evt, ScriptAccessory sa)
+    {
+        var actionId = evt.ActionId();
+        const int duration = 3000;
+        await Task.Delay(B1位移吐息时长(actionId) - duration);
+
+        var me = sa.Data.MyObject;
+        if (me is null) return;
+
+        var srcName = evt["SourceName"] ?? "";
+        var isGreen = srcName.Contains("Green", StringComparison.OrdinalIgnoreCase) || srcName.Contains('绿');
+        var isBlue = srcName.Contains("Blue", StringComparison.OrdinalIgnoreCase) || srcName.Contains('蓝');
+
+        uint statusId = 0;
+        if (isBlue) statusId = me.HasStatus(5054) ? 5054u : me.HasStatus(5055) ? 5055u : 0u;
+        else if (isGreen) statusId = me.HasStatus(5052) ? 5052u : me.HasStatus(5053) ? 5053u : 0u;
+        if (statusId == 0)
+        {
+            Dbg(sa, $"位移吐息({actionId})：SourceName [{srcName}] 蓝{isBlue} 绿{isGreen}，无对应status，跳过");
+            return;
+        }
+
+        var isLeft = statusId is 5054 or 5052;
+        var pos = isLeft ? new Vector3(-880f, -980f, 700f) : new Vector3(-920f, -980f, 700f);
+        var rot = isLeft ? -MathF.PI / 2 : MathF.PI / 2;
+        Dbg(sa, $"位移吐息({actionId}+{statusId})：{(isBlue ? "蓝头" : "绿头")}向{(isLeft ? "左" : "右")}位移");
+        sa.Method.VfxMethod.CreateOmen(314, new Vector3(20f, 10f, 40f),
+            pos, rot, new Vector4(1f, 1f, 1f, 0.3f), duration);
+    }
     #endregion
 
     #region 超魔BOSS2
@@ -1150,7 +1193,7 @@ public class TheForkedTowerMagic
         {
             var dp = sa.FastDp($"超魔B2突进-{evt.SourceId()}-{tag}", evt.SourcePosition(), 3500, new Vector2(7f, 48f));
             dp.Rotation = evt.SourceRotation() + extraRot;
-            dp.ScaleMode = ScaleMode.ByTime;
+            // dp.ScaleMode = ScaleMode.ByTime;
             sa.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Rect, dp);
         }
     }
@@ -1194,7 +1237,7 @@ public class TheForkedTowerMagic
         Dbg(sa, $"突进(49616)：pos {evt.SourcePosition():F1} rot {evt.SourceRotation():F2}");
         var dp = sa.FastDp("突进", evt.SourcePosition(), 6000, new Vector2(6f, 30f));
         dp.Rotation = evt.SourceRotation();
-        dp.ScaleMode = ScaleMode.ByTime;
+        // dp.ScaleMode = ScaleMode.ByTime;
         sa.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Rect, dp);
     }
 
@@ -1475,6 +1518,18 @@ public class TheForkedTowerMagic
     }
     #endregion
 
+    #region 2.5
+    // 48848：12s，SourcePosition 20m危险圈
+    [ScriptMethod(name: "超魔2.5 - 不可见钢铁", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:48848"])]
+    public void 超魔25大圈(Event evt, ScriptAccessory sa)
+    {
+        Dbg(sa, $"2.5大圈(48848)：pos {evt.SourcePosition():F1}");
+        var dp = sa.FastDp($"2.5大圈-{evt.SourceId()}", evt.SourcePosition(), 12000, new Vector2(20f));
+        dp.ScaleMode = ScaleMode.ByTime;
+        sa.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Circle, dp);
+    }
+    #endregion
+
     #region 超魔BOSS3
     // 超魔boss 3
     [ScriptMethod(name: "超魔BOSS3 - 爆炎", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:regex:^(47490|47494)$"])]
@@ -1537,7 +1592,7 @@ public class TheForkedTowerMagic
 
         var dp = sa.FastDp($"灭亡射线-{srcId}", pos, 3000, new Vector2(6f, 30f));
         dp.Rotation = rot;
-        dp.ScaleMode = ScaleMode.ByTime;
+        // dp.ScaleMode = ScaleMode.ByTime;
         sa.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Rect, dp);
     }
 
@@ -1846,6 +1901,512 @@ public class TheForkedTowerMagic
         sa.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Fan, dp);
         Dbg(sa, $"鸳鸯锅#{idx + 1}：自己{(meBlue ? "蓝吃红" : "红吃蓝")}，安全半场在头{(去左 ? "左" : "右")}侧，显示{showDur}ms");
     }
+    #endregion
+
+    #region 超魔BOSS4
+
+    // —— 四连召唤·封印武器（48907/48909，13.2s读条）——
+    private readonly object _b4WeaponLock = new();
+    private readonly List<uint> _b4Weapons = [];   // 按StatusAdd顺序记录的武器statusId
+    private uint _b4BossId;
+
+    // 弓的钢铁不在boss/场中，而是三个固定点（盯准施法者位置）
+    private static readonly Vector3[] 盯准固定点 =
+    [
+        new(0.00f, -684.00f, -607.50f),
+        new(17.75f, -684.00f, -638.25f),
+        new(-17.75f, -684.00f, -638.25f),
+    ];
+
+    // 弓：三个固定点上各画一个11m钢铁，显示窗口相对StatusAdd为[delay, delay+duration]
+    private void 超魔B4画弓钢铁(ScriptAccessory sa, int k, uint delay, uint duration)
+    {
+        for (var i = 0; i < 盯准固定点.Length; i++)
+        {
+            var dp = sa.FastDp($"四连武器-{k + 1}-弓-{i}", 盯准固定点[i], duration, new Vector2(11f));
+            dp.Delay = delay;
+            sa.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Circle, dp);
+        }
+    }
+
+    [ScriptMethod(name: "超魔BOSS4 - 四连召唤开始", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:regex:^(48907|48909)$"], userControl: false)]
+    public void 超魔B4四连召唤开始(Event evt, ScriptAccessory sa)
+    {
+        lock (_b4WeaponLock)
+        {
+            _b4Weapons.Clear();
+            _b4BossId = evt.SourceId();
+        }
+        Dbg(sa, $"四连召唤({evt.ActionId()})：boss {_b4BossId:X8}，开始记录武器顺序");
+    }
+
+    [ScriptMethod(name: "超魔BOSS4 - 四连召唤武器", eventType: EventTypeEnum.StatusAdd, eventCondition: ["StatusID:regex:^(553[2-5])$"])]
+    public void 超魔B4四连召唤武器(Event evt, ScriptAccessory sa)
+    {
+        uint bossId;
+        int k;
+        lock (_b4WeaponLock)
+        {
+            bossId = _b4BossId;
+            if (bossId == 0 || evt.TargetId() != bossId) return;   // 只认四连召唤读条中boss身上的status
+            if (_b4Weapons.Contains(evt.StatusId)) return;
+            if (_b4Weapons.Count >= 4) return;
+            k = _b4Weapons.Count;
+            _b4Weapons.Add(evt.StatusId);
+        }
+
+        // 第k个武器：结算 = StatusAdd + 14400+300k ms；
+        // 显示窗口 = [上一个武器结算, 自己结算]（第一个武器获得status时立即显示）
+        var delay = (uint)(k == 0 ? 0 : 11100 + 300 * k);
+        var duration = (uint)(k == 0 ? 14400 : 3300);
+        var name = evt.StatusId switch { 5534u => "弓", 5533u => "刀", 5535u => "琴", _ => "铃铛" };
+        Dbg(sa, $"四连武器#{k + 1}：{name}({evt.StatusId})，{delay}ms后显示{duration}ms");
+
+        switch (evt.StatusId)
+        {
+            case 5534:   // 弓：三个固定点上各一个11m钢铁
+                超魔B4画弓钢铁(sa, k, delay, duration);
+                break;
+            case 5535:   // 琴：15m钢铁（同普魔琴）
+            {
+                var dp = sa.Data.GetDefaultDrawProperties();
+                dp.Name = $"四连武器-{k + 1}-{name}";
+                dp.Color = sa.Data.DefaultDangerColor;
+                dp.Owner = bossId;
+                dp.Delay = delay;
+                dp.DestoryAt = duration;
+                dp.Scale = new Vector2(15f);
+                sa.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Circle, dp);
+                break;
+            }
+            case 5532:   // 铃铛：正后/右前/左前 60度扇形（左前右前之间隔正面60度空隙）
+            case 5533:   // 刀：正面/左后/右后 60度扇形（左后右后之间隔正后60度空隙）
+            {
+                var dirs = evt.StatusId == 5532
+                    ? new[] { (MathF.PI, "正后"), (-MathF.PI / 3, "右前"), (MathF.PI / 3, "左前") }
+                    : new[] { (0f, "正面"), (2 * MathF.PI / 3, "左后"), (-2 * MathF.PI / 3, "右后") };
+                foreach (var (rot, tag) in dirs)
+                {
+                    var dp = sa.Data.GetDefaultDrawProperties();
+                    dp.Name = $"四连武器-{k + 1}-{name}-{tag}";
+                    dp.Color = sa.Data.DefaultDangerColor;
+                    dp.Owner = bossId;
+                    dp.Rotation = rot;
+                    dp.Radian = 60f * MathF.PI / 180f;
+                    dp.Delay = delay;
+                    dp.DestoryAt = duration;
+                    dp.Scale = new Vector2(30f);
+                    sa.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Fan, dp);
+                }
+                break;
+            }
+        }
+    }
+
+    // —— 元素展开（48399）——
+    // 圆环机制同普魔（出现约7s后AOE），但相邻圆环间隔缩短为约1.2~1.6s（普魔更长），
+    // 判定提前量从剩2s改为剩1.5s。普魔/超魔各自只触发自己的方法。
+    [ScriptMethod(name: "超魔BOSS4 - 元素圆环换区", eventType: EventTypeEnum.ObjectChanged, eventCondition: ["Operate:Add", "DataId:regex:^(201524[345])$"], suppress: 1000)]
+    public void 超魔B4元素圆环换区(Event evt, ScriptAccessory sa)
+    {
+        if (!Is超魔(sa)) return;   // 超魔专用
+        if (元素创造中()) return;   // 元素创造期间由安全区指路接管
+        _ = 元素圆环换区核心(evt, sa, 5500);
+    }
+
+    // —— 封印武器（单发，48384琴/48386弓）——
+    [ScriptMethod(name: "超魔BOSS4 - 封印武器", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:regex:^(4842[23])$"])]
+    public void 超魔B4封印武器(Event evt, ScriptAccessory sa)
+    {
+        var isHarp = evt.ActionId() == 48422;
+        var radius = isHarp ? 15f : 11f;
+        var pos = isHarp ? evt.EffectPosition() : evt.SourcePosition();
+        if (pos.Length() < 0.01f) pos = evt.SourcePosition();
+        Dbg(sa, $"封印武器-{(isHarp ? "琴" : "弓")}({evt.ActionId()})：pos {pos:F1} 半径 {radius}");
+
+        var dp = sa.FastDp($"超魔封印武器-{evt.SourceId()}", pos, 7000, new Vector2(radius));
+        dp.ScaleMode = ScaleMode.ByTime;
+        sa.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Circle, dp);
+    }
+
+    [ScriptMethod(name: "BOSS4 - 预言现象", eventType: EventTypeEnum.AddCombatant, eventCondition: ["DataId:19299"])]
+        public void 普魔B4预言现象(Event evt, ScriptAccessory sa) => _ = B4预言现象核心(evt, sa);
+
+    // —— 元素整合（48434，19.7s读条）——
+    // 读条期间分三轮每轮3个球AddCombatant（19971冰/19972火/19973雷，间隔约3.2s，出现约6s后爆炸）。
+    // 只在第一轮生成时：从场中朝每个球的方向画绿色60度60m扇形，持续6s。
+    private readonly object _b4IntegrateLock = new();
+    private bool _b4IntegrateArmed;
+    private readonly List<Vector3> _b4IntegrateBalls = [];
+
+    [ScriptMethod(name: "超魔BOSS4 - 元素整合开始", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:48434"], userControl: false)]
+    public void 超魔B4元素整合开始(Event evt, ScriptAccessory sa)
+    {
+        lock (_b4IntegrateLock)
+        {
+            _b4IntegrateArmed = true;
+            _b4IntegrateBalls.Clear();
+        }
+        Dbg(sa, "元素整合(48434)：等待第一轮元素球");
+    }
+
+    [ScriptMethod(name: "超魔BOSS4 - 元素整合首轮标记", eventType: EventTypeEnum.AddCombatant, eventCondition: ["DataId:regex:^(1997[1-3])$"])]
+    public void 超魔B4元素整合首轮标记(Event evt, ScriptAccessory sa)
+    {
+        var pos = evt.SourcePosition();
+        int idx;
+        lock (_b4IntegrateLock)
+        {
+            if (!_b4IntegrateArmed) return;                          // 只标记第一轮
+            if (_b4IntegrateBalls.Any(p => DistXZ(p, pos) <= 1f)) return;   // 复读事件去重
+            idx = _b4IntegrateBalls.Count;
+            _b4IntegrateBalls.Add(pos);
+            if (_b4IntegrateBalls.Count >= 3) _b4IntegrateArmed = false;
+        }
+
+        var rot = MathF.Atan2(pos.X - Boss4中心.X, pos.Z - Boss4中心.Z);
+        Dbg(sa, $"元素整合首轮球#{idx + 1}：DataId {evt["DataId"]} pos {pos:F1} rot {rot:F2}");
+
+        var dp = sa.FastDp($"元素整合首轮-{idx + 1}", Boss4中心, 6000, new Vector2(60f));
+        dp.Color = new Vector4(0f, 1f, 0f, 1f);
+        dp.Rotation = rot;
+        dp.Radian = 60f * MathF.PI / 180f;
+        sa.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Fan, dp);
+    }
+
+    // —— 魔法剑·石化（48444本体/48445分身，4.7s读条）——
+    // 第0~3跳沿读条朝向直线前进、每跳6m；第3~5跳绕场中转弯、每跳40°（第4跳半径9、第5跳半径同第3跳）；
+    // 第5~8跳沿(朝向∓60°)直线离场、每跳6m。
+    // 转弯方向由起点车道相对场中的偏移决定：朝向×(场中-起点)叉积为负则+40°/-60°，为正则镜像。
+    // 读条开始即可排程全部9跳，每跳显示结算前4s。
+    private const float 石化地火半径 = 6f;
+    private const int 石化跳间隔 = 2000;
+    private const int 石化起爆时间 = 5000;   // 读条开始到第0跳起爆
+
+    [ScriptMethod(name: "超魔BOSS4 - 石化地火", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:48445"])]
+    public void 超魔B4石化地火(Event evt, ScriptAccessory sa)
+    {
+        var sid = evt.SourceId();
+        var p0 = evt.SourcePosition();
+        var rot = evt.SourceRotation();
+        var v = new Vector3(MathF.Sin(rot), 0, MathF.Cos(rot));
+
+        // 场中在行进方向的哪一侧决定转弯方向
+        var wx = Boss4中心.X - p0.X;
+        var wz = Boss4中心.Z - p0.Z;
+        var dir = v.X * wz - v.Z * wx < 0 ? 1 : -1;
+
+        var nodes = new Vector3[9];
+        for (var k = 0; k <= 3; k++)
+            nodes[k] = p0 + v * (6f * k);
+
+        var a3 = MathF.Atan2(nodes[3].X - Boss4中心.X, nodes[3].Z - Boss4中心.Z);
+        var r3 = DistXZ(nodes[3], Boss4中心);
+        var turn = 40f * MathF.PI / 180f * dir;
+        nodes[4] = Boss4中心 + new Vector3(MathF.Sin(a3 + turn), 0, MathF.Cos(a3 + turn)) * 9f;
+        nodes[5] = Boss4中心 + new Vector3(MathF.Sin(a3 + 2 * turn), 0, MathF.Cos(a3 + 2 * turn)) * r3;
+
+        var outHeading = rot - dir * 60f * MathF.PI / 180f;
+        var v2 = new Vector3(MathF.Sin(outHeading), 0, MathF.Cos(outHeading));
+        for (var k = 6; k <= 8; k++)
+            nodes[k] = nodes[5] + v2 * (6f * (k - 5));
+
+        Dbg(sa, $"石化地火(48445)：src {sid:X8} 起点 {p0:F1} rot {rot:F2} 转向{(dir > 0 ? "+" : "-")}，" +
+                $"终点 {nodes[8]:F1}");
+
+        for (var k = 0; k < nodes.Length; k++)
+        {
+            nodes[k].Y = p0.Y;
+            var resolve = 石化起爆时间 + k * 石化跳间隔;
+            var delay = (uint)Math.Max(resolve - 4000, 0);
+            var dp = sa.FastDp($"石化地火-{sid}-{k}", nodes[k], (uint)(resolve - delay), new Vector2(石化地火半径));
+            dp.Delay = delay;
+            sa.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Circle, dp);
+        }
+    }
+
+    // —— 全斩（48455，8.7s读条，12个小目录分三批释放）——
+    private readonly object _b4ZenzanLock = new();
+    private long _b4ZenzanFirstAt;
+
+    [ScriptMethod(name: "超魔BOSS4 - 全斩", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:48455"])]
+    public void 超魔B4全斩(Event evt, ScriptAccessory sa)
+    {
+        var now = Environment.TickCount64;
+        long offset;
+        lock (_b4ZenzanLock)
+        {
+            if (now - _b4ZenzanFirstAt > 15000) _b4ZenzanFirstAt = now;   // 新一轮机制
+            offset = now - _b4ZenzanFirstAt;
+        }
+        var delay = (uint)(offset < 1000 ? 0 : Math.Max(7950 - offset, 0));
+        var duration = (uint)(8950 - delay);
+
+        var rot = float.TryParse(evt["TargetRotation"], out var tr) ? tr : evt.SourceRotation();
+        Dbg(sa, $"全斩(48455)：src {evt.SourceId():X8} offset {offset}ms，{delay}ms后显示{duration}ms");
+
+        var dp = sa.FastDp($"全斩-{evt.SourceId()}", evt.EffectPosition(), duration, new Vector2(8f, 15f));
+        dp.Rotation = rot;
+        dp.Delay = delay;
+        sa.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Rect, dp);
+    }
+
+    // VfxEvent 671去火 / 670去雷 / 672去水
+    [ScriptMethod(name: "超魔BOSS4 - 属性点名指路", eventType: EventTypeEnum.VfxEvent, eventCondition: ["Id:regex:^(67[0-2])$"])]
+    public void 超魔B4属性点名指路(Event evt, ScriptAccessory sa)
+    {
+        if (evt.SourceId() != sa.Data.Me) return;
+        var element = evt["Id"] switch { "671" => "火", "670" => "雷", _ => "冰" };
+        var word = element == "冰" ? "去水" : $"去{element}";
+        Dbg(sa, $"属性点名(VfxEvent {evt["Id"]})：{word}");
+
+        sa.Method.TTS(word, 3);
+        sa.Method.TextInfo(word, 5000, false);
+
+        var sectors = 元素扇区中心();
+        if (sectors is null)
+        {
+            Dbg(sa, $"属性点名：元素区未记录齐，只播报不指路");
+            return;
+        }
+
+        // 上下两个同属性扇区取离自己近的一个，指路到该扇区中心方向往外9m
+        var mePos = sa.Data.MyObject?.Position ?? Boss4中心;
+        var meRad = MathF.Atan2(mePos.X - Boss4中心.X, mePos.Z - Boss4中心.Z);
+        var target = sectors
+            .Where(s => s.Element == element)
+            .OrderBy(s => MathF.Abs(WrapPi(s.Rot - meRad)))
+            .First();
+        var guidePos = Boss4中心 + new Vector3(MathF.Sin(target.Rot), 0, MathF.Cos(target.Rot)) * 9f;
+
+        Dbg(sa, $"属性点名：{word}，指路 {guidePos:F1}");
+        sa.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement,
+            sa.WaypointDp(guidePos, 5000, 3000, "属性点名指路"));
+    }
+
+    // —— 元素创造（48400）——
+    private readonly object _b4CreationLock = new();
+    private long _b4CreationUntil;
+    private readonly Dictionary<string, float> _b4CreationLineAxis = [];   // 元素→直线轴角[0,π)
+    private List<string>? _b4CreationLineOrder;                            // 本波直线结算顺序
+    private int _b4CreationRound;
+    private float? _b4CreationPrevSafeRot;
+
+    private bool 元素创造中()
+    {
+        lock (_b4CreationLock) return Environment.TickCount64 < _b4CreationUntil;
+    }
+
+    [ScriptMethod(name: "超魔BOSS4 - 元素创造开始", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:48400"], userControl: false)]
+    public void 超魔B4元素创造开始(Event evt, ScriptAccessory sa)
+    {
+        if (!Is超魔(sa)) return;
+        lock (_b4CreationLock)
+        {
+            _b4CreationUntil = Environment.TickCount64 + 60000;
+            _b4CreationLineAxis.Clear();
+            _b4CreationLineOrder = null;
+            _b4CreationRound = 0;
+            _b4CreationPrevSafeRot = null;
+        }
+        Dbg(sa, "元素创造(48400)：进入元素创造模式60s");
+    }
+
+    [ScriptMethod(name: "超魔BOSS4 - 元素创造直线记录", eventType: EventTypeEnum.AddCombatant, eventCondition: ["DataId:regex:^(1930[89]|19310)$"], userControl: false)]
+    public void 超魔B4元素创造直线记录(Event evt, ScriptAccessory sa)
+    {
+        if (!元素创造中()) return;
+        if (!uint.TryParse(evt["DataId"], out var dataId)) return;
+        var elem = dataId switch { 19308u => "冰", 19309u => "火", _ => "雷" };
+        var pos = evt.SourcePosition();
+        var axis = MathF.Atan2(pos.X - Boss4中心.X, pos.Z - Boss4中心.Z);
+        axis = (axis % MathF.PI + MathF.PI) % MathF.PI;   // 直线上下对称，取[0,π)
+
+        lock (_b4CreationLock)
+        {
+            // 上一波3轮已用完，收到新直线说明第二波开始：清空重记
+            if (_b4CreationRound >= 3)
+            {
+                _b4CreationLineAxis.Clear();
+                _b4CreationLineOrder = null;
+                _b4CreationRound = 0;
+            }
+            if (!_b4CreationLineAxis.TryAdd(elem, axis)) return;   // 同元素成对出现，只记第一个
+        }
+        Dbg(sa, $"元素创造直线：{elem} 轴角 {axis * 180f / MathF.PI:F1}°");
+    }
+
+    [ScriptMethod(name: "超魔BOSS4 - 元素创造安全区", eventType: EventTypeEnum.ObjectChanged, eventCondition: ["Operate:Add", "DataId:regex:^(201524[345])$"], suppress: 1000)]
+    public void 超魔B4元素创造安全区(Event evt, ScriptAccessory sa)
+    {
+        if (!元素创造中()) return;
+        if (!uint.TryParse(evt["DataId"], out var dataId)) return;
+        var ringElem = dataId switch { 2015243u => "火", 2015244u => "冰", _ => "雷" };
+
+        Dictionary<string, float> zoneRots;
+        lock (_zoneLock)
+        {
+            if (_fireZoneRot is null || _waterZoneRot is null || _thunderZoneRot is null)
+            {
+                Dbg(sa, "元素创造安全区：元素区未记录齐，跳过");
+                return;
+            }
+            zoneRots = new Dictionary<string, float>
+            {
+                ["火"] = _fireZoneRot.Value,
+                ["冰"] = _waterZoneRot.Value,
+                ["雷"] = _thunderZoneRot.Value,
+            };
+        }
+
+        string lineElem;
+        int round;
+        lock (_b4CreationLock)
+        {
+            if (_b4CreationLineOrder is null)
+            {
+                if (_b4CreationLineAxis.Count < 3)
+                {
+                    Dbg(sa, "元素创造安全区：直线未记录齐，跳过");
+                    return;
+                }
+                // 顺时针旋转 = 轴角减小，转到同属性区的角度 = (直线轴角-区轴角) mod π，小者先结算
+                _b4CreationLineOrder = _b4CreationLineAxis
+                    .OrderBy(kv => ((kv.Value - zoneRots[kv.Key]) % MathF.PI + MathF.PI) % MathF.PI)
+                    .Select(kv => kv.Key)
+                    .ToList();
+                Dbg(sa, $"元素创造直线结算顺序：{string.Join("→", _b4CreationLineOrder)}");
+            }
+            if (_b4CreationRound >= 3) return;   // 本波已结束，等下一波直线重置
+            round = _b4CreationRound++;
+            lineElem = _b4CreationLineOrder[round];
+        }
+
+        var safeElem = new[] { "火", "冰", "雷" }.First(e => e != ringElem && e != lineElem);
+
+        // 安全元素上下两块扇区：首轮取离自己近的，之后取上一块逆时针(角度增加)方向最近的
+        var zr = zoneRots[safeElem];
+        float[] candidates = [zr, zr + MathF.PI];
+        float safeRot;
+        lock (_b4CreationLock)
+        {
+            if (_b4CreationPrevSafeRot is null)
+            {
+                var mePos = sa.Data.MyObject?.Position ?? Boss4中心;
+                var meRad = MathF.Atan2(mePos.X - Boss4中心.X, mePos.Z - Boss4中心.Z);
+                safeRot = candidates.OrderBy(c => MathF.Abs(WrapPi(c - meRad))).First();
+            }
+            else
+            {
+                var prev = _b4CreationPrevSafeRot.Value;
+                safeRot = candidates
+                    .OrderBy(c => ((c - prev) % (2 * MathF.PI) + 2 * MathF.PI) % (2 * MathF.PI))
+                    .First();
+            }
+            _b4CreationPrevSafeRot = safeRot;
+        }
+
+        // 本轮环出现时上一轮还有约2.4s判定(6.8-4.4)：非首轮延迟到上一轮判定后再显示
+        var delay = (uint)(round == 0 ? 0 : 2400);
+        var duration = 6800u - delay;
+        Dbg(sa, $"元素创造第{round + 1}轮：环{ringElem}+线{lineElem}，安全={safeElem}，" +
+                $"扇区角 {safeRot * 180f / MathF.PI:F0}°，{delay}ms后显示{duration}ms");
+
+        var dp = sa.FastDp($"元素创造安全区-{round}", Boss4中心, duration, new Vector2(24f), safe: true);
+        dp.Rotation = safeRot;
+        dp.Radian = 60f * MathF.PI / 180f;
+        dp.Delay = delay;
+        sa.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Fan, dp);
+
+        var guidePos = Boss4中心 + new Vector3(MathF.Sin(safeRot), 0, MathF.Cos(safeRot)) * 9f;
+        sa.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement,
+            sa.WaypointDp(guidePos, duration, delay, $"元素创造安全区指路-{round}"));
+    }
+
+    // —— 预言（48412）——
+    private const uint 幻影DataId = 19311;
+    private const int 预言结算时间 = 9700;   // 预言现象出现到结算
+
+    [ScriptMethod(name: "超魔BOSS4 - 预言现象", eventType: EventTypeEnum.AddCombatant, eventCondition: ["DataId:19307"])]
+    public void 超魔B4预言现象(Event evt, ScriptAccessory sa) => _ = B4预言现象核心(evt, sa);
+
+    private async Task B4预言现象核心(Event evt, ScriptAccessory sa)
+    {
+        var oid = evt.SourceId();
+        var spawnPos = evt.SourcePosition();
+        var startAt = Environment.TickCount64;
+
+        // 等状态附加后读球上的2552：1101钢铁 / 1100月环
+        var param = 0;
+        while (param == 0 && Environment.TickCount64 - startAt < 4000)
+        {
+            await Task.Delay(300);
+            if (sa.Data.Objects.SearchById(oid) is not IBattleChara orb) return;
+            foreach (var s in orb.StatusList)
+            {
+                if (s.StatusId != 2552 || (s.Param != 1100 && s.Param != 1101)) continue;
+                param = s.Param;
+                break;
+            }
+        }
+        if (param == 0)
+        {
+            Dbg(sa, $"预言现象 {oid:X8}：未读到2552(1100/1101)，跳过");
+            return;
+        }
+        var isDonut = param == 1100;
+        Dbg(sa, $"预言现象 {oid:X8}：{(isDonut ? "月环" : "钢铁")}，等待飘移判向");
+
+        // 5s后开始飘移：6s起每0.3s取实时位置，飘出0.7m即可判定目标幻影
+        var wait = 6000 - (int)(Environment.TickCount64 - startAt);
+        if (wait > 0) await Task.Delay(wait);
+
+        while (Environment.TickCount64 - startAt < 预言结算时间 - 700)
+        {
+            if (sa.Data.Objects.SearchById(oid) is not { } orbObj) return;
+            var moved = orbObj.Position - spawnPos;
+            moved.Y = 0;
+            if (moved.Length() >= 0.7f)
+            {
+                var phantom = sa.Data.Objects
+                    .Where(o => o != null && o.DataId == 幻影DataId)
+                    .OrderByDescending(o =>
+                    {
+                        var to = o.Position - spawnPos;
+                        to.Y = 0;
+                        return to.Length() < 0.1f ? float.MinValue
+                            : Vector3.Dot(Vector3.Normalize(moved), Vector3.Normalize(to));
+                    })
+                    .FirstOrDefault();
+                if (phantom is null)
+                {
+                    Dbg(sa, $"预言现象 {oid:X8}：场上找不到幻影(19311)，跳过");
+                    return;
+                }
+
+                var remain = (uint)Math.Max(预言结算时间 - (Environment.TickCount64 - startAt), 1000);
+                Dbg(sa, $"预言现象 {oid:X8}：目标幻影 {phantom.EntityId:X8} pos {phantom.Position:F1}，" +
+                        $"{(isDonut ? "月环" : "钢铁")}显示{remain}ms");
+
+                if (isDonut)
+                {
+                    var dp = sa.FastDp($"预言月环-{oid:X8}", phantom.Position, remain, new Vector2(15f));
+                    dp.InnerScale = new Vector2(5f);
+                    dp.Radian = float.Pi * 2;
+                    sa.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Donut, dp);
+                }
+                else
+                {
+                    var dp = sa.FastDp($"预言钢铁-{oid:X8}", phantom.Position, remain, new Vector2(10f));
+                    sa.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Circle, dp);
+                }
+                return;
+            }
+            await Task.Delay(300);
+        }
+        Dbg(sa, $"预言现象 {oid:X8}：到结算前仍未观测到飘移，跳过");
+    }
+
     #endregion
 }
 
