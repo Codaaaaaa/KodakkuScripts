@@ -23,9 +23,9 @@ namespace Codaaaaaa.TheForkedTowerMagic;
     guid: "45819e25-cb2d-4d84-a508-f110dc6a381a",
     name: "魔之塔画图",
     territorys: [1346],
-    version: "0.0.1.0",
+    version: "0.0.1.1",
     author: "Codaaaaaa",
-    note: "0.0.1.0\n写完喽\n\n0.0.0.8\n更新超魔Boss3\n\n0.0.0.7\n更新超魔Boss2\n\n0.0.0.5\n修了老二的月环钢铁")]
+    note: "写完喽，还有电的可以在频道里圈我\n\n感谢铁虎老大的帮助\n感谢Yatel老大和洋葱炒米老大的arr")]
 public class TheForkedTowerMagic
 {
     #region 用户设置
@@ -969,7 +969,9 @@ public class TheForkedTowerMagic
     private readonly object _conduitLock = new();
     private readonly List<(bool IsThunder, Vector3 Pos, float Rot)> _conduitBalls = [];   // 19487导流雷球 / 19488导流冰球
     private readonly Dictionary<uint, bool> _mahjongTethers = [];                         // Tether 019B：TargetId → 是否绿头(雷)
-    private readonly List<(bool IsGreen, Vector3 Pos, int Index)> _mahjongMarks = [];     // 麻将点名记录：头颜色/点名者位置/麻将几
+    private readonly List<(bool IsGreen, Vector3 Pos, int Index, long At)> _mahjongMarks = [];   // 麻将点名记录：头颜色/点名者位置/麻将几
+    private readonly List<(Vector3 Pos, float Rot, long At)> _mahjongR1Fans = [];         // 麻将1轮命中的导流球扇形，用于四点安全区判断
+    private static readonly Vector3 麻将中心 = new(-900f, -980f, 700f);                    // 麻将四点指路：中心±5四角
 
     // AddCombatant 19487导流雷球 / 19488导流冰球：记录属性、SourcePos、SourceRotation
     [ScriptMethod(name: "超魔BOSS1 - 导流球记录", eventType: EventTypeEnum.AddCombatant, eventCondition: ["DataId:regex:^(1948[78])$"], userControl: false)]
@@ -1031,7 +1033,11 @@ public class TheForkedTowerMagic
 
         var obj = sa.Data.Objects.SearchById(sid);
         var pos = obj?.Position ?? evt.SourcePosition();
-        lock (_conduitLock) _mahjongMarks.Add((isGreen, pos, index));
+        lock (_conduitLock)
+        {
+            _mahjongMarks.RemoveAll(m => Environment.TickCount64 - m.At > 60000);
+            _mahjongMarks.Add((isGreen, pos, index, Environment.TickCount64));
+        }
         Dbg(sa, $"麻将{index}记录：{(isGreen ? "绿(雷)" : "蓝(冰)")} {sid:X8} pos {pos:F1}");
 
         if (delayMs > 0) await Task.Delay(delayMs);
@@ -1049,6 +1055,13 @@ public class TheForkedTowerMagic
         }
         Dbg(sa, $"麻将{index}：命中导流{(isGreen ? "雷" : "冰")}球 {hit.Count} 个");
 
+        if (index == 1)
+            lock (_conduitLock)
+            {
+                _mahjongR1Fans.RemoveAll(f => Environment.TickCount64 - f.At > 60000);
+                _mahjongR1Fans.AddRange(hit.Select(h => (h.Pos, h.Rot, Environment.TickCount64)));
+            }
+
         for (var i = 0; i < hit.Count; i++)
         {
             var fan = sa.FastDp($"麻将{index}扇形-{i}", hit[i].Pos, duration, new Vector2(60f));
@@ -1057,6 +1070,88 @@ public class TheForkedTowerMagic
             // fan.ScaleMode = ScaleMode.ByTime;
             sa.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Fan, fan);
         }
+    }
+
+    // —— 麻将四点指路 ——
+    [ScriptMethod(name: "超魔BOSS1 - 麻将指路", eventType: EventTypeEnum.TargetIcon, eventCondition: ["Id:02D3"], userControl: false, suppress: 5000)]
+    public async void 超魔麻将指路(Event evt, ScriptAccessory sa)
+    {
+        List<(bool IsGreen, Vector3 Pos, int Index, long At)> marks = [];
+        for (var i = 0; i < 30 && marks.Count == 0; i++)
+        {
+            lock (_conduitLock)
+            {
+                var now = Environment.TickCount64;
+                var fresh = _mahjongMarks.Where(m => now - m.At < 30000).ToList();
+                if (fresh.Count(m => m.Index == 1) >= 2 && fresh.Count(m => m.Index == 2) >= 2) marks = fresh;
+            }
+            if (marks.Count == 0) await Task.Delay(100);
+        }
+        if (marks.Count == 0)
+        {
+            Dbg(sa, "麻将指路：3s内麻将1/2点名记录不齐，跳过");
+            return;
+        }
+
+        List<(Vector3 Pos, float Rot)> fans;
+        lock (_conduitLock)
+            fans = _mahjongR1Fans.Where(f => Environment.TickCount64 - f.At < 30000)
+                .Select(f => (f.Pos, f.Rot)).ToList();
+
+        var r1 = marks.Where(m => m.Index == 1).ToList();
+        var r2 = marks.Where(m => m.Index == 2).ToList();
+
+        // 首轮安全角 = 不被麻将1的15m圈覆盖、也不在其扇形(60m/50°)内的那个角
+        Vector2[] cornerVecs = [new(-5, -5), new(5, -5), new(-5, 5), new(5, 5)];
+        Vector3 角点(Vector2 v) => 麻将中心 + new Vector3(v.X, 0, v.Y);
+        string 角名(Vector2 v) => (v.X < 0 ? "左" : "右") + (v.Y < 0 ? "上" : "下");
+        bool Covered(Vector3 c) =>
+            r1.Any(m => DistXZ(m.Pos, c) <= 15f) ||
+            fans.Any(f => DistXZ(f.Pos, c) <= 60f &&
+                          MathF.Abs(WrapPi(MathF.Atan2(c.X - f.Pos.X, c.Z - f.Pos.Z) - f.Rot)) <= 25f * MathF.PI / 180f);
+        var safeVecs = cornerVecs.Where(v => !Covered(角点(v))).ToList();
+        if (safeVecs.Count == 0)
+        {
+            Dbg(sa, $"麻将指路：四角全被覆盖（圈{r1.Count} 扇{fans.Count}），跳过");
+            return;
+        }
+        if (safeVecs.Count > 1)
+            Dbg(sa, $"麻将指路：安全角不唯一({string.Join("/", safeVecs.Select(角名))})，取第一个");
+        var v1 = safeVecs[0];
+
+        // 同色点名左右是否换边；两色判定不一致时以绿头为准
+        bool? 换边(bool green)
+        {
+            var a = r1.Where(m => m.IsGreen == green).ToList();
+            var b = r2.Where(m => m.IsGreen == green).ToList();
+            if (a.Count == 0 || b.Count == 0) return null;
+            return (a[^1].Pos.X < 麻将中心.X) != (b[^1].Pos.X < 麻将中心.X);
+        }
+        var 绿换 = 换边(true);
+        var 蓝换 = 换边(false);
+        if (绿换 is null && 蓝换 is null)
+        {
+            Dbg(sa, "麻将指路：两色点名记录不全，无法判断交叉/平行，跳过");
+            return;
+        }
+        if (绿换 is not null && 蓝换 is not null && 绿换 != 蓝换)
+            Dbg(sa, $"麻将指路：两色换边判定不一致 绿{绿换} 蓝{蓝换}，以绿头为准");
+        var 交叉 = 绿换 ?? 蓝换!.Value;
+
+        // 交叉→左右翻，平行→前后翻；叉积定顺逆，之后按同向每轮转90°
+        var v2 = 交叉 ? new Vector2(-v1.X, v1.Y) : new Vector2(v1.X, -v1.Y);
+        var cw = v1.X * v2.Y - v1.Y * v2.X > 0;
+        Vector2 下一角(Vector2 v) => cw ? new Vector2(-v.Y, v.X) : new Vector2(v.Y, -v.X);
+        var v3 = 下一角(v2);
+        var v4 = 下一角(v3);
+
+        Dbg(sa, $"麻将指路：{(交叉 ? "交叉" : "平行")}，{角名(v1)}→{角名(v2)}→{角名(v3)}→{角名(v4)}，{(cw ? "顺" : "逆")}时针");
+        sa.Method.TextInfo($"初始安全区{角名(v1)}，{(cw ? "顺" : "逆")}时针跑", 15000, false);
+
+        (Vector2 V, uint Dur, uint Delay)[] wps = [(v1, 12500, 0), (v2, 4000, 12500), (v3, 4000, 16500), (v4, 4000, 20500)];
+        for (var i = 0; i < wps.Length; i++)
+            sa.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement,
+                sa.WaypointDp(角点(wps[i].V), wps[i].Dur, wps[i].Delay, $"麻将指路-{i + 1}"));
     }
 
     // 赋格触发对应属性魔法阵(19490绿=雷/19491蓝=冰)：正反两个rect 60长5宽，只清除被影响颜色的记录
@@ -1180,6 +1275,57 @@ public class TheForkedTowerMagic
         Dbg(sa, $"位移吐息({actionId}+{statusId})：{(isBlue ? "蓝头" : "绿头")}向{(isLeft ? "左" : "右")}位移");
         sa.Method.VfxMethod.CreateOmen(314, new Vector3(20f, 10f, 40f),
             pos, rot, new Vector4(1f, 1f, 1f, 0.3f), duration);
+    }
+
+    // —— 十字/月环连招预告 ——
+    // 绿头47671~47674 / 蓝头47675~47678，各自含两轮：两次十字/两次月环/十字月环/月环十字。
+    // 先读条的头占第1、3轮，后读条的头占第2、4轮，两头都到齐后TextInfo汇总四轮。
+    // 自己带哪个头的位移吐息buff(绿5052/5053、蓝5054/5055)，该头的轮次前加[击退]
+    private readonly object _b1ComboLock = new();
+    private (bool IsGreen, string[] Skills, long At)? _b1ComboFirst;
+
+    [ScriptMethod(name: "超魔BOSS1 - 十字月环连招预告", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:regex:^4767[1-8]$"])]
+    public void 超魔B1十字月环预告(Event evt, ScriptAccessory sa)
+    {
+        var actionId = evt.ActionId();
+        var isGreen = actionId <= 47674;
+        string[] skills = (actionId - (isGreen ? 47671u : 47675u)) switch
+        {
+            0 => ["十字", "十字"],
+            1 => ["月环", "月环"],
+            2 => ["十字", "月环"],
+            _ => ["月环", "十字"],
+        };
+
+        (bool IsGreen, string[] Skills, long At) first;
+        lock (_b1ComboLock)
+        {
+            var now = Environment.TickCount64;
+            // 没有先手记录、记录过期、或同一头重复读条：当作本波先手，等另一头
+            if (_b1ComboFirst is not { } f || now - f.At > 30000 || f.IsGreen == isGreen)
+            {
+                _b1ComboFirst = (isGreen, skills, now);
+                Dbg(sa, $"十字月环({actionId})：{(isGreen ? "绿" : "蓝")}头先手 {skills[0]}+{skills[1]}，等另一头");
+                return;
+            }
+            first = f;
+            _b1ComboFirst = null;
+        }
+
+        var me = sa.Data.MyObject;
+        var 绿击退 = me is not null && (me.HasStatus(5052) || me.HasStatus(5053));
+        var 蓝击退 = me is not null && (me.HasStatus(5054) || me.HasStatus(5055));
+        string Mark(bool green, string skill) => (green ? 绿击退 : 蓝击退) ? $"[击退]{skill}" : skill;
+
+        var text = string.Join("→", new[]
+        {
+            Mark(first.IsGreen, first.Skills[0]),
+            Mark(isGreen, skills[0]),
+            Mark(first.IsGreen, first.Skills[1]),
+            Mark(isGreen, skills[1]),
+        });
+        Dbg(sa, $"十字月环({actionId})：{(isGreen ? "绿" : "蓝")}头后手，汇总 {text}");
+        sa.Method.TextInfo(text, 20000, false);
     }
     #endregion
 
