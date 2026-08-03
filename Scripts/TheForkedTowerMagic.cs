@@ -23,7 +23,7 @@ namespace Codaaaaaa.TheForkedTowerMagic;
     guid: "45819e25-cb2d-4d84-a508-f110dc6a381a",
     name: "魔之塔画图",
     territorys: [1346],
-    version: "0.0.1.1",
+    version: "0.0.1.2",
     author: "Codaaaaaa",
     note: "写完喽，还有电的可以在频道里圈我\n\n感谢铁虎老大的帮助\n感谢Yatel老大和洋葱炒米老大的arr")]
 public class TheForkedTowerMagic
@@ -1825,6 +1825,7 @@ public class TheForkedTowerMagic
     // —— 魔具联动：黑暗奔流 三连 ——
     private readonly object _b3联动Lock = new();
     private readonly Dictionary<uint, uint> _b3屏障头属性 = [];   // 屏障头Id → 属性Param(1114火/1115冰/1116雷)
+    private readonly List<uint> _b3奔流顺序 = [];                 // 三波2552属性的接收顺序，集齐后播报
     private int _b3奔流波次;                                      // 已收到的2552个数(只取前三)
     private bool _b3联动就绪;                                     // 47507读条开始→true，期间的2552才触发绘制
 
@@ -1847,13 +1848,19 @@ public class TheForkedTowerMagic
 
         int wave;
         List<uint> heads;
+        string? order = null;
         lock (_b3联动Lock)
         {
             if (!_b3联动就绪) return;       // 非联动期间的2552(如47490/47491/47492读条伴随)，忽略
             if (_b3奔流波次 >= 3) return;   // 每波结算时的重复Add，忽略
             wave = _b3奔流波次++;
+            _b3奔流顺序.Add(elem);
+            if (_b3奔流波次 == 3) order = string.Join("→", _b3奔流顺序.Select(B3属性名));
             heads = _b3屏障头属性.Where(kv => kv.Value == elem).Select(kv => kv.Key).ToList();
         }
+
+        // 集齐三个属性后播报结算顺序（如"冰→雷→火"），持续到第三波结算
+        if (order != null) sa.Method.TextInfo(order, 18000, false);
 
         uint[] durations = [8900, 13600, 18100];   // 自己的2552到本波结算
         uint[] delays = [0, 8900, 13600];          // 第2/3波延后开画
@@ -1940,6 +1947,7 @@ public class TheForkedTowerMagic
         {
             _b3联动就绪 = true;
             _b3奔流波次 = 0;
+            _b3奔流顺序.Clear();
         }
     }
 
@@ -1951,6 +1959,7 @@ public class TheForkedTowerMagic
         {
             _b3联动就绪 = false;
             _b3奔流波次 = 0;
+            _b3奔流顺序.Clear();
         }
     }
 
@@ -1963,6 +1972,7 @@ public class TheForkedTowerMagic
             _b3联动就绪 = false;
             _b3屏障头属性.Clear();
             _b3奔流波次 = 0;
+            _b3奔流顺序.Clear();
         }
     }
 
