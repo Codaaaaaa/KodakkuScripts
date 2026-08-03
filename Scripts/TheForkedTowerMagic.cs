@@ -1185,17 +1185,46 @@ public class TheForkedTowerMagic
 
     #region 超魔BOSS2
 
-    // 49622：3.5s
+    private readonly object _b2ChargeLock = new();
+    private readonly List<(uint Sid, Vector3 Pos, float Rot, long At)> _b2剑Casts = [];   // 49645秘法剑读条记录，用于突进配对
+
+    private static float AngleDiff(float a, float b) => MathF.Abs(MathF.Atan2(MathF.Sin(a - b), MathF.Cos(a - b)));
+
+    // 49622：3.5s。若有面向刚好相对的秘法剑(49645)读条者，长度=到它的距离-4，否则48
     [ScriptMethod(name: "超魔BOSS2 - 突进", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:49622"])]
-    public void 超魔B2突进(Event evt, ScriptAccessory sa)
+    public async void 超魔B2突进(Event evt, ScriptAccessory sa)
     {
-        foreach (var (extraRot, tag) in new[] { (0f, "正"), (MathF.PI, "反") })
+        var sid = evt.SourceId();
+        var pos = evt.SourcePosition();
+        var rot = evt.SourceRotation();
+
+        void Draw(float length, uint duration)
         {
-            var dp = sa.FastDp($"超魔B2突进-{evt.SourceId()}-{tag}", evt.SourcePosition(), 3500, new Vector2(7f, 48f));
-            dp.Rotation = evt.SourceRotation() + extraRot;
-            // dp.ScaleMode = ScaleMode.ByTime;
-            sa.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Rect, dp);
+            foreach (var (extraRot, tag) in new[] { (0f, "正"), (MathF.PI, "反") })
+            {
+                var dp = sa.FastDp($"超魔B2突进-{sid}-{tag}", pos, duration, new Vector2(7f, length));
+                dp.Rotation = rot + extraRot;
+                sa.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Rect, dp);
+            }
         }
+
+        await Task.Delay(300);
+
+        var length = 48f;
+        lock (_b2ChargeLock)
+        {
+            var now = Environment.TickCount64;
+            _b2剑Casts.RemoveAll(c => now - c.At > 8000);
+            var idx = _b2剑Casts.FindIndex(c => AngleDiff(c.Rot, rot + MathF.PI) < 0.3f);
+            if (idx >= 0)
+            {
+                length = DistXZ(pos, _b2剑Casts[idx].Pos) - 5;
+                Dbg(sa, $"突进(49622)：{sid:X8} 与秘法剑 {_b2剑Casts[idx].Sid:X8} 面向相对，长度 {length:F1}");
+                _b2剑Casts.RemoveAt(idx);
+            }
+            else Dbg(sa, $"突进(49622)：{sid:X8} 没有面向相对的秘法剑，长度48");
+        }
+        Draw(length, 3200);
     }
 
     // 49635：3.5s
@@ -1246,6 +1275,8 @@ public class TheForkedTowerMagic
     public void 超魔B2秘法剑(Event evt, ScriptAccessory sa)
     {
         Dbg(sa, $"半圆斩(49645)：src {evt.SourceId():X8} pos {evt.SourcePosition():F1} rot {evt.SourceRotation():F2}");
+        lock (_b2ChargeLock)
+            _b2剑Casts.Add((evt.SourceId(), evt.SourcePosition(), evt.SourceRotation(), Environment.TickCount64));
         var dp = sa.FastDp($"半圆斩-{evt.SourceId()}", evt.SourcePosition(), 5500, new Vector2(96f));
         dp.Rotation = evt.SourceRotation();
         dp.Radian = MathF.PI;
@@ -1801,7 +1832,7 @@ public class TheForkedTowerMagic
         dp.DestoryAt = 5000;
         dp.Scale = new Vector2(18f);
         dp.ScaleMode = ScaleMode.ByTime;
-        sa.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Circle, dp);
+        sa.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Circle, dp);
     }
 
     // 47522 古代冰封：5s，以施法者rotation为正面，前后左右各45长15宽的rect十字
@@ -1819,7 +1850,7 @@ public class TheForkedTowerMagic
             dp.Rotation = rot;
             dp.DestoryAt = 5000;
             dp.Scale = new Vector2(15f, 45f);
-            sa.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Rect, dp);
+            sa.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Rect, dp);
         }
     }
 
@@ -1831,7 +1862,7 @@ public class TheForkedTowerMagic
         var dp = sa.FastDp($"分身古代暴雷-{evt.SourceId()}", evt.SourcePosition(), 5000, new Vector2(60f));
         dp.Rotation = evt.SourceRotation();
         dp.Radian = 45f * MathF.PI / 180f;
-        sa.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Fan, dp);
+        sa.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Fan, dp);
     }
 
     // —— 多产的土壤（鸳鸯锅）——
@@ -1929,7 +1960,7 @@ public class TheForkedTowerMagic
         }
     }
 
-    [ScriptMethod(name: "超魔BOSS4 - 四连召唤开始", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:regex:^(48907|48909)$"], userControl: false)]
+    [ScriptMethod(name: "超魔BOSS4 - 四连召唤开始", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:regex:^(48906|48907|48908|48909)$"], userControl: false)]
     public void 超魔B4四连召唤开始(Event evt, ScriptAccessory sa)
     {
         lock (_b4WeaponLock)
@@ -2189,6 +2220,7 @@ public class TheForkedTowerMagic
     private long _b4CreationUntil;
     private readonly Dictionary<string, float> _b4CreationLineAxis = [];   // 元素→直线轴角[0,π)
     private List<string>? _b4CreationLineOrder;                            // 本波直线结算顺序
+    private List<string>? _b4CreationPredictedSafe;                        // 首轮推出的三轮安全元素
     private int _b4CreationRound;
     private float? _b4CreationPrevSafeRot;
 
@@ -2206,6 +2238,7 @@ public class TheForkedTowerMagic
             _b4CreationUntil = Environment.TickCount64 + 60000;
             _b4CreationLineAxis.Clear();
             _b4CreationLineOrder = null;
+            _b4CreationPredictedSafe = null;
             _b4CreationRound = 0;
             _b4CreationPrevSafeRot = null;
         }
@@ -2229,6 +2262,7 @@ public class TheForkedTowerMagic
             {
                 _b4CreationLineAxis.Clear();
                 _b4CreationLineOrder = null;
+                _b4CreationPredictedSafe = null;
                 _b4CreationRound = 0;
             }
             if (!_b4CreationLineAxis.TryAdd(elem, axis)) return;   // 同元素成对出现，只记第一个
@@ -2284,6 +2318,38 @@ public class TheForkedTowerMagic
 
         var safeElem = new[] { "火", "冰", "雷" }.First(e => e != ringElem && e != lineElem);
 
+        // 三轮的环也是火冰雷各一次且环≠线：首轮环一出现即可唯一推出后两轮，汇总显示三轮安全区
+        if (round == 0)
+        {
+            List<string> lines;
+            lock (_b4CreationLock) lines = _b4CreationLineOrder!.ToList();
+            var rest = new[] { "火", "冰", "雷" }.Where(e => e != ringElem).ToList();
+            string ring1, ring2;
+            if (lines[1] == ringElem)
+            {
+                ring2 = rest.First(e => e != lines[2]);
+                ring1 = rest.First(e => e != ring2);
+            }
+            else
+            {
+                ring1 = rest.First(e => e != lines[1]);
+                ring2 = rest.First(e => e != ring1);
+            }
+            var safe1 = new[] { "火", "冰", "雷" }.First(e => e != ring1 && e != lines[1]);
+            var safe2 = new[] { "火", "冰", "雷" }.First(e => e != ring2 && e != lines[2]);
+            lock (_b4CreationLock) _b4CreationPredictedSafe = [safeElem, safe1, safe2];
+            Dbg(sa, $"元素创造预测：环序{ringElem}→{ring1}→{ring2}，安全{safeElem}→{safe1}→{safe2}");
+            sa.Method.TextInfo($"去{safeElem}→{safe1}→{safe2}", 15000, false);
+        }
+        else
+        {
+            lock (_b4CreationLock)
+            {
+                if (_b4CreationPredictedSafe is { } pred && pred[round] != safeElem)
+                    Dbg(sa, $"元素创造预测失误：第{round + 1}轮实际安全{safeElem}≠预测{pred[round]}");
+            }
+        }
+
         // 安全元素上下两块扇区：首轮取离自己近的，之后取上一块逆时针(角度增加)方向最近的
         var zr = zoneRots[safeElem];
         float[] candidates = [zr, zr + MathF.PI];
@@ -2312,7 +2378,7 @@ public class TheForkedTowerMagic
         Dbg(sa, $"元素创造第{round + 1}轮：环{ringElem}+线{lineElem}，安全={safeElem}，" +
                 $"扇区角 {safeRot * 180f / MathF.PI:F0}°，{delay}ms后显示{duration}ms");
 
-        var dp = sa.FastDp($"元素创造安全区-{round}", Boss4中心, duration, new Vector2(24f), safe: true);
+        var dp = sa.FastDp($"元素创造安全区-{round}", Boss4中心, duration, new Vector2(40f), safe: true);
         dp.Rotation = safeRot;
         dp.Radian = 60f * MathF.PI / 180f;
         dp.Delay = delay;
