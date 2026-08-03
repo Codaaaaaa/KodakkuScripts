@@ -11,6 +11,7 @@ using KodakkuAssist.Module.Draw;
 using KodakkuAssist.Module.Draw.Manager;
 using KodakkuAssist.Data;
 using KodakkuAssist.Extensions;
+using Dalamud.Utility.Numerics;
 using System.Runtime.CompilerServices;
 using System.Security.Cryptography.X509Certificates;
 using System.Reflection;
@@ -22,9 +23,9 @@ namespace Codaaaaaa.TheForkedTowerMagic;
     guid: "45819e25-cb2d-4d84-a508-f110dc6a381a",
     name: "魔之塔画图",
     territorys: [1346],
-    version: "0.0.0.7",
+    version: "0.0.0.8",
     author: "Codaaaaaa",
-    note: "0.0.0.7\n更新超魔Boss2\n\n0.0.0.5\n修了老二的月环钢铁")]
+    note: "0.0.0.8\n更新超魔Boss3\n\n0.0.0.7\n更新超魔Boss2\n\n0.0.0.5\n修了老二的月环钢铁")]
 public class TheForkedTowerMagic
 {
     #region 用户设置
@@ -63,7 +64,7 @@ public class TheForkedTowerMagic
         var found = false;
         foreach (var obj in sa.Data.Objects)
         {
-            if (obj is not IBattleChara bc || bc.DataId != 19833) continue;
+            if (obj is not IBattleChara bc || bc.DataId != 19432) continue;
             found = true;
             var statuses = bc.StatusList
                 .Where(s => s.StatusId != 0)
@@ -153,7 +154,7 @@ public class TheForkedTowerMagic
     public void 绿头风暴吐息(Event evt, ScriptAccessory sa)
     {
         sa.Method.VfxMethod.CreateOmen(530, new Vector3(30f),
-            evt.EffectPosition(), evt.SourceRotation(), sa.Data.DefaultDangerColor, 8000);
+            evt.EffectPosition(), evt.SourceRotation(), new Vector4(1f,1f,1f,0.2f), 8000);
     }
 
     // 50658 双头恐惧：TargetPosition为起点，按SourceRotation画6s矩形，长40宽10
@@ -512,6 +513,13 @@ public class TheForkedTowerMagic
             case 7:     // idle_sp_4 → 钢铁
                 B2DrawSwordAoe(sa, sid, evt.SourcePosition(), false, 9000);
                 break;
+            case 31:    // → 大钢铁(20)
+            {
+                var circle = sa.FastDp($"剑钢铁-{sid}-0", evt.SourcePosition(), 9000, new Vector2(20f));
+                circle.ScaleMode = ScaleMode.ByTime;
+                sa.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Circle, circle);
+                break;
+            }
             default:    // 未知姿势
                 Dbg(sa, $"舞动之剑9710：未知姿势{pose}，不绘图");
                 break;
@@ -551,7 +559,7 @@ public class TheForkedTowerMagic
             dp.Rotation = rot;
             dp.DestoryAt = 5500;
             dp.Scale = new Vector2(15f, 45f);
-            dp.ScaleMode = ScaleMode.ByTime;
+            // dp.ScaleMode = ScaleMode.ByTime;
             sa.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Rect, dp);
         }
     }
@@ -825,7 +833,7 @@ public class TheForkedTowerMagic
     public void 超魔绿头风暴吐息(Event evt, ScriptAccessory sa)
     {
         sa.Method.VfxMethod.CreateOmen(530, new Vector3(30f),
-            evt.EffectPosition(), evt.SourceRotation(), sa.Data.DefaultDangerColor, 8000);
+            evt.EffectPosition(), evt.SourceRotation(), new Vector4(1f,1f,1f,0.2f), 8000);
     }
 
     // 47640 绿头雷电赋格：9s，EffectPosition 月环 内15外60
@@ -1202,7 +1210,38 @@ public class TheForkedTowerMagic
     }
 
     private readonly object _swordPredictLock = new();
-    private readonly List<(uint Sid, Vector3 Pos, int Pose)> _swordPredicts = [];
+    private readonly List<(uint Sid, Vector3 Pos, int Pose, long At)> _swordPredicts = [];
+    private const long 同环阈值 = 1500;   // 同一波金环的9710最大间隔
+
+    // pose→AOE形状：4=月环(内15外40)接钢铁15，5=大月环(内20外40)接大钢铁20，
+    // 6=小钢铁10接小月环(内10外40)，7=钢铁15接月环(内15外40)，31=大钢铁20接大月环(内20外40)
+    private void B2DrawSwordShape(ScriptAccessory sa, uint sid, Vector3 pos, int pose, bool second, uint duration, uint delay)
+    {
+        var (donutFirst, r) = pose switch
+        {
+            4 => (true, 15f),
+            5 => (true, 20f),
+            6 => (false, 10f),
+            7 => (false, 15f),
+            31 => (false, 20f),
+            _ => (false, 0f),
+        };
+        if (r == 0f) return;
+        if (donutFirst ^ second)
+        {
+            var dp = sa.FastDp($"剑月环-{sid}-{delay}", pos, duration, new Vector2(40f));
+            dp.InnerScale = new Vector2(r);
+            dp.Radian = float.Pi * 2;
+            dp.Delay = delay;
+            sa.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Donut, dp);
+        }
+        else
+        {
+            var dp = sa.FastDp($"剑钢铁-{sid}-{delay}", pos, duration, new Vector2(r));
+            dp.Delay = delay;
+            sa.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Circle, dp);
+        }
+    }
 
     [ScriptMethod(name: "超魔BOSS2 - 舞动之剑预判", eventType: EventTypeEnum.PlayActionTimeline, eventCondition: ["Id:9710"])]
     public void 超魔B2舞动之剑预判(Event evt, ScriptAccessory sa)
@@ -1214,84 +1253,96 @@ public class TheForkedTowerMagic
         var pose = B2GetModelState(sa, sid);
         var pos = evt.SourcePosition();
         Dbg(sa, $"超魔舞动之剑9710：src {sid:X8} DataId {obj.DataId} 姿势 {pose}");
-        switch (pose)
+        if (pose is not (4 or 5 or 6 or 7 or 31))
         {
-            case 4:     // idle_sp_1 → 月环(内15外40)
-                B2DrawSwordAoe(sa, sid, pos, true, 20000);
-                break;
-            case 5:     // idle_sp_2 → 大月环(内20外40)
-            {
-                var donut = sa.FastDp($"剑月环-{sid}-0", pos, 20000, new Vector2(40f));
-                donut.InnerScale = new Vector2(20f);
-                donut.Radian = float.Pi * 2;
-                sa.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Donut, donut);
-                break;
-            }
-            case 6:     // idle_sp_3 → 小钢铁(10)
-            {
-                var circle = sa.FastDp($"剑钢铁-{sid}-0", pos, 20000, new Vector2(10f));
-                sa.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Circle, circle);
-                break;
-            }
-            case 7:     // idle_sp_4 → 钢铁(15)
-            {
-                var circle = sa.FastDp($"剑钢铁-{sid}-0", pos, 20000, new Vector2(15f));
-                sa.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Circle, circle);
-                break;
-            }
-            default:
-                Dbg(sa, $"超魔舞动之剑9710：未知姿势{pose}，不绘图");
-                return;
+            Dbg(sa, $"超魔舞动之剑9710：未知姿势{pose}，不绘图");
+            return;
         }
-        lock (_swordPredictLock) _swordPredicts.Add((sid, pos, pose));
+        var now = Environment.TickCount64;
+        bool firstWave;
+        lock (_swordPredictLock)
+        {
+            _swordPredicts.RemoveAll(s => now - s.At > 30000);   // 清团灭残留
+            // 首波(定时未激活且无更早出现的剑)立即绘制第1段；后续波由定时按判定链排程显示
+            firstWave = now - _b2SwordTimingAt > 20000 && _swordPredicts.All(s => now - s.At < 同环阈值);
+            _swordPredicts.Add((sid, pos, pose, now));
+        }
+        if (firstWave) B2DrawSwordShape(sa, sid, pos, pose, false, 20000, 0);
+        else Dbg(sa, $"超魔舞动之剑9710：{sid:X8} 非首波，待定时排程");
     }
 
-    // 49647 定时：第一段显示到读条开始后4s，第二段读条开始4s后显示4.5s
+    private long _b2SwordTimingAt;
+
+    // 49647 定时：金环按9710出现顺序分波判定(约3s一波)，首波第1段读条开始5s后判定；
+    // 显示跟随判定链：开始只显示首波第1段，首波判定时出现首波第2段+第2波第1段，
+    // 第2波判定时出现第2波第2段+第3波第1段，依此类推；晚于读条出现的金环通过轮询追加
     [ScriptMethod(name: "超魔BOSS2 - 舞动之剑定时", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:49647"], userControl: false)]
     public async void 超魔B2舞动之剑定时(Event evt, ScriptAccessory sa)
     {
-        List<(uint Sid, Vector3 Pos, int Pose)> swords;
+        List<(uint Sid, Vector3 Pos, int Pose, long At)> swords;
+        var castAt = Environment.TickCount64;
         lock (_swordPredictLock)
         {
-            if (_swordPredicts.Count == 0) return;   // 双剑各读一次时只按首个定时
-            swords = [.. _swordPredicts];
+            if (_swordPredicts.Count == 0) return;
+            if (castAt - _b2SwordTimingAt < 15000) return;   // 双剑各读一次时只按首个定时
+            _b2SwordTimingAt = castAt;
+            swords = [.. _swordPredicts.OrderBy(s => s.At)];
             _swordPredicts.Clear();
         }
-        Dbg(sa, $"超魔舞动之剑49647：定时 {swords.Count} 把剑");
+        Dbg(sa, $"超魔舞动之剑49647：定时开始，已出现 {swords.Count} 把剑");
 
-        foreach (var (sid, pos, pose) in swords)
+        // 判定节奏固定：9710出现时间只用于分波排序，不决定判定时间
+        const uint 首环判定 = 4000;   // 首波第1段判定 = 读条开始后
+        const uint 波判定间隔 = 4000; // 相邻两波判定的间隔(前一波第2段与后一波第1段同判)
+        var waveAt = swords[0].At;   // 当前波首剑出现时间
+        var wave = 0;
+        var next = 0;
+        while (true)
         {
-            switch (pose)
+            for (; next < swords.Count; next++)
             {
-                case 4:     // 月环 → 接钢铁(15)
-                    B2DrawSwordAoe(sa, sid, pos, false, 4000, 4000);
-                    break;
-                case 5:     // 大月环 → 接大钢铁(20)
+                var (sid, pos, pose, at) = swords[next];
+                if (at - waveAt > 同环阈值)
                 {
-                    var circle = sa.FastDp($"剑钢铁-{sid}-4000", pos, 4000, new Vector2(20f));
-                    circle.ScaleMode = ScaleMode.ByTime;
-                    circle.Delay = 4000;
-                    sa.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Circle, circle);
-                    break;
+                    wave++;
+                    waveAt = at;
                 }
-                case 6:     // 小钢铁 → 接小月环(内10外40)
+                var curJ = 首环判定 + (uint)wave * 波判定间隔;   // 本波第1段判定点(相对读条开始)
+                var elapsed = (uint)(Environment.TickCount64 - castAt);
+                Dbg(sa, $"超魔舞动之剑49647：{sid:X8} 姿势{pose} 第{wave + 1}波 判定+{curJ}ms");
+                if (wave == 0)
                 {
-                    var donut = sa.FastDp($"剑月环-{sid}-4000", pos, 4000, new Vector2(40f));
-                    donut.InnerScale = new Vector2(10f);
-                    donut.Radian = float.Pi * 2;
-                    donut.Delay = 4000;
-                    sa.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Donut, donut);
-                    break;
+                    // 首波：第1段已在预判时绘制，判定时移除
+                    _ = B2SwordPredictRemove(sa, sid, curJ > elapsed ? curJ - elapsed : 0);
                 }
-                case 7:     // 钢铁 → 接月环(内15外40)
-                    B2DrawSwordAoe(sa, sid, pos, true, 4000, 4000);
-                    break;
+                else
+                {
+                    // 后续波第1段：上一波判定时出现，显示到本波判定
+                    var prevJ = curJ - 波判定间隔;
+                    var start = Math.Max(prevJ, elapsed);
+                    if (curJ > start)
+                        B2DrawSwordShape(sa, sid, pos, pose, false, curJ - start, prevJ > elapsed ? prevJ - elapsed : 0);
+                }
+                // 第2段：本波判定时出现，显示到下一波判定
+                B2DrawSwordShape(sa, sid, pos, pose, true, 波判定间隔, curJ > elapsed ? curJ - elapsed : 0);
+            }
+            if (Environment.TickCount64 - castAt > 12000) break;
+            await Task.Delay(300);
+            lock (_swordPredictLock)
+            {
+                if (_swordPredicts.Count > 0)
+                {
+                    swords.AddRange(_swordPredicts.OrderBy(s => s.At));
+                    _swordPredicts.Clear();
+                }
             }
         }
+    }
 
-        await Task.Delay(4000);
-        foreach (var (sid, _, _) in swords)
-            sa.Method.RemoveDraw($"^剑(月环|钢铁)-{sid}-0$");
+    private static async Task B2SwordPredictRemove(ScriptAccessory sa, uint sid, uint delay)
+    {
+        if (delay > 0) await Task.Delay((int)delay);
+        sa.Method.RemoveDraw($"^剑(月环|钢铁)-{sid}-0$");
     }
 
     [ScriptMethod(name: "超魔BOSS2 - 剑舞", eventType: EventTypeEnum.ObjectEffect, eventCondition: ["Id1:1", "Id2:2"], userControl: false)]
@@ -1402,7 +1453,7 @@ public class TheForkedTowerMagic
             if (isSteel[k])
             {
                 // 钢铁圈与前一轮指路同时出现，显示4s
-                var dp = sa.FastDp($"剑技爆发-钢铁-{k + 1}", rawPoints[k], 3000, new Vector2(15f));
+                var dp = sa.FastDp($"剑技爆发-钢铁-{k + 1}", rawPoints[k], 4000, new Vector2(15f));
                 dp.Delay = k == 0 ? 0 : delays[k - 1];
                 dp.ScaleMode = ScaleMode.ByTime;
                 sa.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Circle, dp);
@@ -1422,7 +1473,379 @@ public class TheForkedTowerMagic
                     sa.WaypointFromToDp(points[j], points[j + 1], duration, delay, $"剑技爆发-{j + 1}到{j + 2}-阶段{k + 1}", white));
         }
     }
-    
+    #endregion
+
+    #region 超魔BOSS3
+    // 超魔boss 3
+    [ScriptMethod(name: "超魔BOSS3 - 爆炎", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:regex:^(47490|47494)$"])]
+    public void 超魔爆炎(Event evt, ScriptAccessory sa)
+    {
+        Dbg(sa, $"爆炎({evt.ActionId()})：src {evt.SourceId():X8}");
+        var dp = sa.Data.GetDefaultDrawProperties();
+        dp.Name = $"爆炎-{evt.SourceId()}";
+        dp.Color = sa.Data.DefaultDangerColor;
+        dp.Owner = evt.SourceId();
+        dp.DestoryAt = 5000;
+        dp.Scale = new Vector2(18f);
+        dp.ScaleMode = ScaleMode.ByTime;
+        sa.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Circle, dp);
+    }
+
+    // 47466 魔具联动-冰封 / 47469 古代冰封：5.5s，以施法者rotation为正面，前后左右各45长15宽的rect十字
+    [ScriptMethod(name: "超魔BOSS3 - 冰封十字", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:regex:^(47495|47491)$"])]
+    public void 超魔冰封十字(Event evt, ScriptAccessory sa)
+    {
+        Dbg(sa, $"冰封十字({evt.ActionId()})：src {evt.SourceId():X8}");
+        List<(float Rot, string Tag)> dirs = [(0f, "前"), (MathF.PI / 2, "左"), (MathF.PI, "后"), (-MathF.PI / 2, "右")];
+        foreach (var (rot, tag) in dirs)
+        {
+            var dp = sa.Data.GetDefaultDrawProperties();
+            dp.Name = $"冰封十字-{evt.SourceId()}-{tag}";
+            dp.Color = sa.Data.DefaultDangerColor;
+            dp.Owner = evt.SourceId();
+            dp.Rotation = rot;
+            dp.DestoryAt = 5500;
+            dp.Scale = new Vector2(15f, 45f);
+            // dp.ScaleMode = ScaleMode.ByTime;
+            sa.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Rect, dp);
+        }
+    }
+
+    // 47471 古代暴雷：5.5s，SourcePosition上以SourceRotation为正面的45度60m扇形
+    [ScriptMethod(name: "超魔BOSS3 - 古代暴雷", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:regex:^(47497|50358)"])]
+    public void 超魔古代暴雷(Event evt, ScriptAccessory sa)
+    {
+        Dbg(sa, $"古代暴雷(47479)：pos {evt.SourcePosition():F1} rot {evt.SourceRotation():F2}");
+        var dp = sa.FastDp($"古代暴雷-{evt.SourceId()}", evt.SourcePosition(), 5500, new Vector2(60f));
+        dp.Rotation = evt.SourceRotation();
+        dp.Radian = 45f * MathF.PI / 180f;
+        sa.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Fan, dp);
+    }
+
+    [ScriptMethod(name: "超魔BOSS3 - 灭亡射线", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:47504"])]
+    public async void 超魔灭亡射线(Event evt, ScriptAccessory sa)
+    {
+        var srcId = evt.SourceId();
+        var pos = evt.SourcePosition();
+
+        await Task.Delay(1000);
+
+        // 0.5s后取施法者当前实时朝向，取不到则回退用事件快照
+        var srcObj = sa.Data.Objects.SearchById(srcId);
+        var rot = srcObj?.Rotation ?? evt.SourceRotation();
+        Dbg(sa, $"灭亡射线(47475)：pos {pos:F1} rot {rot:F2}（实时:{srcObj != null}）");
+
+        var dp = sa.FastDp($"灭亡射线-{srcId}", pos, 3000, new Vector2(6f, 30f));
+        dp.Rotation = rot;
+        dp.ScaleMode = ScaleMode.ByTime;
+        sa.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Rect, dp);
+    }
+
+    // 47500：5.5s，EffectPosition 沿 SourceRotation 的 60长10宽矩形，CreateOmen 689（rect omen：X=半宽 Z=全长）
+    [ScriptMethod(name: "超魔BOSS3 - 黑暗奔涌", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:47500"])]
+    public void 超魔B3直线47500(Event evt, ScriptAccessory sa)
+    {
+        Dbg(sa, $"直线(47500)：pos {evt.EffectPosition():F1} rot {evt.SourceRotation():F2}");
+        sa.Method.VfxMethod.CreateOmen(689, new Vector3(5f, 10f, 60f),
+            evt.EffectPosition(), evt.SourceRotation(), null, 4000);
+    }
+
+    // 47500 读条开始4s后：左右两侧步进地火，60长10宽矩形，每轮向外步进10m，每轮画3.5s紧接下一轮
+    [ScriptMethod(name: "超魔BOSS3 - 黑暗奔流地火", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:47500"])]
+    public void 超魔B3黑暗奔流地火(Event evt, ScriptAccessory sa)
+    {
+        var pos = evt.EffectPosition();
+        var rot = evt.SourceRotation();
+        Dbg(sa, $"黑暗奔流地火(47500)：pos {pos:F1} rot {rot:F2}");
+        for (var i = 0; i < 2; i++)
+        {
+            foreach (var (sign, tag) in new[] { (1f, "左"), (-1f, "右") })
+            {
+                var side = rot + sign * MathF.PI / 2;
+                var center = pos + new Vector3(MathF.Sin(side), 0f, MathF.Cos(side)) * (10f * (i + 1));
+                var dp = sa.FastDp($"黑暗奔流地火-{tag}-{i}", center, 3500, new Vector2(10f, 60f));
+                dp.Rotation = rot;
+                dp.Delay = (uint)(2500 + i * 2000);
+                sa.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Rect, dp);
+            }
+        }
+    }
+
+    // 47502 真空波：等1s让boss完成转向后，SourcePosition 上以实时朝向为正面的180度30m扇形
+    [ScriptMethod(name: "超魔BOSS3 - 真空波", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:47502"])]
+    public async void 超魔B3真空波(Event evt, ScriptAccessory sa)
+    {
+        var srcId = evt.SourceId();
+        var pos = evt.SourcePosition();
+
+        await Task.Delay(1000);
+
+        // 取施法者当前实时朝向，取不到则回退用事件快照
+        var srcObj = sa.Data.Objects.SearchById(srcId);
+        var rot = srcObj?.Rotation ?? evt.SourceRotation();
+        Dbg(sa, $"真空波(47502)：pos {pos:F1} rot {rot:F2}（实时:{srcObj != null}）");
+
+        var dp = sa.FastDp($"真空波-{srcId}", pos, 3000, new Vector2(30f));
+        dp.Rotation = rot;
+        dp.Radian = MathF.PI;
+        sa.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Fan, dp);
+    }
+    // —— 魔具联动：黑暗奔流 三连 ——
+    private readonly object _b3联动Lock = new();
+    private readonly Dictionary<uint, uint> _b3屏障头属性 = [];   // 屏障头Id → 属性Param(1114火/1115冰/1116雷)
+    private int _b3奔流波次;                                      // 已收到的2552个数(只取前三)
+    private bool _b3联动就绪;                                     // 47507读条开始→true，期间的2552才触发绘制
+
+    private static string B3属性名(uint param) => param switch { 1114 => "火", 1115 => "冰", 1116 => "雷", _ => $"?{param}" };
+
+    [ScriptMethod(name: "超魔BOSS3 - 屏障头注能记录", eventType: EventTypeEnum.Tether, eventCondition: ["Id:regex:^019[0-2]$"], userControl: false)]
+    public void 超魔B3屏障头注能记录(Event evt, ScriptAccessory sa)
+    {
+        var elem = evt["Id"] switch { "0190" => 1114u, "0191" => 1115u, "0192" => 1116u, _ => 0u };
+        if (elem == 0) return;
+        lock (_b3联动Lock) _b3屏障头属性[evt.SourceId()] = elem;
+        Dbg(sa, $"屏障头注能：{evt.SourceId():X8} → {B3属性名(elem)}");
+    }
+
+    [ScriptMethod(name: "超魔BOSS3 - 魔具联动黑暗奔流", eventType: EventTypeEnum.StatusAdd, eventCondition: ["StatusID:2552", "Param:regex:^111[4-6]$"])]
+    public async void 超魔B3魔具联动黑暗奔流(Event evt, ScriptAccessory sa)
+    {
+        if (!Is超魔(sa)) return;
+        if (!uint.TryParse(evt["Param"], out var elem)) return;
+
+        int wave;
+        List<uint> heads;
+        lock (_b3联动Lock)
+        {
+            if (!_b3联动就绪) return;       // 非联动期间的2552(如47490/47491/47492读条伴随)，忽略
+            if (_b3奔流波次 >= 3) return;   // 每波结算时的重复Add，忽略
+            wave = _b3奔流波次++;
+            heads = _b3屏障头属性.Where(kv => kv.Value == elem).Select(kv => kv.Key).ToList();
+        }
+
+        uint[] durations = [8900, 13600, 18100];   // 自己的2552到本波结算
+        uint[] delays = [0, 8900, 13600];          // 第2/3波延后开画
+        var duration = durations[wave];
+        var delay = delays[wave];
+        var visible = duration - delay;
+        var rot = MathF.PI - wave * 2f * MathF.PI / 3f;   // 第1波C→A(π)，每波直线逆时针转60°
+        var center = new Vector3(100f, -723.96f, 800f);
+        var anchor = center - new Vector3(MathF.Sin(rot), 0f, MathF.Cos(rot)) * 30f;
+        Dbg(sa, $"魔具联动第{wave + 1}波：{B3属性名(elem)}，{heads.Count}个屏障头，{delay}ms后开画，{duration}ms后结算");
+
+        // 步进地火：直线结算-1s起，左右±10、±20两轮，每轮3.5s
+        DrawPropertiesEdit dp;
+        for (var i = 0; i < 2; i++)
+        {
+            foreach (var (sign, tag) in new[] { (1f, "左"), (-1f, "右") })
+            {
+                var side = rot + sign * MathF.PI / 2;
+                var pos = anchor + new Vector3(MathF.Sin(side), 0f, MathF.Cos(side)) * (10f + i * 10f);
+                dp = sa.FastDp($"B3联动地火-{wave}-{tag}-{i}", pos, 3500, new Vector2(10f, 60f));
+                dp.Rotation = rot;
+                dp.Delay = (uint)(duration - 1000 + i * 2100);
+                sa.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Rect, dp);
+            }
+        }
+
+        // 该属性两个屏障头的AoE，与直线同时结算
+        foreach (var head in heads)
+        {
+            switch (elem)
+            {
+                case 1114:   // 火：18m圆
+                    dp = sa.Data.GetDefaultDrawProperties();
+                    dp.Name = $"B3联动火圆-{wave}-{head:X8}";
+                    dp.Color = sa.Data.DefaultDangerColor;
+                    dp.Owner = head;
+                    dp.Delay = delay;
+                    dp.DestoryAt = visible;
+                    dp.Scale = new Vector2(18f);
+                    sa.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Circle, dp);
+                    break;
+                case 1115:   // 冰：以头朝向前后左右15x45十字
+                    foreach (var (r, tag) in new[] { (0f, "前"), (MathF.PI / 2, "左"), (MathF.PI, "后"), (-MathF.PI / 2, "右") })
+                    {
+                        dp = sa.Data.GetDefaultDrawProperties();
+                        dp.Name = $"B3联动冰十字-{wave}-{head:X8}-{tag}";
+                        dp.Color = sa.Data.DefaultDangerColor;
+                        dp.Owner = head;
+                        dp.Rotation = r;
+                        dp.Delay = delay;
+                        dp.DestoryAt = visible;
+                        dp.Scale = new Vector2(15f, 45f);
+                        sa.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Rect, dp);
+                    }
+                    break;
+                case 1116:   // 雷：以头朝向左上左下右上右下四个45°60m扇形
+                    foreach (var (r, tag) in new[] { (MathF.PI / 4, "左上"), (3 * MathF.PI / 4, "左下"), (-MathF.PI / 4, "右上"), (-3 * MathF.PI / 4, "右下") })
+                    {
+                        dp = sa.Data.GetDefaultDrawProperties();
+                        dp.Name = $"B3联动雷扇-{wave}-{head:X8}-{tag}";
+                        dp.Color = sa.Data.DefaultDangerColor;
+                        dp.Owner = head;
+                        dp.Rotation = r;
+                        dp.Radian = 45f * MathF.PI / 180f;
+                        dp.Delay = delay;
+                        dp.DestoryAt = visible;
+                        dp.Scale = new Vector2(60f);
+                        sa.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Fan, dp);
+                    }
+                    break;
+            }
+        }
+
+        // 直线：Omen 689（X=半宽 Z=全长），从场边锚点沿rot穿过场中心，等上一波结算后再出现
+        if (delay > 0) await Task.Delay((int)delay);
+        sa.Method.VfxMethod.CreateOmen(689, new Vector3(5f, 10f, 60f), anchor, rot, null, (int)visible);
+    }
+
+    // 47507 魔具联动：黑暗奔流读条开始：开闸，期间的2552触发绘制
+    [ScriptMethod(name: "超魔BOSS3 - 联动开始", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:47507"], userControl: false)]
+    public void 超魔B3联动开始(Event evt, ScriptAccessory sa)
+    {
+        lock (_b3联动Lock)
+        {
+            _b3联动就绪 = true;
+            _b3奔流波次 = 0;
+        }
+    }
+
+    // 47490爆炎/47491冰封/47492暴雷 读条时也会Add 2552，不触发联动：关闸并清空计数
+    [ScriptMethod(name: "超魔BOSS3 - 联动误触发拦截", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:regex:^4749[0-2]$"], userControl: false)]
+    public void 超魔B3联动误触发拦截(Event evt, ScriptAccessory sa)
+    {
+        lock (_b3联动Lock)
+        {
+            _b3联动就绪 = false;
+            _b3奔流波次 = 0;
+        }
+    }
+
+    // 魔力注入开始(新一轮注能前) / 真空波(本轮联动收尾)：清空记录
+    [ScriptMethod(name: "超魔BOSS3 - 联动记录清空", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:regex:^(47486|47502)$"], userControl: false)]
+    public void 超魔B3联动记录清空(Event evt, ScriptAccessory sa)
+    {
+        lock (_b3联动Lock)
+        {
+            _b3联动就绪 = false;
+            _b3屏障头属性.Clear();
+            _b3奔流波次 = 0;
+        }
+    }
+
+    // 47521 古代爆炎：5s，施法者上18m危险圈
+    [ScriptMethod(name: "超魔BOSS3 - 古代爆炎", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:47521"])]
+    public void 超魔B3古代爆炎(Event evt, ScriptAccessory sa)
+    {
+        Dbg(sa, $"古代爆炎(47521)：src {evt.SourceId():X8}");
+        var dp = sa.Data.GetDefaultDrawProperties();
+        dp.Name = $"古代爆炎-{evt.SourceId()}";
+        dp.Color = sa.Data.DefaultDangerColor;
+        dp.Owner = evt.SourceId();
+        dp.DestoryAt = 5000;
+        dp.Scale = new Vector2(18f);
+        dp.ScaleMode = ScaleMode.ByTime;
+        sa.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Circle, dp);
+    }
+
+    // 47522 古代冰封：5s，以施法者rotation为正面，前后左右各45长15宽的rect十字
+    [ScriptMethod(name: "超魔BOSS3 - 古代冰封", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:47522"])]
+    public void 超魔B3古代冰封(Event evt, ScriptAccessory sa)
+    {
+        Dbg(sa, $"古代冰封(47522)：src {evt.SourceId():X8}");
+        List<(float Rot, string Tag)> dirs = [(0f, "前"), (MathF.PI / 2, "左"), (MathF.PI, "后"), (-MathF.PI / 2, "右")];
+        foreach (var (rot, tag) in dirs)
+        {
+            var dp = sa.Data.GetDefaultDrawProperties();
+            dp.Name = $"古代冰封-{evt.SourceId()}-{tag}";
+            dp.Color = sa.Data.DefaultDangerColor;
+            dp.Owner = evt.SourceId();
+            dp.Rotation = rot;
+            dp.DestoryAt = 5000;
+            dp.Scale = new Vector2(15f, 45f);
+            sa.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Rect, dp);
+        }
+    }
+
+    // 47493 分身古代暴雷：5s，SourcePosition上以SourceRotation为正面的45度60m扇形
+    [ScriptMethod(name: "超魔BOSS3 - 分身古代暴雷", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:47493"])]
+    public void 超魔B3分身古代暴雷(Event evt, ScriptAccessory sa)
+    {
+        Dbg(sa, $"分身古代暴雷(47493)：pos {evt.SourcePosition():F1} rot {evt.SourceRotation():F2}");
+        var dp = sa.FastDp($"分身古代暴雷-{evt.SourceId()}", evt.SourcePosition(), 5000, new Vector2(60f));
+        dp.Rotation = evt.SourceRotation();
+        dp.Radian = 45f * MathF.PI / 180f;
+        sa.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Fan, dp);
+    }
+
+    // —— 多产的土壤（鸳鸯锅）——
+    private static readonly Vector3 Boss3场中 = new(100f, -723.96f, 800f);
+    private readonly object _b3鸳鸯锅Lock = new();
+    private readonly HashSet<uint> _b3鸳鸯锅Heads = [];   // 本轮已记录的屏障头，防重复Add
+    private int _b3鸳鸯锅序号;
+
+    // 47514 多产的土壤读条：重置鸳鸯锅计数
+    [ScriptMethod(name: "超魔BOSS3 - 鸳鸯锅重置", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:47514"], userControl: false)]
+    public void 超魔B3鸳鸯锅重置(Event evt, ScriptAccessory sa)
+    {
+        lock (_b3鸳鸯锅Lock)
+        {
+            _b3鸳鸯锅序号 = 0;
+            _b3鸳鸯锅Heads.Clear();
+        }
+    }
+
+    [ScriptMethod(name: "超魔BOSS3 - 鸳鸯锅指路", eventType: EventTypeEnum.StatusAdd, eventCondition: ["StatusID:2552", "Param:regex:^111[78]$"])]
+    public async void 超魔B3鸳鸯锅指路(Event evt, ScriptAccessory sa)
+    {
+        if (!Is超魔(sa)) return;
+        if (!uint.TryParse(evt["Param"], out var param)) return;
+
+        var headId = evt.TargetId();
+        int idx;
+        lock (_b3鸳鸯锅Lock)
+        {
+            if (!_b3鸳鸯锅Heads.Add(headId)) return;   // 重复Add，忽略
+            idx = _b3鸳鸯锅序号++;
+        }
+
+        // StatusAdd时刻头可能还没转完，等1s后再取实时朝向
+        await Task.Delay(1000);
+        var head = sa.Data.Objects.SearchById(headId);
+        if (head is null)
+        {
+            Dbg(sa, $"鸳鸯锅#{idx + 1}：找不到屏障头 {headId:X8}，跳过");
+            return;
+        }
+        var rot = head.Rotation;
+        Dbg(sa, $"鸳鸯锅#{idx + 1}：头 {headId:X8} {(param == 1117 ? "左蓝右红" : "左红右蓝")} rot {rot:F2}");
+
+        // 本锅结算(半场AoE命中)≈自己StatusAdd后 13270+4800*idx+500ms；
+        // 吃锅后自己的5136/5137会交换颜色，交换包在上一锅命中后约1s到达：
+        // 首锅从现在开始显示，其余显示结算前5s(比窗口开始晚1s判定，确保读到交换后的颜色)
+        var settle = 13770 + 4800 * idx - 1000;   // 已等1s取朝向
+        var showDur = (uint)(idx == 0 ? settle : 5050);
+        if (settle > showDur) await Task.Delay(settle - (int)showDur);
+
+        var me = sa.Data.MyObject;
+        var meBlue = me?.HasStatus(5136) ?? false;   // 蓝→吃红
+        var meRed = me?.HasStatus(5137) ?? false;    // 红→吃蓝
+        if (!meBlue && !meRed)
+        {
+            Dbg(sa, $"鸳鸯锅#{idx + 1}：自己无5136/5137，跳过指路");
+            return;
+        }
+
+        // 1117=左蓝右红，1118=左红右蓝 蓝吃红去红半场，红吃蓝去蓝半场
+        var 红在左 = param == 1118;
+        var 去左 = meBlue == 红在左;
+        var dp = sa.FastDp($"鸳鸯锅安全半场-{idx + 1}", Boss3场中, showDur, new Vector2(24f), safe: true);
+        dp.Rotation = rot + (去左 ? MathF.PI / 2 : -MathF.PI / 2);
+        dp.Radian = MathF.PI;
+        sa.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Fan, dp);
+        Dbg(sa, $"鸳鸯锅#{idx + 1}：自己{(meBlue ? "蓝吃红" : "红吃蓝")}，安全半场在头{(去左 ? "左" : "右")}侧，显示{showDur}ms");
+    }
     #endregion
 }
 

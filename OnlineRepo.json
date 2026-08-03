@@ -65,10 +65,10 @@
   {
     "Name": "魔之塔画图",
     "Guid": "45819e25-cb2d-4d84-a508-f110dc6a381a",
-    "Version": "0.0.0.7",
+    "Version": "0.0.0.8",
     "Author": "Codaaaaaa",
     "TerritoryIds": [1346],
     "DownloadUrl": "https://raw.githubusercontent.com/Codaaaaaa/KodakkuScripts/main/Scripts/TheForkedTowerMagic.cs",
-    "UpdateInfo": "0.0.0.7\n更新超魔Boss2\n\n0.0.0.5\n修了老二的月环钢铁"
+    "UpdateInfo": "0.0.0.8\n更新超魔Boss3\n\n0.0.0.7\n更新超魔Boss2\n\n0.0.0.5\n修了老二的月环钢铁"
   }
 ]
