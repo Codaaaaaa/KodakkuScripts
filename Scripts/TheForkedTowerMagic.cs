@@ -23,7 +23,7 @@ namespace Codaaaaaa.TheForkedTowerMagic;
     guid: "45819e25-cb2d-4d84-a508-f110dc6a381a",
     name: "魔之塔画图",
     territorys: [1346],
-    version: "0.0.1.2",
+    version: "0.0.1.3",
     author: "Codaaaaaa",
     note: "写完喽，还有电的可以在频道里圈我\n\n感谢铁虎老大的帮助\n感谢Yatel老大和洋葱炒米老大的arr")]
 public class TheForkedTowerMagic
@@ -492,6 +492,14 @@ public class TheForkedTowerMagic
         Dbg(sa, $"舞动之剑9710：src {sid:X8} 姿势 {pose}");
         switch (pose)
         {
+            case 0:     // → 小月环(内10外40)
+            {
+                var donut = sa.FastDp($"剑月环-{sid}-0", evt.SourcePosition(), 9000, new Vector2(40f));
+                donut.InnerScale = new Vector2(10f);
+                donut.Radian = float.Pi * 2;
+                sa.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Donut, donut);
+                break;
+            }
             case 4:     // idle_sp_1 → 月环
                 B2DrawSwordAoe(sa, sid, evt.SourcePosition(), true, 9000);
                 break;
@@ -1433,12 +1441,13 @@ public class TheForkedTowerMagic
     private readonly List<(uint Sid, Vector3 Pos, int Pose, long At)> _swordPredicts = [];
     private const long 同环阈值 = 1500;   // 同一波金环的9710最大间隔
 
-    // pose→AOE形状：4=月环(内15外40)接钢铁15，5=大月环(内20外40)接大钢铁20，
+    // pose→AOE形状：0=小月环(内10外40)接小钢铁10，4=月环(内15外40)接钢铁15，5=大月环(内20外40)接大钢铁20，
     // 6=小钢铁10接小月环(内10外40)，7=钢铁15接月环(内15外40)，31=大钢铁20接大月环(内20外40)
     private void B2DrawSwordShape(ScriptAccessory sa, uint sid, Vector3 pos, int pose, bool second, uint duration, uint delay)
     {
         var (donutFirst, r) = pose switch
         {
+            0 => (true, 10f),
             4 => (true, 15f),
             5 => (true, 20f),
             6 => (false, 10f),
@@ -1473,7 +1482,7 @@ public class TheForkedTowerMagic
         var pose = B2GetModelState(sa, sid);
         var pos = evt.SourcePosition();
         Dbg(sa, $"超魔舞动之剑9710：src {sid:X8} DataId {obj.DataId} 姿势 {pose}");
-        if (pose is not (4 or 5 or 6 or 7 or 31))
+        if (pose is not (0 or 4 or 5 or 6 or 7 or 31))
         {
             Dbg(sa, $"超魔舞动之剑9710：未知姿势{pose}，不绘图");
             return;
