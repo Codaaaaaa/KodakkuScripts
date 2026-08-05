@@ -23,7 +23,7 @@ namespace Codaaaaaa.TheForkedTowerMagic;
     guid: "45819e25-cb2d-4d84-a508-f110dc6a381a",
     name: "魔之塔画图",
     territorys: [1346],
-    version: "0.0.1.3",
+    version: "0.0.1.4",
     author: "Codaaaaaa",
     note: "写完喽，还有电的可以在频道里圈我\n\n感谢铁虎老大的帮助\n感谢Yatel老大和洋葱炒米老大的arr")]
 public class TheForkedTowerMagic
@@ -2106,6 +2106,8 @@ public class TheForkedTowerMagic
     private readonly List<uint> _b4Weapons = [];   // 按StatusAdd顺序记录的武器statusId
     private uint _b4BossId;
 
+    private static string B4武器名(uint statusId) => statusId switch { 5534 => "弓[月环]", 5533 => "刀[正刀]", 5535 => "琴[钢铁]", _ => "铃铛[斜刀]" };
+
     // 弓的钢铁不在boss/场中，而是三个固定点（盯准施法者位置）
     private static readonly Vector3[] 盯准固定点 =
     [
@@ -2141,6 +2143,7 @@ public class TheForkedTowerMagic
     {
         uint bossId;
         int k;
+        string? order = null;
         lock (_b4WeaponLock)
         {
             bossId = _b4BossId;
@@ -2149,13 +2152,19 @@ public class TheForkedTowerMagic
             if (_b4Weapons.Count >= 4) return;
             k = _b4Weapons.Count;
             _b4Weapons.Add(evt.StatusId);
+            if (_b4Weapons.Count == 4) order = string.Join("→", _b4Weapons.Select(B4武器名));
         }
+
+        // 每个武器现身时/e即时播报，四个集齐后再TextInfo汇总顺序（如"弓→刀→琴→铃铛"），
+        // 横幅持续到第四把结算（第4个StatusAdd + 14400+300*3）
+        var name = B4武器名(evt.StatusId);
+        sa.Method.SendChat($"/e [魔之塔] 四连武器{k + 1}：{name}");
+        if (order != null) sa.Method.TextInfo(order, 15300, false);
 
         // 第k个武器：结算 = StatusAdd + 14400+300k ms；
         // 显示窗口 = [上一个武器结算, 自己结算]（第一个武器获得status时立即显示）
         var delay = (uint)(k == 0 ? 0 : 11100 + 300 * k);
         var duration = (uint)(k == 0 ? 14400 : 3300);
-        var name = evt.StatusId switch { 5534u => "弓", 5533u => "刀", 5535u => "琴", _ => "铃铛" };
         Dbg(sa, $"四连武器#{k + 1}：{name}({evt.StatusId})，{delay}ms后显示{duration}ms");
 
         switch (evt.StatusId)
