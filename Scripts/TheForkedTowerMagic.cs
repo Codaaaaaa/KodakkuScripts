@@ -23,7 +23,7 @@ namespace Codaaaaaa.TheForkedTowerMagic;
     guid: "45819e25-cb2d-4d84-a508-f110dc6a381a",
     name: "魔之塔画图",
     territorys: [1346],
-    version: "0.0.1.4",
+    version: "0.0.1.5",
     author: "Codaaaaaa",
     note: "写完喽，还有电的可以在频道里圈我\n\n感谢铁虎老大的帮助\n感谢Yatel老大和洋葱炒米老大的arr")]
 public class TheForkedTowerMagic
@@ -2108,6 +2108,9 @@ public class TheForkedTowerMagic
 
     private static string B4武器名(uint statusId) => statusId switch { 5534 => "弓[月环]", 5533 => "刀[正刀]", 5535 => "琴[钢铁]", _ => "铃铛[斜刀]" };
 
+    // TextInfo横幅用去的位置：弓=内（月环贴脸）、刀=斜（正刀躲斜角）、铃铛=正（斜刀躲正点）、琴=外（钢铁远离）
+    private static string B4武器位置(uint statusId) => statusId switch { 5534 => "靠近", 5533 => "去斜", 5535 => "远离", _ => "去正" };
+
     // 弓的钢铁不在boss/场中，而是三个固定点（盯准施法者位置）
     private static readonly Vector3[] 盯准固定点 =
     [
@@ -2152,10 +2155,10 @@ public class TheForkedTowerMagic
             if (_b4Weapons.Count >= 4) return;
             k = _b4Weapons.Count;
             _b4Weapons.Add(evt.StatusId);
-            if (_b4Weapons.Count == 4) order = string.Join("→", _b4Weapons.Select(B4武器名));
+            if (_b4Weapons.Count == 4) order = string.Join("→", _b4Weapons.Select(B4武器位置));
         }
 
-        // 每个武器现身时/e即时播报，四个集齐后再TextInfo汇总顺序（如"弓→刀→琴→铃铛"），
+        // 每个武器现身时/e即时播报武器名，四个集齐后TextInfo汇总去的位置（如"内→斜→外→正"），
         // 横幅持续到第四把结算（第4个StatusAdd + 14400+300*3）
         var name = B4武器名(evt.StatusId);
         sa.Method.SendChat($"/e [魔之塔] 四连武器{k + 1}：{name}");
