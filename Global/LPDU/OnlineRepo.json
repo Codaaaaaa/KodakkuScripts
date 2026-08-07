@@ -1,0 +1,11 @@
+[
+  {
+    "Name": "The Weapon's Refrain (Ultimate) UWU - LPDU",
+    "Guid": "8a2b7d8a-4eeb-4840-84bb-195fd13645ea",
+    "Version": "0.0.4.4",
+    "Author": "Cicero 灵视",
+    "TerritoryIds": [777],
+    "DownloadUrl": "https://raw.githubusercontent.com/Codaaaaaa/KodakkuScripts/main/Global/LPDU",
+    "UpdateInfo": "This is a modified version of Cicero's script adapted for the LPDU strat."
+  }
+]
