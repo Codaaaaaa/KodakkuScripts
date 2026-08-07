@@ -7,5 +7,14 @@
     "TerritoryIds": [777],
     "DownloadUrl": "https://raw.githubusercontent.com/Codaaaaaa/KodakkuScripts/main/Global/LPDU/UWU_Cicero%20-%20LPDU.cs",
     "UpdateInfo": "This is a modified version of Cicero's script adapted for the LPDU strat."
+  },
+  {
+    "Name": "The Epic of Alexander (Ultimate) TEA - LPDU",
+    "Guid": "6259c636-cb4c-4052-ab2a-30642b58b043",
+    "Version": "0.0.2.9",
+    "Author": "Cyf5119",
+    "TerritoryIds": [887],
+    "DownloadUrl": "https://raw.githubusercontent.com/Codaaaaaa/KodakkuScripts/main/Global/LPDU/TEA_Cyf5119%20-%20LPDU.cs",
+    "UpdateInfo": "This is a modified version of Cyf5119's script adapted for the LPDU strat."
   }
 ]
