@@ -2,10 +2,10 @@
   {
     "Name": "青魔魔界花整合",
     "Guid": "76fb14c3-1185-4580-b020-1f9a25e6f978",
-    "Version": "0.0.0.2",
+    "Version": "0.0.0.3",
     "Author": "Codaaaaaa",
     "TerritoryIds": [245, 358, 196, 452, 532, 587],
     "DownloadUrl": "https://raw.githubusercontent.com/Codaaaaaa/KodakkuScripts/main/Dev/青魔魔界花.cs",
-    "UpdateInfo": "0.0.0.2还在本地测试,lockon修复"
+    "UpdateInfo": "0.0.0.3\nA8S 配件更换(5692)由「看boss手」改为读配件位图自动判分支，提前 5.2s 画出单炮/双炮/单钻/双钻各自的图\n\n0.0.0.2还在本地测试,lockon修复"
   }
 ]

@@ -18,7 +18,7 @@ namespace Codaaaaaa.BlueMage;
     guid: "76fb14c3-1185-4580-b020-1f9a25e6f978",
     name: "青魔魔界花整合",
     territorys: [245, 358, 196, 452, 532, 587],
-    version: "0.0.0.2",
+    version: "0.0.0.3",
     author: "Codaaaaaa",
     note: "攻略参考二二二二乱 A12S为拉一起复仇\n\n副本说明:\nT5:1T1N6D注意T青需要在MT位，其他随意，但每个人的kdy排序需相同\nT9:同上\nT13:同上\nA4S:1T1N6D，按照kdy排序1T青2N青345为拉小怪D青678为打腿组D青\nA8S:1T2N5D，按照kdy排序1T2N3盾N456D一组月78D二组月\nA12S:1T1N6D\n\nT青笔记：\nT5：-2s开怪\nT9: -2s预读小侦测开场，即刻白风稳仇+醒梦\nT13: 拉南 -2s预读小侦测开怪，即刻白风稳仇+醒梦\nA4S: 龙之力开场，MT全程远离人群\nA8S: 随意\nA12S: -5s龙之力 -2s魔法锤")]
 public class BlueMage
@@ -118,6 +118,25 @@ public class BlueMage
     private bool _a8sP4BeamHardened;                          // P4 5678 只在第一次触发超硬化
 
     private static readonly Vector4 A8SYellow = new(1f, 0.85f, 0f, 1f);
+
+    // P2 争斗者 5692 配件更换：四种分支在网络包上完全一样，判别点只在客户端。
+    // ModelContainer.ModeAttributeFlags（Character +0x1B4A）低 4 位 = 配件位图，高 4 位恒为 F；
+    // bit0/bit1 = 两臂各挂一个飞钻，bit3/bit2 = 各挂一门炮，单发点 1 位、双发点 2 位。
+    // 实测：配件更换后约 0.8s 置位，5.25s 后技能落地，再约 1.1s 复位回 0xF0。
+    private const int A8S配件单飞钻 = 0b0001;   // → 5695 火箭飞钻
+    private const int A8S配件双飞钻 = 0b0011;   // → 5696 双重飞钻冲击（两臂飞出，各 5697 钻头驱动）
+    private const int A8S配件单炮 = 0b1000;     // → 5693 破坏炮击
+    private const int A8S配件双炮 = 0b1100;     // → 5694 双重破坏炮击
+
+    // 5693/5694/5695 都是从 boss 朝一仇方向的矩形，长度一样，只有宽度分单双
+    private const float A8S矩形长度 = 70f;      // 5693/5694 CastType4 EffectRange=70
+    private const float A8S窄矩形宽度 = 8f;     // 5693 破坏炮击 / 5695 火箭飞钻，XAxisModifier=8
+    private const float A8S宽矩形宽度 = 16f;    // 5694 双重破坏炮击，XAxisModifier=16
+    private const float A8S钻头半径 = 9f;       // 5697 钻头驱动 CastType2 EffectRange=9
+
+    private const int A8S配件等待上限 = 2500;   // 置位一般在 0.8s，超时判定读不到就放弃
+    private const uint A8S配件到技能 = 5300;    // 配件置位 → 5693/5694/5695 落地
+    private const uint A8S配件到钻头 = 6400;    // 配件置位 → 5697 钻头驱动落地
 
     // 单人测试模式指路配色：index0 蓝，index1/2 绿，index3-7 红
     private static readonly Vector4 A8STestBlue = new(0.2f, 0.4f, 1f, 1f);
@@ -1783,16 +1802,103 @@ public class BlueMage
 
     // ---------------- P2 ----------------
 
-    // ActionEffect 5692：提示看场中 boss 手
+    // ActionEffect 5692 配件更换：瞬发无伤害，只是换手上的配件。约 0.8s 后配件位才置起来，
+    // 之后逐帧读到位图就能提前 5.2s 知道要放哪一招，直接把对应 AOE 画出来。
     [ScriptMethod(
-        name: "A8S - 看boss手提示",
+        name: "A8S - 配件更换分支预判",
         eventType: EventTypeEnum.ActionEffect,
         eventCondition: ["ActionId:5692"])]
-    public void A8S看boss手(Event evt, ScriptAccessory sa)
+    public void A8S配件更换(Event evt, ScriptAccessory sa)
     {
         if (!InMap(A8STerritory)) return;
-        if (_phase != 2) return;
-        Announce(sa, "注意看场中boss手", 3000);
+        var boss = evt.SourceId();
+        sa.Method.RemoveDraw("^A8S配件-.*");
+
+        var start = DateTime.Now;
+        string? guid = null;
+        guid = sa.Method.RegistFrameworkUpdateAction(() =>
+        {
+            if (guid == null) return;                       // Unregist 不杀本帧已排队的回调
+            var mask = A8S读配件位(sa, boss);
+            var 超时 = (DateTime.Now - start).TotalMilliseconds >= A8S配件等待上限;
+            if (mask == 0 && !超时) return;
+            sa.Method.UnregistFrameworkUpdateAction(guid);
+            guid = null;
+            A8S画配件分支(sa, boss, mask);
+        }, true, false);
+    }
+
+    private static unsafe int A8S读配件位(ScriptAccessory sa, uint bossEntityId)
+    {
+        var obj = sa.Data.Objects.SearchByEntityId(bossEntityId);
+        if (obj is null || !obj.IsValid()) return 0;
+        var c = (FFXIVClientStructs.FFXIV.Client.Game.Character.Character*)obj.Address;
+        return c->ModelContainer.ModeAttributeFlags & 0x0F;
+    }
+
+    private void A8S画配件分支(ScriptAccessory sa, uint boss, int mask)
+    {
+        switch (mask)
+        {
+            case A8S配件单炮:
+                A8S画一仇矩形(sa, boss, A8S窄矩形宽度, "单炮");
+                Announce(sa, "单炮 躲一仇连线", 3000);
+                break;
+
+            case A8S配件双炮:
+                A8S画一仇矩形(sa, boss, A8S宽矩形宽度, "双炮");
+                Announce(sa, "双炮 躲一仇连线", 3000);
+                break;
+
+            case A8S配件单飞钻:
+                A8S画一仇矩形(sa, boss, A8S窄矩形宽度, "单飞钻");
+                Announce(sa, "单钻头 躲一仇连线", 3000);
+                break;
+
+            // 双手钻头：两条手臂飞出去点名离 boss 最近和最远的玩家，各落一个 9m 钻头驱动
+            case A8S配件双飞钻:
+                A8S画钻头(sa, boss, PositionResolvePatternEnum.PlayerNearestOrder, "最近");
+                A8S画钻头(sa, boss, PositionResolvePatternEnum.PlayerFarestOrder, "最远");
+                Announce(sa, "双钻头 最近最远", 3000);
+                break;
+
+            default:
+                Announce(sa, "配件读不到 看boss手", 3000);
+                break;
+        }
+        Dbg(sa, $"配件更换5692：boss {boss:X} 配件位 0x{mask:X1}");
+    }
+
+    // 5693/5694/5695：从 boss 指向一仇的 70 长矩形，宽度看单/双。
+    // 方向不是 boss 面向——boss 转身时朝向会晃，实际打的是一仇连线，所以用 OwnerEnmityOrder 实时解算
+    private static void A8S画一仇矩形(ScriptAccessory sa, uint boss, float 宽度, string 后缀)
+    {
+        var dp = sa.Data.GetDefaultDrawProperties();
+        dp.Name = $"A8S配件-{后缀}";
+        dp.Color = sa.Data.DefaultDangerColor;
+        dp.Owner = boss;
+        dp.TargetResolvePattern = PositionResolvePatternEnum.OwnerEnmityOrder;
+        dp.TargetOrderIndex = 1;
+        dp.Scale = new Vector2(宽度, A8S矩形长度);
+        dp.ScaleMode = ScaleMode.None;
+        dp.DestoryAt = A8S配件到技能;
+        sa.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Rect, dp);
+    }
+
+    // 5697 钻头驱动：落在被点名玩家身上的 9m 圆。
+    // CentreResolvePattern 每帧重算，谁跑成最近/最远圈就跟着换人（距离基准是 Owner=boss）
+    private static void A8S画钻头(ScriptAccessory sa, uint boss, PositionResolvePatternEnum 解算, string 后缀)
+    {
+        var dp = sa.Data.GetDefaultDrawProperties();
+        dp.Name = $"A8S配件-钻头{后缀}";
+        dp.Color = sa.Data.DefaultDangerColor;
+        dp.Owner = boss;
+        dp.CentreResolvePattern = 解算;
+        dp.CentreOrderIndex = 1;
+        dp.Scale = new Vector2(A8S钻头半径);
+        dp.ScaleMode = ScaleMode.None;
+        dp.DestoryAt = A8S配件到钻头;
+        sa.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Circle, dp);
     }
 
     // PlayActionTimeline 3208：按 index 指路 5s；index2 不动；index1/5/6/7 另外 20s 后超硬化
@@ -1988,10 +2094,12 @@ public class BlueMage
         if (!int.TryParse(evt["DurationMilliseconds"], out var dur)) dur = 3000;
 
         // PlayerFarestOrder：圈心实时解析为离 boss 最远的玩家
+        // 距离基准取的是 Owner 的位置，Owner 为 0 时才退化成 dp.Position
+        // 必须把 Owner 设为读条的 boss，否则会以 (0,0,0) 排序 = 恒定选中场地东南角的人
         var dp = sa.Data.GetDefaultDrawProperties();
         dp.Name = "A8S超级跳";
         dp.Color = sa.Data.DefaultDangerColor;
-        dp.Position = new Vector3(0);
+        dp.Owner = evt.SourceId();
         dp.CentreResolvePattern = PositionResolvePatternEnum.PlayerFarestOrder;
         dp.CentreOrderIndex = 1;
         dp.Scale = new Vector2(5.4f);   // 半径 5.4m
