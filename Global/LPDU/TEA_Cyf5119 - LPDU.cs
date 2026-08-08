@@ -1545,13 +1545,13 @@ public class TheEpicOfAlexander
             case 18585:
                 _p4OrdainList[1] = true;
                 str = $"First: {(_p4OrdainList[0] ? "Move" : "Stop")}, Then: {(_p4OrdainList[1] ? "Move" : "Stop")}";
-                sa.Method.TextInfo(str, 5000, true);
+                sa.Method.TextInfo(str, 15000, true);
                 sa.Method.SendChat("/e " + str);
                 break;
             case 18586:
                 _p4OrdainList[1] = false;
                 str = $"First: {(_p4OrdainList[0] ? "Move" : "Stop")}, Then: {(_p4OrdainList[1] ? "Move" : "Stop")}";
-                sa.Method.TextInfo(str, 5000, true);
+                sa.Method.TextInfo(str, 15000, true);
                 sa.Method.SendChat("/e " + str);
                 break;
         }
