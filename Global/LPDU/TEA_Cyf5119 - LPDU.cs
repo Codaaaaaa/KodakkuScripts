@@ -14,7 +14,7 @@ using KodakkuAssist.Module.Draw.Manager;
 
 namespace Cyf5119Script.Shadowbringers.TheEpicOfAlexander;
 
-[ScriptType(guid: "6259c636-cb4c-4052-ab2a-30642b58b043", name: "The Epic of Alexander (Ultimate) TEA - LPDU", territorys: [887], version: "0.0.2.9", author: "Cyf5119", note: Note, updateInfo: UpdateInfo)]
+[ScriptType(guid: "6259c636-cb4c-4052-ab2a-30642b58b043", name: "The Epic of Alexander (Ultimate) TEA - LPDU", territorys: [887], version: "0.0.2.10", author: "Cyf5119", note: Note, updateInfo: UpdateInfo)]
 public class TheEpicOfAlexander
 {
     private const string Note = "有问题来DC反馈。\n画图基于设置的小队职能进行绘制，请确保设置准确无误。\n/e KASCLEAR 清理残余画图";
@@ -67,6 +67,10 @@ public class TheEpicOfAlexander
     public void clear_draw(Event evt, ScriptAccessory sa) => sa.Method.RemoveDraw(".*");
 
     # region 阶段控制
+
+    // /e phase 查询当前阶段；回显文本不含 phase 字样，避免自触发
+    [ScriptMethod(name: "查询当前阶段", eventType: EventTypeEnum.Chat, eventCondition: ["Type:Echo", "Message:phase"], userControl: false)]
+    public void ShowPhase(Event evt, ScriptAccessory sa) => sa.Method.SendChat($"/e 当前阶段: {_phase}");
 
     [ScriptMethod(name: "阶段控制P1-流体摆动", eventType: EventTypeEnum.ActionEffect, eventCondition: ["ActionId:18864", "TargetIndex:1"], userControl: false)]
     public void PhaseControl1(Event evt, ScriptAccessory sa) => _phase = _phase == 0 ? 100 : _phase;
@@ -630,11 +634,15 @@ public class TheEpicOfAlexander
 
     private uint _p2WaterTimes = 0;
     private uint _p2LightingTimes = 0;
-    
+    private uint _p2WaterRemoveTimes = 0;
+    private uint _p2LightingRemoveTimes = 0;
+
     private void P2Reset()
     {
         _p2WaterTimes = 0;
         _p2LightingTimes = 0;
+        _p2WaterRemoveTimes = 0;
+        _p2LightingRemoveTimes = 0;
     }
 
     #region 传毒
@@ -646,6 +654,10 @@ public class TheEpicOfAlexander
 
     // 默认连线 MT-D1 ST-D3 H1-D2 H2-D4
     private static readonly List<int> P2PassPair = [4, 6, 5, 7, 0, 2, 1, 3];
+
+    // 四传点位，与 _decreeNisis / _judgmentNisis / _nisiColors 同序：蓝α 橙β 紫γ 绿δ
+    private static readonly List<Vector3> P2Pass4Pos =
+        [new(89.41f, 0, 100), new(95.18f, 0, 100), new(92.67f, 0, 100), new(98.00f, 0, 100)];
 
     [ScriptMethod(name: "上毒", eventType: EventTypeEnum.StatusAdd, eventCondition: ["StatusID:regex:^(222[23]|213[78])$"])]
     public void FinalDecreeNisi(Event evt, ScriptAccessory sa)
@@ -711,6 +723,28 @@ public class TheEpicOfAlexander
 
     [ScriptMethod(name: "三传提示", eventType: EventTypeEnum.ActionEffect, eventCondition: ["ActionId:18502", "TargetIndex:1"])]
     public void P2PassRot3(Event evt, ScriptAccessory sa) => P2PassRot(sa, 3);
+
+    // 2142 水属性压缩消失第三次 = 四传，只在 P2 计数；四色各去一个固定点，点上画 1.5m 同色圈
+    [ScriptMethod(name: "四传提示", eventType: EventTypeEnum.StatusRemove, eventCondition: ["StatusID:2142"])]
+    public void P2PassRot4(Event evt, ScriptAccessory sa)
+    {
+        if (_phase / 100 != 2) return;
+        _p2WaterRemoveTimes++;
+        if (_p2WaterRemoveTimes != 3) return;
+
+        var me = sa.GetMe();
+        for (var i = 0; i < P2Pass4Pos.Count; i++)
+        {
+            var cdp = sa.FastDp($"四传点位-{i}", P2Pass4Pos[i], 20000, 1.5f);
+            cdp.Color = _nisiColors[i].V4;
+            sa.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Circle, cdp);
+
+            // 毒与同色疫苗去同一个点
+            if (me is null || !me.HasStatus(_decreeNisis[i]) && !me.HasStatus(_judgmentNisis[i])) continue;
+            var dp = sa.WaypointDp(P2Pass4Pos[i], 20000, name: "四传指路");
+            sa.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
+        }
+    }
 
     #endregion
 
@@ -794,8 +828,8 @@ public class TheEpicOfAlexander
     public async void CompressedLightning(Event evt, ScriptAccessory sa)
     {
         _p2LightingTimes++;
-        var dp = sa.FastDp("雷属性压缩", evt.TargetId(), 5000, 8);
-        dp.Delay = 24000;
+        var dp = sa.FastDp("雷属性压缩", evt.TargetId(), 9000, 8);
+        dp.Delay = 20000;
         dp.Color = CompressedLightningColor.V4;
         sa.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Circle, dp);
         
@@ -828,8 +862,28 @@ public class TheEpicOfAlexander
             default:
                 return;
         }
-        dp = sa.WaypointDp(wpos, 8000, 20000);
+        dp = sa.WaypointDp(wpos, 10000, 18000);
         sa.Method.SendDraw(DrawModeEnum.Imgui, sa.Data.Me == evt.TargetId() ? DrawTypeEnum.Displacement : DrawTypeEnum.Line, dp);
+    }
+
+    // 2143 雷属性压缩消失第一次，只在 P2 计数：D3 与 ST 去北侧两点，其他人不动
+    [ScriptMethod(name: "P2-首次雷消失D3与ST指路", eventType: EventTypeEnum.StatusRemove, eventCondition: ["StatusID:2143"])]
+    public void CompressedLightningRemove(Event evt, ScriptAccessory sa)
+    {
+        if (_phase / 100 != 2) return;
+        _p2LightingRemoveTimes++;
+        if (_p2LightingRemoveTimes != 1) return;
+
+        var wpos = sa.MyIndex() switch
+        {
+            1 => new Vector3(97.38f, 0, 117.60f),   // ST
+            6 => new Vector3(102.74f, 0, 117.83f),  // D3
+            _ => Vector3.Zero
+        };
+        if (wpos == Vector3.Zero) return;
+
+        var dp = sa.WaypointDp(wpos, 8000, name: "首次雷消失指路");
+        sa.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
     }
 
     [ScriptMethod(name: "P2-水雷清除", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:18492"], userControl: false)]
@@ -882,22 +936,32 @@ public class TheEpicOfAlexander
         sa.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Fan, dp);
     }
 
-    [ScriptMethod(name: "P2-螺旋桨强风排队提示", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:18482"])]
-    public void PropellerWind(Event evt, ScriptAccessory sa)
-    {
-        var ice = sa.Data.Objects.FirstOrDefault(x => x.DataId == 0x2C81);
-        if (ice == null) return;
-        var dp = sa.FastDp("螺旋桨强风排队提示", evt.SourceId(), 6000, new Vector2(1, 40));
-        dp.TargetObject = ice.EntityId;
-        dp.Color = sa.Data.DefaultSafeColor;
-        sa.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Displacement, dp);
-    }
+    // [ScriptMethod(name: "P2-螺旋桨强风排队提示", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:18482"])]
+    // public void PropellerWind(Event evt, ScriptAccessory sa)
+    // {
+    //     var ice = sa.Data.Objects.FirstOrDefault(x => x.DataId == 0x2C81);
+    //     if (ice == null) return;
+    //     var dp = sa.FastDp("螺旋桨强风排队提示", evt.SourceId(), 6000, new Vector2(1, 40));
+    //     dp.TargetObject = ice.EntityId;
+    //     dp.Color = sa.Data.DefaultSafeColor;
+    //     sa.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Displacement, dp);
+    // }
 
     [ScriptMethod(name: "P2-双重火箭飞拳", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:18503"])]
     public void DoubleRocketPunch(Event evt, ScriptAccessory sa)
     {
         var dp = sa.FastDp("双重火箭飞拳", evt.TargetId(), 4000, 3);
         sa.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Circle, dp);
+    }
+
+    // 终审闭庭后、P3 时停前那次 18503 双重火箭飞拳，D3 单独去东侧待命点
+    [ScriptMethod(name: "P2-终审后双重火箭飞拳D3指路", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:18503"])]
+    public void DoubleRocketPunchWaypoint(Event evt, ScriptAccessory sa)
+    {
+        if (_phase != 230) return;
+        if (sa.MyIndex() != 6) return;
+        var dp = sa.WaypointDp(new Vector3(114.67f, 0, 100), 10000, name: "终审后D3指路");
+        sa.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
     }
 
     #endregion
@@ -1154,7 +1218,9 @@ public class TheEpicOfAlexander
 
         if ((myIdx % 2 == 0) == objRight) return;
         // 玩家所在侧 与 正义灵泉所在侧 不同则停止
-        DrawPropertiesEdit dp1, dp2;
+        // DrawPropertiesEdit 是引用类型，不能靠 dp2 = dp1 复制再改 DestoryAt 作废，会把 dp1 一起废掉
+        DrawPropertiesEdit dp1;
+        DrawPropertiesEdit? dp2;
         switch (myIdx)
         {
             case 0:
@@ -1166,14 +1232,14 @@ public class TheEpicOfAlexander
                 dp2 = sa.WaypointDp(new Vector3(MathF.Sign(pos.X - 100) * 13 + 100, 0, pos.Z), 4200, 14900);
                 break;
             case 2:
+                // 3号站定西侧不再动，只有一段
                 dp1 = sa.WaypointDp(new Vector3(-19, 0, +00) + Center, 4200, 10700);
-                dp2 = dp1;
-                dp2.DestoryAt = 1;
+                dp2 = null;
                 break;
             case 3:
+                // 4号站定东侧不再动，只有一段
                 dp1 = sa.WaypointDp(new Vector3(+19, 0, +00) + Center, 4200, 10700);
-                dp2 = dp1;
-                dp2.DestoryAt = 1;
+                dp2 = null;
                 break;
             case 4:
                 // dp1 = sa.WaypointDp(new Vector3(MathF.Sign(pos.X - 100) * 18 + 100, 0, pos.Z), 10700);
@@ -1200,7 +1266,8 @@ public class TheEpicOfAlexander
         }
 
         sa.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp1);
-        sa.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp2);
+        if (dp2 is not null)
+            sa.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp2);
     }
 
     [ScriptMethod(name: "P3-二运十字圣礼", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:18519"])]
