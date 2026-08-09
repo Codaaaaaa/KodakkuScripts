@@ -24,7 +24,7 @@ namespace CicerosKodakkuAssist.WeaponsRefrainUltimate.ChinaDataCenter
     [ScriptType(name:"The Weapon's Refrain (Ultimate) UWU - LPDU",
         territorys:[777],
         guid:"8a2b7d8a-4eeb-4840-84bb-195fd13645ea",
-        version:"0.0.4.4",
+        version:"0.0.4.5",
         note:scriptNotes,
         author:"Cicero 灵视")]
 
@@ -5780,7 +5780,7 @@ namespace CicerosKodakkuAssist.WeaponsRefrainUltimate.ChinaDataCenter
 
                 if(phase3_rockThrowCounter==3) {
 
-                    int[] temporaryOrder=[0,1,4,5,6,7,2,3];
+                    int[] temporaryOrder=[4,5,0,1,6,7,2,3];
                     phase3_rockThrowOrder.Clear();
 
                     for(int i=0;i<temporaryOrder.Length;++i) {
