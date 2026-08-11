@@ -18,7 +18,7 @@ namespace Codaaaaaa.BlueMage;
     guid: "76fb14c3-1185-4580-b020-1f9a25e6f978",
     name: "青魔魔界花整合",
     territorys: [245, 358, 196, 452, 532, 587],
-    version: "0.0.0.5",
+    version: "0.0.0.6",
     author: "Codaaaaaa",
     note: "攻略参考二二二二乱 A12S为拉一起复仇\n\n副本说明:\nT5:1T1N6D注意T青需要在MT位，其他随意，但每个人的kdy排序需相同\nT9:同上\nT13:同上\nA4S:1T1N6D，按照kdy排序1T青2N青345为拉小怪D青678为打腿组D青\nA8S:1T2N5D，按照kdy排序1T2N3盾N456D一组月78D二组月\nA12S:1T1N6D\n\nT青笔记：\nT5：-2s开怪\nT9: -2s预读小侦测开场，即刻白风稳仇+醒梦\nT13: 拉南 -2s预读小侦测开怪，即刻白风稳仇+醒梦\nA4S: 龙之力开场，MT全程远离人群\nA8S: 随意\nA12S: -5s龙之力 -2s魔法锤")]
 public class BlueMage
@@ -131,9 +131,9 @@ public class BlueMage
     private const int A8S配件单炮 = 0b1000;     // → 5693 破坏炮击
     private const int A8S配件双炮 = 0b1100;     // → 5694 双重破坏炮击
 
-    // 5693/5694/5695 都是从 boss 朝一仇方向的矩形，长度一样，只有宽度分单双
+    // 5693/5694 都是从 boss 朝一仇方向的矩形，长度一样，只有宽度分单双（5695 火箭飞钻不画，只提示远离场中）
     private const float A8S矩形长度 = 70f;      // 5693/5694 CastType4 EffectRange=70
-    private const float A8S窄矩形宽度 = 8f;     // 5693 破坏炮击 / 5695 火箭飞钻，XAxisModifier=8
+    private const float A8S窄矩形宽度 = 8f;     // 5693 破坏炮击，XAxisModifier=8
     private const float A8S宽矩形宽度 = 16f;    // 5694 双重破坏炮击，XAxisModifier=16
     private const float A8S钻头半径 = 9f;       // 5697 钻头驱动 CastType2 EffectRange=9
 
@@ -1855,9 +1855,9 @@ public class BlueMage
                 Announce(sa, "双炮 躲一仇连线", 3000);
                 break;
 
+            // 单飞钻打的不是一仇连线，不画范围，只提示远离场中
             case A8S配件单飞钻:
-                A8S画一仇矩形(sa, boss, A8S窄矩形宽度, "单飞钻");
-                Announce(sa, "单钻头 躲一仇连线", 3000);
+                Announce(sa, "单钻头 远离场中", 3000);
                 break;
 
             // 双手钻头：两条手臂飞出去点名离 boss 最近和最远的玩家，各落一个 9m 钻头驱动
@@ -1874,7 +1874,7 @@ public class BlueMage
         Dbg(sa, $"配件更换5692：boss {boss:X} 配件位 0x{mask:X1}");
     }
 
-    // 5693/5694/5695：从 boss 指向一仇的 70 长矩形，宽度看单/双。
+    // 5693/5694：从 boss 指向一仇的 70 长矩形，宽度看单/双。
     // 方向不是 boss 面向——boss 转身时朝向会晃，实际打的是一仇连线，所以用 OwnerEnmityOrder 实时解算
     private static void A8S画一仇矩形(ScriptAccessory sa, uint boss, float 宽度, string 后缀)
     {
