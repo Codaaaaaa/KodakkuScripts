@@ -18,7 +18,7 @@ namespace Codaaaaaa.BlueMage;
     guid: "76fb14c3-1185-4580-b020-1f9a25e6f978",
     name: "青魔魔界花整合",
     territorys: [245, 358, 196, 452, 532, 587],
-    version: "0.0.0.4",
+    version: "0.0.0.5",
     author: "Codaaaaaa",
     note: "攻略参考二二二二乱 A12S为拉一起复仇\n\n副本说明:\nT5:1T1N6D注意T青需要在MT位，其他随意，但每个人的kdy排序需相同\nT9:同上\nT13:同上\nA4S:1T1N6D，按照kdy排序1T青2N青345为拉小怪D青678为打腿组D青\nA8S:1T2N5D，按照kdy排序1T2N3盾N456D一组月78D二组月\nA12S:1T1N6D\n\nT青笔记：\nT5：-2s开怪\nT9: -2s预读小侦测开场，即刻白风稳仇+醒梦\nT13: 拉南 -2s预读小侦测开怪，即刻白风稳仇+醒梦\nA4S: 龙之力开场，MT全程远离人群\nA8S: 随意\nA12S: -5s龙之力 -2s魔法锤")]
 public class BlueMage
@@ -1716,7 +1716,7 @@ public class BlueMage
     }
 
     // StartCasting 5678(P1/P4)/5732(P3) 巨型光束炮：以 boss 位置沿其朝向画矩形，宽6长70，持续读条时长(约2700ms)
-    // 收到读条后整体延迟 800ms 再执行
+    // 收到读条后整体延迟 800ms 再执行，朝向取 boss 此刻的实时面向（取不到实体才回退读条快照）
     [ScriptMethod(
         name: "A8S - 巨型光束炮绘图",
         eventType: EventTypeEnum.StartCasting,
@@ -1730,7 +1730,7 @@ public class BlueMage
         dp.Name = "A8S巨型光束炮";
         dp.Color = sa.Data.DefaultDangerColor;
         dp.Position = evt.SourcePosition();
-        dp.Rotation = evt.SourceRotation();
+        dp.Rotation = sa.Data.Objects.SearchById(evt.SourceId()) is IGameObject boss ? boss.Rotation : evt.SourceRotation();
         dp.Scale = new Vector2(6f, 70f);
         dp.FixRotation = true;
         dp.ScaleMode = ScaleMode.None;
