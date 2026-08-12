@@ -62,7 +62,7 @@ public class TopReborn
     private const string Version = "0.0.0.18";
     private const string DebugVersion = "a";
 
-    private const bool Debugging = false;
+    private const bool Debugging = true;
 
     private static readonly List<string> Role = ["MT", "ST", "H1", "H2", "D1", "D2", "D3", "D4"];
     private static readonly Vector3 Center = new Vector3(100, 0, 100);
@@ -4315,7 +4315,11 @@ public class TopReborn
 
         void Action()
         {
-            // 以右下为基准
+            if (!_p6.宇宙天箭类型判断完毕) return;
+            if (_p6.宇宙天箭指路图案序号 == _p6.宇宙天箭判定次数) return;
+            _p6.宇宙天箭指路图案序号 = _p6.宇宙天箭判定次数;
+
+            // 第一次天箭：以右下为基准，各人按象限旋转
             int[][] 天箭指路图案 =
             [
                 [33, 11, 11, 55, 55, 55, 33],   // 内天箭指路图案DPS
@@ -4323,65 +4327,102 @@ public class TopReborn
                 [33, 11, 11, 33, 53, 88, 38],   // 内天箭指路图案TN
                 [33, 55, 55, 33, 88, 38, 38]    // 外天箭指路图案TN
             ];
-            
-            if (!_p6.宇宙天箭类型判断完毕) return;
-            int cosmoArrowGuidanceIdx, myRotation;
-            int myIndex = sa.GetMyIndex();
-            bool isFirstCosmoArrow = _parse == 6.1;
-            if (isFirstCosmoArrow)
+
+            // 第二次天箭：以MT（左上象限、正上轴）为基准的绝对坐标，各人按镜像/转置取用
+            // 正上11距、再向左偏22.5°的落点（≈95.8, 89.8）
+            var 上偏左22 = new Vector3(100, 0, 89).RotateAndExtend(Center, 22.5f.DegToRad());
+            Vector3[][] 第二次天箭指路坐标 =
+            [
+                [   // 内天箭
+                    new Vector3(92.5f, 0, 92.5f),           // 左上对角第2格
+                    new Vector3(97.5f, 0, 97.5f),           // 左上最内格
+                    new Vector3(97.5f, 0, 97.5f),
+                    new Vector3(92.5f, 0, 92.5f),           // 回左上对角第2格
+                    new Vector3(92.5f, 0, 87.5f),           // 左上最外圈偏上
+                    new Vector3(95.5f, 0, 89.5f),           // 正上靠左
+                    上偏左22                                 // 正上靠左偏22.5°
+                ],
+                [   // 外天箭
+                    new Vector3(92.5f, 0, 92.5f),           // 左上对角第2格
+                    new Vector3(87.5f, 0, 87.5f),           // 左上最外角
+                    new Vector3(87.5f, 0, 87.5f),
+                    new Vector3(92.5f, 0, 92.5f),           // 回左上对角第2格
+                    上偏左22,                                // 正上靠左偏22.5°
+                    new Vector3(上偏左22.X, 0, 90.5f),       // 维持X，Z内收至90.5
+                    new Vector3(上偏左22.X, 0, 90.5f)
+                ]
+            ];
+
+            var step = _p6.宇宙天箭指路图案序号;
+            var myIndex = sa.GetMyIndex();
+            var isFirstCosmoArrow = _parse == 6.1;
+            var (guidancePos, nextGuidancePos) = isFirstCosmoArrow
+                ? GetFirstCosmoArrowPos(step)
+                : GetSecondCosmoArrowPos(step);
+
+            DrawCosmoArrowGuidance(guidancePos, nextGuidancePos);
+            sa.Method.RemoveDraw($"P6A_宇宙天箭_指路{step - 1}");
+            sa.DebugMsg($"P6A_宇宙天箭_指路：绘制宇宙天箭指路图案序号 {step} 当前 {guidancePos} 下一 {nextGuidancePos}", Debugging);
+            return;
+
+            void DrawCosmoArrowGuidance(Vector3 pos, Vector3 nextPos)
             {
-                (cosmoArrowGuidanceIdx, myRotation) = myIndex switch
+                if (pos == Vector3.Zero) return;
+                if (nextPos != Vector3.Zero)
+                    sa.DrawGuidance(pos, nextPos, 0, 20000, $"P6A_宇宙天箭_指路{step}", isSafe: false);
+                sa.DrawGuidance(pos, 0, 20000, $"P6A_宇宙天箭_指路{step}", isSafe: true);
+            }
+
+            (Vector3, Vector3) GetFirstCosmoArrowPos(int idx)
+            {
+                var (guidanceIdx, rot) = myIndex switch
                 {
                     0 => (2, 2),
                     1 => (0, 0),
-                    _ => (0, 3)
+                    _ => (0, 0)
                 };
-            }
-            else
-            {
-                (cosmoArrowGuidanceIdx, myRotation) = myIndex switch
+                var guidance = 天箭指路图案[guidanceIdx + (_p6.宇宙天箭是内天箭 ? 0 : 1)];
+                return (PosOf(idx), PosOf(idx + 1));
+
+                Vector3 PosOf(int i)
                 {
-                    0 => (2, 2),     // MT左上正上
-                    1 => (2, 1),     // ST右上正右
-                    2 => (2, 3),     // H1左下正左
-                    3 => (2, 0),     // H2右下正下
-                    4 => (0, 3),     // D1左下
-                    5 => (0, 0),     // D2右下
-                    6 => (0, 2),     // D3左上
-                    7 => (0, 1)      // D4右上
-                };
-            }
-            cosmoArrowGuidanceIdx += _p6.宇宙天箭是内天箭 ? 0 : 1;
-            var cosmoArrowGuidance = 天箭指路图案[cosmoArrowGuidanceIdx];
-            if (_p6.宇宙天箭指路图案序号 == _p6.宇宙天箭判定次数) return;
-            _p6.宇宙天箭指路图案序号 = _p6.宇宙天箭判定次数;
-            
-            var guidance = _p6.宇宙天箭指路图案序号 >= cosmoArrowGuidance.Length ? 0 : cosmoArrowGuidance[_p6.宇宙天箭指路图案序号];
-            var nextGuidance = _p6.宇宙天箭指路图案序号 + 1 >= cosmoArrowGuidance.Length ? 0 : cosmoArrowGuidance[_p6.宇宙天箭指路图案序号 + 1];
-            DrawCosmoArrowGuidance(guidance, nextGuidance, myRotation);
-            sa.Method.RemoveDraw($"P6A_宇宙天箭_指路{_p6.宇宙天箭指路图案序号 - 1}");
-            sa.DebugMsg($"P6A_宇宙天箭_指路：绘制宇宙天箭指路图案序号 {_p6.宇宙天箭指路图案序号} {guidance} {myRotation} {nextGuidance}", Debugging);
-            return;
-            
-            void DrawCosmoArrowGuidance(int gd, int nextGd, int rot)
-            {
-                if (gd == 0) return;
-                var guidancePos = GetGuidancePos(gd, rot);
-                if (nextGd != 0)
-                {
-                    var nextGuidancePos = GetGuidancePos(nextGd, rot);
-                    sa.DrawGuidance(guidancePos, nextGuidancePos, 0, 20000, $"P6A_宇宙天箭_指路{_p6.宇宙天箭指路图案序号}", isSafe: false);
+                    if (i >= guidance.Length) return Vector3.Zero;
+                    var gd = guidance[i];
+                    if (gd == 0) return Vector3.Zero;
+                    var (digitX, digitZ) = (gd.GetDecimalDigit(1), gd.GetDecimalDigit(2));
+                    var biasX = digitX == 8 ? 0f : (2.5f + (digitX / 2) * 5) * (digitX % 2 == 0 ? -1 : 1);
+                    var biasZ = digitZ == 8 ? 13f : (2.5f + (digitZ / 2) * 5) * (digitZ % 2 == 0 ? -1 : 1);
+                    return new Vector3(100 + biasX, 0, 100 + biasZ).RotateAndExtend(Center, rot * 90f.DegToRad());
                 }
-                sa.DrawGuidance(guidancePos, 0, 20000, $"P6A_宇宙天箭_指路{_p6.宇宙天箭指路图案序号}", isSafe: true);
             }
 
-            Vector3 GetGuidancePos(int gd, int rot)
+            (Vector3, Vector3) GetSecondCosmoArrowPos(int idx)
             {
-                var (digitX, digitZ) = (gd.GetDecimalDigit(1), gd.GetDecimalDigit(2));
-                var biasX = digitX == 8 ? 0f : (2.5f + (digitX / 2) * 5) * (digitX % 2 == 0 ? -1 : 1);
-                var biasZ = digitZ == 8 ? 13f : (2.5f + (digitZ / 2) * 5) * (digitZ % 2 == 0 ? -1 : 1);
-                Vector3 guidancePos = new Vector3(100 + biasX, 0, 100 + biasZ).RotateAndExtend(Center, rot * 90f.DegToRad());
-                return guidancePos;
+                var guidance = 第二次天箭指路坐标[_p6.宇宙天箭是内天箭 ? 0 : 1];
+                // 转置 = 沿左上-右下对角线镜像，让DPS改走左右轴；再左右/上下镜像到自己的象限
+                var (transpose, mirrorX, mirrorZ) = myIndex switch
+                {
+                    0 => (false, false, false),     // MT左上正上
+                    1 => (false, true, false),      // ST右上正上
+                    2 => (false, false, true),      // H1左下正下
+                    3 => (false, true, true),       // H2右下正下
+                    4 => (true, false, true),       // D1左下正左
+                    5 => (true, true, true),        // D2右下正右
+                    6 => (true, false, false),      // D3左上正左
+                    7 => (true, true, false),       // D4右上正右
+                    _ => (false, false, false)
+                };
+                return (PosOf(idx), PosOf(idx + 1));
+
+                Vector3 PosOf(int i)
+                {
+                    if (i >= guidance.Length) return Vector3.Zero;
+                    var pos = guidance[i];
+                    if (transpose) pos = new Vector3(pos.Z, 0, pos.X);
+                    if (mirrorX) pos.X = Center.X * 2 - pos.X;
+                    if (mirrorZ) pos.Z = Center.Z * 2 - pos.Z;
+                    return pos;
+                }
             }
         }
     }
