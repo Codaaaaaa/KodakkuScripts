@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using KodakkuAssist.Module.GameEvent;
 using KodakkuAssist.Script;
 using KodakkuAssist.Module.GameEvent.Struct;
@@ -18,6 +18,7 @@ using System.ComponentModel;
 using Dalamud.Utility.Numerics;
 using FFXIVClientStructs.FFXIV.Client.Game.Character;
 using FFXIVClientStructs.FFXIV.Client.Game.Object;
+using FFXIVClientStructs.FFXIV.Client.Game.UI;
 using Lumina.Excel.Sheets;
 
 namespace UsamisKodakku.Scripts._06_EndWalker.TopReborn;
@@ -2172,13 +2173,13 @@ public class TopReborn
         }
     }
     
-    [ScriptMethod(name: "P5A1_一运_记录头标", eventType: EventTypeEnum.Marker, eventCondition: ["Operate:Add", "Id:regex:^(0[123467])$"],
+    [ScriptMethod(name: "P5A1_一运_记录头标", eventType: EventTypeEnum.Marker, eventCondition: ["Operate:Add", "Id:regex:^(1[34])$"],
         userControl: Debugging)]
     public void P5A1_一运_记录头标(Event ev, ScriptAccessory sa)
     {
-        // 只取攻击1234与锁链12
+        // 只取十字与三角，两个标都落在远线玩家身上；其余 6 人无头标
         if (_parse != 5.1) return;
-        
+
         lock (_pd)
         {
             var mark = ev.Id0();
@@ -2188,16 +2189,12 @@ public class TopReborn
             _pd.AddActionCount();
             var pdVal = mark switch
             {
-                1 => 10,    // 攻击1
-                2 => 20,    // 攻击2
-                3 => 30,    // 攻击3
-                4 => 40,    // 攻击4
-                6 => 100,   // 锁链1
-                7 => 200,   // 锁链2
+                0x13 => 100,   // 十字
+                0x14 => 200,   // 三角
                 _ => 0
             };
             _pd.AddPriority(tidx, pdVal);
-            if (_pd.ActionCount != 6) return;
+            if (_pd.ActionCount != 2) return;
             sa.DebugMsg($"P5_一运_记录头标：头标记录完毕", Debugging);
             sa.DebugMsg($"{_pd.ShowPriorities()}", Debugging);
             _p5A.头标记录.Set();   // 头标记录
@@ -2239,7 +2236,7 @@ public class TopReborn
             sa.DebugMsg($"远线无标玩家找到搭档：{sa.GetPlayerJobByIndex(partnerIndex)}", Debugging);
         }
         
-        // 2. 统一优先级 markerVal
+        // 2. 统一优先级 markerVal：10/11 十字与其搭档，20/21 三角与其搭档，0 无标（光头侧）
         for (int i = 0; i < 8; i++)
             _pd.Priorities[i] = (_pd.Priorities[i] % 1000) / 10;
 
@@ -2274,9 +2271,9 @@ public class TopReborn
         {
             Vector3 raw = isLeft ? new Vector3(90f, 0, 106f) : new Vector3(110f, 0, 106f);
 
-            bool needBack  = marker is 3 or 4 or 20 or 21;      // 靠外组
-            bool useOmega  = marker is 10 or 11 or 20 or 21;    // 远线组
-            int  dir       = useOmega ? _p5A.光头位置 : _p5A.蟑螂位置;
+            bool isTether  = marker != 0;                       // 十字/三角及其搭档，去蟑螂侧
+            bool needBack  = marker is 10 or 11;                // 十字组靠场外；三角组靠场中；光头侧暂不分内外
+            int  dir       = isTether ? _p5A.蟑螂位置 : _p5A.光头位置;
 
             if (needBack) raw += new Vector3(0, 0, 8);
             return raw.RotateAndExtend(Center, 90f.DegToRad() * dir);
@@ -2301,20 +2298,42 @@ public class TopReborn
         int mobRegion = ev.SourcePosition.GetRadian(Center).RadianToRegion(4, isDiagDiv: false);
         if (mobRegion != _p5A.玩家四分之一半场) return;
         
-        // 3. 统计
+        // 3. 统计，并在本象限的 2 个拳头刷完时（此时各人已就位）判定场内外
         lock (_pd)
         {
-            _pd.AddActionCount();
             _p5A.拳头数量++;
             _p5A.拳头颜色 += ev.DataId() == BLUE_ROCKET ? 1 : -1;
 
             sa.DebugMsg($"玩家半场刷出第{_p5A.拳头数量}个拳头，" + $"颜色{(ev.DataId() == BLUE_ROCKET ? "蓝" : "黄")}，" + $"颜色累计值={_p5A.拳头颜色}", Debugging);
+
+            if (_p5A.拳头数量 != 2) return;
+            var myIndex = sa.GetMyIndex();
+            // 两侧都按就位后的实际站位定内外，不再由头标写死：更靠场边的场外，更靠场中的场内
+            _p5A.玩家场外 = IsOutsideByPosition(myIndex);
+            sa.DebugMsg($"P5A1_一运_记录拳头：markerVal {_pd.Priorities[myIndex]}，判定为场{(_p5A.玩家场外 ? "外" : "内")}", Debugging);
         }
-        
-        // 4. 14 只怪（6 头标 + 8 拳头）全部刷完
-        if (_pd.ActionCount != 14) return;
+
         _p5A.拳头记录.Set();
         sa.Method.RemoveDraw($"P5A1_一运_待命地点.*");
+        return;
+
+        // 每个象限固定站 2 人，直接与同象限的另一人比到场心的距离：
+        // 远者场外（引导靠边的手），近者场内（引导靠中的手）
+        // 注意：别人的 _pd.Priorities 不可信（远线无标搭档只在本人客户端被补成 11/21，别人看到的是 0），故不按头标筛人
+        bool IsOutsideByPosition(int selfIndex)
+        {
+            var myDist = myPos.GetLength(Center);
+            for (int i = 0; i < sa.Data.PartyList.Count; i++)
+            {
+                if (i == selfIndex) continue;
+                var obj = sa.GetById(sa.Data.PartyList[i]);
+                if (obj is null) continue;
+                if (obj.Position.GetRadian(Center).RadianToRegion(4, isDiagDiv: false) != _p5A.玩家四分之一半场) continue;
+                return myDist > obj.Position.GetLength(Center);
+            }
+            sa.DebugMsg($"P5A1_一运_记录拳头：本象限未找到另一人，按场内处理", Debugging);
+            return false;
+        }
     }
     
     [ScriptMethod(name: "P5A1_一运_拳头待命指路", eventType: EventTypeEnum.AddCombatant, eventCondition: ["DataId:regex:^(157(09|10))$"],
@@ -2325,25 +2344,26 @@ public class TopReborn
         _p5A.拳头记录.WaitOne(2000);
         try
         {
-            var myIndex = sa.GetMyIndex();
+            // 场内外在 P5A1_一运_记录拳头 里按头标与就位后的相对位置判定
+            var myIndex   = sa.GetMyIndex();
             var markerVal = _pd.Priorities[myIndex];
-        
-            var isOutside = markerVal is 3 or 4 or 20 or 21;    // 攻3，攻4，锁2，禁2
-            var isRemoteTetherOutside = markerVal is 20 or 21;  // 锁2，禁2
-        
+            // 拳头阶段蟑螂侧远线组的点位与判定完全对调：判为场外的走场内点，判为场内的走场外点。
+            // 光头侧无标的短线组一律走场外点，不再按 _p5A.玩家场外 拆成一内一外。
+            // 以上只在本方法生效；激光手方位那边仍用 _p5A.玩家场外 的原值区分短线组四人。
+            var isOutside = markerVal == 0 || !_p5A.玩家场外;
+
             // var myQuadrant = _p5A.玩家四分之一半场;
             var punchCountAtMyQuadrant = _p5A.拳头数量;
             var punchColorAtMyQuadrant = _p5A.拳头颜色;
-        
-            // 1. 内场玩家，不交换，直接站象限点
+
+            // 1. 场内玩家，不交换，直接站象限点
             if (!isOutside)
             {
-                // isRemoteTetherOutside 决定玩家是靠近远线组（欧米茄）还是靠近近线组（蟑螂）
-                Vector3 pos = GetQuadrantPoint(isRemoteTetherOutside, _p5A.光头位置, _p5A.玩家四分之一半场);
+                Vector3 pos = GetQuadrantPoint(true, _p5A.光头位置, _p5A.玩家四分之一半场);
                 sa.DrawGuidance(pos, 0, 5000, $"P5A1_一运_拳头");
                 return;
             }
-        
+
             // 2. 拳头数量不对，不绘图
             if (punchCountAtMyQuadrant != 2)
             {
@@ -2351,10 +2371,10 @@ public class TopReborn
                 sa.Method.TextInfo("Check whether your group's fist colors swapped", 4000, true);
                 return;
             }
-        
+
             // 3. 检测拳头是否同色，镜像换点
             bool needSwap = punchColorAtMyQuadrant != 0;
-            Vector3 final = GetQuadrantPoint(isRemoteTetherOutside, _p5A.光头位置, _p5A.玩家四分之一半场);
+            Vector3 final = GetQuadrantPoint(false, _p5A.光头位置, _p5A.玩家四分之一半场);
             if (needSwap)
                 final = MirrorAcrossBoss(final, _p5A.光头位置);
             sa.DrawGuidance(final, 0, 5000, $"P5A1_一运_拳头");
@@ -2364,11 +2384,11 @@ public class TopReborn
             _p5A.拳头记录.Reset();
         }
         return;
-        
-        Vector3 GetQuadrantPoint(bool isRemoteTetherOutside, int omegaDir, int myQuadrant)
+
+        Vector3 GetQuadrantPoint(bool isInside, int omegaDir, int myQuadrant)
         {
             // 所有坐标以第0象限（右下）为原型，后面统一做象限镜像
-            Vector3 raw = isRemoteTetherOutside ? new Vector3(102.7f, 0, 110f) : new Vector3(108.7f, 0, 110f);
+            Vector3 raw = isInside ? new Vector3(102.7f, 0, 110f) : new Vector3(108.7f, 0, 110f);
 
             // Boss 在奇数方向时整体顺时针旋转 -90°
             if (omegaDir % 2 == 1)
@@ -2432,40 +2452,46 @@ public class TopReborn
         int     marker  = _pd.Priorities[myIndex];
         Vector3 myPos   = ev.TargetPosition;
         
-        bool isShieldTarget = marker is 10 or 11;               // 锁1 禁1，需往场中被盾击
-        bool isOutside      = marker is 3 or 4 or 20 or 21;     // 攻3，攻4，锁2，禁2，偏场外
-        bool isBind         = marker is 10 or 20 or 11 or 21;   // 锁1，锁2，禁1，禁2
-        
-        // 2. 计算光头12方向与手臂编号
-        int     omega12  = _p5A.光头位置 * 3;          // 0~11
-        int     armUnit  = CalcArmUnit(omega12, isOutside, isBind, myPos, Center);
+        bool isShieldTarget = marker is 20 or 21;               // 三角组（内档远线），需往场中被盾击
+        bool isOutside      = _p5A.玩家场外;                     // 拳头阶段判定的场内外
+        bool isBind         = marker != 0;                      // 远线组（十字/三角及其搭档）
+
+        // 2. 计算手臂编号。两侧对调后整套引导跟着转 180°，故基准由光头改为蟑螂
+        int     beetle12 = _p5A.蟑螂位置 * 3;          // 0~11
+        int     armUnit  = CalcArmUnit(beetle12, isOutside, isBind, myPos, Center);
         _p5A.玩家引导激光手方位 = armUnit;
-        
+
+        if (!isShieldTarget && !_p5A.激光手方向字典.ContainsKey(armUnit))
+        {
+            sa.DebugMsg($"P5A1_一运_玩家引导激光手指路：未记录到 {armUnit} / 12 方向的激光手", Debugging);
+            return;
+        }
+
         Vector3 guidePos = isShieldTarget
             ? new Vector3(100, 0, 105).RotateAndExtend(Center, armUnit * 30f.DegToRad())
             : _p5A.激光手方向字典[armUnit];
 
         sa.DrawGuidance(guidePos, 0, 4000, isShieldTarget ? "P5A1_一运_玩家引导激光手指路_场中" : "P5A1_一运_玩家引导激光手指路_拳头", isSafe: false);
         return;
-        
-        int CalcArmUnit(int omega12, bool outside, bool bind, Vector3 myPos, Vector3 center)
+
+        int CalcArmUnit(int beetle12, bool outside, bool bind, Vector3 myPos, Vector3 center)
         {
-            Vector3 omegaPos = new Vector3(100, 0, 120).RotateAndExtend(center, omega12 * 30f.DegToRad());
-            bool isRight = IsAtRight(omegaPos, myPos, center);
+            Vector3 beetlePos = new Vector3(100, 0, 120).RotateAndExtend(center, beetle12 * 30f.DegToRad());
+            bool isRight = IsAtRight(beetlePos, myPos, center);
             // 3-bit 编码
             int code = (outside ? 4 : 0) | (isRight ? 2 : 0) | (bind ? 1 : 0);
 
             return code switch
             {
-                0b111 => (omega12 + 1)  % 12,
-                0b110 => (omega12 + 5)  % 12,
-                0b101 => (omega12 + 11) % 12,
-                0b100 => (omega12 + 7)  % 12,
-                0b010 => (omega12 + 3)  % 12,
-                0b000 => (omega12 + 9)  % 12,
-                
-                0b011 => (omega12 + 3)  % 12,
-                0b001 => (omega12 + 9)  % 12,
+                0b111 => (beetle12 + 1)  % 12,
+                0b110 => (beetle12 + 5)  % 12,
+                0b101 => (beetle12 + 11) % 12,
+                0b100 => (beetle12 + 7)  % 12,
+                0b010 => (beetle12 + 3)  % 12,
+                0b000 => (beetle12 + 9)  % 12,
+
+                0b011 => (beetle12 + 3)  % 12,
+                0b001 => (beetle12 + 9)  % 12,
                 _     => -1
             };
         }
@@ -2485,12 +2511,12 @@ public class TopReborn
             
         var myIndex = sa.GetMyIndex();
         var markerVal = _pd.Priorities[myIndex];
-        var isShieldTarget = markerVal is 10 or 11; 
+        var isShieldTarget = markerVal is 20 or 21;
         if (isShieldTarget) return;
-            
+
         sa.DebugMsg($"玩家引导激光手方位为：{_p5A.玩家引导激光手方位} / 12", Debugging);
-        Vector3 armUnitPos = _p5A.激光手方向字典[_p5A.玩家引导激光手方位];
-        
+        if (!_p5A.激光手方向字典.TryGetValue(_p5A.玩家引导激光手方位, out var armUnitPos)) return;
+
         sa.DrawGuidance(armUnitPos, 0, 4000, $"P5A1_一运_引导拳头");
     }
     
@@ -2510,7 +2536,7 @@ public class TopReborn
         var myIndex = sa.GetMyIndex();
         var markerVal = _pd.Priorities[myIndex];
             
-        if (markerVal is not 10 and not 11) return;
+        if (markerVal is not 20 and not 21) return;    // 三角组（内档远线）
         var myArmUnit = _p5A.玩家引导激光手方位;
             
         var centerBiasPos = new Vector3(100, 0, 105).RotateAndExtend(Center, myArmUnit * 30f.DegToRad());
@@ -2525,11 +2551,20 @@ public class TopReborn
         var myIndex = sa.GetMyIndex();
         var markerVal = _pd.Priorities[myIndex];
 
-        if (markerVal is not 1 and not 2 and not 3 and not 4) return;
+        if (markerVal != 0) return;    // 仅光头侧无标（近线）组
         var myArmUnit = _p5A.玩家引导激光手方位;
-        
+        if (myArmUnit < 0) return;
+        var beetle12  = _p5A.蟑螂位置 * 3;
+
+        // 近线组四人恒在 beetle12 + {3,5,7,9}：+5/+7 折算后落在斜点，+3/+9 落在正点。
+        // 被占的两个斜点永远夹着 beetle12+6（蟑螂对面），空着的两个夹着 beetle12，
+        // 故正点的人朝蟑螂方向偏 45° 即可站到无人的斜点上。
+        var myUnit8 = (int)MathF.Round((float)myArmUnit * 2 / 3);
+        if (myArmUnit % 3 == 0)
+            myUnit8 += Math.Sign(((beetle12 - myArmUnit + 18) % 12) - 6);
+
         var standByPos = new Vector3(100, 0, 114).
-            RotateAndExtend(Center, MathF.Round((float)myArmUnit * 2 / 3) * 45f.DegToRad());
+            RotateAndExtend(Center, myUnit8 * 45f.DegToRad());
         sa.DrawGuidance(standByPos, 0, 6000, $"P5A1_一运_转转手引导后近线待命指路");
     }
     
@@ -2577,8 +2612,8 @@ public class TopReborn
             int myPriVal  = _pd.Priorities[myIndex];
             int markerVal = myPriVal % 100;          // 仅头标
             
-            // 1. 近线组直接退出
-            if (markerVal is 1 or 2 or 3 or 4) return;
+            // 1. 近线组（光头侧无标）直接退出
+            if (markerVal == 0) return;
             
             // 2. 是否同目标，小电视点名+100、盾连击+1000
             bool isSameTarget = _pd.SelectSpecificPriorityIndex(0, true).Value >= 1100;
@@ -2733,18 +2768,24 @@ public class TopReborn
             // 后续只改这里即可
             Vector3[] basePos =
             {
-                new(98f,   0, 119f),    // 1   Atk1   FarTarget
-                new(89.4f, 0, 83.8f),   // 2   Atk2   FarTarget
-                new(91.1f, 0, 111.1f),  // 3   Atk3   NearTarget
-                new(86.3f, 0, 113.7f),  // 4   Atk4   NearTarget
-                new(80.5f, 0, 100f),    // 10  Bind1  FarSource
-                new(93.5f, 0, 100f),    // 20  Bind2  NearSource
-                new(83.8f, 0, 89f),     // 11  Stop1  Idle
-                new(83.8f, 0, 89f)      // 21  Stop2  Idle
+                new(95.8f, 0, 108.22f),    // 1   无标场内·逆时针侧   FarTarget
+                new(90.6f, 0, 109.2f),   // 2   无标场内·顺时针侧   FarTarget
+                new(98f,   0, 119f),  // 3   无标场外·逆时针侧   NearTarget
+                new(89.4f, 0, 83.8f),  // 4   无标场外·顺时针侧   NearTarget
+                new(93.5f, 0, 100f),    // 20  三角（内档远线）    FarSource
+                new(80.5f, 0, 100f),    // 10  十字（外档远线）    NearSource
+                new(83.8f, 0, 89f),     // 21  三角搭档            Idle
+                new(83.8f, 0, 89f)      // 11  十字搭档            Idle
             };
-            
-            // 2. 自动映射：marker到索引
-            List<int> map = [1, 2, 3, 4, 10, 20, 11, 21]; // 与 basePos 下标一一对应
+
+            // 2. 自动映射：marker到索引。光头侧 4 人无头标，用一运拳头阶段判定的场内外 + 所在象限还原成旧的攻击 1-4 位
+            if (marker == 0)
+            {
+                bool isCcwSide = _p5A.玩家四分之一半场 == _p5A.光头位置;
+                marker = _p5A.玩家场外 ? (isCcwSide ? 3 : 4) : (isCcwSide ? 1 : 2);
+                sa.DebugMsg($"P5A2_一传_指路：无标玩家还原为攻击{marker}位", Debugging);
+            }
+            List<int> map = [1, 2, 3, 4, 20, 10, 21, 11]; // 与 basePos 下标一一对应
             int idx = map.IndexOf(marker);
             if (idx < 0)
             {
@@ -2821,37 +2862,246 @@ public class TopReborn
         sa.DebugMsg($"记录下协作程序是 {(_p5B.协作程序是远线 ? "远" : "近")} 线", Debugging);
     }
     
+    [ScriptMethod(name: "P5B1_二运_索尼记录", eventType: EventTypeEnum.TargetIcon, eventCondition: ["Id:regex:^(01A[0123])$"],
+        userControl: Debugging)]
+    public void P5B1_二运_索尼记录(Event ev, ScriptAccessory sa)
+    {
+        // 仅用于八方头标缺失时的兜底分组，组号顺序为 叉-方-圆-角
+        if (_parse != 5.2) return;
+        const uint CIRCLE_1 = 416, CROSS_2 = 419, TRIANGLE_3 = 417, SQUARE_4 = 418;
+        lock (_p5B.索尼组字典)
+        {
+            var tidx = sa.GetPlayerIdIndex((uint)ev.TargetId);
+            var group = ev.Id0() switch
+            {
+                CROSS_2 => 索尼叉,
+                SQUARE_4 => 索尼方,
+                CIRCLE_1 => 索尼圆,
+                TRIANGLE_3 => 索尼角,
+                _ => -1
+            };
+            if (group < 0) return;
+            _p5B.索尼组字典[tidx] = group;
+            sa.DebugMsg($"P5B1_二运_索尼记录：{sa.GetPlayerJobByIndex(tidx)} 为索尼组 {group}", Debugging);
+        }
+    }
+
+    [ScriptMethod(name: "P5B1_二运_波动炮点名记录", eventType: EventTypeEnum.TargetIcon, eventCondition: ["Id:00F4"],
+        userControl: Debugging)]
+    public async void P5B1_二运_波动炮点名记录(Event ev, ScriptAccessory sa)
+    {
+        // 六人被点，没被点的两人在八方头标缺失时定死为 攻击1 / 锁链1
+        if (_parse != 5.2) return;
+        var tidx = sa.GetPlayerIdIndex((uint)ev.TargetId);
+        if (tidx is < 0 or > 7) return;
+        bool 首个点名;
+        lock (_p5B.波动炮点名)
+        {
+            if (!_p5B.波动炮点名.Add(tidx)) return;
+            首个点名 = _p5B.波动炮点名.Count == 1;
+            sa.DebugMsg($"P5B1_二运_波动炮点名记录：{sa.GetPlayerJobByIndex(tidx)} 被点名（{_p5B.波动炮点名.Count}/6）", Debugging);
+        }
+        if (!首个点名) return;
+
+        // 点名落地 200ms 后各人已站定，这一帧的坐标用于判断索尼组内谁东谁西（兜底分 攻击2/3、锁链2/3）
+        await Task.Delay(200);
+        lock (_p5B.点名时坐标)
+        {
+            _p5B.点名时坐标.Clear();
+            foreach (var memberId in sa.Data.PartyList)
+            {
+                var member = sa.GetById(memberId);
+                if (member == null || !member.IsValid()) continue;
+                var idx = sa.GetPlayerIdIndex(memberId);
+                if (idx is < 0 or > 7) continue;
+                _p5B.点名时坐标[idx] = member.Position;
+            }
+            sa.DebugMsg($"P5B1_二运_波动炮点名记录：已记录 {_p5B.点名时坐标.Count} 人点名后坐标", Debugging);
+        }
+    }
+
+    // 八方槽位优先值：升序排位即站位顺序（攻击1→攻击4→大圈→锁链3→锁链1）
+    private const int 槽攻击1 = 10, 槽攻击2 = 20, 槽攻击3 = 30, 槽攻击4 = 40, 槽锁链4 = 50, 槽锁链3 = 60, 槽锁链2 = 70, 槽锁链1 = 80;
+    // 索尼组号，顺序为 叉-方-圆-角
+    private const int 索尼叉 = 0, 索尼方 = 1, 索尼圆 = 2, 索尼角 = 3;
+    private static readonly int[] 索尼组序 = [索尼叉, 索尼方, 索尼圆, 索尼角];
+
+    // 八方波动炮站位：以男人方位为南（16 分区、每区 22.5°、逆时针增加），八人各占一个正/斜方位
+    //                                            攻击1 攻击2 攻击3 攻击4 大圈 锁链3 锁链2 锁链1
+    private static readonly int[] 站位区偏移 = [2, 0, 4, 6, 10, 8, 12, 14];
+
+    private static string 槽位名(int 槽) => 槽 switch
+    {
+        槽攻击1 => "攻击1", 槽攻击2 => "攻击2", 槽攻击3 => "攻击3", 槽攻击4 => "攻击4",
+        槽锁链4 => "大圈", 槽锁链3 => "锁链3", 槽锁链2 => "锁链2", 槽锁链1 => "锁链1",
+        _ => $"未知({槽})"
+    };
+
     [ScriptMethod(name: "P5B1_二运_获取八方头标", eventType: EventTypeEnum.Marker, eventCondition: ["Operate:Add", "Id:regex:^(0[1234678]|11|12)$"],
         userControl: Debugging)]
     public void P5B1_二运_获取八方头标(Event ev, ScriptAccessory sa)
     {
         // 取攻击1234、锁链123、大饼
         if (_parse != 5.2) return;
-        
+
         lock (_pd)
         {
+            if (_p5B.八方头标记录完毕.WaitOne(0)) return;    // 已记录完毕或已走兜底，忽略迟到的标点
             var mark = ev.Id0();
             var tidx = sa.GetPlayerIdIndex((uint)ev.TargetId);
             var targetJob = sa.GetPlayerJobByIndex(tidx);
-            sa.DebugMsg($"检测到{targetJob} 被标 ev.Id {mark}", Debugging);
             _pd.AddActionCount();
             var pdVal = mark switch
             {
-                0x01 => 10,    // 攻击1
-                0x02 => 20,    // 攻击2
-                0x03 => 30,    // 攻击3
-                0x04 => 40,    // 攻击4
-                0x06 => 80,   // 锁链1
-                0x07 => 70,   // 锁链2
-                0x08 => 60,   // 锁链3
-                0x11 or 0x12 => 50,   // 方块/大饼
+                0x01 => 槽攻击1,
+                0x02 => 槽攻击2,
+                0x03 => 槽攻击3,
+                0x04 => 槽攻击4,
+                0x06 => 槽锁链1,
+                0x07 => 槽锁链2,
+                0x08 => 槽锁链3,
+                0x11 or 0x12 => 槽锁链4,   // 方块/大饼
                 _ => 0
             };
+            sa.DebugMsg($"检测到{targetJob} 被标 {槽位名(pdVal)}（ev.Id {mark}）", Debugging);
             _pd.AddPriority(tidx, pdVal);
+            if (pdVal != 0) _p5B.八方头标字典[tidx] = pdVal;
             if (_pd.ActionCount != 8) return;
             sa.DebugMsg($"P5B1_二运_获取八方头标：头标记录完毕", Debugging);
             sa.DebugMsg($"{_pd.ShowPriorities()}", Debugging);
             _p5B.八方头标记录完毕.Set();   // 头标记录
+        }
+    }
+
+    /// <summary>
+    /// 八方头标兜底：标点不全时，按 00F4 波动炮点名 + 索尼分组 + 职能优先级把没被标到的人补进剩余槽位。
+    /// 一个索尼组固定占一对对位槽（攻击1↔锁链4大圈、攻击2↔锁链3、攻击3↔锁链2、攻击4↔锁链1），组内高优先者取攻击侧。
+    /// 攻击1、锁链1 由没吃到 00F4 的两人担任，索尼组序（叉→方→圆→角）靠前者取攻击1；
+    /// 攻击2/3 与锁链3/2 由组内两人都吃到 00F4 的那两个索尼组担任，以男人方位为南，组内相对靠东者取攻击槽，
+    /// 组序（叉→方→圆→角）靠前的组坐 攻击2/锁链3，靠后的坐 攻击3/锁链2。
+    /// 00F4 或坐标缺失时退回原逻辑：攻击1、攻击2 顺次取索尼组，锁链1 取余下组里职能优先级最低者。
+    /// </summary>
+    private static void P5B1_二运_八方头标兜底(ScriptAccessory sa)
+    {
+        var 分配 = new Dictionary<int, int>(_p5B.八方头标字典);
+        var 无点名 = Enumerable.Range(0, 8).Where(i => !分配.ContainsKey(i)).ToList();    // 索引升序即 MT>ST>H1>H2>D1>D2>D3>D4
+        if (无点名.Count == 0) return;
+        Dictionary<int, int> 索尼组;
+        lock (_p5B.索尼组字典) 索尼组 = new Dictionary<int, int>(_p5B.索尼组字典);
+        var 空槽 = new List<int> { 槽攻击1, 槽攻击2, 槽攻击3, 槽攻击4, 槽锁链4, 槽锁链3, 槽锁链2, 槽锁链1 }
+            .Where(v => !分配.ContainsValue(v)).ToHashSet();
+        sa.DebugMsg($"P5B1_二运_八方头标兜底：{无点名.Count} 人无头标，触发兜底", Debugging);
+
+        // 没吃到 00F4 的两人定死 攻击1 / 锁链1，索尼组序（叉→方→圆→角）靠前者取攻击1；索尼缺失时退回职能优先级
+        HashSet<int> 波动炮点名;
+        lock (_p5B.波动炮点名) 波动炮点名 = new HashSet<int>(_p5B.波动炮点名);
+        var 未被点 = Enumerable.Range(0, 8).Where(i => !波动炮点名.Contains(i))
+            .OrderBy(i => 索尼组.GetValueOrDefault(i, int.MaxValue)).ThenBy(i => i).ToList();
+        if (波动炮点名.Count == 6 && 未被点.Count == 2)
+        {
+            if (无点名.Contains(未被点[0]) && 空槽.Contains(槽攻击1)) 指派(未被点[0], 槽攻击1);
+            if (无点名.Contains(未被点[^1]) && 空槽.Contains(槽锁链1)) 指派(未被点[^1], 槽锁链1);
+        }
+        else
+            sa.DebugMsg($"P5B1_二运_八方头标兜底：00F4 点名记录 {波动炮点名.Count} 人，不可用，攻击1/锁链1 退回索尼推算", Debugging);
+
+        // 攻击1 的索尼同伴接对位的锁链4（大圈）；00F4 不可用时退回按 叉→方→圆→角 取组
+        补对位索尼组(槽攻击1, 槽锁链4);
+
+        // 攻击2/3 与锁链3/2：两人都吃到 00F4 的那两个索尼组，组内相对靠东者取攻击槽
+        var 东西可用 = 补东西索尼组();
+        if (!东西可用) 补对位索尼组(槽攻击2, 槽锁链3);
+
+        // 锁链1 取余下索尼组中职能优先级最低的人，其索尼同组接攻击4
+        if (空槽.Contains(槽锁链1))
+        {
+            var 锁链1候选 = 无点名.Where(i => !组已占用(索尼组.GetValueOrDefault(i, -1))).ToList();
+            if (锁链1候选.Count == 0) 锁链1候选 = 无点名;
+            if (锁链1候选.Count > 0) 指派(锁链1候选[^1], 槽锁链1);
+        }
+        补索尼同组(槽锁链1, 槽攻击4);
+
+        // 最后一组补攻击3与对位的锁链2
+        if (!东西可用) 补对位索尼组(槽攻击3, 槽锁链2);
+
+        // 索尼头标也缺失时，剩下的人按职能优先级顺次填进剩余空槽，保证八个排位不重不漏
+        foreach (var 槽 in 空槽.OrderBy(v => v).ToList())
+        {
+            if (无点名.Count == 0) break;
+            指派(无点名[0], 槽);
+        }
+        sa.DebugMsg($"{_pd.ShowPriorities()}", Debugging);
+        return;
+
+        void 指派(int idx, int 槽)
+        {
+            分配[idx] = 槽;
+            无点名.Remove(idx);
+            空槽.Remove(槽);
+            _pd.AddPriority(idx, 槽);
+            sa.DebugMsg($"P5B1_二运_八方头标兜底：{Role[idx]} 补为 {槽位名(槽)}", Debugging);
+        }
+
+        // 源槽持有者的索尼同组伙伴若也没被标到，则补进目标槽
+        void 补索尼同组(int 源槽, int 目标槽)
+        {
+            if (!空槽.Contains(目标槽)) return;
+            var 源 = 分配.Where(kv => kv.Value == 源槽).Select(kv => kv.Key).FirstOrDefault(-1);
+            if (源 < 0 || !索尼组.TryGetValue(源, out var 组)) return;
+            var 伙伴 = 无点名.FirstOrDefault(i => 索尼组.TryGetValue(i, out var g) && g == 组, -1);
+            if (伙伴 < 0) return;
+            指派(伙伴, 目标槽);
+        }
+
+        // 组内已有人拿到槽位（真人标点或兜底指派），该索尼组视为已占用
+        bool 组已占用(int 组) => 组 >= 0 && 分配.Keys.Any(i => 索尼组.GetValueOrDefault(i, -1) == 组);
+
+        // 组内两人都吃到 00F4 的索尼组恰有两个（另两组各有一人是攻击1 / 锁链1），它们坐 攻击2/锁链3、攻击3/锁链2。
+        // 以男人方位为南，组内相对靠东者取攻击槽；组序（叉→方→圆→角）靠前的组取 攻击2/锁链3。
+        // 数据不足（00F4 或坐标缺失）返回 false，由调用方退回原索尼推算。
+        bool 补东西索尼组()
+        {
+            Dictionary<int, Vector3> 坐标;
+            lock (_p5B.点名时坐标) 坐标 = new Dictionary<int, Vector3>(_p5B.点名时坐标);
+
+            List<int> 组成员(int 组) => Enumerable.Range(0, 8).Where(i => 索尼组.GetValueOrDefault(i, -1) == 组).ToList();
+            var 满员组 = 索尼组序.Where(组 => 组成员(组) is { Count: 2 } m
+                                          && m.All(i => 波动炮点名.Contains(i) && 坐标.ContainsKey(i))).ToList();
+            if (满员组.Count != 2)
+            {
+                sa.DebugMsg($"P5B1_二运_八方头标兜底：双点名索尼组 {满员组.Count} 个，东西判定不可用，攻击2/3 退回索尼推算", Debugging);
+                return false;
+            }
+
+            // 与 站位区偏移 一致：男人方位 +4 区即右（东）
+            var 东向 = Vector3.Normalize(new Vector3(100f, 0f, 110f)
+                .RotateAndExtend(Center, (_p5B.男人方位 + 4) * 22.5f.DegToRad()) - Center);
+            int[] 攻击槽 = [槽攻击2, 槽攻击3];
+            int[] 锁链槽 = [槽锁链3, 槽锁链2];
+            for (var n = 0; n < 2; n++)
+            {
+                var 东西 = 组成员(满员组[n]).OrderByDescending(i => Vector3.Dot(坐标[i] - Center, 东向)).ToList();    // 靠东在前
+                sa.DebugMsg($"P5B1_二运_八方头标兜底：索尼组 {满员组[n]} 东 {Role[东西[0]]} / 西 {Role[东西[^1]]}", Debugging);
+                if (无点名.Contains(东西[0]) && 空槽.Contains(攻击槽[n])) 指派(东西[0], 攻击槽[n]);
+                if (无点名.Contains(东西[^1]) && 空槽.Contains(锁链槽[n])) 指派(东西[^1], 锁链槽[n]);
+            }
+            return true;
+        }
+
+        // 按 叉→方→圆→角 找第一个未占用且还有无点名者的索尼组，组内高优先取攻击槽、伙伴取对位锁链槽
+        void 补对位索尼组(int 攻击槽, int 锁链槽)
+        {
+            if (!空槽.Contains(攻击槽)) { 补索尼同组(攻击槽, 锁链槽); return; }
+            if (!空槽.Contains(锁链槽)) { 补索尼同组(锁链槽, 攻击槽); return; }
+            foreach (var 组 in 索尼组序)
+            {
+                if (组已占用(组)) continue;
+                var 候选 = 无点名.Where(i => 索尼组.GetValueOrDefault(i, -1) == 组).ToList();
+                if (候选.Count == 0) continue;
+                指派(候选[0], 攻击槽);
+                if (候选.Count > 1) 指派(候选[^1], 锁链槽);
+                return;
+            }
         }
     }
 
@@ -2860,10 +3110,19 @@ public class TopReborn
     public void P5B1_二运_八方波动炮站位(Event ev, ScriptAccessory sa)
     {
         if (_parse != 5.2) return;
-        _p5B.八方头标记录完毕.WaitOne();
-        // 以男人方位为南，逆时针增加
+        // 波动炮 8s 读条，留 2s 等迟到的标点；仍不齐则走索尼兜底补全八方优先级
+        if (!_p5B.八方头标记录完毕.WaitOne(2000))
+        {
+            lock (_pd)
+            {
+                P5B1_二运_八方头标兜底(sa);
+                _p5B.八方头标记录完毕.Set();
+            }
+        }
+        // 相对男人方位：攻击1 右下45、攻击2 南、攻击3 右、攻击4 右上45、大圈 左上45、锁链3 北、锁链2 左、锁链1 左下45
         var myPriValRank = _pd.FindPriorityIndexOfKey(sa.GetMyIndex());
-        var myRegion = (_p5B.男人方位 + 1 + myPriValRank * 2) % 16;
+        if (myPriValRank is < 0 or > 7) return;
+        var myRegion = (_p5B.男人方位 + 站位区偏移[myPriValRank]) % 16;
         _p5B.玩家八方方位 = myRegion;
         sa.DebugMsg($"P5B1_二运_八方波动炮站位：玩家八方方位为 {myRegion} / 16", Debugging);
         
@@ -2911,13 +3170,23 @@ public class TopReborn
     public void P5B1_二运_踩塔击退点(Event ev, ScriptAccessory sa)
     {
         if (_parse != 5.21) return;
-        _p5B.塔方位记录完毕.WaitOne();
+        if (!_p5B.塔方位记录完毕.WaitOne(5000))
+            sa.DebugMsg($"P5B1_二运_踩塔击退点：等塔超时，已收 {_p5B.塔方位类型字典.Count} 个", Debugging);
+
+        // 站位方位就地重算，避免「八方波动炮站位」被用户关掉时 玩家八方方位 停在初值 0（= 南 / C 位）
+        var myPriValRank = _pd.FindPriorityIndexOfKey(sa.GetMyIndex());
+        if (myPriValRank is >= 0 and <= 7)
+            _p5B.玩家八方方位 = (_p5B.男人方位 + 站位区偏移[myPriValRank]) % 16;
+
         _p5B.玩家踩塔方位 = _p5B.FindPlayerTower(sa);
-        var basePos = new Vector3(100, 0, 102.5f);
-        var rad = _p5B.玩家踩塔方位 * 22.5f.DegToRad();
-        var myKnockBackPos = basePos.RotateAndExtend(Center, rad);
-        sa.DrawGuidance(myKnockBackPos, 0, 10000, $"P5B1_二运_踩塔击退点");
-        sa.DrawLine(Center, 0, 0, 10000, $"P5B1_二运_踩塔击退指引线", rad, 20f, 20f, isSafe: true);
+        if (_p5B.玩家踩塔方位 >= 0)
+        {
+            var basePos = new Vector3(100, 0, 102.5f);
+            var rad = _p5B.玩家踩塔方位 * 22.5f.DegToRad();
+            var myKnockBackPos = basePos.RotateAndExtend(Center, rad);
+            sa.DrawGuidance(myKnockBackPos, 0, 10000, $"P5B1_二运_踩塔击退点");
+            sa.DrawLine(Center, 0, 0, 10000, $"P5B1_二运_踩塔击退指引线", rad, 20f, 20f, isSafe: true);
+        }
 
         // 适配 BBY 的标点节奏，提前进入二运后半
         _parse = 5.25;
@@ -2961,11 +3230,11 @@ public class TopReborn
     {
     }
     
-    [ScriptMethod(name: "P5B2_二传_获取转圈头标", eventType: EventTypeEnum.Marker, eventCondition: ["Operate:Add", "Id:regex:^(0[1234679]|10)$"],
+    [ScriptMethod(name: "P5B2_二传_获取转圈头标", eventType: EventTypeEnum.Marker, eventCondition: ["Operate:Add", "Id:regex:^(0[123467]|1[34])$"],
         userControl: Debugging)]
     public void P5B2_二传_获取转圈头标(Event ev, ScriptAccessory sa)
     {
-        // 取攻击1234、锁链12、禁止12
+        // 取攻击1234、十字三角（锁链1、2位）、锁链12（禁止1、2位）
         if (_parse != 5.25) return;
         
         lock (_pd)
@@ -2981,10 +3250,10 @@ public class TopReborn
                 0x02 => 20,    // 攻击2
                 0x03 => 30,    // 攻击3
                 0x04 => 40,    // 攻击4
-                0x06 => 100,   // 锁链1
-                0x07 => 110,   // 锁链2
-                0x09 => 200,   // 禁止1
-                0x10 => 210,   // 禁止2
+                0x13 => 100,   // 十字（锁链1位）
+                0x14 => 110,   // 三角（锁链2位）
+                0x06 => 200,   // 锁链1（禁止1位）
+                0x07 => 210,   // 锁链2（禁止2位）
                 _ => 0
             };
             _pd.AddPriority(tidx, pdVal);
@@ -3156,17 +3425,17 @@ public class TopReborn
 
         var myBasePos = myPriValRank switch
         {
-            ATK1 => new Vector3(80.5f, 0, 100f),
+            ATK1 => new Vector3(100f, 0, 119.5f),
             ATK2 => new Vector3(119.5f, 0, 100f),
-            ATK3 => new Vector3(98f, 0, 89f),
-            ATK4 => new Vector3(94.74f, 0, 81.74f),
-            BIND1 => new Vector3(110f, 0, 100f),
-            BIND2 => new Vector3(105.26f, 0, 81.74f),
+            ATK3 => new Vector3(118f, 0, 94.8f),
+            ATK4 => new Vector3(100f, 0, 80.5f),
+            BIND1 => new Vector3(100f, 0, 90f),
+            BIND2 => new Vector3(110f, 0, 100f),
             STOP1 => new Vector3(111.34f, 0, 116.22f),
             STOP2 => new Vector3(88.66f, 0, 116.22f),
         };
 
-        if (!_p5B.圆环是顺时针 && myPriValRank is ATK1 or ATK2 or BIND1)
+        if (!_p5B.圆环是顺时针 && myPriValRank is ATK2 or ATK3 or BIND2)
             myBasePos = myBasePos.FoldPointHorizon(Center.X);
 
         var rotation = _p5B.女人方位 * 45f.DegToRad();
@@ -3401,6 +3670,7 @@ public class TopReborn
         _p5C.第一段组合技结束.Reset();
         _p5C.组合技安全区记录完毕.Reset();
         _parse = 5.35;
+        sa.DebugMsg($"当前阶段为：{_parse}", Debugging);
     }
 
     [ScriptMethod(name: "———————— 《P5C2 三传》 ————————", eventType: EventTypeEnum.NpcYell, eventCondition: ["HelloayaWorld:asdf"],
@@ -3417,12 +3687,12 @@ public class TopReborn
         sa.DebugMsg($"当前阶段为：{_parse}", Debugging);
     }
     
-    [ScriptMethod(name: "P5C2_三传_获取三传头标", eventType: EventTypeEnum.Marker, eventCondition: ["Operate:Add", "Id:regex:^(0[1234679]|10)$"],
+    [ScriptMethod(name: "P5C2_三传_获取三传头标", eventType: EventTypeEnum.Marker, eventCondition: ["Operate:Add", "Id:regex:^(0[123467]|1[34])$"],
         userControl: Debugging)]
     public void P5C2_三传_获取三传头标(Event ev, ScriptAccessory sa)
     {
-        // 取攻击1234、锁链12、禁止12
-        if (_parse != 5.35) return;
+        // 取攻击1234、十字三角（锁链1、2位）、锁链12（禁止1、2位）
+        if (_parse != 5.3 && _parse != 5.35) return;
         
         lock (_pd)
         {
@@ -3437,10 +3707,10 @@ public class TopReborn
                 0x02 => 20,    // 攻击2
                 0x03 => 30,    // 攻击3
                 0x04 => 40,    // 攻击4
-                0x06 => 100,   // 锁链1
-                0x07 => 110,   // 锁链2
-                0x09 => 200,   // 禁止1
-                0x10 => 210,   // 禁止2
+                0x13 => 100,   // 十字（锁链1位）
+                0x14 => 110,   // 三角（锁链2位）
+                0x06 => 200,   // 锁链1（禁止1位）
+                0x07 => 210,   // 锁链2（禁止2位）
                 _ => 0
             };
             _pd.AddPriority(tidx, pdVal);
@@ -3473,19 +3743,19 @@ public class TopReborn
 
         var myPriValRank = _pd.FindPriorityIndexOfKey(sa.GetMyIndex());
         const int ATK1 = 0, ATK2 = 1, ATK3 = 2, ATK4 = 3;
-        const int BIND1 = 4, BIND2 = 5, STOP1 = 6, STOP2 = 7;
+        const int CROSS = 4, TRIANGLE = 5, BIND1 = 6, BIND2 = 7;
 
         // 以欧米茄打上侧为准
         var safePos = myPriValRank switch
         {
-            ATK1 => new Vector3(80.5f, 0, 100.5f),
-            ATK2 => new Vector3(119.5f, 0, 100.5f),
-            ATK3 => new Vector3(102f, 0, 111f),
-            ATK4 => new Vector3(105.26f, 0f, 118.26f),
-            BIND1 => new Vector3(90f, 0f, 100.5f),
-            BIND2 => new Vector3(94.74f, 0f, 118.26f),
-            STOP1 => new Vector3(90.8f, 0f, 90.8f),
-            STOP2 => new Vector3(109.2f, 0f, 90.8f),
+            ATK1 => new Vector3(119.5f, 0, 100.5f),
+            ATK2 => new Vector3(94.74f, 0f, 118.26f),
+            ATK3 => new Vector3(105.26f, 0f, 118.26f),
+            ATK4 => new Vector3(80.5f, 0, 100.5f),
+            CROSS => new Vector3(90f, 0f, 100.5f),
+            TRIANGLE => new Vector3(102f, 0, 111f),
+            BIND1 => new Vector3(109.2f, 0f, 90.8f),
+            BIND2 => new Vector3(90.8f, 0f, 90.8f),
         };
 
         const uint CANNON_LEFT = 31639, CANNON_RIGHT = 31638;
@@ -3512,15 +3782,16 @@ public class TopReborn
     {
     }
     
-    [ScriptMethod(name: "P5C3_四传_获取四传头标", eventType: EventTypeEnum.Marker, eventCondition: ["Operate:Add", "Id:regex:^(0[1234679]|10)$"],
+    [ScriptMethod(name: "P5C3_四传_获取四传头标", eventType: EventTypeEnum.Marker, eventCondition: ["Operate:Add", "Id:regex:^(0[123467]|1[34])$"],
         userControl: Debugging)]
     public void P5C3_四传_获取四传头标(Event ev, ScriptAccessory sa)
     {
-        // 取攻击1234、锁链12、禁止12
-        if (_parse != 5.38) return;
+        // 取攻击1234、十字三角（锁链1、2位）、锁链12（禁止1、2位）
+        if (_parse != 5.35 && _parse != 5.38) return;
         
         lock (_pd)
         {
+            if (_p5C.四传头标记录完毕.WaitOne(0)) return;   // 已记录完毕或已走兜底，忽略迟到的标点
             var mark = ev.Id0();
             var tidx = sa.GetPlayerIdIndex((uint)ev.TargetId);
             var targetJob = sa.GetPlayerJobByIndex(tidx);
@@ -3532,10 +3803,10 @@ public class TopReborn
                 0x02 => 20,    // 攻击2
                 0x03 => 30,    // 攻击3
                 0x04 => 40,    // 攻击4
-                0x06 => 100,   // 锁链1
-                0x07 => 110,   // 锁链2
-                0x09 => 200,   // 禁止1
-                0x10 => 210,   // 禁止2
+                0x13 => 100,   // 十字（锁链1位）
+                0x14 => 110,   // 三角（锁链2位）
+                0x06 => 200,   // 锁链1（禁止1位）
+                0x07 => 210,   // 锁链2（禁止2位）
                 _ => 0
             };
             _pd.AddPriority(tidx, pdVal);
@@ -3545,7 +3816,61 @@ public class TopReborn
             _p5C.四传头标记录完毕.Set();   // 头标记录
         }
     }
-    
+
+    // 四传八个头标与优先值的对应，与 P5C3_四传_获取四传头标 里的 switch 一致（Marker 事件的 Id 就是 MarkType 的十进制值）
+    private static readonly (MarkType 头标, int 优先值)[] P5C3四传头标表 =
+    [
+        (MarkType.Attack1, 10), (MarkType.Attack2, 20), (MarkType.Attack3, 30), (MarkType.Attack4, 40),
+        (MarkType.Cross, 100), (MarkType.Triangle, 110), (MarkType.Bind1, 200), (MarkType.Bind2, 210),
+    ];
+
+    /// <summary>
+    /// 等待四传头标齐全。冲击波 11.9s 读条，留 2s 等迟到的标点；仍不齐则走客户端头标兜底。
+    /// </summary>
+    private static void P5C3_四传_等待头标(ScriptAccessory sa)
+    {
+        if (_p5C.四传头标记录完毕.WaitOne(2000)) return;
+        lock (_pd)
+        {
+            if (_p5C.四传头标记录完毕.WaitOne(0)) return;
+            sa.DebugMsg($"P5C3_四传_等待头标：只收到 {_pd.ActionCount} 个标点事件，触发兜底", Debugging);
+            P5C3_四传_头标兜底(sa);
+            _p5C.四传头标记录完毕.Set();
+        }
+    }
+
+    /// <summary>
+    /// 四传头标兜底：与上一轮相同的头标不会重新落标（如连着两轮都是攻击1），这个人根本不触发 Marker 事件，
+    /// 事件流永远凑不满 8 人。此时直接读客户端头标表，把还空着的槽位补给现在实际带着该头标的人；
+    /// 客户端也读不到时，若只剩一人一槽则用排除法唯一确定。
+    /// </summary>
+    private static void P5C3_四传_头标兜底(ScriptAccessory sa)
+    {
+        var 客户端头标 = sa.GetPartyMarkers();
+        foreach (var (头标, 优先值) in P5C3四传头标表)
+        {
+            if (_pd.Priorities.ContainsValue(优先值)) continue;           // 该槽位已由 Marker 事件记录
+            if (!客户端头标.TryGetValue(头标, out var idx)) continue;      // 客户端头标表里也没有这个标
+            if (_pd.Priorities.GetValueOrDefault(idx) != 0) continue;     // 这个人已经占了别的槽位
+            _pd.AddPriority(idx, 优先值);
+            _pd.AddActionCount();
+            sa.DebugMsg($"P5C3_四传_头标兜底：{Role[idx]} 按客户端头标补为 {头标}", Debugging);
+        }
+
+        var 缺人 = Enumerable.Range(0, 8).Where(i => _pd.Priorities.GetValueOrDefault(i) == 0).ToList();
+        var 缺槽 = P5C3四传头标表.Where(m => !_pd.Priorities.ContainsValue(m.优先值)).ToList();
+        if (缺人.Count == 1 && 缺槽.Count == 1)
+        {
+            _pd.AddPriority(缺人[0], 缺槽[0].优先值);
+            _pd.AddActionCount();
+            sa.DebugMsg($"P5C3_四传_头标兜底：{Role[缺人[0]]} 按排除法补为 {缺槽[0].头标}", Debugging);
+        }
+        else if (缺人.Count > 0)
+            sa.DebugMsg($"P5C3_四传_头标兜底：仍有 {缺人.Count} 人无头标（缺 {缺槽.Count} 个槽位），指路可能不准", Debugging);
+
+        sa.DebugMsg($"{_pd.ShowPriorities()}", Debugging);
+    }
+
     [ScriptMethod(name: "P5C3_四传_蟑螂方位记录", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:32374"], userControl: Debugging)]
     public void P5C3_四传_蟑螂方位记录(Event ev, ScriptAccessory sa)
     {
@@ -3555,6 +3880,7 @@ public class TopReborn
         _p5C.蟑螂方位 = ev.SourcePosition.GetRadian(Center).RadianToRegion(4, isDiagDiv: true);
         sa.DebugMsg($"P5C3_四传_蟑螂方位记录：{_p5C.蟑螂方位} / 4", Debugging);
         _p5C.蟑螂方位记录完毕.Set();
+        P5C3_四传_等待头标(sa);   // 标点都在读条前打完，放在这里兜底，指路/接线被关掉也不影响
     }
 
     [ScriptMethod(name: "P5C3_四传_指路", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:32374"], userControl: true)]
@@ -3563,23 +3889,23 @@ public class TopReborn
         if (_parse != 5.38) return;
         
         _p5C.蟑螂方位记录完毕.WaitOne();
-        _p5C.四传头标记录完毕.WaitOne();
-        
+        P5C3_四传_等待头标(sa);
+
         var myPriValRank = _pd.FindPriorityIndexOfKey(sa.GetMyIndex());
         const int ATK1 = 0, ATK2 = 1, ATK3 = 2, ATK4 = 3;
-        const int BIND1 = 4, BIND2 = 5, STOP1 = 6, STOP2 = 7;
+        const int CROSS = 4, TRIANGLE = 5, BIND1 = 6, BIND2 = 7;
 
         // 以蟑螂方位在南为准
         var myBasePos = myPriValRank switch
         {
             ATK1 => new Vector3(119.5f, 0, 100f),
-            ATK2 => new Vector3(80.5f, 0, 100f),
-            ATK3 => new Vector3(98f, 0, 89f),
-            ATK4 => new Vector3(94.74f, 0f, 81.74f),
-            BIND1 => new Vector3(110f, 0f, 100f),
-            BIND2 => new Vector3(105.26f, 0f, 81.74f),
-            STOP1 => new Vector3(110.3f, 0f, 116.5f),
-            STOP2 => new Vector3(89.7f, 0f, 116.5f),
+            ATK2 => new Vector3(94.74f, 0f, 81.74f),
+            ATK3 => new Vector3(80.5f, 0, 100f),
+            ATK4 => new Vector3(105.26f, 0f, 81.74f),
+            CROSS => new Vector3(110f, 0f, 100f),
+            TRIANGLE => new Vector3(100f, 0, 88f),
+            BIND1 => new Vector3(110.3f, 0f, 116.5f),
+            BIND2 => new Vector3(89.7f, 0f, 116.5f),
         };
 
         var safePos = myBasePos.RotateAndExtend(Center, _p5C.蟑螂方位 * 90f.DegToRad());
@@ -3606,8 +3932,8 @@ public class TopReborn
         if (_parse != 5.38) return;
 
         _p5C.蟑螂方位记录完毕.WaitOne();
-        _p5C.四传头标记录完毕.WaitOne();
-        
+        P5C3_四传_等待头标(sa);
+
         if (_p5C.扫描接线开启) return;
         _p5C.扫描接线开启 = true;
         
@@ -3635,7 +3961,7 @@ public class TopReborn
                     sa.Method.RemoveDraw($"P5C_四传_接线范围_线源{memberIdx}");
                 }
 
-                // 获取优先级，禁止头标优先值 >=200
+                // 获取优先级，锁链头标优先值 >=200
                 if (!_pd.Priorities.TryGetValue(memberIdx, out int memberPrival) || memberPrival < 200) { CleanUp(); continue; }
                 
                 // 线源追溯
@@ -4757,6 +5083,7 @@ public class TopReborn
         public int 蟑螂位置 = 0;
         public int 光头位置 = 0;
         public int 玩家四分之一半场 = -1;
+        public bool 玩家场外 = false;
         public int 拳头数量 = 0;
         public int 拳头颜色 = 0;
         public int 玩家引导激光手方位 = 0;
@@ -4785,6 +5112,7 @@ public class TopReborn
             蟑螂位置 = 0;
             光头位置 = 0;
             玩家四分之一半场 = -1;
+            玩家场外 = false;
             拳头数量 = 0;
             拳头颜色 = 0;
             玩家引导激光手方位 = 0;
@@ -4836,6 +5164,10 @@ public class TopReborn
         public int 玩家八方方位 = 0;
         public int 玩家踩塔方位 = 0;
         public Dictionary<int, bool> 塔方位类型字典 = new();    // 方位、是否是双人塔
+        public Dictionary<int, int> 八方头标字典 = new();       // 职能位、八方槽位优先值
+        public Dictionary<int, int> 索尼组字典 = new();         // 职能位、索尼组号（叉方圆角）
+        public HashSet<int> 波动炮点名 = new();                 // 被 00F4 点名的职能位，共六人
+        public Dictionary<int, Vector3> 点名时坐标 = new();     // 职能位、点名后 200ms 的坐标
         public ManualResetEvent 八方头标记录完毕 = new(false);
         public ManualResetEvent 塔方位记录完毕 = new(false);
         public ManualResetEvent 踩塔处理完毕 = new(false);
@@ -4858,6 +5190,10 @@ public class TopReborn
             玩家八方方位 = 0;
             玩家踩塔方位 = 0;
             塔方位类型字典 = new Dictionary<int, bool>();    // 方位、是否是双人塔
+            八方头标字典 = new Dictionary<int, int>();
+            索尼组字典 = new Dictionary<int, int>();
+            波动炮点名 = new HashSet<int>();
+            点名时坐标 = new Dictionary<int, Vector3>();
             
             女人方位 = 0;
             女人是十字外安全 = false;
@@ -4898,28 +5234,83 @@ public class TopReborn
             女人技能记录完毕.Reset();
         }
 
+        // 八方站位名：以世界北(0,0,-1)为基准顺时针数 —— A(北) 1(右上) B(右) 2(右下) C(南) 3(左下) D(左) 4(左上)
+        // region 0 = 南、逆时针递增，故 A = region 8，位序每 +1 即顺时针（region -2）
+        private static readonly string[] 八方位名 = ["A", "1", "B", "2", "C", "3", "D", "4"];
+        // 各站位应踩的塔相对「北塔方位」的区偏移，正 = 逆时针；索引同 八方位名
+        //                                            A   1   B   2   C  3   D   4
+        private static readonly int[] 中线踩塔偏移 = [5, 1, 7, -1, -7, 5, -5, -5];
+        private static readonly int[] 远线踩塔偏移 = [4, 0, 6, 0, -6, 6, -4, -6];
+
+        private static int 八方位序(int region) => (((8 - region + 16) % 16 + 1) / 2) % 8;
+
+        // 塔按方位排成环，环间隔(i) = towers[i] 到下一个塔的区间隔
+        private static int 环间隔(List<int> towers, int i) => (towers[(i + 1) % towers.Count] - towers[i] + 16) % 16;
+
+        // 中线 6 塔（±1 ±5 ±7）：有两塔相互隔 2 区、且各自外侧都隔 4 区，取这两塔的中点为北
+        private static int 中线北向(List<int> towers)
+        {
+            int best = -1, bestScore = -1;
+            for (var i = 0; i < towers.Count; i++)
+            {
+                if (环间隔(towers, i) != 2) continue;
+                var score = 环间隔(towers, (i - 1 + towers.Count) % towers.Count) + 环间隔(towers, (i + 1) % towers.Count);
+                if (score <= bestScore) continue;
+                bestScore = score;
+                best = (towers[i] + 1) % 16;
+            }
+            return best;
+        }
+
+        // 远线 5 塔（0 ±4 ±6）：唯一一个两侧都隔 4 区的塔即北塔
+        private static int 远线北塔(List<int> towers)
+        {
+            int best = -1, bestScore = -1;
+            for (var i = 0; i < towers.Count; i++)
+            {
+                var 前 = 环间隔(towers, (i - 1 + towers.Count) % towers.Count);
+                var 后 = 环间隔(towers, i);
+                var score = Math.Min(前, 后) * 100 + 前 + 后;    // 先比两侧较小的间隔，再比总间隔
+                if (score <= bestScore) continue;
+                bestScore = score;
+                best = towers[i];
+            }
+            return best;
+        }
+
         public int FindPlayerTower(ScriptAccessory sa)
         {
-            int[] towerRegionOffsets = [2, 1, -2, -1];
-            
-            int bestTower = -1;
-            int highestScore = -1;
-            
-            foreach (int offset in towerRegionOffsets)
+            Dictionary<int, bool> 塔表;
+            lock (塔方位类型字典) 塔表 = new Dictionary<int, bool>(塔方位类型字典);
+
+            var 需要塔数 = 协作程序是远线 ? 5 : 6;
+            if (塔表.Count != 需要塔数)
             {
-                int region = (玩家八方方位 + offset + 16) % 16;
-                if (!塔方位类型字典.TryGetValue(region, out bool isDoubleTower))
-                    continue;
-                sa.DebugMsg($"检测到 方位{region} 存在 {(isDoubleTower ? "双" : "单")}人塔", Debugging);
-                int score = 1 + (isDoubleTower ? 10 : 0);
-                if (score <= highestScore) continue;
-                highestScore = score;
-                bestTower = region;
-                if (isDoubleTower) break;
+                sa.DebugMsg($"FindPlayerTower：塔数 {塔表.Count} ≠ {需要塔数}，放弃踩塔分配", Debugging);
+                return -1;
             }
-            
-            sa.DebugMsg($"玩家所需踩塔：{bestTower}", Debugging);
-            return bestTower;
+
+            var towers = 塔表.Keys.OrderBy(r => r).ToList();
+            var 北 = 协作程序是远线 ? 远线北塔(towers) : 中线北向(towers);
+            if (北 < 0)
+            {
+                sa.DebugMsg($"FindPlayerTower：塔位 [{string.Join(",", towers)}] 认不出北，放弃踩塔分配", Debugging);
+                return -1;
+            }
+
+            var 偏移表 = 协作程序是远线 ? 远线踩塔偏移 : 中线踩塔偏移;
+            var 位 = 八方位序(玩家八方方位);
+            var 塔 = (北 + 偏移表[位] + 16) % 16;
+            sa.DebugMsg($"FindPlayerTower：{(协作程序是远线 ? "远" : "中")}线，塔位 [{string.Join(",", towers)}]，" +
+                        $"北 {北}；我在八方 {玩家八方方位} = {八方位名[位]} 位，踩 {塔} 号塔", Debugging);
+
+            // 同一偏移被两个站位共用即双人塔，与实际塔型对不上说明北认错了或站位算错了
+            var 应为双人塔 = 偏移表.Count(o => o == 偏移表[位]) > 1;
+            if (!塔表.TryGetValue(塔, out var 是双人塔))
+                sa.DebugMsg($"FindPlayerTower：方位 {塔} 上没有塔！", Debugging);
+            else if (是双人塔 != 应为双人塔)
+                sa.DebugMsg($"FindPlayerTower：方位 {塔} 实为{(是双人塔 ? "双" : "单")}人塔，预期{(应为双人塔 ? "双" : "单")}人塔", Debugging);
+            return 塔;
         }
     }
     
@@ -5220,6 +5611,26 @@ public static class IbcHelper
         return tetherSourceId;
     }
     
+    /// <summary>
+    /// 直接读客户端头标表，返回 头标 -> 小队位置index（只含还在小队里的人）。
+    /// Marker 事件只在头标变动时才有，连着两轮同一个头标的人不会再触发事件，这时靠本表兜底。
+    /// </summary>
+    public static unsafe Dictionary<MarkType, int> GetPartyMarkers(this ScriptAccessory sa)
+    {
+        Dictionary<MarkType, int> markers = [];
+        var controller = MarkingController.Instance();
+        if (controller is null) return markers;
+
+        var markerList = controller->Markers;    // 下标从 0 起，MarkType 从 1 起
+        for (var i = 0; i < markerList.Length; i++)
+        {
+            var idx = sa.GetPlayerIdIndex(markerList[i].ObjectId);
+            if (idx < 0) continue;
+            markers[(MarkType)(i + 1)] = idx;
+        }
+        return markers;
+    }
+
     public static unsafe byte? GetTransformationId(this ScriptAccessory sa, IGameObject? obj)
     {
         if (obj == null) return null;
@@ -5646,7 +6057,7 @@ public static class DebugFunction
     {
         if (!enable) return;
         sa.Log.Debug(msg);
-        if (!showInChatBox) return;
+        // if (!showInChatBox) return;
         sa.Method.SendChat($"/e {msg}");
     }
 }
