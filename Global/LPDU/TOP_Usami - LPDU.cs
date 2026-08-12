@@ -4194,7 +4194,44 @@ public class TopReborn
     public void P6A_宇宙天箭_分割线(Event ev, ScriptAccessory sa)
     {
     }
-    
+
+    // 天箭指路点位：以右下象限为基准，每项为相对场地中心的 (X, Z) 偏移，绘制时按 rot 逆时针旋转到各自象限
+    // A组与B组互为镜像：A组末段贴象限顺时针侧的正轴，B组末段贴象限逆时针侧的正轴
+    private static readonly (float X, float Z)[][] 天箭指路图案 =
+    [
+        // 内天箭指路图案A组（MT/H2/D1/D4）
+        [(7.5f, 7.5f), (2.5f, 2.5f), (2.5f, 2.5f), (7.5f, 7.5f), (7.5f, 12.5f), (4f, 11f), (4f, 9f)],
+        // 外天箭指路图案A组
+        [(7.5f, 7.5f), (12.5f, 12.5f), (12.5f, 12.5f), (7.5f, 7.5f), (4f, 11f), (4f, 9f), (4f, 9f)],
+        // 内天箭指路图案B组（ST/H1/D2/D3）
+        [(7.5f, 7.5f), (2.5f, 2.5f), (2.5f, 2.5f), (7.5f, 7.5f), (12.5f, 7.5f), (11f, 4f), (9f, 4f)],
+        // 外天箭指路图案B组
+        [(7.5f, 7.5f), (12.5f, 12.5f), (12.5f, 12.5f), (7.5f, 7.5f), (11f, 4f), (9f, 4f), (9f, 4f)]
+    ];
+
+    // 第二次宇宙天箭 myIndex → (图案组下标, 旋转)：组 0=A组、2=B组（内天箭 +0、外天箭 +1）
+    // rot 0=右下、1=右上、2=左上、3=左下，正轴方向随之为 下/右/上/左
+    private static readonly (int 图案组, int 旋转)[] 二运天箭指路分配 =
+    [
+        (0, 2),     // MT左上，末段贴正上偏左
+        (2, 1),     // ST右上，末段贴正上偏右
+        (2, 3),     // H1左下，末段贴正下偏左
+        (0, 0),     // H2右下，末段贴正下偏右
+        (0, 3),     // D1左下，末段贴正左偏下
+        (2, 0),     // D2右下，末段贴正右偏下
+        (2, 2),     // D3左上，末段贴正左偏上
+        (0, 1)      // D4右上，末段贴正右偏上
+    ];
+
+    private static Vector3 天箭指路点((float X, float Z) offset, int rot)
+        => new Vector3(100 + offset.X, 0, 100 + offset.Z).RotateAndExtend(Center, rot * 90f.DegToRad());
+
+    /// <summary>
+    /// 第二次宇宙天箭的末段站位（内外天箭末段一致，都是 (4,9)/(9,4)），第二次八方波动炮沿用同一套点位
+    /// </summary>
+    private static Vector3 二运天箭末段站位(int idx)
+        => 天箭指路点(天箭指路图案[二运天箭指路分配[idx].图案组][^1], 二运天箭指路分配[idx].旋转);
+
     [ScriptMethod(name: "P6A_宇宙天箭_分P", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:31650"],
         userControl: Debugging)]
     public void P6A_宇宙天箭_分P(Event ev, ScriptAccessory sa)
@@ -4309,120 +4346,52 @@ public class TopReborn
     public void P6A_宇宙天箭_指路(Event ev, ScriptAccessory sa)
     {
         if (_parse < 6) return;
-        sa.DebugMsg($"P6A_宇宙天箭_指路：启动宇宙天箭指路Framework", Debugging);
+        sa.DebugMsg($"P6A_宇宙天箭_指路： 启动宇宙天箭指路Framework", Debugging);
         _p6.宇宙天箭指路Framework = sa.Method.RegistFrameworkUpdateAction(Action);
         return;
 
         void Action()
         {
             if (!_p6.宇宙天箭类型判断完毕) return;
+            int cosmoArrowGuidanceIdx, myRotation;
+            int myIndex = sa.GetMyIndex();
+            bool isFirstCosmoArrow = _parse == 6.1;
+            if (isFirstCosmoArrow)
+            {
+                (cosmoArrowGuidanceIdx, myRotation) = myIndex switch
+                {
+                    0 => (0, 2),
+                    1 => (2, 0),
+                    _ => (2, 0)
+                };
+            }
+            else
+            {
+                (cosmoArrowGuidanceIdx, myRotation) = 二运天箭指路分配[myIndex];
+            }
+            cosmoArrowGuidanceIdx += _p6.宇宙天箭是内天箭 ? 0 : 1;
+            var cosmoArrowGuidance = 天箭指路图案[cosmoArrowGuidanceIdx];
             if (_p6.宇宙天箭指路图案序号 == _p6.宇宙天箭判定次数) return;
             _p6.宇宙天箭指路图案序号 = _p6.宇宙天箭判定次数;
-
-            // 第一次天箭：以右下为基准，各人按象限旋转
-            int[][] 天箭指路图案 =
-            [
-                [33, 11, 11, 55, 55, 55, 33],   // 内天箭指路图案DPS
-                [33, 55, 55, 33, 55, 33, 33],   // 外天箭指路图案DPS
-                [33, 11, 11, 33, 53, 88, 38],   // 内天箭指路图案TN
-                [33, 55, 55, 33, 88, 38, 38]    // 外天箭指路图案TN
-            ];
-
-            // 第二次天箭：以MT（左上象限、正上轴）为基准的绝对坐标，各人按镜像/转置取用
-            // 正上11距、再向左偏22.5°的落点（≈95.8, 89.8）
-            var 上偏左22 = new Vector3(100, 0, 89).RotateAndExtend(Center, 22.5f.DegToRad());
-            Vector3[][] 第二次天箭指路坐标 =
-            [
-                [   // 内天箭
-                    new Vector3(92.5f, 0, 92.5f),           // 左上对角第2格
-                    new Vector3(97.5f, 0, 97.5f),           // 左上最内格
-                    new Vector3(97.5f, 0, 97.5f),
-                    new Vector3(92.5f, 0, 92.5f),           // 回左上对角第2格
-                    new Vector3(92.5f, 0, 87.5f),           // 左上最外圈偏上
-                    new Vector3(95.5f, 0, 89.5f),           // 正上靠左
-                    上偏左22                                 // 正上靠左偏22.5°
-                ],
-                [   // 外天箭
-                    new Vector3(92.5f, 0, 92.5f),           // 左上对角第2格
-                    new Vector3(87.5f, 0, 87.5f),           // 左上最外角
-                    new Vector3(87.5f, 0, 87.5f),
-                    new Vector3(92.5f, 0, 92.5f),           // 回左上对角第2格
-                    上偏左22,                                // 正上靠左偏22.5°
-                    new Vector3(上偏左22.X, 0, 90.5f),       // 维持X，Z内收至90.5
-                    new Vector3(上偏左22.X, 0, 90.5f)
-                ]
-            ];
-
-            var step = _p6.宇宙天箭指路图案序号;
-            var myIndex = sa.GetMyIndex();
-            var isFirstCosmoArrow = _parse == 6.1;
-            var (guidancePos, nextGuidancePos) = isFirstCosmoArrow
-                ? GetFirstCosmoArrowPos(step)
-                : GetSecondCosmoArrowPos(step);
-
-            DrawCosmoArrowGuidance(guidancePos, nextGuidancePos);
-            sa.Method.RemoveDraw($"P6A_宇宙天箭_指路{step - 1}");
-            sa.DebugMsg($"P6A_宇宙天箭_指路：绘制宇宙天箭指路图案序号 {step} 当前 {guidancePos} 下一 {nextGuidancePos}", Debugging);
+            
+            var noGuidance = (X: 0f, Z: 0f);
+            var guidance = _p6.宇宙天箭指路图案序号 >= cosmoArrowGuidance.Length ? noGuidance : cosmoArrowGuidance[_p6.宇宙天箭指路图案序号];
+            var nextGuidance = _p6.宇宙天箭指路图案序号 + 1 >= cosmoArrowGuidance.Length ? noGuidance : cosmoArrowGuidance[_p6.宇宙天箭指路图案序号 + 1];
+            DrawCosmoArrowGuidance(guidance, nextGuidance, myRotation);
+            sa.Method.RemoveDraw($"P6A_宇宙天箭_指路{_p6.宇宙天箭指路图案序号 - 1}");
+            sa.DebugMsg($"P6A_宇宙天箭_指路：绘制宇宙天箭指路图案序号 {_p6.宇宙天箭指路图案序号} {guidance} {myRotation} {nextGuidance}", Debugging);
             return;
 
-            void DrawCosmoArrowGuidance(Vector3 pos, Vector3 nextPos)
+            void DrawCosmoArrowGuidance((float X, float Z) gd, (float X, float Z) nextGd, int rot)
             {
-                if (pos == Vector3.Zero) return;
-                if (nextPos != Vector3.Zero)
-                    sa.DrawGuidance(pos, nextPos, 0, 20000, $"P6A_宇宙天箭_指路{step}", isSafe: false);
-                sa.DrawGuidance(pos, 0, 20000, $"P6A_宇宙天箭_指路{step}", isSafe: true);
-            }
-
-            (Vector3, Vector3) GetFirstCosmoArrowPos(int idx)
-            {
-                var (guidanceIdx, rot) = myIndex switch
+                if (gd == noGuidance) return;
+                var guidancePos = 天箭指路点(gd, rot);
+                if (nextGd != noGuidance)
                 {
-                    0 => (2, 2),
-                    1 => (0, 0),
-                    _ => (0, 0)
-                };
-                var guidance = 天箭指路图案[guidanceIdx + (_p6.宇宙天箭是内天箭 ? 0 : 1)];
-                return (PosOf(idx), PosOf(idx + 1));
-
-                Vector3 PosOf(int i)
-                {
-                    if (i >= guidance.Length) return Vector3.Zero;
-                    var gd = guidance[i];
-                    if (gd == 0) return Vector3.Zero;
-                    var (digitX, digitZ) = (gd.GetDecimalDigit(1), gd.GetDecimalDigit(2));
-                    var biasX = digitX == 8 ? 0f : (2.5f + (digitX / 2) * 5) * (digitX % 2 == 0 ? -1 : 1);
-                    var biasZ = digitZ == 8 ? 13f : (2.5f + (digitZ / 2) * 5) * (digitZ % 2 == 0 ? -1 : 1);
-                    return new Vector3(100 + biasX, 0, 100 + biasZ).RotateAndExtend(Center, rot * 90f.DegToRad());
+                    var nextGuidancePos = 天箭指路点(nextGd, rot);
+                    sa.DrawGuidance(guidancePos, nextGuidancePos, 0, 20000, $"P6A_宇宙天箭_指路{_p6.宇宙天箭指路图案序号}", isSafe: false);
                 }
-            }
-
-            (Vector3, Vector3) GetSecondCosmoArrowPos(int idx)
-            {
-                var guidance = 第二次天箭指路坐标[_p6.宇宙天箭是内天箭 ? 0 : 1];
-                // 转置 = 沿左上-右下对角线镜像，让DPS改走左右轴；再左右/上下镜像到自己的象限
-                var (transpose, mirrorX, mirrorZ) = myIndex switch
-                {
-                    0 => (false, false, false),     // MT左上正上
-                    1 => (false, true, false),      // ST右上正上
-                    2 => (false, false, true),      // H1左下正下
-                    3 => (false, true, true),       // H2右下正下
-                    4 => (true, false, true),       // D1左下正左
-                    5 => (true, true, true),        // D2右下正右
-                    6 => (true, false, false),      // D3左上正左
-                    7 => (true, true, false),       // D4右上正右
-                    _ => (false, false, false)
-                };
-                return (PosOf(idx), PosOf(idx + 1));
-
-                Vector3 PosOf(int i)
-                {
-                    if (i >= guidance.Length) return Vector3.Zero;
-                    var pos = guidance[i];
-                    if (transpose) pos = new Vector3(pos.Z, 0, pos.X);
-                    if (mirrorX) pos.X = Center.X * 2 - pos.X;
-                    if (mirrorZ) pos.Z = Center.Z * 2 - pos.Z;
-                    return pos;
-                }
+                sa.DrawGuidance(guidancePos, 0, 20000, $"P6A_宇宙天箭_指路{_p6.宇宙天箭指路图案序号}", isSafe: true);
             }
         }
     }
@@ -4482,27 +4451,41 @@ public class TopReborn
         DrawCannonRoute(false);
         _p6.脚下出现黄圈.WaitOne();
         DrawCannonRoute(true);
-        if (_parse == 6.1)  // 跟八方波动炮
+
+        // 跟八方波动炮。第一次由本次解限波动炮的第 5 轮黄圈开闸（此时仍是 6.1），
+        // 第二次由第二次宇宙天箭的第 5 次判定开闸（此时已是 6.2），故在等待之后再判阶段
+        _p6.波动炮八方绘图开启.WaitOne();
+        sa.Method.RemoveDraw($"P6B_解限波动炮_跑动方向绘图.*");
+        if (_parse == 6.1)
         {
-            _p6.波动炮八方绘图开启.WaitOne();
-            sa.Method.RemoveDraw($"P6B_解限波动炮_跑动方向绘图.*");
-            
+            // 第一次八方波动炮：八方位 45° 散开
             List<int> partySpreadRegion = [4, 2, 6, 0, 7, 1, 5, 3];
             var pos = new Vector3(100, 0, 114f).RotateAndExtend(Center, partySpreadRegion[sa.GetMyIndex()] * 45f.DegToRad());
             sa.DrawGuidance(pos, 0, 20000, $"P6_波动炮_八方指路");
             for (int i = 0; i < 8; i++)
-            {
-                var dp = sa.DrawLine(Center, 0, 0, 20000, $"P6_波动炮_指引线{i}", partySpreadRegion[i] * 45f.DegToRad(), 40f, 20f, draw: false);
-                dp.Color = i switch
-                {
-                    0 or 1 => new Vector4(0.1f, 0.1f, 1, 1),
-                    2 or 3 => new Vector4(0.1f, 1f, 0.1f, 1),
-                    _ => new Vector4(1, 0.1f, 0.1f, 1),
-                };
-                sa.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Line, dp);
-            }
+                DrawSpreadLine(i, partySpreadRegion[i] * 45f.DegToRad());
         }
-        
+        else
+        {
+            // 第二次八方波动炮与第二次宇宙天箭重叠，指引线按天箭末段站位 (4,9)/(9,4) 的方位画
+            sa.DrawGuidance(二运天箭末段站位(sa.GetMyIndex()), 0, 20000, $"P6_波动炮_八方指路");
+            for (int i = 0; i < 8; i++)
+                DrawSpreadLine(i, 二运天箭末段站位(i).GetRadian(Center));
+        }
+        return;
+
+        void DrawSpreadLine(int idx, float rotation)
+        {
+            var dp = sa.DrawLine(Center, 0, 0, 20000, $"P6_波动炮_指引线{idx}", rotation, 40f, 20f, draw: false);
+            dp.Color = idx switch
+            {
+                0 or 1 => new Vector4(0.1f, 0.1f, 1, 1),
+                2 or 3 => new Vector4(0.1f, 1f, 0.1f, 1),
+                _ => new Vector4(1, 0.1f, 0.1f, 1),
+            };
+            sa.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Line, dp);
+        }
+
         void DrawCannonRoute(bool isSafe)
         {
             var isCw = _p6.解限波动炮是顺时针;
@@ -4580,7 +4563,8 @@ public class TopReborn
     {
         if (_parse < 6) return;
         sa.DrawGuidance(Center, 0, 10000, $"P6C_宇宙流星_指路场中与后续八方");
-        List<int> partySpreadRegion = [5, 2, 6, 0, 7, 1, 4, 3];
+        // MT/ST/H1/H2/D1/D2/D3/D4 → 八方位区（区 * 45°，0 为正下、逆时针增加）；ST 正下、H2 正右
+        List<int> partySpreadRegion = [5, 0, 6, 2, 7, 1, 4, 3];
         var pos = new Vector3(100, 0, 114f).RotateAndExtend(Center, partySpreadRegion[sa.GetMyIndex()] * 45f.DegToRad());
         sa.DrawGuidance(Center, pos, 0, 20000, $"P6C_宇宙流星_指路场中与后续八方", isSafe: false);
     }
@@ -4598,7 +4582,8 @@ public class TopReborn
     public void P6C_宇宙流星_八方指路(Event ev, ScriptAccessory sa)
     {
         if (_parse < 6) return;
-        List<int> partySpreadRegion = [5, 2, 6, 0, 7, 1, 4, 3];
+        // MT/ST/H1/H2/D1/D2/D3/D4 → 八方位区（区 * 45°，0 为正下、逆时针增加）；ST 正下、H2 正右
+        List<int> partySpreadRegion = [5, 0, 6, 2, 7, 1, 4, 3];
         var pos = new Vector3(100, 0, 114f).RotateAndExtend(Center, partySpreadRegion[sa.GetMyIndex()] * 45f.DegToRad());
         sa.DrawGuidance(pos, 0, 20000, $"P6C_宇宙流星_八方指路", isSafe: true);
         for (int i = 0; i < 8; i++)
