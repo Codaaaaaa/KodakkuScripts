@@ -23,13 +23,14 @@ namespace Codaaaaaa.TheForkedTowerMagic;
     guid: "45819e25-cb2d-4d84-a508-f110dc6a381a",
     name: "魔之塔画图",
     territorys: [1346],
-    version: "0.0.1.5",
+    version: "0.0.1.6",
     author: "Codaaaaaa",
     note: "写完喽，还有电的可以在频道里圈我\n\n感谢铁虎老大的帮助\n感谢Yatel老大和洋葱炒米老大的arr")]
 public class TheForkedTowerMagic
 {
     #region 用户设置
     [UserSetting("双头决战：只能选中自己Buff对应的头")] public static bool DualHeadTargetLock { get; set; } = false;
+    [UserSetting("排雷：显示塔内地雷点位（进图自动显示，/e 新月排雷 手动开关）")] public static bool 排雷显示 { get; set; } = true;
     [UserSetting("测试")] public static bool Debug输出 { get; set; } = false;
     // [UserSetting("是否开启TTS")] public static bool TTSOpen { get; set; } = true;
     #endregion
@@ -2651,6 +2652,269 @@ public class TheForkedTowerMagic
     }
 
     #endregion
+
+    #region 排雷
+    // 塔内地雷点位表见文件末尾 地雷数据库，按 MapId 分类。进入有雷的地图自动画出全部点位，
+    // 盗贼扫雷 / 猎人排雷 / 雷实体生成 / 雷爆炸 / 有人踩过而没炸 这五种情况都会把对应点位抹掉。
+    private const uint 大雷DataId = 2014585;
+    private const uint 小雷DataId = 2014584;
+    private const long 雷点显示时长 = 1800000;
+    private const float 雷点匹配半径 = 1.5f;       // 事件坐标 → 点位表的匹配容差
+    private const float 踩点判定半径 = 1.5f;       // 比雷的触发范围保守，避免擦边路过就误消
+    private const float 踩点高度容差 = 3f;         // 塔内各区域 Y 不同，防止上下层坐标重叠误消
+    private const long 踩点扫描间隔 = 100;         // ms，不必每帧全量比对
+
+    private bool _雷点已显示;
+    private uint _当前MapId;
+    private readonly object _mineLock = new();
+    private readonly HashSet<string> _踩点已排除 = [];   // 已踩过的点，避免每帧重复 RemoveDraw
+    private string? _踩点扫描Guid;
+    private long _上次踩点扫描;
+
+    private static string 雷点名(int g, int m) => $"FTM_Mine_G{g}_M{m}";
+    private static string 爆点名(int g, int m) => $"FTM_Boom_G{g}_M{m}";
+
+    // 切图 / 团灭重置钩子
+    public void Init(ScriptAccessory sa)
+    {
+        lock (_mineLock)
+        {
+            _雷点已显示 = false;
+            _当前MapId = 0;
+            _踩点已排除.Clear();
+        }
+        sa.Method.RemoveDraw("FTM_(Mine|Boom)_.*");
+        注册踩点扫描(sa);
+    }
+
+    [ScriptMethod(name: "排雷 - 手动开关地雷显示", eventType: EventTypeEnum.Chat, eventCondition: ["Type:Echo", "Message:新月排雷"])]
+    public void 手动开关排雷(Event evt, ScriptAccessory sa)
+    {
+        if (!排雷显示) { sa.Method.TextInfo("排雷功能已在设置中关闭。", 2000); return; }
+        lock (_mineLock)
+        {
+            if (!地雷数据库.MinesByMap.ContainsKey(_当前MapId))
+            {
+                sa.Method.TextInfo("当前地图无地雷数据。", 2000);
+                return;
+            }
+
+            _雷点已显示 = !_雷点已显示;
+            if (_雷点已显示)
+            {
+                画出地雷点(sa, _当前MapId);
+                sa.Method.TextInfo("显示地雷位置", 2000);
+            }
+            else
+            {
+                sa.Method.RemoveDraw("FTM_Mine_.*");
+                sa.Method.TextInfo("隐藏地雷位置", 2000);
+            }
+        }
+    }
+
+    #region 排雷 - 进图
+    [ScriptMethod(name: "排雷 - 进入区域1178", eventType: EventTypeEnum.ChangeMap, eventCondition: ["MapId:1178"], userControl: false)]
+    public void 进入雷区1178(Event evt, ScriptAccessory sa) => 进入雷区(1178, sa);
+
+    [ScriptMethod(name: "排雷 - 进入区域1179", eventType: EventTypeEnum.ChangeMap, eventCondition: ["MapId:1179"], userControl: false)]
+    public void 进入雷区1179(Event evt, ScriptAccessory sa) => 进入雷区(1179, sa);
+
+    [ScriptMethod(name: "排雷 - 进入区域1180", eventType: EventTypeEnum.ChangeMap, eventCondition: ["MapId:1180"], userControl: false)]
+    public void 进入雷区1180(Event evt, ScriptAccessory sa) => 进入雷区(1180, sa);
+
+    [ScriptMethod(name: "排雷 - 进入区域1181", eventType: EventTypeEnum.ChangeMap, eventCondition: ["MapId:1181"], userControl: false)]
+    public void 进入雷区1181(Event evt, ScriptAccessory sa) => 进入雷区(1181, sa);
+
+    [ScriptMethod(name: "排雷 - 进入区域1182", eventType: EventTypeEnum.ChangeMap, eventCondition: ["MapId:1182"], userControl: false)]
+    public void 进入雷区1182(Event evt, ScriptAccessory sa) => 进入雷区(1182, sa);
+
+    [ScriptMethod(name: "排雷 - 进入区域1183", eventType: EventTypeEnum.ChangeMap, eventCondition: ["MapId:1183"], userControl: false)]
+    public void 进入雷区1183(Event evt, ScriptAccessory sa) => 沿用上一张图标记(1183, sa);
+
+    [ScriptMethod(name: "排雷 - 进入区域1184", eventType: EventTypeEnum.ChangeMap, eventCondition: ["MapId:1184"], userControl: false)]
+    public void 进入雷区1184(Event evt, ScriptAccessory sa) => 沿用上一张图标记(1184, sa);
+
+    [ScriptMethod(name: "排雷 - 进入区域1189", eventType: EventTypeEnum.ChangeMap, eventCondition: ["MapId:1189"], userControl: false)]
+    public void 进入雷区1189(Event evt, ScriptAccessory sa) => 进入雷区(1189, sa);
+
+    // 1182 → 1183 → 1184 是同一片区域随进度换的 MapId，点位表是 1182 的子集。
+    // 换到 1183/1184 时不动任何东西：既不清图也不重画，继续沿用上一张图已经排掉一部分的标记
+    // （重画会把已经确认过的点又变回来），_当前MapId 也保持不变，扫雷/爆炸/踩点仍按原图的点位索引对应。
+    private void 沿用上一张图标记(uint mapId, ScriptAccessory sa)
+        => Dbg(sa, $"进入 {mapId}，沿用上一张图（{_当前MapId}）的地雷标记。");
+
+    private async void 进入雷区(uint mapId, ScriptAccessory sa)
+    {
+        if (!排雷显示) return;
+        if (mapId == _当前MapId) return;   // ChangeMap 会重复触发
+
+        uint newMapId;
+        lock (_mineLock)
+        {
+            _当前MapId = mapId;
+            newMapId = _当前MapId;
+            sa.Method.RemoveDraw("FTM_(Mine|Boom)_.*");
+        }
+        await Task.Delay(50);
+        lock (_mineLock)
+        {
+            if (_当前MapId != newMapId) return;
+            _雷点已显示 = true;
+            画出地雷点(sa, newMapId);
+            Dbg(sa, $"进入地雷区域 ({newMapId})，已自动显示标记。");
+        }
+    }
+    #endregion
+
+    private void 画出地雷点(ScriptAccessory sa, uint mapId)
+    {
+        if (!地雷数据库.MinesByMap.TryGetValue(mapId, out var mineGroups)) return;
+        _踩点已排除.Clear();
+        注册踩点扫描(sa);
+
+        var 小雷色 = new Vector4(1.0f, 0.65f, 0.0f, 2.0f);
+        var 大雷色 = new Vector4(0.86f, 0.08f, 0.23f, 2.0f);
+
+        for (var g = 0; g < mineGroups.Count; g++)
+        {
+            for (var m = 0; m < mineGroups[g].Mines.Count; m++)
+            {
+                var mine = mineGroups[g].Mines[m];
+                var dp = sa.Data.GetDefaultDrawProperties();
+                dp.Name = 雷点名(g, m);
+                dp.Position = mine.Position;
+                dp.DestoryAt = 雷点显示时长;
+                dp.Color = mine.IsLarge ? 大雷色 : 小雷色;
+                dp.Scale = new Vector2(4f);
+                sa.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Circle, dp);
+            }
+        }
+    }
+
+    // 命中点位表就回调 (组号, 点号)，radius 内全部命中；stopAtFirst 只处理第一个
+    private void 遍历命中雷点(Vector3 pos, float radius, bool stopAtFirst, Action<int, int> onHit)
+    {
+        if (!地雷数据库.MinesByMap.TryGetValue(_当前MapId, out var mineGroups)) return;
+        for (var g = 0; g < mineGroups.Count; g++)
+        {
+            for (var m = 0; m < mineGroups[g].Mines.Count; m++)
+            {
+                if (Vector3.Distance(mineGroups[g].Mines[m].Position, pos) > radius) continue;
+                onHit(g, m);
+                if (stopAtFirst) return;
+            }
+        }
+    }
+
+    // 41648 盗贼扫雷：以自身为心 15m 内的雷位全部确认
+    [ScriptMethod(name: "排雷 - 盗贼扫雷", eventType: EventTypeEnum.ActionEffect, eventCondition: ["ActionId:41648"])]
+    public void 盗贼扫雷(Event evt, ScriptAccessory sa)
+    {
+        if (!排雷显示) return;
+        遍历命中雷点(evt.SourcePosition(), 15f, false, (g, m) => sa.Method.RemoveDraw(雷点名(g, m)));
+    }
+
+    // 41601 猎人排雷：落点 9m 内的雷位全部确认
+    [ScriptMethod(name: "排雷 - 猎人排雷", eventType: EventTypeEnum.ActionEffect, eventCondition: ["ActionId:41601"])]
+    public void 猎人排雷(Event evt, ScriptAccessory sa)
+    {
+        if (!排雷显示) return;
+        遍历命中雷点(evt.EffectPosition(), 9f, false, (g, m) => sa.Method.RemoveDraw(雷点名(g, m)));
+    }
+
+    [ScriptMethod(name: "排雷 - 大雷生成", eventType: EventTypeEnum.ObjectChanged, eventCondition: ["Operate:Add", "DataId:2014585"], userControl: false)]
+    public void 大雷生成(Event evt, ScriptAccessory sa) => 雷实体生成(evt.SourcePosition(), true, sa);
+
+    [ScriptMethod(name: "排雷 - 小雷生成", eventType: EventTypeEnum.ObjectChanged, eventCondition: ["Operate:Add", "DataId:2014584"], userControl: false)]
+    public void 小雷生成(Event evt, ScriptAccessory sa) => 雷实体生成(evt.SourcePosition(), false, sa);
+
+    // 雷实体现形 = 这一组已经确定，抹掉整组点位，改画实际爆炸范围（大雷 30m / 小雷 7m）
+    private async void 雷实体生成(Vector3 pos, bool isLarge, ScriptAccessory sa)
+    {
+        if (!排雷显示) return;
+        if (!地雷数据库.MinesByMap.TryGetValue(_当前MapId, out var mineGroups)) return;
+
+        var hitG = -1;
+        var hitM = -1;
+        遍历命中雷点(pos, 雷点匹配半径, true, (g, m) => { hitG = g; hitM = m; });
+        if (hitG < 0) return;
+
+        for (var m = 0; m < mineGroups[hitG].Mines.Count; m++)
+            sa.Method.RemoveDraw(雷点名(hitG, m));
+
+        await Task.Delay(50);   // 等 Remove 处理完再画，避免同帧被顺带清掉
+
+        var dp = sa.Data.GetDefaultDrawProperties();
+        dp.Name = 爆点名(hitG, hitM);
+        dp.Position = pos;
+        dp.Color = new Vector4(1.0f, 0.0f, 0.0f, 0.6f);
+        dp.DestoryAt = 1000000;
+        dp.Scale = isLarge ? new Vector2(30f) : new Vector2(7f);
+        sa.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Circle, dp);
+    }
+
+    // 42050 / 42051 雷爆炸：炸完了，点位和爆炸圈一起收掉
+    [ScriptMethod(name: "排雷 - 雷爆炸", eventType: EventTypeEnum.ActionEffect, eventCondition: ["ActionId:regex:^(42050|42051)$"], userControl: false)]
+    public void 雷爆炸(Event evt, ScriptAccessory sa)
+    {
+        遍历命中雷点(evt.SourcePosition(), 雷点匹配半径, true, (g, m) =>
+        {
+            sa.Method.RemoveDraw(雷点名(g, m));
+            sa.Method.RemoveDraw(爆点名(g, m));
+        });
+    }
+
+    private void 注册踩点扫描(ScriptAccessory sa)
+    {
+        if (_踩点扫描Guid != null) return;
+        _踩点扫描Guid = sa.Method.RegistFrameworkUpdateAction(() => 踩点扫描(sa));
+    }
+
+    // 有玩家（含非小队玩家）走进某雷位而没炸，说明这点没雷，抹掉标记
+    private void 踩点扫描(ScriptAccessory sa)
+    {
+        var now = Environment.TickCount64;
+        if (now - _上次踩点扫描 < 踩点扫描间隔) return;
+        _上次踩点扫描 = now;
+
+        lock (_mineLock)
+        {
+            if (!排雷显示)
+            {
+                // 运行中关掉设置：立刻收掉已有绘图
+                if (!_雷点已显示) return;
+                _雷点已显示 = false;
+                sa.Method.RemoveDraw("FTM_(Mine|Boom)_.*");
+                return;
+            }
+            if (!_雷点已显示) return;
+            if (!地雷数据库.MinesByMap.TryGetValue(_当前MapId, out var mineGroups)) return;
+
+            var players = sa.Data.Objects
+                .OfType<IPlayerCharacter>()
+                .Where(p => !p.IsDead)
+                .Select(p => p.Position)
+                .ToList();
+            if (players.Count == 0) return;
+
+            for (var g = 0; g < mineGroups.Count; g++)
+            {
+                for (var m = 0; m < mineGroups[g].Mines.Count; m++)
+                {
+                    var name = 雷点名(g, m);
+                    if (_踩点已排除.Contains(name)) continue;
+                    var minePos = mineGroups[g].Mines[m].Position;
+                    if (!players.Any(p => MathF.Abs(p.Y - minePos.Y) <= 踩点高度容差
+                                          && DistXZ(p, minePos) <= 踩点判定半径)) continue;
+
+                    _踩点已排除.Add(name);
+                    sa.Method.RemoveDraw(name);
+                }
+            }
+        }
+    }
+    #endregion
 }
 
 #region Helpers
@@ -2767,6 +3031,338 @@ public static class ScriptAccessoryExtensions
         dp.ScaleMode = ScaleMode.YByDistance;
         return dp;
     }
+}
+
+#endregion
+
+#region 排雷点位表
+
+internal static class 地雷数据库
+{
+    public struct Mine
+    {
+        public Vector3 Position;
+        public bool IsLarge;
+    }
+
+    public class MineGroup
+    {
+        public List<Mine> Mines = new List<Mine>();
+    }
+
+    // 数据已按地图ID分类
+    public static readonly Dictionary<uint, List<MineGroup>> MinesByMap = new Dictionary<uint, List<MineGroup>>
+    {
+        // --- Map ID: 1178 Data ---  (3 组 / 18 雷)
+        [1178] = new List<MineGroup>
+        {
+            // 区域 26: x[554.5~568.5] z[922.5~929.5]
+            new MineGroup { Mines = {
+                new Mine { Position = new Vector3(554.5f, -699.901f, 922.5f), IsLarge = false }, new Mine { Position = new Vector3(554.5f, -699.9f, 929.5f), IsLarge = false },
+                new Mine { Position = new Vector3(561.5f, -700f, 922.5f), IsLarge = false }, new Mine { Position = new Vector3(561.5f, -700.001f, 929.5f), IsLarge = false },
+                new Mine { Position = new Vector3(568.5f, -699.941f, 922.5f), IsLarge = false }, new Mine { Position = new Vector3(568.5f, -699.941f, 929.5f), IsLarge = false },
+            }},
+            // 区域 27: x[631.5~645.5] z[922.5~929.5]
+            new MineGroup { Mines = {
+                new Mine { Position = new Vector3(631.5f, -699.941f, 922.5f), IsLarge = false }, new Mine { Position = new Vector3(631.5f, -699.941f, 929.5f), IsLarge = false },
+                new Mine { Position = new Vector3(638.5f, -700.001f, 922.5f), IsLarge = false }, new Mine { Position = new Vector3(638.5f, -700.001f, 929.5f), IsLarge = false },
+                new Mine { Position = new Vector3(645.5f, -699.901f, 922.5f), IsLarge = false }, new Mine { Position = new Vector3(645.5f, -699.901f, 929.5f), IsLarge = false },
+            }},
+            // 区域 28: x[596.5~603.5] z[943~957]
+            new MineGroup { Mines = {
+                new Mine { Position = new Vector3(596.5f, -700f, 943f), IsLarge = false }, new Mine { Position = new Vector3(596.5f, -699.94f, 950f), IsLarge = false },
+                new Mine { Position = new Vector3(596.5f, -700f, 957f), IsLarge = false }, new Mine { Position = new Vector3(603.5f, -700f, 943f), IsLarge = false },
+                new Mine { Position = new Vector3(603.5f, -699.94f, 950f), IsLarge = false }, new Mine { Position = new Vector3(603.5f, -700f, 957f), IsLarge = false },
+            }},
+        },
+        // --- Map ID: 1179 Data ---  (12 组 / 40 雷)
+        [1179] = new List<MineGroup>
+        {
+            // 区域 11: x[463.5~482.5] z[728.5~735.5]
+            new MineGroup { Mines = {
+                new Mine { Position = new Vector3(463.5f, -680f, 732f), IsLarge = false }, new Mine { Position = new Vector3(469.5f, -680f, 728.5f), IsLarge = false },
+                new Mine { Position = new Vector3(469.5f, -680f, 735.5f), IsLarge = false }, new Mine { Position = new Vector3(476.5f, -680f, 735.5f), IsLarge = false },
+                new Mine { Position = new Vector3(482.5f, -680f, 732f), IsLarge = false },
+            }},
+            // 区域 13: x[365~375] z[758.5~765.5]
+            new MineGroup { Mines = {
+                new Mine { Position = new Vector3(365f, -698f, 765.5f), IsLarge = false }, new Mine { Position = new Vector3(375f, -698f, 758.5f), IsLarge = false },
+            }},
+            // 区域 15: x[386~400] z[772~792]
+            new MineGroup { Mines = {
+                new Mine { Position = new Vector3(386f, -700f, 772f), IsLarge = true }, new Mine { Position = new Vector3(386f, -699.94f, 782f), IsLarge = true },
+                new Mine { Position = new Vector3(386f, -700f, 792f), IsLarge = true }, new Mine { Position = new Vector3(393f, -700f, 772f), IsLarge = true },
+                new Mine { Position = new Vector3(393f, -700f, 782f), IsLarge = true }, new Mine { Position = new Vector3(393f, -700f, 792f), IsLarge = true },
+                new Mine { Position = new Vector3(400f, -700f, 772f), IsLarge = true }, new Mine { Position = new Vector3(400f, -699.94f, 782f), IsLarge = true },
+                new Mine { Position = new Vector3(400f, -700f, 792f), IsLarge = true },
+            }},
+            // 区域 17: x[596.5~603.5] z[776~776]
+            new MineGroup { Mines = {
+                new Mine { Position = new Vector3(596.5f, -684f, 776f), IsLarge = true }, new Mine { Position = new Vector3(603.5f, -684f, 776f), IsLarge = false },
+            }},
+            // 区域 18: x[463.5~482.5] z[780.5~787.5]
+            new MineGroup { Mines = {
+                new Mine { Position = new Vector3(463.5f, -680f, 784f), IsLarge = true }, new Mine { Position = new Vector3(469.5f, -680f, 780.5f), IsLarge = true },
+                new Mine { Position = new Vector3(469.5f, -680f, 787.5f), IsLarge = true }, new Mine { Position = new Vector3(476.5f, -680f, 780.5f), IsLarge = true },
+                new Mine { Position = new Vector3(476.5f, -680f, 787.5f), IsLarge = true }, new Mine { Position = new Vector3(482.5f, -680f, 784f), IsLarge = true },
+            }},
+            // 区域 20: x[365~375] z[798.5~805.5]
+            new MineGroup { Mines = {
+                new Mine { Position = new Vector3(365f, -698f, 798.5f), IsLarge = false }, new Mine { Position = new Vector3(365f, -698f, 805.5f), IsLarge = false },
+                new Mine { Position = new Vector3(375f, -698f, 805.5f), IsLarge = false },
+            }},
+            // 区域 22: x[561~561] z[825.5~832.5]
+            new MineGroup { Mines = {
+                new Mine { Position = new Vector3(561f, -680f, 825.5f), IsLarge = false }, new Mine { Position = new Vector3(561f, -680f, 832.5f), IsLarge = false },
+            }},
+            // 区域 23: x[639~639] z[825.5~825.5]
+            new MineGroup { Mines = {
+                new Mine { Position = new Vector3(639f, -680f, 825.5f), IsLarge = false },
+            }},
+            // 区域 24: x[514.5~521.5] z[849~861]
+            new MineGroup { Mines = {
+                new Mine { Position = new Vector3(514.5f, -680f, 849f), IsLarge = false }, new Mine { Position = new Vector3(514.5f, -680f, 861f), IsLarge = false },
+                new Mine { Position = new Vector3(521.5f, -680f, 849f), IsLarge = false }, new Mine { Position = new Vector3(521.5f, -680f, 861f), IsLarge = false },
+            }},
+            // 区域 25: x[678.5~685.5] z[849~861]
+            new MineGroup { Mines = {
+                new Mine { Position = new Vector3(678.5f, -680f, 849f), IsLarge = false }, new Mine { Position = new Vector3(685.5f, -680f, 861f), IsLarge = false },
+            }},
+            // 区域 26: x[561.5~568.5] z[922.5~922.5]
+            new MineGroup { Mines = {
+                new Mine { Position = new Vector3(561.5f, -700f, 922.5f), IsLarge = false }, new Mine { Position = new Vector3(568.5f, -699.941f, 922.5f), IsLarge = false },
+            }},
+            // 区域 27: x[638.5~645.5] z[922.5~922.5]
+            new MineGroup { Mines = {
+                new Mine { Position = new Vector3(638.5f, -700.001f, 922.5f), IsLarge = false }, new Mine { Position = new Vector3(645.5f, -699.901f, 922.5f), IsLarge = false },
+            }},
+        },
+        // --- Map ID: 1180 Data ---  (14 组 / 58 雷)
+        [1180] = new List<MineGroup>
+        {
+            // 区域 10: x[763.5~770.5] z[660~672]
+            new MineGroup { Mines = {
+                new Mine { Position = new Vector3(763.5f, -690f, 660f), IsLarge = false }, new Mine { Position = new Vector3(763.5f, -690f, 672f), IsLarge = false },
+                new Mine { Position = new Vector3(770.5f, -690f, 660f), IsLarge = false }, new Mine { Position = new Vector3(770.5f, -690f, 672f), IsLarge = false },
+            }},
+            // 区域 12: x[717.5~736.5] z[728.5~735.5]
+            new MineGroup { Mines = {
+                new Mine { Position = new Vector3(717.5f, -680f, 732f), IsLarge = false }, new Mine { Position = new Vector3(723.5f, -680f, 728.5f), IsLarge = false },
+                new Mine { Position = new Vector3(723.5f, -680f, 735.5f), IsLarge = false }, new Mine { Position = new Vector3(730.5f, -680f, 728.5f), IsLarge = false },
+                new Mine { Position = new Vector3(730.5f, -680f, 735.5f), IsLarge = false }, new Mine { Position = new Vector3(736.5f, -680f, 732f), IsLarge = false },
+            }},
+            // 区域 14: x[825~835] z[758.5~765.5]
+            new MineGroup { Mines = {
+                new Mine { Position = new Vector3(825f, -698f, 758.5f), IsLarge = false }, new Mine { Position = new Vector3(825f, -698f, 765.5f), IsLarge = false },
+                new Mine { Position = new Vector3(835f, -698f, 758.5f), IsLarge = false }, new Mine { Position = new Vector3(835f, -698f, 765.5f), IsLarge = false },
+            }},
+            // 区域 16: x[800~814] z[772~792]
+            new MineGroup { Mines = {
+                new Mine { Position = new Vector3(800f, -700f, 772f), IsLarge = true }, new Mine { Position = new Vector3(800f, -699.94f, 782f), IsLarge = true },
+                new Mine { Position = new Vector3(800f, -700f, 792f), IsLarge = true }, new Mine { Position = new Vector3(807f, -700f, 772f), IsLarge = true },
+                new Mine { Position = new Vector3(807f, -700f, 782f), IsLarge = true }, new Mine { Position = new Vector3(807f, -700f, 792f), IsLarge = true },
+                new Mine { Position = new Vector3(814f, -700f, 772f), IsLarge = true }, new Mine { Position = new Vector3(814f, -699.94f, 782f), IsLarge = true },
+                new Mine { Position = new Vector3(814f, -700f, 792f), IsLarge = true },
+            }},
+            // 区域 17: x[596.5~603.5] z[776~776]
+            new MineGroup { Mines = {
+                new Mine { Position = new Vector3(596.5f, -684f, 776f), IsLarge = false }, new Mine { Position = new Vector3(596.5f, -684f, 776f), IsLarge = true },
+                new Mine { Position = new Vector3(603.5f, -684f, 776f), IsLarge = false }, new Mine { Position = new Vector3(603.5f, -684f, 776f), IsLarge = true },
+            }},
+            // 区域 19: x[717.5~736.5] z[780.5~787.5]
+            new MineGroup { Mines = {
+                new Mine { Position = new Vector3(717.5f, -680f, 784f), IsLarge = true }, new Mine { Position = new Vector3(723.5f, -680f, 780.5f), IsLarge = true },
+                new Mine { Position = new Vector3(723.5f, -680f, 787.5f), IsLarge = true }, new Mine { Position = new Vector3(730.5f, -680f, 780.5f), IsLarge = true },
+                new Mine { Position = new Vector3(730.5f, -680f, 787.5f), IsLarge = true }, new Mine { Position = new Vector3(736.5f, -680f, 784f), IsLarge = true },
+            }},
+            // 区域 21: x[825~835] z[798.5~805.5]
+            new MineGroup { Mines = {
+                new Mine { Position = new Vector3(825f, -698f, 798.5f), IsLarge = false }, new Mine { Position = new Vector3(825f, -698f, 805.5f), IsLarge = false },
+                new Mine { Position = new Vector3(835f, -698f, 798.5f), IsLarge = false }, new Mine { Position = new Vector3(835f, -698f, 805.5f), IsLarge = false },
+            }},
+            // 区域 22: x[561~561] z[825.5~832.5]
+            new MineGroup { Mines = {
+                new Mine { Position = new Vector3(561f, -680f, 825.5f), IsLarge = false }, new Mine { Position = new Vector3(561f, -680f, 832.5f), IsLarge = false },
+            }},
+            // 区域 23: x[639~639] z[825.5~832.5]
+            new MineGroup { Mines = {
+                new Mine { Position = new Vector3(639f, -680f, 825.5f), IsLarge = false }, new Mine { Position = new Vector3(639f, -680f, 832.5f), IsLarge = false },
+            }},
+            // 区域 24: x[514.5~521.5] z[849~861]
+            new MineGroup { Mines = {
+                new Mine { Position = new Vector3(514.5f, -680f, 849f), IsLarge = false }, new Mine { Position = new Vector3(514.5f, -680f, 861f), IsLarge = false },
+                new Mine { Position = new Vector3(521.5f, -680f, 849f), IsLarge = false }, new Mine { Position = new Vector3(521.5f, -680f, 861f), IsLarge = false },
+            }},
+            // 区域 25: x[678.5~685.5] z[849~861]
+            new MineGroup { Mines = {
+                new Mine { Position = new Vector3(678.5f, -680f, 849f), IsLarge = false }, new Mine { Position = new Vector3(678.5f, -680f, 861f), IsLarge = false },
+                new Mine { Position = new Vector3(685.5f, -680f, 849f), IsLarge = false }, new Mine { Position = new Vector3(685.5f, -680f, 861f), IsLarge = false },
+            }},
+            // 区域 26: x[561.5~568.5] z[922.5~929.5]
+            new MineGroup { Mines = {
+                new Mine { Position = new Vector3(561.5f, -700.001f, 929.5f), IsLarge = false }, new Mine { Position = new Vector3(568.5f, -699.941f, 922.5f), IsLarge = false },
+            }},
+            // 区域 27: x[631.5~645.5] z[922.5~929.5]
+            new MineGroup { Mines = {
+                new Mine { Position = new Vector3(631.5f, -699.941f, 922.5f), IsLarge = false }, new Mine { Position = new Vector3(631.5f, -699.941f, 929.5f), IsLarge = false },
+                new Mine { Position = new Vector3(638.5f, -700.001f, 922.5f), IsLarge = false }, new Mine { Position = new Vector3(645.5f, -699.901f, 922.5f), IsLarge = false },
+                new Mine { Position = new Vector3(645.5f, -699.901f, 929.5f), IsLarge = false },
+            }},
+            // 区域 28: x[596.5~603.5] z[943~957]
+            new MineGroup { Mines = {
+                new Mine { Position = new Vector3(596.5f, -700f, 957f), IsLarge = false }, new Mine { Position = new Vector3(603.5f, -700f, 943f), IsLarge = false },
+            }},
+        },
+        // --- Map ID: 1181 Data ---  (10 组 / 31 雷)
+        [1181] = new List<MineGroup>
+        {
+            // 区域 17: x[596.5~603.5] z[776~776]
+            new MineGroup { Mines = {
+                new Mine { Position = new Vector3(596.5f, -684f, 776f), IsLarge = false }, new Mine { Position = new Vector3(596.5f, -684f, 776f), IsLarge = true },
+                new Mine { Position = new Vector3(603.5f, -684f, 776f), IsLarge = false }, new Mine { Position = new Vector3(603.5f, -684f, 776f), IsLarge = true },
+            }},
+        },
+        // --- Map ID: 1182 Data ---  (8 组 / 53 雷)
+        [1182] = new List<MineGroup>
+        {
+            // 区域 2: x[530.5~537.5] z[81.5~88.5]
+            new MineGroup { Mines = {
+                new Mine { Position = new Vector3(530.5f, -700f, 81.5f), IsLarge = false }, new Mine { Position = new Vector3(530.5f, -700f, 88.5f), IsLarge = false },
+                new Mine { Position = new Vector3(537.5f, -700f, 81.5f), IsLarge = false }, new Mine { Position = new Vector3(537.5f, -700f, 88.5f), IsLarge = false },
+            }},
+            // 区域 3: x[582~618] z[107~141]
+            new MineGroup { Mines = {
+                new Mine { Position = new Vector3(582f, -700f, 124f), IsLarge = false }, new Mine { Position = new Vector3(585f, -700f, 117f), IsLarge = false },
+                new Mine { Position = new Vector3(585f, -700f, 131f), IsLarge = false }, new Mine { Position = new Vector3(589f, -699.95f, 124f), IsLarge = false },
+                new Mine { Position = new Vector3(592f, -699.95f, 116f), IsLarge = false }, new Mine { Position = new Vector3(592f, -699.95f, 132f), IsLarge = false },
+                new Mine { Position = new Vector3(593f, -700f, 109f), IsLarge = false }, new Mine { Position = new Vector3(593f, -700f, 139f), IsLarge = false },
+                new Mine { Position = new Vector3(600f, -699.956f, 107f), IsLarge = false }, new Mine { Position = new Vector3(600f, -699.95f, 113f), IsLarge = false },
+                new Mine { Position = new Vector3(600f, -699.95f, 135f), IsLarge = false }, new Mine { Position = new Vector3(600f, -699.956f, 141f), IsLarge = false },
+                new Mine { Position = new Vector3(607f, -700f, 109f), IsLarge = false }, new Mine { Position = new Vector3(607f, -700f, 139f), IsLarge = false },
+                new Mine { Position = new Vector3(608f, -699.95f, 116f), IsLarge = false }, new Mine { Position = new Vector3(608f, -699.95f, 132f), IsLarge = false },
+                new Mine { Position = new Vector3(611f, -699.95f, 124f), IsLarge = false }, new Mine { Position = new Vector3(615f, -700f, 117f), IsLarge = false },
+                new Mine { Position = new Vector3(615f, -700f, 131f), IsLarge = false }, new Mine { Position = new Vector3(618f, -700f, 124f), IsLarge = false },
+            }},
+            // 区域 4: x[634.5~642.5] z[117~131]
+            new MineGroup { Mines = {
+                new Mine { Position = new Vector3(634.5f, -700f, 117f), IsLarge = true }, new Mine { Position = new Vector3(634.5f, -700f, 124f), IsLarge = true },
+                new Mine { Position = new Vector3(634.5f, -700f, 131f), IsLarge = true }, new Mine { Position = new Vector3(642.5f, -700f, 117f), IsLarge = true },
+                new Mine { Position = new Vector3(642.5f, -700f, 124f), IsLarge = true }, new Mine { Position = new Vector3(642.5f, -700f, 131f), IsLarge = true },
+            }},
+            // 区域 5: x[669.5~677.5] z[117~131]
+            new MineGroup { Mines = {
+                new Mine { Position = new Vector3(669.5f, -700f, 117f), IsLarge = true }, new Mine { Position = new Vector3(669.5f, -700f, 124f), IsLarge = true },
+                new Mine { Position = new Vector3(669.5f, -700f, 131f), IsLarge = true }, new Mine { Position = new Vector3(677.5f, -700f, 117f), IsLarge = true },
+                new Mine { Position = new Vector3(677.5f, -700f, 124f), IsLarge = true }, new Mine { Position = new Vector3(677.5f, -700f, 131f), IsLarge = true },
+            }},
+            // 区域 6: x[528.343~539.657] z[118.343~129.657]
+            new MineGroup { Mines = {
+                new Mine { Position = new Vector3(528.343f, -700f, 118.343f), IsLarge = true }, new Mine { Position = new Vector3(528.343f, -700f, 129.657f), IsLarge = true },
+                new Mine { Position = new Vector3(534f, -700f, 124f), IsLarge = true }, new Mine { Position = new Vector3(539.657f, -700f, 118.343f), IsLarge = true },
+                new Mine { Position = new Vector3(539.657f, -700f, 129.657f), IsLarge = true },
+            }},
+            // 区域 7: x[491.5~498.5] z[120.5~127.5]
+            new MineGroup { Mines = {
+                new Mine { Position = new Vector3(491.5f, -700f, 120.5f), IsLarge = false }, new Mine { Position = new Vector3(491.5f, -700f, 127.5f), IsLarge = false },
+                new Mine { Position = new Vector3(498.5f, -700f, 120.5f), IsLarge = false }, new Mine { Position = new Vector3(498.5f, -700f, 127.5f), IsLarge = false },
+            }},
+            // 区域 8: x[560~568] z[120.5~127.5]
+            new MineGroup { Mines = {
+                new Mine { Position = new Vector3(560f, -700f, 120.5f), IsLarge = false }, new Mine { Position = new Vector3(560f, -700f, 127.5f), IsLarge = false },
+                new Mine { Position = new Vector3(568f, -700f, 120.5f), IsLarge = false }, new Mine { Position = new Vector3(568f, -700f, 127.5f), IsLarge = false },
+            }},
+            // 区域 9: x[530.5~537.5] z[159.5~166.5]
+            new MineGroup { Mines = {
+                new Mine { Position = new Vector3(530.5f, -700f, 159.5f), IsLarge = false }, new Mine { Position = new Vector3(530.5f, -700f, 166.5f), IsLarge = false },
+                new Mine { Position = new Vector3(537.5f, -700f, 159.5f), IsLarge = false }, new Mine { Position = new Vector3(537.5f, -700f, 166.5f), IsLarge = false },
+            }},
+        },
+        // // --- Map ID: 1183 Data ---  (8 组 / 25 雷)
+        // [1183] = new List<MineGroup>
+        // {
+        //     // 区域 2: x[537.5~537.5] z[81.5~88.5]
+        //     new MineGroup { Mines = {
+        //         new Mine { Position = new Vector3(537.5f, -700f, 81.5f), IsLarge = false }, new Mine { Position = new Vector3(537.5f, -700f, 88.5f), IsLarge = false },
+        //     }},
+        //     // 区域 3: x[582~618] z[109~139]
+        //     new MineGroup { Mines = {
+        //         new Mine { Position = new Vector3(582f, -700f, 124f), IsLarge = false }, new Mine { Position = new Vector3(585f, -700f, 131f), IsLarge = false },
+        //         new Mine { Position = new Vector3(589f, -699.95f, 124f), IsLarge = false }, new Mine { Position = new Vector3(592f, -699.95f, 132f), IsLarge = false },
+        //         new Mine { Position = new Vector3(593f, -700f, 109f), IsLarge = false }, new Mine { Position = new Vector3(593f, -700f, 139f), IsLarge = false },
+        //         new Mine { Position = new Vector3(607f, -700f, 109f), IsLarge = false }, new Mine { Position = new Vector3(607f, -700f, 139f), IsLarge = false },
+        //         new Mine { Position = new Vector3(608f, -699.95f, 116f), IsLarge = false }, new Mine { Position = new Vector3(608f, -699.95f, 132f), IsLarge = false },
+        //         new Mine { Position = new Vector3(618f, -700f, 124f), IsLarge = false },
+        //     }},
+        //     // 区域 4: x[634.5~642.5] z[117~131]
+        //     new MineGroup { Mines = {
+        //         new Mine { Position = new Vector3(634.5f, -700f, 131f), IsLarge = true }, new Mine { Position = new Vector3(642.5f, -700f, 117f), IsLarge = true },
+        //         new Mine { Position = new Vector3(642.5f, -700f, 124f), IsLarge = true },
+        //     }},
+        //     // 区域 5: x[669.5~669.5] z[117~117]
+        //     new MineGroup { Mines = {
+        //         new Mine { Position = new Vector3(669.5f, -700f, 117f), IsLarge = true },
+        //     }},
+        //     // 区域 6: x[528.343~539.657] z[118.343~129.657]
+        //     new MineGroup { Mines = {
+        //         new Mine { Position = new Vector3(528.343f, -700f, 129.657f), IsLarge = true }, new Mine { Position = new Vector3(534f, -700f, 124f), IsLarge = true },
+        //         new Mine { Position = new Vector3(539.657f, -700f, 118.343f), IsLarge = true },
+        //     }},
+        //     // 区域 7: x[498.5~498.5] z[127.5~127.5]
+        //     new MineGroup { Mines = {
+        //         new Mine { Position = new Vector3(498.5f, -700f, 127.5f), IsLarge = false },
+        //     }},
+        //     // 区域 8: x[568~568] z[120.5~127.5]
+        //     new MineGroup { Mines = {
+        //         new Mine { Position = new Vector3(568f, -700f, 120.5f), IsLarge = false }, new Mine { Position = new Vector3(568f, -700f, 127.5f), IsLarge = false },
+        //     }},
+        //     // 区域 9: x[530.5~537.5] z[159.5~166.5]
+        //     new MineGroup { Mines = {
+        //         new Mine { Position = new Vector3(530.5f, -700f, 159.5f), IsLarge = false }, new Mine { Position = new Vector3(537.5f, -700f, 166.5f), IsLarge = false },
+        //     }},
+        // },
+        // --- Map ID: 1184 Data ---  (5 组 / 8 雷)
+        // [1184] = new List<MineGroup>
+        // {
+        //     // 区域 2: x[530.5~530.5] z[88.5~88.5]
+        //     new MineGroup { Mines = {
+        //         new Mine { Position = new Vector3(530.5f, -700f, 88.5f), IsLarge = false },
+        //     }},
+        //     // 区域 3: x[618~618] z[124~124]
+        //     new MineGroup { Mines = {
+        //         new Mine { Position = new Vector3(618f, -700f, 124f), IsLarge = false },
+        //     }},
+        //     // 区域 4: x[634.5~642.5] z[117~124]
+        //     new MineGroup { Mines = {
+        //         new Mine { Position = new Vector3(634.5f, -700f, 117f), IsLarge = true }, new Mine { Position = new Vector3(642.5f, -700f, 124f), IsLarge = true },
+        //     }},
+        //     // 区域 7: x[491.5~498.5] z[120.5~120.5]
+        //     new MineGroup { Mines = {
+        //         new Mine { Position = new Vector3(491.5f, -700f, 120.5f), IsLarge = false }, new Mine { Position = new Vector3(498.5f, -700f, 120.5f), IsLarge = false },
+        //     }},
+        //     // 区域 9: x[537.5~537.5] z[159.5~166.5]
+        //     new MineGroup { Mines = {
+        //         new Mine { Position = new Vector3(537.5f, -700f, 159.5f), IsLarge = false }, new Mine { Position = new Vector3(537.5f, -700f, 166.5f), IsLarge = false },
+        //     }},
+        // },
+        // --- Map ID: 1189 Data ---  (2 组 / 15 雷)
+        [1189] = new List<MineGroup>
+        {
+            // 区域 0: x[-9~10] z[-433~-421]
+            new MineGroup { Mines = {
+                new Mine { Position = new Vector3(-9f, -707.95f, -430f), IsLarge = false }, new Mine { Position = new Vector3(-4f, -707.95f, -430f), IsLarge = false },
+                new Mine { Position = new Vector3(0f, -707.95f, -433f), IsLarge = false }, new Mine { Position = new Vector3(0f, -707.95f, -427f), IsLarge = false },
+                new Mine { Position = new Vector3(0f, -707.95f, -421f), IsLarge = false }, new Mine { Position = new Vector3(4f, -707.95f, -430f), IsLarge = false },
+                new Mine { Position = new Vector3(10f, -708f, -430f), IsLarge = false },
+            }},
+            // 区域 1: x[27~46] z[-403~-385]
+            new MineGroup { Mines = {
+                new Mine { Position = new Vector3(27f, -715.95f, -394f), IsLarge = false }, new Mine { Position = new Vector3(32f, -715.95f, -394f), IsLarge = false },
+                new Mine { Position = new Vector3(36f, -715.95f, -403f), IsLarge = false }, new Mine { Position = new Vector3(36f, -715.95f, -397f), IsLarge = false },
+                new Mine { Position = new Vector3(36f, -715.95f, -391f), IsLarge = false }, new Mine { Position = new Vector3(36f, -715.95f, -385f), IsLarge = false },
+                new Mine { Position = new Vector3(40f, -715.95f, -394f), IsLarge = false }, new Mine { Position = new Vector3(46f, -716f, -394f), IsLarge = false },
+            }},
+        },
+    };
 }
 
 #endregion
