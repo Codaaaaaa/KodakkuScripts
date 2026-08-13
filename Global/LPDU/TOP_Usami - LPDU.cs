@@ -59,10 +59,10 @@ public class TopReborn
          """;
 
     private const string Name = "The Omega Protocol (Ultimate) TOP - LPDU";
-    private const string Version = "0.0.0.18";
+    private const string Version = "0.0.0.19";
     private const string DebugVersion = "a";
 
-    private const bool Debugging = true;
+    private const bool Debugging = false;
 
     private static readonly List<string> Role = ["MT", "ST", "H1", "H2", "D1", "D2", "D3", "D4"];
     private static readonly Vector3 Center = new Vector3(100, 0, 100);
@@ -3898,12 +3898,12 @@ public class TopReborn
         // 以蟑螂方位在南为准
         var myBasePos = myPriValRank switch
         {
-            ATK1 => new Vector3(119.5f, 0, 100f),
-            ATK2 => new Vector3(94.74f, 0f, 81.74f),
-            ATK3 => new Vector3(80.5f, 0, 100f),
-            ATK4 => new Vector3(105.26f, 0f, 81.74f),
-            CROSS => new Vector3(110f, 0f, 100f),
-            TRIANGLE => new Vector3(100f, 0, 88f),
+            ATK1 => new Vector3(119.5f, 0f, 100f),
+            ATK2 => new Vector3(104.36f, 0f, 81.08f),
+            ATK3 => new Vector3(96.22f, 0f, 81.41f),
+            ATK4 => new Vector3(80.5f, 0f, 100f),
+            CROSS => new Vector3(109.26f, 0f, 99.02f),
+            TRIANGLE => new Vector3(100f, 0f, 90f),
             BIND1 => new Vector3(110.3f, 0f, 116.5f),
             BIND2 => new Vector3(89.7f, 0f, 116.5f),
         };
