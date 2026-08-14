@@ -59,7 +59,7 @@ public class TopReborn
          """;
 
     private const string Name = "The Omega Protocol (Ultimate) TOP - LPDU";
-    private const string Version = "0.0.0.19";
+    private const string Version = "0.0.0.20";
     private const string DebugVersion = "a";
 
     private const bool Debugging = false;
@@ -3745,22 +3745,21 @@ public class TopReborn
         const int ATK1 = 0, ATK2 = 1, ATK3 = 2, ATK4 = 3;
         const int CROSS = 4, TRIANGLE = 5, BIND1 = 6, BIND2 = 7;
 
-        // 以欧米茄打上侧为准
+        // 以欧米茄扫西半场（左炮 31639）为准，扫东半场时整套左右镜像
         var safePos = myPriValRank switch
         {
-            ATK1 => new Vector3(119.5f, 0, 100.5f),
-            ATK2 => new Vector3(94.74f, 0f, 118.26f),
-            ATK3 => new Vector3(105.26f, 0f, 118.26f),
-            ATK4 => new Vector3(80.5f, 0, 100.5f),
-            CROSS => new Vector3(90f, 0f, 100.5f),
-            TRIANGLE => new Vector3(102f, 0, 111f),
-            BIND1 => new Vector3(109.2f, 0f, 90.8f),
-            BIND2 => new Vector3(90.8f, 0f, 90.8f),
+            ATK1 => new Vector3(100.5f, 0f, 80.5f),      // 正北贴边
+            ATK2 => new Vector3(118.26f, 0f, 94.74f),    // 安全侧偏北
+            ATK3 => new Vector3(118.26f, 0f, 105.26f),   // 安全侧偏南
+            ATK4 => new Vector3(100.5f, 0f, 119.5f),     // 正南贴边
+            CROSS => new Vector3(100.5f, 0f, 110f),      // 南内圈
+            TRIANGLE => new Vector3(111f, 0f, 98f),      // 安全侧内圈
+            BIND1 => new Vector3(90.8f, 0f, 90.8f),      // 扫描侧偏北内圈
+            BIND2 => new Vector3(90.8f, 0f, 109.2f),     // 扫描侧偏南内圈
         };
 
-        const uint CANNON_LEFT = 31639, CANNON_RIGHT = 31638;
-        var rotation = (ev.ActionId == CANNON_LEFT ? 90f : -90f).DegToRad();
-        safePos = safePos.RotateAndExtend(Center, rotation);
+        const uint CANNON_RIGHT = 31638;   // 31639 为左炮，即上面的基准布局
+        if (ev.ActionId == CANNON_RIGHT) safePos = safePos.FoldPointHorizon(Center.X);
         sa.DrawGuidance(safePos, 0, 10000, $"P5C2_三传_指路");
     }
     
