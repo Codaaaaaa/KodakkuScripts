@@ -23,7 +23,7 @@ namespace Codaaaaaa.TheForkedTowerMagic;
     guid: "45819e25-cb2d-4d84-a508-f110dc6a381a",
     name: "魔之塔画图",
     territorys: [1346],
-    version: "0.0.1.7",
+    version: "0.0.1.8",
     author: "Codaaaaaa",
     note: "写完喽，还有电的可以在频道里圈我\n\n感谢铁虎老大的帮助\n感谢Yatel老大和洋葱炒米老大的arr")]
 public class TheForkedTowerMagic
@@ -2817,7 +2817,7 @@ public class TheForkedTowerMagic
         dp.Scale = new Vector2(钟灵.HitboxRadius);
         dp.InnerScale = new Vector2(钟灵.HitboxRadius + 1f);
         dp.Radian = float.Pi * 2;
-        dp.DestoryAt = 30000;
+        dp.DestoryAt = 60000;
         sa.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Circle, dp);
 
         sa.Method.TextInfo($"钟灵首击异常：{格.名} 由 {打手.Name} 开怪，检查是否拉错", 8000, true);
@@ -2853,8 +2853,9 @@ public class TheForkedTowerMagic
         if (超出.Count > 0)
         {
             var 超文 = string.Join("，", 超出);
-            sa.Method.TextInfo($"{头} 打多了：{超文}{(还需 == "" ? "" : $"／{还需}")}", 15000, true);
-            sa.Method.TTS("打多了", 3);
+            sa.Method.TextInfo($"{头} 打多了：{超文}{(还需 == "" ? "" : $"/{还需}")}", 1500, true);
+            // sa.Method.TTS("打多了", 3);
+            sa.Method.SendChat($"/e {头} 打多了：{超文}{(还需 == "" ? "" : $"/{还需}")} <se.10>");
             return;
         }
 
@@ -2865,9 +2866,9 @@ public class TheForkedTowerMagic
             return;
         }
 
-        sa.Method.TextInfo($"{头} → {还需}", 2000, false);
-        sa.Method.TTS(string.Join("", 项.Select(x => $"{x.名}{x.数量}")), 3);
-        sa.Method.SendChat($"/e {头} → {还需}");
+        sa.Method.TextInfo($"{头} → {还需}", 1500, false);
+        // sa.Method.TTS(string.Join("", 项.Select(x => $"{x.名}{x.数量}")), 3);
+        sa.Method.SendChat($"/e {头} → {还需} <se.1>");
     }
 
     // 时针每格1小时、分针每格5分钟：先用大格(3格)再用小格(1格)，即击杀数最少的组合
