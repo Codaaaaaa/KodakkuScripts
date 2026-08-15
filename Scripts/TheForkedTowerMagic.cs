@@ -23,7 +23,7 @@ namespace Codaaaaaa.TheForkedTowerMagic;
     guid: "45819e25-cb2d-4d84-a508-f110dc6a381a",
     name: "魔之塔画图",
     territorys: [1346],
-    version: "0.0.1.6",
+    version: "0.0.1.7",
     author: "Codaaaaaa",
     note: "写完喽，还有电的可以在频道里圈我\n\n感谢铁虎老大的帮助\n感谢Yatel老大和洋葱炒米老大的arr")]
 public class TheForkedTowerMagic
@@ -31,6 +31,7 @@ public class TheForkedTowerMagic
     #region 用户设置
     [UserSetting("双头决战：只能选中自己Buff对应的头")] public static bool DualHeadTargetLock { get; set; } = false;
     [UserSetting("排雷：显示塔内地雷点位（进图自动显示，/e 新月排雷 手动开关）")] public static bool 排雷显示 { get; set; } = true;
+    [UserSetting("钟灵时钟：播报要打的钟灵 + 拉怪错误提醒")] public static bool 钟灵时钟启用 { get; set; } = false;
     [UserSetting("测试")] public static bool Debug输出 { get; set; } = false;
     // [UserSetting("是否开启TTS")] public static bool TTSOpen { get; set; } = true;
     #endregion
@@ -2653,6 +2654,228 @@ public class TheForkedTowerMagic
 
     #endregion
 
+    #region 钟灵时钟
+    // 进入 MapId 1187 开始检测，收到 EnvControl Index 17 flag 8 结束（离开该图也结束）。
+    // flag 给出本轮要求把钟推到的目标时间，钟面固定从 12:00 起走，指针只前进。
+    // 钟灵推进指针：19770最大=时针+3格 / 19771次大=时针+1格 / 19772次小=分针+3格(15分) / 19773最小=分针+1格(5分)。
+    // 全部走首击判定：谁第一下打到这只钟灵，就按 EntityId 计一次格数（被秒了也算），同时判开怪的是不是 T。
+    private const uint 钟灵MapId = 1187;
+    private const int 时钟结束Flag = 8;
+    private static readonly Dictionary<int, (int 时, int 分)> 时钟目标表 = new()
+    {
+        [2]    = (8, 45),
+        [16]   = (9, 40),
+        [32]   = (10, 45),
+        [64]   = (11, 30),
+        [128]  = (5, 55),
+        [256]  = (8, 50),
+        [512]  = (10, 50),
+        [1024] = (11, 35),
+        [2048] = (11, 45),
+    };
+
+    // DataId → 该钟灵推进的格数与名称
+    private static readonly Dictionary<uint, (int 时格, int 分格, string 名)> 钟灵表 = new()
+    {
+        [19770] = (3, 0, "最大"),
+        [19771] = (1, 0, "次大"),
+        [19772] = (0, 3, "次小"),
+        [19773] = (0, 1, "最小"),
+    };
+
+    private readonly object _钟灵Lock = new();
+    private bool _钟灵检测中;
+    private (int 时, int 分)? _钟灵目标;
+    private (int 时格, int 分格) _钟灵已投入;
+    private readonly HashSet<uint> _钟灵首击 = [];   // 已处理过首击的 EntityId，同一只只算一次
+
+    // 进 1187 开检测、离开就关；ChangeMap 会重复触发，状态没变就不输出
+    [ScriptMethod(name: "钟灵时钟 - 检测开关", eventType: EventTypeEnum.ChangeMap, userControl: false)]
+    public void 钟灵检测开关(Event evt, ScriptAccessory sa)
+    {
+        var 在钟灵图 = 钟灵时钟启用 && uint.TryParse(evt["MapId"], out var mapId) && mapId == 钟灵MapId;
+        lock (_钟灵Lock)
+        {
+            if (_钟灵检测中 == 在钟灵图) return;
+            _钟灵检测中 = 在钟灵图;
+            重置钟灵进度();
+        }
+        if (!在钟灵图) 结束钟灵检测(sa);
+        Dbg(sa, 在钟灵图 ? $"钟灵时钟：进入 {钟灵MapId}，开始检测" : "钟灵时钟：离开该图，停止检测");
+    }
+
+    // 调用方必须持有 _钟灵Lock
+    private void 重置钟灵进度()
+    {
+        _钟灵目标 = null;
+        _钟灵已投入 = (0, 0);
+        _钟灵首击.Clear();
+    }
+
+    private void 结束钟灵检测(ScriptAccessory sa)
+    {
+        lock (_钟灵Lock)
+        {
+            _钟灵检测中 = false;
+            重置钟灵进度();
+        }
+        sa.Method.RemoveDraw("钟灵拉错-.*");
+    }
+
+    [ScriptMethod(name: "钟灵时钟 - 目标时间播报", eventType: EventTypeEnum.EnvControl, eventCondition: ["Index:17"])]
+    public void 钟灵时钟播报(Event evt, ScriptAccessory sa)
+    {
+        if (!钟灵时钟启用) { 结束钟灵检测(sa); return; }   // 运行中关掉设置：顺手收干净
+
+        bool 检测中;
+        lock (_钟灵Lock) 检测中 = _钟灵检测中;
+        if (!检测中)
+        {
+            Dbg(sa, $"钟灵时钟：不在检测窗口内，忽略 flag {evt["Flag"]}");
+            return;
+        }
+        if (!int.TryParse(evt["Flag"], out var flag))
+        {
+            Dbg(sa, $"钟灵时钟：Flag 解析失败（原始 {evt["Flag"]}）");
+            return;
+        }
+        if (flag == 时钟结束Flag)
+        {
+            结束钟灵检测(sa);
+            Dbg(sa, "钟灵时钟：flag 8，结束检测");
+            return;
+        }
+        if (!时钟目标表.TryGetValue(flag, out var 目标))
+        {
+            Dbg(sa, $"钟灵时钟：未知 flag {flag}，未收录");
+            return;
+        }
+
+        // 新一轮：钟面回到 12:00，上一轮的首击计数作废
+        lock (_钟灵Lock)
+        {
+            重置钟灵进度();
+            _钟灵目标 = 目标;
+        }
+        sa.Method.RemoveDraw("钟灵拉错-.*");
+
+        var 需求 = 拆解格数(目标.时 % 12, 目标.分 / 5 % 12);
+        Dbg(sa, $"钟灵时钟：flag {flag} → 目标 {目标.时}:{目标.分:00}，需 最大{需求.最大} 次大{需求.次大} 次小{需求.次小} 最小{需求.最小}");
+        播报钟灵需求(sa);
+    }
+
+    // 全量 EnvControl 日志，用来补收未收录的 flag（仅 Debug 输出开启时可见）
+    [ScriptMethod(name: "钟灵时钟 - EnvControl全量日志", eventType: EventTypeEnum.EnvControl, userControl: false)]
+    public void 钟灵EnvControl日志(Event evt, ScriptAccessory sa)
+    {
+        if (!钟灵时钟启用) return;
+        Dbg(sa, $"EnvControl Index={evt["Index"]} Flag={evt["Flag"]} DirectorId={evt["DirectorId"]} Id={evt["Id"]}");
+    }
+
+    // 首击 = 这只钟灵被打的第一下：计一次格数并重播需求，同时判开怪的是不是 T，一只只处理一次。
+    // 这里不加 eventCondition：TargetDataId 键在 ActionEffect 上没实测过，改用 TargetId 查对象判 DataId；
+    // 不在钟灵图时一个 bool 就返回，不会给别的图加负担。
+    [ScriptMethod(name: "钟灵时钟 - 首击计数与非T提醒", eventType: EventTypeEnum.ActionEffect)]
+    public void 钟灵首击检查(Event evt, ScriptAccessory sa)
+    {
+        if (!钟灵时钟启用) return;
+        lock (_钟灵Lock) if (!_钟灵检测中) return;
+
+        var 目标Id = evt.TargetId();
+        if (目标Id == 0) return;
+        var 钟灵 = sa.Data.Objects.SearchById(目标Id);
+        if (钟灵 is null || !钟灵表.TryGetValue(钟灵.DataId, out var 格)) return;
+
+        var 计入 = false;
+        lock (_钟灵Lock)
+        {
+            if (!_钟灵首击.Add(目标Id)) return;   // 只认第一下
+            if (_钟灵目标 is not null)
+            {
+                _钟灵已投入 = (_钟灵已投入.时格 + 格.时格, _钟灵已投入.分格 + 格.分格);
+                计入 = true;
+                Dbg(sa, $"钟灵首击：{格.名} {目标Id:X8}，累计 时针{_钟灵已投入.时格}格 分针{_钟灵已投入.分格}格");
+            }
+        }
+        if (计入) 播报钟灵需求(sa);
+
+        // 宠物/召唤兽先蹭到第一下时算到主人头上
+        var 来源 = sa.Data.Objects.SearchById(evt.SourceId());
+        var 打手 = 来源 as IPlayerCharacter
+                   ?? (来源 is { OwnerId: not 0 } ? sa.Data.Objects.SearchById(来源.OwnerId) as IPlayerCharacter : null);
+        if (打手 is null) return;
+        if (打手.IsTank())
+        {
+            Dbg(sa, $"钟灵首击：{格.名} {目标Id:X8} 由 {打手.Name} 开打（T）");
+            return;
+        }
+
+        var dp = sa.Data.GetDefaultDrawProperties();
+        dp.Name = $"钟灵拉错-{目标Id}";
+        dp.Color = new Vector4(1, 0, 0, 1);
+        dp.Owner = 目标Id;
+        dp.Scale = new Vector2(钟灵.HitboxRadius);
+        dp.InnerScale = new Vector2(钟灵.HitboxRadius + 1f);
+        dp.Radian = float.Pi * 2;
+        dp.DestoryAt = 30000;
+        sa.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Circle, dp);
+
+        sa.Method.TextInfo($"钟灵首击异常：{格.名} 由 {打手.Name} 开怪，检查是否拉错", 8000, true);
+        sa.Method.TTS($"{格.名}钟灵首击异常", 3);
+        Dbg(sa, $"钟灵首击异常：{格.名} {目标Id:X8} 由 {打手.Name} 开怪");
+    }
+
+    private void 播报钟灵需求(ScriptAccessory sa)
+    {
+        (int 时, int 分) 目标;
+        (int 时格, int 分格) 已投入;
+        lock (_钟灵Lock)
+        {
+            if (!_钟灵检测中 || _钟灵目标 is null) return;
+            目标 = _钟灵目标.Value;
+            已投入 = _钟灵已投入;
+        }
+
+        var 剩余时格 = 目标.时 % 12 - 已投入.时格;
+        var 剩余分格 = 目标.分 / 5 % 12 - 已投入.分格;
+
+        List<string> 超出 = [];
+        if (剩余时格 < 0) 超出.Add($"时针多{-剩余时格}格");
+        if (剩余分格 < 0) 超出.Add($"分针多{-剩余分格}格");
+
+        var 需求 = 拆解格数(Math.Max(剩余时格, 0), Math.Max(剩余分格, 0));
+        List<(int 数量, string 名)> 项 = [(需求.最大, "最大"), (需求.次大, "次大"), (需求.次小, "次小"), (需求.最小, "最小")];
+        项.RemoveAll(x => x.数量 <= 0);
+
+        var 还需 = 项.Count == 0 ? "" : $"还需 {string.Join(" ", 项.Select(x => $"{x.名}×{x.数量}"))}";
+        var 头 = $"目标 {目标.时}:{目标.分:00}";
+
+        if (超出.Count > 0)
+        {
+            var 超文 = string.Join("，", 超出);
+            sa.Method.TextInfo($"{头} 打多了：{超文}{(还需 == "" ? "" : $"／{还需}")}", 15000, true);
+            sa.Method.TTS("打多了", 3);
+            return;
+        }
+
+        if (项.Count == 0)
+        {
+            sa.Method.TextInfo($"{头} 已凑齐", 4000, false);
+            sa.Method.TTS("齐了", 3);
+            return;
+        }
+
+        sa.Method.TextInfo($"{头} → {还需}", 2000, false);
+        sa.Method.TTS(string.Join("", 项.Select(x => $"{x.名}{x.数量}")), 3);
+        sa.Method.SendChat($"/e {头} → {还需}");
+    }
+
+    // 时针每格1小时、分针每格5分钟：先用大格(3格)再用小格(1格)，即击杀数最少的组合
+    private static (int 最大, int 次大, int 次小, int 最小) 拆解格数(int 时格, int 分格)
+        => (时格 / 3, 时格 % 3, 分格 / 3, 分格 % 3);
+
+    #endregion
+
     #region 排雷
     // 塔内地雷点位表见文件末尾 地雷数据库，按 MapId 分类。进入有雷的地图自动画出全部点位，
     // 盗贼扫雷 / 猎人排雷 / 雷实体生成 / 雷爆炸 / 有人踩过而没炸 这五种情况都会把对应点位抹掉。
@@ -2683,6 +2906,7 @@ public class TheForkedTowerMagic
             _当前MapId = 0;
             _踩点已排除.Clear();
         }
+        结束钟灵检测(sa);
         sa.Method.RemoveDraw("FTM_(Mine|Boom)_.*");
         注册踩点扫描(sa);
     }
