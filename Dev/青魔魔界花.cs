@@ -1,6 +1,7 @@
 using System;
 using System.Linq;
 using System.Numerics;
+using System.Reflection;
 using System.Collections.Generic;
 using Newtonsoft.Json;
 using KodakkuAssist.Script;
@@ -17,8 +18,8 @@ namespace Codaaaaaa.BlueMage;
 [ScriptType(
     guid: "76fb14c3-1185-4580-b020-1f9a25e6f978",
     name: "青魔魔界花整合",
-    territorys: [245, 358, 196, 452, 532, 587],
-    version: "0.0.0.6",
+    territorys: [245, 358, 196, 452, 532, 587, 1036],
+    version: "0.0.0.7",
     author: "Codaaaaaa",
     note: "攻略参考二二二二乱 A12S为拉一起复仇\n\n副本说明:\nT5:1T1N6D注意T青需要在MT位，其他随意，但每个人的kdy排序需相同\nT9:同上\nT13:同上\nA4S:1T1N6D，按照kdy排序1T青2N青345为拉小怪D青678为打腿组D青\nA8S:1T2N5D，按照kdy排序1T2N3盾N456D一组月78D二组月\nA12S:1T1N6D\n\nT青笔记：\nT5：-2s开怪\nT9: -2s预读小侦测开场，即刻白风稳仇+醒梦\nT13: 拉南 -2s预读小侦测开怪，即刻白风稳仇+醒梦\nA4S: 龙之力开场，MT全程远离人群\nA8S: 随意\nA12S: -5s龙之力 -2s魔法锤")]
 public class BlueMage
@@ -29,6 +30,7 @@ public class BlueMage
     [UserSetting("通用")] public static bool 启用横幅 { get; set; } = true;
     [UserSetting("通用")] public static bool 启用TTS { get; set; } = true;
     [UserSetting("通用")] public static bool 指挥模式 { get; set; } = false;
+    [UserSetting("通用")] public static bool 接受排序同步 { get; set; } = true;
     [UserSetting("T13")] public static bool 奶自动防御指示MT { get; set; } = true;
 
      [UserSetting("测试")] public static bool Debug输出 { get; set; } = false;
@@ -310,6 +312,206 @@ public class BlueMage
             if (guid != null) sa.Method.UnregistFrameworkUpdateAction(guid);
             action();
         }, true, false);
+    }
+    #endregion
+
+    #region 小队排序同步
+    // 全队 kdy 排序必须一致，否则按 PartyList index 分工的指路会整体错位。
+    // 指挥 /e 青魔排序 → 本机把自己的排序按“名字:职能位”广播到小队频道；装了本脚本的队友收到后按名字把自己的排序重排成同一顺序。
+    // Kodakku 只在“队员 EntityId + 职业”集合变化时才重建 MemberList（PartyList.TryRefreshPartyList 里的 SetEquals 判定），
+    // 所以注入的顺序会一直保留到下次换人／换职业。
+    private const string 排序广播标记 = "青魔排序";
+    private const int 排序广播字节上限 = 400;      // 游戏单条聊天约 500 字节，留余量
+    private static readonly string[] 排序职能名 = ["MT", "ST", "H1", "H2", "D1", "D2", "D3", "D4"];
+
+    [ScriptMethod(name: "排序同步 - 广播我的排序(/e 青魔排序)", eventType: EventTypeEnum.Chat,
+        eventCondition: ["Type:Echo", "Message:regex:^\\s*青魔排序\\s*$"])]
+    public void 广播我的排序(Event evt, ScriptAccessory sa)
+    {
+        var party = sa.Data.PartyList;
+        if (party.Count < 2)
+        {
+            sa.Method.SendChat("/e [青魔排序] 当前不在小队里");
+            return;
+        }
+
+        var pairs = new List<string>();
+        for (int i = 0; i < party.Count && i < 排序职能名.Length; i++)
+        {
+            var name = sa.Data.Objects.SearchByEntityId(party[i])?.Name?.ToString();
+            if (string.IsNullOrWhiteSpace(name))
+            {
+                sa.Method.SendChat($"/e [青魔排序] 读不到 {排序职能名[i]} 位的名字，等队友加载出来再试");
+                return;
+            }
+            pairs.Add($"{name}:{排序职能名[i]}");
+        }
+
+        var msg = $"{排序广播标记} {string.Join(' ', pairs)}";
+        if (System.Text.Encoding.UTF8.GetByteCount(msg) > 排序广播字节上限)
+        {
+            sa.Method.SendChat("/e [青魔排序] 名字太长，超过单条聊天上限，无法广播");
+            return;
+        }
+
+        sa.Method.SendChat($"/p {msg}");
+    }
+
+    [ScriptMethod(name: "排序同步 - 应用队友排序", eventType: EventTypeEnum.Chat,
+        eventCondition: ["Type:regex:^(Party|CrossParty)$", "Message:regex:^\\s*青魔排序\\s+\\S"])]
+    public void 应用队友排序(Event evt, ScriptAccessory sa)
+    {
+        if (!接受排序同步) return;
+
+        var msg = evt["Message"] ?? "";
+        int at = msg.IndexOf(排序广播标记, StringComparison.Ordinal);
+        if (at < 0) return;
+
+        var sender = evt["Sender"];
+        if (string.IsNullOrWhiteSpace(sender)) sender = "队友";
+
+        if (!解析排序广播(msg[(at + 排序广播标记.Length)..], out var wanted, out var perr))
+        {
+            sa.Method.SendChat($"/e [青魔排序] {sender} 的排序解析失败：{perr}");
+            return;
+        }
+
+        var party = sa.Data.PartyList;
+        if (wanted.Count != party.Count)
+        {
+            sa.Method.SendChat($"/e [青魔排序] {sender} 报了 {wanted.Count} 人，本机小队 {party.Count} 人，已忽略");
+            return;
+        }
+
+        // 本机队友 名字 → EntityId；同名（跨服重名）无法区分，直接放弃
+        var byName = new Dictionary<string, uint>(StringComparer.Ordinal);
+        var dupName = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var id in party)
+        {
+            var n = sa.Data.Objects.SearchByEntityId(id)?.Name?.ToString();
+            if (string.IsNullOrWhiteSpace(n)) continue;
+            if (!byName.TryAdd(n, id)) dupName.Add(n);
+        }
+
+        var newOrder = new List<uint>(party.Count);
+        foreach (var n in wanted)
+        {
+            if (dupName.Contains(n))
+            {
+                sa.Method.SendChat($"/e [青魔排序] 队里有两个「{n}」，无法区分，已忽略");
+                return;
+            }
+            if (!byName.TryGetValue(n, out var id))
+            {
+                sa.Method.SendChat($"/e [青魔排序] 队里找不到「{n}」（可能还没加载出来），已忽略");
+                return;
+            }
+            newOrder.Add(id);
+        }
+
+        if (newOrder.SequenceEqual(party))
+        {
+            Dbg(sa, $"排序同步：已与 {sender} 一致，无需改动");
+            return;
+        }
+
+        if (!写入小队排序(newOrder, out var werr))
+        {
+            sa.Method.SendChat($"/e [青魔排序] 写入排序失败：{werr}");
+            return;
+        }
+
+        var lines = new List<string> { $"/e [青魔排序] 已按 {sender} 的顺序重排：" };
+        for (int i = 0; i < newOrder.Count; i++)
+        {
+            int old = party.IndexOf(newOrder[i]);
+            if (old == i) continue;
+            var oldRole = old >= 0 && old < 排序职能名.Length ? 排序职能名[old] : "?";
+            lines.Add($"/e [青魔排序] {wanted[i]}: {oldRole} → {排序职能名[i]}");
+        }
+
+        sa.Method.TextInfo("小队排序已同步，详见聊天框", 3000, true);
+        依次发送(sa, lines);
+    }
+
+    // 解析 "名字1:MT 名字2:ST ..."。名字里可能有空格（国际服），但不会有冒号，
+    // 所以按冒号切分后，每段的第一个空格前是上一个名字的职能位，空格后是下一个名字。
+    // byRole[i] = 排序职能名[i] 位应该站的人，要求 0..n-1 位齐全且不重复。
+    private static bool 解析排序广播(string body, out List<string> byRole, out string err)
+    {
+        byRole = [];
+        err = "";
+
+        var segs = body.Split(':');
+        if (segs.Length < 3) { err = "至少要有两组「名字:职能位」"; return false; }
+
+        var slots = new Dictionary<int, string>();
+        var name = segs[0].Trim();
+        for (int i = 1; i < segs.Length; i++)
+        {
+            string tok, next = "";
+            if (i == segs.Length - 1) tok = segs[i].Trim();
+            else
+            {
+                int sp = segs[i].IndexOf(' ');
+                if (sp < 0) { err = "职能位和下一个名字之间缺空格"; return false; }
+                tok = segs[i][..sp].Trim();
+                next = segs[i][(sp + 1)..].Trim();
+            }
+
+            int role = Array.FindIndex(排序职能名, r => string.Equals(r, tok, StringComparison.OrdinalIgnoreCase));
+            if (role < 0) { err = $"未知职能位「{tok}」"; return false; }
+            if (name.Length == 0) { err = $"{排序职能名[role]} 位没有名字"; return false; }
+            if (!slots.TryAdd(role, name)) { err = $"{排序职能名[role]} 位重复"; return false; }
+            name = next;
+        }
+
+        for (int i = 0; i < slots.Count; i++)
+        {
+            if (!slots.TryGetValue(i, out var n)) { err = $"缺 {排序职能名[i]} 位"; return false; }
+            byRole.Add(n);
+        }
+        return true;
+    }
+
+    // MemberList 是 internal static、setter 私有；反射整体换引用是原子的，
+    // 反射拿不到时退回原地重排（InternalData.Party.PartyList 返回的就是那个活的 List 实例）
+    private static bool 写入小队排序(List<uint> order, out string err)
+    {
+        err = "";
+        try
+        {
+            var t = typeof(InternalData).Assembly.GetType("KodakkuAssist.Data.PartyList.PartyList");
+            var setter = t?.GetProperty("MemberList", BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic)?.GetSetMethod(true);
+            if (setter != null)
+            {
+                setter.Invoke(null, new object[] { order });
+                return true;
+            }
+
+            var live = InternalData.Party.PartyList;
+            live.Clear();
+            live.AddRange(order);
+            return true;
+        }
+        catch (Exception ex)
+        {
+            err = ex.Message;
+            return false;
+        }
+    }
+
+    // 连发聊天会乱序，隔 150ms 逐条发
+    private static void 依次发送(ScriptAccessory sa, List<string> lines)
+    {
+        _ = Task.Run(async () =>
+        {
+            foreach (var line in lines)
+            {
+                sa.Method.SendChat(line);
+                await Task.Delay(150);
+            }
+        });
     }
     #endregion
 

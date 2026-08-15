@@ -2,7 +2,7 @@
   {
     "Name": "青魔魔界花整合",
     "Guid": "76fb14c3-1185-4580-b020-1f9a25e6f978",
-    "Version": "0.0.0.6",
+    "Version": "0.0.0.7",
     "Author": "Codaaaaaa",
     "TerritoryIds": [245, 358, 196, 452, 532, 587],
     "DownloadUrl": "https://raw.githubusercontent.com/Codaaaaaa/KodakkuScripts/main/Dev/青魔魔界花.cs",
