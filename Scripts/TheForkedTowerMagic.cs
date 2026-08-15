@@ -2738,6 +2738,23 @@ public class TheForkedTowerMagic
     [ScriptMethod(name: "排雷 - 进入区域1189", eventType: EventTypeEnum.ChangeMap, eventCondition: ["MapId:1189"], userControl: false)]
     public void 进入雷区1189(Event evt, ScriptAccessory sa) => 进入雷区(1189, sa);
 
+    [ScriptMethod(name: "排雷 - 进入无雷区域1185", eventType: EventTypeEnum.ChangeMap, eventCondition: ["MapId:1185"], userControl: false)]
+    public void 进入无雷区1185(Event evt, ScriptAccessory sa) => 离开雷区(1185, sa);
+
+    // 无雷区域：收掉上一张图残留的标记并复位状态，避免踩点扫描继续按老图点位表误消点。
+    private void 离开雷区(uint mapId, ScriptAccessory sa)
+    {
+        lock (_mineLock)
+        {
+            if (mapId == _当前MapId) return;   // ChangeMap 会重复触发
+            _当前MapId = mapId;
+            _雷点已显示 = false;
+            _踩点已排除.Clear();
+            sa.Method.RemoveDraw("FTM_(Mine|Boom)_.*");
+        }
+        Dbg(sa, $"进入无雷区域 ({mapId})，已清除地雷标记。");
+    }
+
     // 1182 → 1183 → 1184 是同一片区域随进度换的 MapId，点位表是 1182 的子集。
     // 换到 1183/1184 时不动任何东西：既不清图也不重画，继续沿用上一张图已经排掉一部分的标记
     // （重画会把已经确认过的点又变回来），_当前MapId 也保持不变，扫雷/爆炸/踩点仍按原图的点位索引对应。
