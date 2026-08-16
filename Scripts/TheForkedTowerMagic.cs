@@ -23,7 +23,7 @@ namespace Codaaaaaa.TheForkedTowerMagic;
     guid: "45819e25-cb2d-4d84-a508-f110dc6a381a",
     name: "魔之塔画图",
     territorys: [1346],
-    version: "0.0.1.8",
+    version: "0.0.1.9",
     author: "Codaaaaaa",
     note: "写完喽，还有电的可以在频道里圈我\n\n感谢铁虎老大的帮助\n感谢Yatel老大和洋葱炒米老大的arr")]
 public class TheForkedTowerMagic
@@ -2939,32 +2939,14 @@ public class TheForkedTowerMagic
     }
 
     #region 排雷 - 进图
-    [ScriptMethod(name: "排雷 - 进入区域1178", eventType: EventTypeEnum.ChangeMap, eventCondition: ["MapId:1178"], userControl: false)]
-    public void 进入雷区1178(Event evt, ScriptAccessory sa) => 进入雷区(1178, sa);
-
-    [ScriptMethod(name: "排雷 - 进入区域1179", eventType: EventTypeEnum.ChangeMap, eventCondition: ["MapId:1179"], userControl: false)]
-    public void 进入雷区1179(Event evt, ScriptAccessory sa) => 进入雷区(1179, sa);
-
-    [ScriptMethod(name: "排雷 - 进入区域1180", eventType: EventTypeEnum.ChangeMap, eventCondition: ["MapId:1180"], userControl: false)]
-    public void 进入雷区1180(Event evt, ScriptAccessory sa) => 进入雷区(1180, sa);
-
-    [ScriptMethod(name: "排雷 - 进入区域1181", eventType: EventTypeEnum.ChangeMap, eventCondition: ["MapId:1181"], userControl: false)]
-    public void 进入雷区1181(Event evt, ScriptAccessory sa) => 进入雷区(1181, sa);
-
-    [ScriptMethod(name: "排雷 - 进入区域1182", eventType: EventTypeEnum.ChangeMap, eventCondition: ["MapId:1182"], userControl: false)]
-    public void 进入雷区1182(Event evt, ScriptAccessory sa) => 进入雷区(1182, sa);
-
-    [ScriptMethod(name: "排雷 - 进入区域1183", eventType: EventTypeEnum.ChangeMap, eventCondition: ["MapId:1183"], userControl: false)]
-    public void 进入雷区1183(Event evt, ScriptAccessory sa) => 沿用上一张图标记(1183, sa);
-
-    [ScriptMethod(name: "排雷 - 进入区域1184", eventType: EventTypeEnum.ChangeMap, eventCondition: ["MapId:1184"], userControl: false)]
-    public void 进入雷区1184(Event evt, ScriptAccessory sa) => 沿用上一张图标记(1184, sa);
-
-    [ScriptMethod(name: "排雷 - 进入区域1189", eventType: EventTypeEnum.ChangeMap, eventCondition: ["MapId:1189"], userControl: false)]
-    public void 进入雷区1189(Event evt, ScriptAccessory sa) => 进入雷区(1189, sa);
-
-    [ScriptMethod(name: "排雷 - 进入无雷区域1185", eventType: EventTypeEnum.ChangeMap, eventCondition: ["MapId:1185"], userControl: false)]
-    public void 进入无雷区1185(Event evt, ScriptAccessory sa) => 离开雷区(1185, sa);
+    [ScriptMethod(name: "排雷 - 切图处理", eventType: EventTypeEnum.ChangeMap, userControl: false)]
+    public void 排雷切图(Event evt, ScriptAccessory sa)
+    {
+        if (!uint.TryParse(evt["MapId"], out var mapId)) return;
+        if (mapId is 1183 or 1184) 沿用上一张图标记(mapId, sa);
+        else if (地雷数据库.MinesByMap.ContainsKey(mapId)) 进入雷区(mapId, sa);
+        else 离开雷区(mapId, sa);
+    }
 
     // 无雷区域：收掉上一张图残留的标记并复位状态，避免踩点扫描继续按老图点位表误消点。
     private void 离开雷区(uint mapId, ScriptAccessory sa)
