@@ -59,7 +59,7 @@ public class TopReborn
          """;
 
     private const string Name = "The Omega Protocol (Ultimate) TOP - LPDU";
-    private const string Version = "0.0.0.20";
+    private const string Version = "0.0.0.21";
     private const string DebugVersion = "a";
 
     private const bool Debugging = false;
@@ -2527,7 +2527,66 @@ public class TopReborn
         if (_parse != 5.1) return;
         sa.Method.RemoveDraw($"P5A1_一运_引导拳头");
     }
-        
+
+    // 近线组四人恒各占 beetle12 + {3,5,7,9} 一只激光手（与 CalcArmUnit / 转转手待命指路的推导一致）：
+    // 偏移 ±3（3/9）是场内手、±5（5/7）是场外手；7/9 在光头的逆时针侧（象限 == 光头位置），3/5 在顺时针侧。
+    private static readonly int[] P5A1近线激光手偏移 = [3, 5, 7, 9];
+
+    /// <summary>
+    /// 超能脉冲读条 = 激光手引导结束，此时各人已站定在自己实际引导的那只手上。
+    /// 拳头阶段的预站位判定（比同象限两人到场心的距离）可能与实际引导的手不符，
+    /// 这里按实际站位反推场内外与左右侧并覆盖记录，供转转手后待命指路与一传指路使用。
+    /// </summary>
+    [ScriptMethod(name: "P5A1_一运_激光手引导校正", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:31600"],
+        userControl: Debugging, suppress: 10000)]
+    public void P5A1_一运_激光手引导校正(Event ev, ScriptAccessory sa)
+    {
+        if (_parse != 5.1) return;
+        try
+        {
+            var myIndex = sa.GetMyIndex();
+            if (_pd.Priorities[myIndex] % 100 != 0) return;    // 仅光头侧无标（近线）组
+
+            var myPos = sa.Data.MyObject?.Position;
+            if (myPos is null) return;
+
+            // 只在近线组的四只手里挑离自己最近的（相邻候选相隔 60°，不会误判）
+            var beetle12 = _p5A.蟑螂位置 * 3;
+            var 实际偏移 = -1;
+            var 最近距离 = float.MaxValue;
+            foreach (var offset in P5A1近线激光手偏移)
+            {
+                if (!_p5A.激光手方向字典.TryGetValue((beetle12 + offset) % 12, out var armPos)) continue;
+                var dist = armPos.GetLength(myPos.Value);
+                if (dist >= 最近距离) continue;
+                最近距离 = dist;
+                实际偏移 = offset;
+            }
+            if (实际偏移 < 0)
+            {
+                sa.DebugMsg($"P5A1_一运_激光手引导校正：近线组四只激光手一只都没记录到，保持原判定", Debugging);
+                return;
+            }
+
+            var 实际方位 = (beetle12 + 实际偏移) % 12;
+            var 实际场外 = 实际偏移 is 5 or 7;
+            var 实际逆时针侧 = 实际偏移 is 7 or 9;
+            var 实际象限 = 实际逆时针侧 ? _p5A.光头位置 : (_p5A.光头位置 + 3) % 4;
+
+            if (实际方位 != _p5A.玩家引导激光手方位 || 实际场外 != _p5A.玩家场外 || 实际象限 != _p5A.玩家四分之一半场)
+                sa.DebugMsg($"P5A1_一运_激光手引导校正：预判 {_p5A.玩家引导激光手方位}/12 场{(_p5A.玩家场外 ? "外" : "内")} 象限{_p5A.玩家四分之一半场}，" +
+                            $"实际引导 {实际方位}/12 场{(实际场外 ? "外" : "内")} 象限{实际象限}，按实际修正", Debugging);
+
+            _p5A.玩家引导激光手方位 = 实际方位;
+            _p5A.玩家场外 = 实际场外;
+            _p5A.玩家四分之一半场 = 实际象限;
+        }
+        finally
+        {
+            _p5A.激光手引导校正.Set();
+        }
+    }
+
     [ScriptMethod(name: "P5A1_一运_玩家场中盾引导指路", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:31482"],
         userControl: true, suppress: 10000)]
     public void P5A1_一运_玩家场中盾引导指路(Event ev, ScriptAccessory sa)
@@ -2548,6 +2607,8 @@ public class TopReborn
     public void P5A1_一运_转转手引导后近线待命指路(Event ev, ScriptAccessory sa)
     {
         if (_parse != 5.1) return;
+        _p5A.激光手引导校正.WaitOne(1000);    // 等按实际站位修正完场内外与激光手方位
+
         var myIndex = sa.GetMyIndex();
         var markerVal = _pd.Priorities[myIndex];
 
@@ -3894,8 +3955,21 @@ public class TopReborn
         const int ATK1 = 0, ATK2 = 1, ATK3 = 2, ATK4 = 3;
         const int CROSS = 4, TRIANGLE = 5, BIND1 = 6, BIND2 = 7;
 
+        var rotRad = _p5C.蟑螂方位 * 90f.DegToRad();
+        sa.DrawGuidance(BasePos(myPriValRank).RotateAndExtend(Center, rotRad), 0, 10000, $"P5C3_四传_指路");
+
+        // 两个锁链互相把对方的点位标成绿点（与 P3A 目的地标注同款），便于对齐左右间距
+        if (myPriValRank is BIND1 or BIND2)
+        {
+            var partnerPos = BasePos(myPriValRank == BIND1 ? BIND2 : BIND1).RotateAndExtend(Center, rotRad);
+            var dp = sa.DrawCircle(partnerPos, 0, 10000, $"P5C3_四传_锁链对位标注", 0.5f, isSafe: true, draw: false);
+            dp.Color = sa.Data.DefaultSafeColor.WithW(2f);
+            sa.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Circle, dp);
+        }
+        return;
+
         // 以蟑螂方位在南为准
-        var myBasePos = myPriValRank switch
+        Vector3 BasePos(int rank) => rank switch
         {
             ATK1 => new Vector3(119.5f, 0f, 100f),
             ATK2 => new Vector3(104.36f, 0f, 81.08f),
@@ -3906,9 +3980,6 @@ public class TopReborn
             BIND1 => new Vector3(110.3f, 0f, 116.5f),
             BIND2 => new Vector3(89.7f, 0f, 116.5f),
         };
-
-        var safePos = myBasePos.RotateAndExtend(Center, _p5C.蟑螂方位 * 90f.DegToRad());
-        sa.DrawGuidance(safePos, 0, 10000, $"P5C3_四传_指路");
     }
 
     [ScriptMethod(name: "P5C3_四传_结束", eventType: EventTypeEnum.ActionEffect, eventCondition: ["ActionId:32374"],
@@ -5127,6 +5198,7 @@ public class TopReborn
         public ManualResetEvent 拳头记录 = new(false);
         public ManualResetEvent 盾连击记录 = new(false);
         public ManualResetEvent 蟑螂左右刀记录 = new(false);
+        public ManualResetEvent 激光手引导校正 = new(false);
 
         public string 小电视面向辅助Framework = "";
         public DateTime 小电视面向辅助触发时间 = DateTime.MinValue;
@@ -5163,8 +5235,9 @@ public class TopReborn
             拳头记录.Dispose();
             盾连击记录.Dispose();
             蟑螂左右刀记录.Dispose();
+            激光手引导校正.Dispose();
         }
-        
+
         public void Register()
         {
             远线搭档记录 = new ManualResetEvent(false);
@@ -5173,12 +5246,14 @@ public class TopReborn
             拳头记录 = new ManualResetEvent(false);
             盾连击记录 = new ManualResetEvent(false);
             蟑螂左右刀记录 = new ManualResetEvent(false);
+            激光手引导校正 = new ManualResetEvent(false);
             远线搭档记录.Reset();
             头标记录.Reset();
             光头蟑螂定位.Reset();
             拳头记录.Reset();
             盾连击记录.Reset();
             蟑螂左右刀记录.Reset();
+            激光手引导校正.Reset();
         }
     }
 
