@@ -23,7 +23,7 @@ namespace Codaaaaaa.TheForkedTowerMagic;
     guid: "45819e25-cb2d-4d84-a508-f110dc6a381a",
     name: "魔之塔画图",
     territorys: [1346],
-    version: "0.0.1.9",
+    version: "0.0.1.10",
     author: "Codaaaaaa",
     note: "写完喽，还有电的可以在频道里圈我\n\n感谢铁虎老大的帮助\n感谢Yatel老大和洋葱炒米老大的arr")]
 public class TheForkedTowerMagic
@@ -2765,16 +2765,15 @@ public class TheForkedTowerMagic
     }
 
     // 全量 EnvControl 日志，用来补收未收录的 flag（仅 Debug 输出开启时可见）
-    [ScriptMethod(name: "钟灵时钟 - EnvControl全量日志", eventType: EventTypeEnum.EnvControl, userControl: false)]
-    public void 钟灵EnvControl日志(Event evt, ScriptAccessory sa)
-    {
-        if (!钟灵时钟启用) return;
-        Dbg(sa, $"EnvControl Index={evt["Index"]} Flag={evt["Flag"]} DirectorId={evt["DirectorId"]} Id={evt["Id"]}");
-    }
+    // [ScriptMethod(name: "钟灵时钟 - EnvControl全量日志", eventType: EventTypeEnum.EnvControl, userControl: false)]
+    // public void 钟灵EnvControl日志(Event evt, ScriptAccessory sa)
+    // {
+    //     if (!钟灵时钟启用) return;
+    //     Dbg(sa, $"EnvControl Index={evt["Index"]} Flag={evt["Flag"]} DirectorId={evt["DirectorId"]} Id={evt["Id"]}");
+    // }
 
     // 首击 = 这只钟灵被打的第一下：计一次格数并重播需求，同时判开怪的是不是 T，一只只处理一次。
     // 这里不加 eventCondition：TargetDataId 键在 ActionEffect 上没实测过，改用 TargetId 查对象判 DataId；
-    // 不在钟灵图时一个 bool 就返回，不会给别的图加负担。
     [ScriptMethod(name: "钟灵时钟 - 首击计数与非T提醒", eventType: EventTypeEnum.ActionEffect)]
     public void 钟灵首击检查(Event evt, ScriptAccessory sa)
     {
@@ -2853,7 +2852,7 @@ public class TheForkedTowerMagic
         if (超出.Count > 0)
         {
             var 超文 = string.Join("，", 超出);
-            sa.Method.TextInfo($"{头} 打多了：{超文}{(还需 == "" ? "" : $"/{还需}")}", 1500, true);
+            // sa.Method.TextInfo($"{头} 打多了：{超文}{(还需 == "" ? "" : $"/{还需}")}", 1500, true);
             // sa.Method.TTS("打多了", 3);
             sa.Method.SendChat($"/e {头} 打多了：{超文}{(还需 == "" ? "" : $"/{还需}")} <se.10>");
             return;
@@ -2861,12 +2860,12 @@ public class TheForkedTowerMagic
 
         if (项.Count == 0)
         {
-            sa.Method.TextInfo($"{头} 已凑齐", 4000, false);
+            // sa.Method.TextInfo($"{头} 已凑齐", 4000, false);
             sa.Method.TTS("齐了", 3);
             return;
         }
 
-        sa.Method.TextInfo($"{头} → {还需}", 1500, false);
+        // sa.Method.TextInfo($"{头} → {还需}", 1500, false);
         // sa.Method.TTS(string.Join("", 项.Select(x => $"{x.名}{x.数量}")), 3);
         sa.Method.SendChat($"/e {头} → {还需} <se.1>");
     }
