@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Linq;
 using System.Numerics;
 using System.Reflection;
@@ -18,15 +18,14 @@ namespace Codaaaaaa.BlueMage;
 [ScriptType(
     guid: "76fb14c3-1185-4580-b020-1f9a25e6f978",
     name: "青魔魔界花整合",
-    territorys: [245, 358, 196, 452, 532, 587],
-    version: "0.0.0.8",
+    territorys: [245, 358, 196, 452, 532, 587, 698],
+    version: "0.0.0.9",
     author: "Codaaaaaa",
     note: "攻略参考二二二二乱 A12S为拉一起复仇\n\n副本说明:\nT5:1T1N6D注意T青需要在MT位，其他随意，但每个人的kdy排序需相同\nT9:同上\nT13:同上\nA4S:1T1N6D，按照kdy排序1T青2N青345为拉小怪D青678为打腿组D青\nA8S:1T2N5D，按照kdy排序1T2N3盾N456D一组月78D二组月\nA12S:1T1N6D\n\nT青笔记：\nT5：-2s开怪\nT9: -2s预读小侦测开场，即刻白风稳仇+醒梦\nT13: 拉南 -2s预读小侦测开怪，即刻白风稳仇+醒梦\nA4S: 龙之力开场，MT全程远离人群\nA8S: 随意\nA12S: -5s龙之力 -2s魔法锤")]
 public class BlueMage
 {
     #region 用户设置
     [UserSetting("通用")] public static bool 超硬化提示横幅 { get; set; } = true;
-    [UserSetting("通用")] public static bool 自动使用超硬化 { get; set; } = true;
     [UserSetting("通用")] public static bool 启用横幅 { get; set; } = true;
     [UserSetting("通用")] public static bool 启用TTS { get; set; } = true;
     [UserSetting("通用")] public static bool 指挥模式 { get; set; } = false;
@@ -34,9 +33,6 @@ public class BlueMage
     [UserSetting("T13")] public static bool 奶自动防御指示MT { get; set; } = true;
 
      [UserSetting("测试")] public static bool Debug输出 { get; set; } = false;
-    [UserSetting("测试")] public static bool 所有职能都会尝试放超硬化 { get; set; } = false;
-    // 开启后 A8S 所有按 index 分工的指路全部画出并按 index 上色（0蓝，1/2绿，3-7红），方便单人测试
-    [UserSetting("测试")] public static bool A8S单人测试指路 { get; set; } = false;
     // 304 喷火
     #endregion
 
@@ -48,6 +44,7 @@ public class BlueMage
     private const uint A4STerritory = 452;
     private const uint A8STerritory = 532;
     private const uint A12STerritory = 587;
+    private const uint O4STerritory = 698;
 
     private const uint TankStatus = 2124;
     private const uint DpsStatus = 2125;
@@ -87,6 +84,12 @@ public class BlueMage
     private uint _autoCastLastBlockStatus;   // 上次因不可用被拦下时的 status 码，用于去重 debug 输出
     private Func<bool> _autoCastGate = () => true;
 
+    // O4S：门神(艾克斯迪司) / 本体(涅奥·艾克斯迪司)，默认门神
+    private bool _o4s本体;
+    private DateTime _o4sDelta检测时刻 = DateTime.MinValue;   // 大十字·德尔塔 +7s 的 buff 检测时刻，用来认领随后的 9231
+    private bool _o4sDelta弱不禁风;                           // 那一刻自己有没有弱不禁风
+    private int _o4s暴风次数;                                 // 本体阶段第几次 9241 暴风
+
     // T13 Boss 血量播报
     private string? _t13HpLoopGuid;
     private uint _t13BossId;
@@ -120,7 +123,7 @@ public class BlueMage
     private readonly List<uint> _a8sThunderMarks = new();     // 雷属性压缩(1024)被点名者
     private bool _a8sThunderScheduled;                        // 本轮 10s 传雷检查是否已排程
     private DateTime _a8sThunderLast = DateTime.MinValue;     // 上次 1024 点名时刻，用于区分新一轮
-    private bool _a8sP4BeamHardened;                          // P4 5678 只在第一次触发超硬化
+    private bool _a8sP4BeamHardened;                          // P4 5678 只在第一次提醒超硬化
 
     private static readonly Vector4 A8SYellow = new(1f, 0.85f, 0f, 1f);
 
@@ -142,11 +145,6 @@ public class BlueMage
     private const int A8S配件等待上限 = 2500;   // 置位一般在 0.8s，超时判定读不到就放弃
     private const uint A8S配件到技能 = 5300;    // 配件置位 → 5693/5694/5695 落地
     private const uint A8S配件到钻头 = 6400;    // 配件置位 → 5697 钻头驱动落地
-
-    // 单人测试模式指路配色：index0 蓝，index1/2 绿，index3-7 红
-    private static readonly Vector4 A8STestBlue = new(0.2f, 0.4f, 1f, 1f);
-    private static readonly Vector4 A8STestGreen = new(0.2f, 0.85f, 0.3f, 1f);
-    private static readonly Vector4 A8STestRed = new(1f, 0.25f, 0.2f, 1f);
 
     // P1 四个格子小怪出生点 → 各自负责的队列 index
     private static readonly (Vector3 Pos, int Index)[] A8SCellSpawns =
@@ -233,6 +231,12 @@ public class BlueMage
         A12SClearMechLists();
         StopA12SRevengeHpWatch(sa);
         StopA12SSewHpWatch(sa);
+        _o4s本体 = false;
+        _o4sDelta检测时刻 = DateTime.MinValue;
+        _o4sDelta弱不禁风 = false;
+        _o4s暴风次数 = 0;
+        _o4s摇动目标 = 0;
+        _o4s摇动时刻 = DateTime.MinValue;
         RefreshRole(sa);
     }
 
@@ -551,7 +555,7 @@ public class BlueMage
 
     // pressAtMs：进战后开始按的时刻(ms)，纯粹的开按时间，不做 GCD 补偿。
     // 到点每 250ms 按一次，直到 ActionEffect 确认或超时。横幅只是提示，不阻塞开按（pressAt 早于横幅时也照按）。
-    // enableGate：按下时机再次校验是否允许施放；默认沿用「自动使用超硬化」开关
+    // enableGate：按下时机再次校验是否允许施放；默认不额外限制
     // announce=false：调用方已自行播报，抑制本次自动施放的横幅/TTS，只按技能
     private void ScheduleAutoCast(ScriptAccessory sa, uint actionId, uint actionType, uint targetId, string label, double pressAtMs, Func<bool>? enableGate = null, bool announce = true)
     {
@@ -560,7 +564,7 @@ public class BlueMage
         double bannerDur = Math.Min(3000-500,pressAtMs-500);
 
         _autoCastAnnounceEnabled = announce;
-        _autoCastGate = enableGate ?? (() => 自动使用超硬化);
+        _autoCastGate = enableGate ?? (() => true);
         _autoCastActionId = actionId;
         _autoCastActionType = actionType;
         _autoCastTargetId = targetId;
@@ -586,7 +590,7 @@ public class BlueMage
                 if (!_autoCastAnnounced && elapsed >= _autoCastBannerAt)
                 {
                     _autoCastAnnounced = true;
-                    if (超硬化提示横幅 && _autoCastAnnounceEnabled)
+                    if (_autoCastAnnounceEnabled)
                         Announce(sa, _autoCastLabel, (int)bannerDur);
                     Dbg(sa, $"{_autoCastLabel}：提示已发送");
                 }
@@ -656,6 +660,16 @@ public class BlueMage
             am->GetRecastTimeElapsed((ActionType)actionType, actionId));
     }
 
+    // 自保技能只提醒不代按：atMs 是建议按下的时刻(ms)，横幅提前 bannerDur+700ms 弹出，时机与原自动施放的提示一致
+    private void ScheduleAnnounce(ScriptAccessory sa, string label, double atMs)
+    {
+        if (!超硬化提示横幅) return;
+        int bannerDur = (int)Math.Min(2500, Math.Max(1500, atMs - 500));
+        int bannerAt = (int)Math.Max(0, atMs - bannerDur - 700);
+        if (bannerAt <= 0) Announce(sa, label, bannerDur);
+        else DelayAction(sa, bannerAt, () => Announce(sa, label, bannerDur));
+    }
+
     private void StopAutoCast(ScriptAccessory sa)
     {
         _autoCastCasting = false;
@@ -681,13 +695,13 @@ public class BlueMage
     public void T5进入战斗(Event evt, ScriptAccessory sa)
     {
         if (!InMap(T5Territory)) return;
-        if (!所有职能都会尝试放超硬化 && _roleStatus != TankStatus)
+        if (_roleStatus != TankStatus)
         {
             Dbg(sa, $"进入战斗：当前职能 {RoleName(_roleStatus)} 非坦克，跳过超硬化");
             return;
         }
-        Dbg(sa, "进入战斗：预约超硬化，进战 3.5s 开按");
-        ScheduleAutoCast(sa, HardenActionId, HardenActionType, sa.Data.Me, "横幅结束后开启超硬化", 3500);
+        Dbg(sa, "进入战斗：进战 3.5s 提醒超硬化");
+        ScheduleAnnounce(sa, "横幅结束后开启超硬化", 3500);
     }
 
     [ScriptMethod(
@@ -751,13 +765,13 @@ public class BlueMage
     public void T9进入战斗(Event evt, ScriptAccessory sa)
     {
         if (!InMap(T9Territory)) return;
-        if (!所有职能都会尝试放超硬化 && _roleStatus != TankStatus)
+        if (_roleStatus != TankStatus)
         {
             Dbg(sa, $"进入战斗：当前职能 {RoleName(_roleStatus)} 非坦克，跳过超硬化");
             return;
         }
-        Dbg(sa, "进入战斗：预约超硬化，进战 2.35s 开按");
-        ScheduleAutoCast(sa, HardenActionId, HardenActionType, sa.Data.Me, "横幅结束后开启超硬化", 2350);
+        Dbg(sa, "进入战斗：进战 2.35s 提醒超硬化");
+        ScheduleAnnounce(sa, "横幅结束后开启超硬化", 2350);
     }
 
     // PlayActionTimeline Id:140（_phase<2，首次上天）：指路去{0,0,20} 3s，_phase=2.1，开启新一轮陨石记录。场中心为 0,0,0
@@ -1035,7 +1049,7 @@ public class BlueMage
 
         if (count != 3) return;   // 只在第 3 次触发一次
 
-        if (_roleStatus == DpsStatus || 所有职能都会尝试放超硬化)
+        if (_roleStatus == DpsStatus)
         {
             连线8秒(sa, 4, objId, "吃三次石头");
             sa.Method.TTS("快导弹");
@@ -1052,7 +1066,7 @@ public class BlueMage
     {
         if (!InMap(T9Territory)) return;
         if (_phase >= 3) return;
-        if (!所有职能都会尝试放超硬化 && _roleStatus == TankStatus) return;
+        if (_roleStatus == TankStatus) return;
 
         sa.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement,
             sa.WaypointDp(new Vector3(0, 0, 20), 4000, 0, "T9-2023指路", sa.Data.DefaultSafeColor));
@@ -1060,7 +1074,7 @@ public class BlueMage
         Dbg(sa, "T9 2023：指路{0,0,20}，_phase=3");
     }
 
-    // PlayActionTimeline Id:140（_phase==3）：非T → 远离T；T → 远离人群并 3s 后开启超硬化
+    // PlayActionTimeline Id:140（_phase==3）：非T → 远离T；T → 远离人群并 3s 后提醒超硬化
     [ScriptMethod(
         name: "T9 - 百万核爆后T自动超硬化",
         eventType: EventTypeEnum.PlayActionTimeline,
@@ -1070,11 +1084,11 @@ public class BlueMage
         if (!InMap(T9Territory)) return;
         if (_phase != 3) return;
 
-        if (所有职能都会尝试放超硬化 || _roleStatus == TankStatus)
+        if (_roleStatus == TankStatus)
         {
             // 是T：远离人群，随后超硬化
             sa.Method.TTS("远离人群");
-            ScheduleAutoCast(sa, HardenActionId, HardenActionType, sa.Data.Me, "远离人群后超硬化", 3000);
+            ScheduleAnnounce(sa, "远离人群后超硬化", 3000);
         }
         else
         {
@@ -1152,7 +1166,7 @@ public class BlueMage
         eventCondition: ["ActionId:regex:^(xx|xx)$"])]
     public void t13_start(Event evt, ScriptAccessory sa){}
 
-    // 开场 2.35s 后超硬化：仅 T 职，且需开启「自动使用超硬化」
+    // 开场 2.35s 提醒超硬化：仅 T 职，且需开启「超硬化提示横幅」
     [ScriptMethod(
         name: "T13 - 开头超硬化",
         eventType: EventTypeEnum.CombatChanged,
@@ -1167,16 +1181,16 @@ public class BlueMage
         _quakeMarked.Clear();
         _quakeScheduled = false;
         StartT13HpWatch(sa);   // 全职责：监控 Boss 血量转场播报
-        if (!所有职能都会尝试放超硬化 && _roleStatus != TankStatus)
+        if (_roleStatus != TankStatus)
         {
             Dbg(sa, $"进入战斗：当前职能 {RoleName(_roleStatus)} 非坦克，跳过超硬化");
             return;
         }
-        Dbg(sa, "进入战斗：预约超硬化，进战 2.35s 开按");
-        ScheduleAutoCast(sa, HardenActionId, HardenActionType, sa.Data.Me, "横幅结束后开启超硬化", 2350);
+        Dbg(sa, "进入战斗：进战 2.35s 提醒超硬化");
+        ScheduleAnnounce(sa, "横幅结束后开启超硬化", 2350);
     }
 
-    // 百万核爆自动超硬化：读条 2991 → 1.8s 后开超硬化。不检查职责；仅在未开启「奶自动防御指示MT」时生效
+    // 百万核爆超硬化提醒：读条 2991 → 1.8s 后提醒超硬化。不检查职责；仅在未开启「奶自动防御指示MT」时生效
     [ScriptMethod(
         name: "T13 - 百万核爆自动超硬化",
         eventType: EventTypeEnum.StartCasting,
@@ -1188,11 +1202,11 @@ public class BlueMage
         _t13BossId = evt.SourceId();
         if (奶自动防御指示MT)
         {
-            Dbg(sa, "百万核爆：已开启奶自动防御指示MT，跳过自动超硬化");
+            Dbg(sa, "百万核爆：已开启奶自动防御指示MT，跳过超硬化提醒");
             return;
         }
-        Dbg(sa, "百万核爆：预约超硬化，1.8s 开按");
-        ScheduleAutoCast(sa, HardenActionId, HardenActionType, sa.Data.Me, "百万核爆超硬化", 1800);
+        Dbg(sa, "百万核爆：1.8s 后提醒超硬化");
+        ScheduleAnnounce(sa, "百万核爆超硬化", 1800);
     }
 
     // 百万核爆奶自动防御指示：读条 2991 → 1.8s 后对 index 0(MT) 使用 18306(GCD)。仅在开启「奶自动防御指示MT」时生效
@@ -1354,7 +1368,7 @@ public class BlueMage
         Dbg(sa, "596×2：避开球，清除全部绿圈并停止画圈");
     }
 
-    // 百万核爆冲(3008)：读条后 2.5s 自动超硬化。全职责，仅需开启「自动使用超硬化」
+    // 百万核爆冲(3008)：读条后 2.5s 提醒超硬化。全职责，仅需开启「超硬化提示横幅」
     [ScriptMethod(
         name: "T13 - 百万核爆冲自动超硬化",
         eventType: EventTypeEnum.StartCasting,
@@ -1363,11 +1377,11 @@ public class BlueMage
     {
         if (!InMap(T13Territory)) return;
         _t13BossId = evt.SourceId();
-        Dbg(sa, "百万核爆冲：预约超硬化，2.5s 开按");
-        ScheduleAutoCast(sa, HardenActionId, HardenActionType, sa.Data.Me, "百万核爆冲超硬化", 2500);
+        Dbg(sa, "百万核爆冲：2.5s 后提醒超硬化");
+        ScheduleAnnounce(sa, "百万核爆冲超硬化", 2500);
     }
 
-    // 万亿核爆预告（系统消息"距万亿核爆咏唱完毕还有 10 秒！"）：进入 P4，5s 后全员自动超硬化
+    // 万亿核爆预告（系统消息"距万亿核爆咏唱完毕还有 10 秒！"）：进入 P4，5s 后全员提醒超硬化
     [ScriptMethod(
         name: "T13 - 万亿核爆超硬化",
         eventType: EventTypeEnum.Chat,
@@ -1377,10 +1391,10 @@ public class BlueMage
         if (!InMap(T13Territory)) return;
         _phase = 4;
         Dbg(sa, "万亿核爆预告：_phase=4，预约 5s 后全员超硬化");
-        ScheduleAutoCast(sa, HardenActionId, HardenActionType, sa.Data.Me, "万亿核爆超硬化", 5000);
+        ScheduleAnnounce(sa, "万亿核爆超硬化", 5000);
     }
 
-    // 死亡轮回(3010)：范围死刑，全员提示 T 远离人群；T 额外 3s 后自动超硬化
+    // 死亡轮回(3010)：范围死刑，全员提示 T 远离人群
     [ScriptMethod(
         name: "T13 - 死亡轮回T超硬化",
         eventType: EventTypeEnum.StartCasting,
@@ -1390,14 +1404,9 @@ public class BlueMage
         if (!InMap(T13Territory)) return;
         _t13BossId = evt.SourceId();
         Announce(sa, "范围死刑，T远离人群", 2500);
-        if (_roleStatus == TankStatus || 所有职能都会尝试放超硬化)
-        {
-            Dbg(sa, "死亡轮回：T 预约超硬化，1s 开按");
-            ScheduleAutoCast(sa, HardenActionId, HardenActionType, sa.Data.Me, "死亡轮回超硬化", 1000, announce: false);
-        }
     }
 
-    // P4 百万核爆(2991)：全员同样 1.8s 后自动超硬化，不看防御指示
+    // P4 百万核爆(2991)：全员同样 1.8s 后提醒超硬化，不看防御指示
     [ScriptMethod(
         name: "T13 - P4百万核爆全员超硬化",
         eventType: EventTypeEnum.StartCasting,
@@ -1407,8 +1416,8 @@ public class BlueMage
         if (!InMap(T13Territory)) return;
         if (_phase != 4) return;
         _t13BossId = evt.SourceId();
-        Dbg(sa, "P4百万核爆：全员预约超硬化，1.8s 开按");
-        ScheduleAutoCast(sa, HardenActionId, HardenActionType, sa.Data.Me, "百万核爆超硬化", 1800);
+        Dbg(sa, "P4百万核爆：全员1.8s 后提醒超硬化");
+        ScheduleAnnounce(sa, "百万核爆超硬化", 1800);
     }
 
     // 大地摇动 TargetIcon 0028：两人分摊。按队列 index 排序，小 index 去 boss 面向左 5m、大 index 去右 5m
@@ -1617,7 +1626,7 @@ public class BlueMage
         Dbg(sa, $"灭绝点名 Tether 0011：{marked:X}");
     }
 
-    // StartCasting 3939：100ms 后若自己被灭绝点名，预约 3s 后超硬化
+    // StartCasting 3939：100ms 后若自己被灭绝点名，3s 后提醒超硬化
     [ScriptMethod(
         name: "A4S - 灭绝超硬化",
         eventType: EventTypeEnum.StartCasting,
@@ -1627,13 +1636,13 @@ public class BlueMage
         if (!InMap(A4STerritory)) return;
         DelayAction(sa, 100, () =>
         {
-            if (!_a4sExtinctionMarks.Contains(sa.Data.Me) && !所有职能都会尝试放超硬化)
+            if (!_a4sExtinctionMarks.Contains(sa.Data.Me))
             {
                 Dbg(sa, "灭绝3939：自己未被点名，跳过超硬化");
                 return;
             }
-            Dbg(sa, "灭绝3939：预约超硬化，3s 开按");
-            ScheduleAutoCast(sa, HardenActionId, HardenActionType, sa.Data.Me, "灭绝超硬化", 3000);
+            Dbg(sa, "灭绝3939：3s 后提醒超硬化");
+            ScheduleAnnounce(sa, "灭绝超硬化", 3000);
         });
     }
 
@@ -1842,48 +1851,19 @@ public class BlueMage
         eventCondition: ["ActionId:regex:^(xx|xx)$"])]
     public void a8s_start(Event evt, ScriptAccessory sa){}
 
-    // ---------------- 指路辅助（含单人测试模式） ----------------
+    // ---------------- 指路辅助 ----------------
 
-    private static Vector4 A8SIndexColor(int idx) => idx switch
-    {
-        0 => A8STestBlue,
-        1 or 2 => A8STestGreen,
-        _ => A8STestRed,
-    };
-
-    // 画 assignedIdx 那份指路：正常模式只有自己是该 index 才画；
-    // 单人测试模式无视自己 index，按 index 配色画出
+    // 画 assignedIdx 那份指路：只有自己是该 index 才画
     private void A8SWaypoint(ScriptAccessory sa, int assignedIdx, Vector3 dest, uint duration, string name)
     {
-        if (A8S单人测试指路)
-        {
-            sa.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement,
-                sa.WaypointDp(dest, duration, 0, $"{name}-测试i{assignedIdx}", A8SIndexColor(assignedIdx)));
-            return;
-        }
         if (sa.Data.PartyList.IndexOf(sa.Data.Me) != assignedIdx) return;
         sa.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement,
             sa.WaypointDp(dest, duration, 0, name, sa.Data.DefaultSafeColor));
     }
 
-    // 按 index 逐一指路：destForIndex 返回 null 表示该 index 无指路；
-    // 正常模式只画自己那份，单人测试模式画出所有 index（目的地与颜色都相同的只画一次）
+    // 按 index 逐一指路：destForIndex 返回 null 表示该 index 无指路，只画自己那份
     private void A8SWaypointAll(ScriptAccessory sa, string name, uint duration, Func<int, Vector3?> destForIndex)
     {
-        if (A8S单人测试指路)
-        {
-            var drawn = new List<(Vector3 Pos, Vector4 Color)>();
-            for (int i = 0; i < 8; i++)
-            {
-                if (destForIndex(i) is not { } d) continue;
-                var color = A8SIndexColor(i);
-                if (drawn.Any(t => t.Color == color && (t.Pos - d).Length() < 0.1f)) continue;
-                drawn.Add((d, color));
-                sa.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement,
-                    sa.WaypointDp(d, duration, 0, $"{name}-测试i{i}", color));
-            }
-            return;
-        }
         int myIdx = sa.Data.PartyList.IndexOf(sa.Data.Me);
         if (myIdx < 0 || destForIndex(myIdx) is not { } dest) return;
         sa.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement,
@@ -1966,7 +1946,7 @@ public class BlueMage
         if (spawn.Index == 0) return;
 
         int myIdx = sa.Data.PartyList.IndexOf(sa.Data.Me);
-        if (myIdx != spawn.Index && !A8S单人测试指路)
+        if (myIdx != spawn.Index)
         {
             Dbg(sa, $"格子：{pos:F1} 归 index{spawn.Index}，自己是 index{myIdx}，跳过");
             return;
@@ -1977,7 +1957,7 @@ public class BlueMage
         Dbg(sa, $"格子：index{spawn.Index} 指路 {spawn.Pos:F1}");
     }
 
-    // StartCasting 5675 永恒射线：T 3s 后自动超硬化
+    // StartCasting 5675 永恒射线：T 3s 后提醒超硬化
     [ScriptMethod(
         name: "A8S - 永恒射线T超硬化",
         eventType: EventTypeEnum.StartCasting,
@@ -1985,9 +1965,9 @@ public class BlueMage
     public void A8S永恒射线(Event evt, ScriptAccessory sa)
     {
         if (!InMap(A8STerritory)) return;
-        if (!所有职能都会尝试放超硬化 && _roleStatus != TankStatus) return;
-        Dbg(sa, "永恒射线5675：T 预约超硬化，3s 开按");
-        ScheduleAutoCast(sa, HardenActionId, HardenActionType, sa.Data.Me, "永恒射线超硬化", 3000);
+        if (_roleStatus != TankStatus) return;
+        Dbg(sa, "永恒射线5675：T 3s 后提醒超硬化");
+        ScheduleAnnounce(sa, "永恒射线超硬化", 3000);
     }
 
     // PlayActionTimeline 7737：进入 P2。index2 去场中开盾姿，其他人去北边，指路 3s
@@ -2108,7 +2088,7 @@ public class BlueMage
         sa.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Circle, dp);
     }
 
-    // PlayActionTimeline 3208：按 index 指路 5s；index2 不动；index1/5/6/7 另外 20s 后超硬化
+    // PlayActionTimeline 3208：按 index 指路 5s；index2 不动；index1/5/6/7 另外 20s 后提醒超硬化
     [ScriptMethod(
         name: "A8S - P2就位指路",
         eventType: EventTypeEnum.PlayActionTimeline,
@@ -2120,13 +2100,13 @@ public class BlueMage
         A8SWaypointAll(sa, "A8S-P2就位指路", 5000, i =>
             i == 2 ? null : i == 0 ? new Vector3(-0.13f, 10.5f, 20.55f) : new Vector3(11.94f, 10.5f, -0.46f));
 
-        Dbg(sa, $"3208：index{myIdx} 预约超硬化，20s 开按");
-        ScheduleAutoCast(sa, HardenActionId, HardenActionType, sa.Data.Me, "就位后超硬化", 20000);
+        Dbg(sa, $"3208：index{myIdx} 20s 后提醒超硬化");
+        ScheduleAnnounce(sa, "就位后超硬化", 20000);
         Dbg(sa, $"3208：index{myIdx} 指路");
     }
 
     // AddCombatant 5424：同一时间出现两只，第1只归 index3、第2只归 index4；
-    // 指路到该怪 XZ 符号对应的 ±10 位置 5s，对应 index 10s 后超硬化
+    // 指路到该怪 XZ 符号对应的 ±10 位置 5s，对应 index 10s 后提醒超硬化
     [ScriptMethod(
         name: "A8S - 5424小怪指路",
         eventType: EventTypeEnum.AddCombatant,
@@ -2152,8 +2132,8 @@ public class BlueMage
             return;
         }
 
-        // Dbg(sa, $"5424：index{assigned} 指路 {dest:F1}，预约超硬化 10s 开按");
-        // ScheduleAutoCast(sa, HardenActionId, HardenActionType, sa.Data.Me, "就位后超硬化", 10000);
+        // Dbg(sa, $"5424：index{assigned} 指路 {dest:F1}，10s 后提醒超硬化");
+        // ScheduleAnnounce(sa, "就位后超硬化", 10000);
     }
 
     // StartCasting 5719 超级气旋：提示击退
@@ -2250,7 +2230,7 @@ public class BlueMage
         ScheduleAutoCast(sa, 7559, HardenActionType, sa.Data.Me, "使用沉稳", 9000);
     }
 
-    // Targetable 5425：T 5s 后超硬化
+    // Targetable 5425：T 5s 后提醒超硬化
     [ScriptMethod(
         name: "A8S - 5425现身T超硬化",
         eventType: EventTypeEnum.Targetable,
@@ -2259,12 +2239,12 @@ public class BlueMage
     {
         if (!InMap(A8STerritory)) return;
         if (_phase != 3) return;
-        if (!所有职能都会尝试放超硬化 && _roleStatus != TankStatus) return;
-        Dbg(sa, "5425 现身：T 预约超硬化，5s 开按");
-        ScheduleAutoCast(sa, HardenActionId, HardenActionType, sa.Data.Me, "超硬化", 5000);
+        if (_roleStatus != TankStatus) return;
+        Dbg(sa, "5425 现身：T 5s 后提醒超硬化");
+        ScheduleAnnounce(sa, "超硬化", 5000);
     }
 
-    // StartCasting 5731：T 1s 后超硬化
+    // StartCasting 5731：T 1s 后提醒超硬化
     [ScriptMethod(
         name: "A8S - 分摊死刑T超硬化",
         eventType: EventTypeEnum.StartCasting,
@@ -2272,9 +2252,9 @@ public class BlueMage
     public void A8S_5731(Event evt, ScriptAccessory sa)
     {
         if (!InMap(A8STerritory)) return;
-        if (!所有职能都会尝试放超硬化 && _roleStatus != TankStatus) return;
-        Dbg(sa, "5731：T 预约超硬化，1s 开按");
-        ScheduleAutoCast(sa, HardenActionId, HardenActionType, sa.Data.Me, "超硬化", 1000);
+        if (_roleStatus != TankStatus) return;
+        Dbg(sa, "5731：T 1s 后提醒超硬化");
+        ScheduleAnnounce(sa, "超硬化", 1000);
     }
 
     // VfxEvent Id 30：点到自己 → 提示远离人群别去分摊
@@ -2315,7 +2295,7 @@ public class BlueMage
         sa.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Circle, dp);
         Dbg(sa, $"超级跳5733：最远玩家 5.4m 危险圈 {dur}ms");
 
-        if (所有职能都会尝试放超硬化 || _roleStatus == TankStatus)
+        if (_roleStatus == TankStatus)
             Announce(sa, "远离引导超级跳", 3000);
     }
 
@@ -2385,8 +2365,8 @@ public class BlueMage
         if (_phase != 4) return;
         if (_a8sP4BeamHardened) return;
         _a8sP4BeamHardened = true;
-        Dbg(sa, "P4 5678：全员预约超硬化，3s 开按");
-        ScheduleAutoCast(sa, HardenActionId, HardenActionType, sa.Data.Me, "光束炮超硬化", 3000);
+        Dbg(sa, "P4 5678：全员3s 后提醒超硬化");
+        ScheduleAnnounce(sa, "光束炮超硬化", 3000);
     }
 
     // StartCasting 5718 究极闪光：从施法者朝场中 {0,10.5,0} 方向前进 17m 处指路 5s
@@ -2420,8 +2400,8 @@ public class BlueMage
     {
         if (!InMap(A8STerritory)) return;
         if (evt.TargetId() != sa.Data.Me) return;
-        Dbg(sa, "0042 0040点名：预约超硬化，2s 开按");
-        ScheduleAutoCast(sa, HardenActionId, HardenActionType, sa.Data.Me, "生命计数法超硬化", 2000);
+        Dbg(sa, "0042 0040点名：2s 后提醒超硬化");
+        ScheduleAnnounce(sa, "生命计数法超硬化", 2000);
     }
 
     // StartCasting 5742 正义合神：进入 P5，提示满血后爆发
@@ -2499,10 +2479,10 @@ public class BlueMage
         dp.DestoryAt = 4000;
         sa.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Circle, dp);
 
-        if (target == sa.Data.Me && (_roleStatus == TankStatus || 所有职能都会尝试放超硬化))
+        if (target == sa.Data.Me && _roleStatus == TankStatus)
         {
-            Dbg(sa, "惩罚射线6633：T 被点名，预约超硬化 1s 开按");
-            ScheduleAutoCast(sa, HardenActionId, HardenActionType, sa.Data.Me, "惩罚射线超硬化", 1000);
+            Dbg(sa, "惩罚射线6633：T 被点名，1s 后提醒超硬化");
+            ScheduleAnnounce(sa, "惩罚射线超硬化", 1000);
         }
     }
 
@@ -2671,7 +2651,7 @@ public class BlueMage
         });
     }
 
-    // ActionEffect 6644：T 立即超硬化
+    // ActionEffect 6644：提醒 T 立即超硬化
     [ScriptMethod(
         name: "A12S - 6644T超硬化",
         eventType: EventTypeEnum.ActionEffect,
@@ -2680,12 +2660,12 @@ public class BlueMage
     {
         if (!InMap(A12STerritory)) return;
         if (_phase != 2) return;
-        if (!所有职能都会尝试放超硬化 && _roleStatus != TankStatus) return;
-        Dbg(sa, "6644：T 立即超硬化");
-        ScheduleAutoCast(sa, HardenActionId, HardenActionType, sa.Data.Me, "超硬化", 0, announce: false);
+        if (_roleStatus != TankStatus) return;
+        Dbg(sa, "6644：提醒 T 立即超硬化");
+        ScheduleAnnounce(sa, "超硬化", 0);
     }
 
-    // NPC播报"距神圣审判还有 10 秒"：_phase=3，全员 5s 后自动超硬化
+    // NPC播报"距神圣审判还有 10 秒"：_phase=3，全员 5s 后提醒超硬化
     [ScriptMethod(
         name: "A12S - 神圣审判转场",
         eventType: EventTypeEnum.Chat,
@@ -2696,7 +2676,7 @@ public class BlueMage
         if (_phase != 2) return;
         _phase = 3;
         Dbg(sa, "神圣审判转场：_phase=3，预约 5s 全员超硬化");
-        ScheduleAutoCast(sa, HardenActionId, HardenActionType, sa.Data.Me, "神圣审判超硬化", 5000);
+        ScheduleAnnounce(sa, "神圣审判超硬化", 5000);
     }
 
     // ---------------- P3 / P3.1 ----------------
@@ -2972,7 +2952,7 @@ public class BlueMage
         Dbg(sa, $"审判结晶6660：第{_a12sCrystalCount}次 点名自己 → {dest:F1}");
     }
 
-    // StartCasting 6634 净化射线：被点名的是自己 → 2s 后超硬化
+    // StartCasting 6634 净化射线：被点名的是自己 → 2s 后提醒超硬化
     [ScriptMethod(
         name: "A12S - 净化射线超硬化",
         eventType: EventTypeEnum.StartCasting,
@@ -2982,8 +2962,8 @@ public class BlueMage
         if (!InMap(A12STerritory)) return;
         if (_phase != 4) return;
         if (evt.TargetId() != sa.Data.Me) return;
-        Dbg(sa, "净化射线6634：预约超硬化 2s 开按");
-        ScheduleAutoCast(sa, HardenActionId, HardenActionType, sa.Data.Me, "净化射线超硬化", 2000);
+        Dbg(sa, "净化射线6634：2s 后提醒超硬化");
+        ScheduleAnnounce(sa, "净化射线超硬化", 2000);
     }
 
     // ---------------- A12S 辅助 ----------------
@@ -3073,6 +3053,701 @@ public class BlueMage
         StopA12SSewHpWatch(sa);
         sa.Method.RemoveDraw(".*");
         RefreshRole(sa);
+    }
+    #endregion
+
+    #region O4S
+    [ScriptMethod(
+        name: "-------O4S-------",
+        eventType: EventTypeEnum.StartCasting,
+        eventCondition: ["ActionId:regex:^(xx|xx)$"])]
+    public void o4s_start(Event evt, ScriptAccessory sa){}
+
+    // ---------------- 阶段判定 ----------------
+    // 本副本分门神(艾克斯迪司)与本体(涅奥·艾克斯迪司)两阶段，用两边独有的 Boss 读条区分，默认门神。
+    // 门神：暴雷 9209/9213；本体：至高无上 9239/9240
+    [ScriptMethod(
+        name: "O4S - 阶段判定",
+        eventType: EventTypeEnum.StartCasting,
+        eventCondition: ["ActionId:regex:^(9209|9213|9239|9240)$"],
+        userControl: false)]
+    public void O4S阶段判定(Event evt, ScriptAccessory sa)
+    {
+        if (!InMap(O4STerritory)) return;
+        uint id = evt.ActionId();
+        bool 本体 = id is 9239 or 9240;
+        if (_o4s本体 == 本体) return;
+        _o4s本体 = 本体;
+        _o4s暴风次数 = 0;
+        Dbg(sa, $"O4S 阶段判定：读条 {id} → {(本体 ? "本体" : "门神")}");
+    }
+
+    // 队列 index 0 即 MT 位，本副本按 index 认人不看职能 buff
+    private static bool O4S是MT(ScriptAccessory sa)
+        => sa.Data.PartyList.Count > 0 && sa.Data.PartyList[0] == sa.Data.Me;
+
+    [ScriptMethod(
+        name: "O4S - 战斗结束重置",
+        eventType: EventTypeEnum.CombatChanged,
+        eventCondition: ["InCombat:False"],
+        userControl: false)]
+    public void O4S战斗结束(Event evt, ScriptAccessory sa)
+    {
+        if (!InMap(O4STerritory)) return;
+        _o4s本体 = false;
+        _o4sDelta检测时刻 = DateTime.MinValue;
+        _o4sDelta弱不禁风 = false;
+        _o4s暴风次数 = 0;
+        _o4s摇动目标 = 0;
+        _o4s摇动时刻 = DateTime.MinValue;
+        sa.Method.RemoveDraw("O4S.*");
+        RefreshRole(sa);
+    }
+
+    // ---------------- 门神 ----------------
+
+    // 9209 暴雷 4.0s / 9213 暴雷 3.0s(以目标为心 11m 圆)：只有 index 0(MT) 横幅提示使用超硬化
+    [ScriptMethod(
+        name: "O4S门神 - 暴雷MT超硬化",
+        eventType: EventTypeEnum.StartCasting,
+        eventCondition: ["ActionId:regex:^(9209|9213)$"])]
+    public void O4S门神暴雷(Event evt, ScriptAccessory sa)
+    {
+        if (!InMap(O4STerritory) || _o4s本体) return;
+        if (!O4S是MT(sa))
+        {
+            Dbg(sa, "暴雷：自己不是 index0(MT)，跳过超硬化提示");
+            return;
+        }
+        Announce(sa, "使用超硬化", 3000);
+        Dbg(sa, $"暴雷 {evt.ActionId()}：MT 提示使用超硬化");
+    }
+
+    // 9205 爆炎 2.5s：读条结束后每人脚下落一发 9206(以自身为心 4m 圆)。
+    // 圈跟随各自玩家，持续 = 9205 读条时长 + 4s
+    private const float O4S爆炎半径 = 4f;      // 9206 CastType2 EffectRange=4
+    private const int O4S爆炎默认读条 = 2200;
+    private const int O4S爆炎额外持续 = 4000;
+
+    [ScriptMethod(
+        name: "O4S门神 - 爆炎脚下圈",
+        eventType: EventTypeEnum.StartCasting,
+        eventCondition: ["ActionId:9205"])]
+    public void O4S门神爆炎(Event evt, ScriptAccessory sa)
+    {
+        if (!InMap(O4STerritory) || _o4s本体) return;
+        if (!int.TryParse(evt["DurationMilliseconds"], out var dur)) dur = O4S爆炎默认读条;
+        int total = dur + O4S爆炎额外持续;
+
+        foreach (var member in sa.Data.PartyList)
+        {
+            var dp = sa.Data.GetDefaultDrawProperties();
+            dp.Name = $"O4S爆炎圈-{member:X}";
+            dp.Color = sa.Data.DefaultDangerColor;
+            dp.Owner = member;                          // 跟随该玩家
+            dp.Scale = new Vector2(O4S爆炎半径);
+            dp.ScaleMode = ScaleMode.None;
+            dp.DestoryAt = total;
+            sa.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Circle, dp);
+        }
+        Dbg(sa, $"爆炎9205：全员脚下 {O4S爆炎半径}m 圈，持续 {total}ms（读条 {dur}）");
+    }
+
+    // 9215 白洞 7.0s：全场大伤害。奶提示抬满血后扎针，D 提示扎针，MT 不提醒
+    [ScriptMethod(
+        name: "O4S门神 - 白洞扎针提醒",
+        eventType: EventTypeEnum.StartCasting,
+        eventCondition: ["ActionId:9215"])]
+    public void O4S门神白洞(Event evt, ScriptAccessory sa)
+    {
+        if (!InMap(O4STerritory) || _o4s本体) return;
+        if (O4S是MT(sa))
+        {
+            Dbg(sa, "白洞9215：自己是 index0(MT)，不提醒");
+            return;
+        }
+        if (!int.TryParse(evt["DurationMilliseconds"], out var dur)) dur = 6700;
+        Announce(sa, _roleStatus == HealerStatus ? "抬满血后扎针" : "扎针！", dur);
+        Dbg(sa, $"白洞9215：{RoleName(_roleStatus)} 扎针提醒，{dur}ms");
+    }
+
+    // ---------------- 本体 ----------------
+    // 场地是半径 19 的圆，boss 换位、六个场边点都落在这个半径上
+    private const float O4S场边半径 = 19f;
+    private static readonly Vector3 O4S场中 = new(0f, 0f, 0f);
+
+    // 亚拉戈领域(454) 决定无之泛滥站位；生者/死者之伤决定暗黑光该站哪一条
+    private const uint O4S亚拉戈领域 = 454;
+    private const uint O4S生者之伤 = 1380;
+    private const uint O4S死者之伤 = 1381;
+
+    private static bool O4S有领域(ScriptAccessory sa, uint id)
+        => sa.Data.Objects.SearchByEntityId(id) is IBattleChara bc && bc.HasStatus(O4S亚拉戈领域);
+
+    // 以场心为原点、bearing 度(0=北 90=东)、半径 r 的场上坐标
+    private static Vector3 O4S极坐标(float bearing, float r)
+    {
+        float a = bearing * MathF.PI / 180f;
+        return new Vector3(MathF.Sin(a) * r, 0f, -MathF.Cos(a) * r);
+    }
+
+    // 以 boss 所在方向为 12 点、场心为原点、半径 r 的场上坐标；boss 还在场心时方向算不出来，返回 null
+    private static Vector3? O4S按Boss方向(Vector3 bossPos, float r)
+    {
+        var dir = new Vector2(bossPos.X, bossPos.Z);
+        if (dir.Length() < 1f) return null;
+        dir = Vector2.Normalize(dir);
+        return new Vector3(dir.X * r, 0f, dir.Y * r);
+    }
+
+    // boss 的实时坐标；取不到实体时退回事件里带的坐标
+    private static Vector3 O4SBoss坐标(ScriptAccessory sa, uint bossId, Vector3 兜底)
+        => sa.Data.Objects.SearchByEntityId(bossId) is IGameObject go ? go.Position : 兜底;
+
+    // 9239 至高无上 6.0s / 9240 10.0s：全场大伤害
+    [ScriptMethod(
+        name: "O4S本体 - 至高无上减伤",
+        eventType: EventTypeEnum.StartCasting,
+        eventCondition: ["ActionId:regex:^(9239|9240)$"])]
+    public void O4S本体至高无上(Event evt, ScriptAccessory sa)
+    {
+        if (!InMap(O4STerritory)) return;
+        if (!int.TryParse(evt["DurationMilliseconds"], out var dur)) dur = 5500;
+        Announce(sa, "群盾+臭气+魔法锤+昏乱", dur);
+    }
+
+    // 9241 暴风 4.0s：读条目标是仇恨第一。MT 每次都提示玄结界；第二次暴风时 ST 要蛙腿接仇恨
+    [ScriptMethod(
+        name: "O4S本体 - 暴风提示",
+        eventType: EventTypeEnum.StartCasting,
+        eventCondition: ["ActionId:9241"])]
+    public void O4S本体暴风(Event evt, ScriptAccessory sa)
+    {
+        if (!InMap(O4STerritory) || !_o4s本体) return;
+        _o4s暴风次数++;
+        if (!int.TryParse(evt["DurationMilliseconds"], out var dur)) dur = 3700;
+        int myIdx = sa.Data.PartyList.IndexOf(sa.Data.Me);
+
+        if (myIdx == 0) Announce(sa, "玄结界", dur);
+        else if (myIdx == 1 && _o4s暴风次数 == 2) Announce(sa, "蛙腿建立仇恨", dur);
+        Dbg(sa, $"暴风9241：第 {_o4s暴风次数} 次，index{myIdx}");
+    }
+
+    // ---- 三角攻击 ----
+    // 9246 三角攻击 5.0s：读条 +3.0s 出 9208 冰封读条，+6.8s 第二次 9210 暴雷判定，+9.0s 第二波 9206 爆炎判定。
+    // MT 单独去 {-9.03,0,-16.49}，其余人先在 {0,0,-8.5} 集合，再沿六条线散到场边。
+    private static readonly Vector3 O4S三角MT位 = new(-9.03f, 0f, -16.49f);
+    private static readonly Vector3 O4S三角集合点 = new(0f, 0f, -8.5f);
+    private static readonly float[] O4S三角散点方位 = [45f, 90f, 135f, 180f, 225f, 270f];
+    private const int O4S三角指路时长 = 3100;      // 到 9208 冰封读条出现为止
+    private const int O4S三角一仇时长 = 6800;      // 到第二次暴雷判定
+    private const int O4S三角爆炎时长 = 9000;      // 到第二波爆炎判定，散点线也画到这里
+    private const float O4S爆炎圈半径 = 4f;        // 9206 爆炎 CastType2 EffectRange=4
+    private static readonly Vector4 O4S紫 = new(0.7f, 0.3f, 1f, 1f);
+    private static readonly Vector4 O4S红 = new(1f, 0.1f, 0.1f, 1f);
+
+    // 地面指引线：照 TOP P1B 扩散波动炮那套画法——Position 起点 + Rotation 朝向 + Radian 1，
+    // Scale 的宽和长都取线长，Default 模式的红色 Line
+    private static void O4S画地面线(ScriptAccessory sa, Vector3 from, Vector3 to, int dur, string name)
+    {
+        var d = new Vector2(to.X - from.X, to.Z - from.Z);
+        float len = d.Length();
+        if (len < 0.1f) return;
+
+        var dp = sa.Data.GetDefaultDrawProperties();
+        dp.Name = name;
+        dp.Color = O4S红;
+        dp.Position = from;
+        dp.Rotation = MathF.Atan2(d.X, d.Y);
+        dp.Radian = 1f;
+        dp.Scale = new Vector2(len, len);
+        dp.ScaleMode = ScaleMode.None;
+        dp.DestoryAt = dur;
+        sa.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Line, dp);
+    }
+
+    [ScriptMethod(
+        name: "O4S本体 - 三角攻击",
+        eventType: EventTypeEnum.StartCasting,
+        eventCondition: ["ActionId:9246"])]
+    public void O4S本体三角攻击(Event evt, ScriptAccessory sa)
+    {
+        if (!InMap(O4STerritory) || !_o4s本体) return;
+        if (!int.TryParse(evt["DurationMilliseconds"], out var dur)) dur = 4700;
+        Announce(sa, "群盾+臭气+昏乱", dur);
+
+        bool 我是MT = O4S是MT(sa);
+
+        // 指路：MT 单独位，其他人集合点（到冰封读条为止）
+        sa.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement,
+            sa.WaypointDp(我是MT ? O4S三角MT位 : O4S三角集合点, O4S三角指路时长, 0,
+                "O4S三角指路", sa.Data.DefaultSafeColor));
+
+        // 六条散点线从集合点拉到场边，画到第二波爆炎结算
+        for (int i = 0; i < O4S三角散点方位.Length; i++)
+            O4S画地面线(sa, O4S三角集合点, O4S极坐标(O4S三角散点方位[i], O4S场边半径),
+                O4S三角爆炎时长, $"O4S三角散点线-{i}");
+
+        // 一仇身上紫色标记，持续到第二次暴雷判定
+        var 仇 = sa.Data.GetDefaultDrawProperties();
+        仇.Name = "O4S三角一仇";
+        仇.Color = O4S紫;
+        仇.Owner = evt.SourceId();
+        仇.CentreResolvePattern = PositionResolvePatternEnum.OwnerEnmityOrder;
+        仇.CentreOrderIndex = 1;
+        仇.Scale = new Vector2(5f);
+        仇.ScaleMode = ScaleMode.None;
+        仇.DestoryAt = O4S三角一仇时长;
+        sa.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Circle, 仇);
+
+        // 除 MT 外每人脚下爆炎圈，持续到第二波爆炎判定
+        for (int i = 1; i < sa.Data.PartyList.Count; i++)
+        {
+            var dp = sa.Data.GetDefaultDrawProperties();
+            dp.Name = $"O4S三角爆炎圈-{sa.Data.PartyList[i]:X}";
+            dp.Color = sa.Data.DefaultDangerColor;
+            dp.Owner = sa.Data.PartyList[i];
+            dp.Scale = new Vector2(O4S爆炎圈半径);
+            dp.ScaleMode = ScaleMode.None;
+            dp.DestoryAt = O4S三角爆炎时长;
+            sa.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Circle, dp);
+        }
+        Dbg(sa, $"三角攻击9246：{(我是MT ? "MT位" : "集合点")} 指路 + 六条散点线");
+    }
+
+    // 9208 冰封读条出现即三角攻击的散开时机到了，撤掉指路和散点线（爆炎圈按自己的时长继续）
+    [ScriptMethod(
+        name: "O4S本体 - 冰封撤三角指路",
+        eventType: EventTypeEnum.StartCasting,
+        eventCondition: ["ActionId:9208"],
+        userControl: false,
+        suppress: 2000)]
+    public void O4S本体冰封撤指路(Event evt, ScriptAccessory sa)
+    {
+        if (!InMap(O4STerritory) || !_o4s本体) return;
+        sa.Method.RemoveDraw("O4S三角指路.*");
+    }
+
+    // 9259 大十字·阿尔法 5.0s：安全区在场中，读条期间一直指路场心
+    [ScriptMethod(
+        name: "O4S本体 - 大十字阿尔法进场中",
+        eventType: EventTypeEnum.StartCasting,
+        eventCondition: ["ActionId:9259"])]
+    public void O4S本体大十字阿尔法(Event evt, ScriptAccessory sa)
+    {
+        if (!InMap(O4STerritory) || !_o4s本体) return;
+        if (!int.TryParse(evt["DurationMilliseconds"], out var dur)) dur = 4700;
+        sa.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement,
+            sa.WaypointDp(O4S场中, (uint)dur, 0, "O4S大十字阿尔法指路", sa.Data.DefaultSafeColor));
+        Dbg(sa, $"大十字·阿尔法9259：指路场中 {dur}ms");
+    }
+
+    // ---- 无之泛滥 ----
+    // 9230/9231/9233/9234/9238 无之泛滥 5.0s：读条前 boss 会 SetObjPos 到场边(半径19)，以 boss 方向为 12 点排纵队。
+    // MT 贴 boss(19m)；盾姿位 13.14m 只站一人；人群位 7.73m；带亚拉戈领域(454)的人去场心 0m。
+    // 盾姿位归属：ST 优先，ST 带领域就 H1 补，ST+H1 都带领域就 H2 补。
+    private const float O4S泛滥MT半径 = 19f;
+    private const float O4S泛滥盾姿半径 = 13.14f;
+    private const float O4S泛滥人群半径 = 7.73f;
+
+    [ScriptMethod(
+        name: "O4S本体 - 无之泛滥站位",
+        eventType: EventTypeEnum.StartCasting,
+        eventCondition: ["ActionId:regex:^(9238)$"])]
+    public void O4S本体无之泛滥(Event evt, ScriptAccessory sa)
+    {
+        if (!InMap(O4STerritory) || !_o4s本体) return;
+        // if (sa.Data.PartyList.Count < 8) return;
+        int myIdx = sa.Data.PartyList.IndexOf(sa.Data.Me);
+        if (myIdx < 0) return;
+        if (!int.TryParse(evt["DurationMilliseconds"], out var dur)) dur = 4700;
+
+        var boss = O4SBoss坐标(sa, evt.SourceId(), evt.SourcePosition());
+        if (O4S按Boss方向(boss, 1f) is null)
+        {
+            Dbg(sa, "无之泛滥：boss 还在场心，取不到 12 点方向，跳过");
+            return;
+        }
+
+        bool 我有领域 = O4S有领域(sa, sa.Data.Me);
+        float 半径;
+        string? 播报 = null;
+
+        if (myIdx == 0)
+        {
+            半径 = O4S泛滥MT半径;
+            if (我有领域) 播报 = "开启龙之力";
+        }
+        else
+        {
+            // ST(1) → H1(2) → H2(3) 里第一个没有领域的人去盾姿位
+            int 盾姿位 = -1;
+            for (int i = 1; i <= 3; i++)
+                if (!O4S有领域(sa, sa.Data.PartyList[i])) { 盾姿位 = i; break; }
+
+            if (myIdx == 盾姿位)
+            {
+                半径 = O4S泛滥盾姿半径;
+                播报 = myIdx == 1 ? "开启盾姿" : "去补位 开启盾姿";
+            }
+            else 半径 = 我有领域 ? 0f : O4S泛滥人群半径;
+        }
+
+        var dest = O4S按Boss方向(boss, 半径) ?? O4S场中;
+        sa.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement,
+            sa.WaypointDp(dest, (uint)dur, 0, "O4S无之泛滥指路", sa.Data.DefaultSafeColor));
+        if (播报 != null) Announce(sa, 播报, dur);
+        Dbg(sa, $"无之泛滥{evt.ActionId()}：boss {boss:F1}，index{myIdx} 领域{我有领域} → 半径 {半径} {dest:F1}");
+    }
+
+    // TargetIcon 004B 加速度炸弹：点到自己立刻停手
+    [ScriptMethod(
+        name: "O4S本体 - 加速度炸弹停手",
+        eventType: EventTypeEnum.TargetIcon,
+        eventCondition: ["Id:004B"])]
+    public void O4S本体停手(Event evt, ScriptAccessory sa)
+    {
+        if (!InMap(O4STerritory) || !_o4s本体) return;
+        if (evt.TargetId() != sa.Data.Me) return;
+        if (启用横幅) sa.Method.TextInfo("快停手！", 3000, true);
+        if (启用TTS) sa.Method.TTS("快停手");
+        Dbg(sa, "004B：自己被点，提示停手 3s");
+    }
+
+    // ---- 暗黑光家族（都是 CastType4 从施法者往前的矩形）----
+    private const float O4S生死之境宽 = 2f;      // 9237 XAxisModifier=2
+    private const float O4S生死之境长 = 48f;
+    private const float O4S生死暗黑光宽 = 21f;   // 9235/9236 XAxisModifier=21
+    private const float O4S生死暗黑光长 = 47f;
+    private const float O4S外围暗黑光宽 = 16f;   // 9232 XAxisModifier=16
+    private const float O4S外围暗黑光长 = 47f;
+    private const float O4S中核暗黑光宽 = 16f;   // 9292 XAxisModifier=16
+    private const float O4S中核暗黑光长 = 48f;
+    // 外围/中核暗黑光要不要吃：身上有超越死亡(1382)就是该站进去的安全区，没有就是危险区
+    private static Vector4 O4S暗黑光颜色(ScriptAccessory sa)
+        => sa.Data.Objects.SearchByEntityId(sa.Data.Me) is IBattleChara me && me.HasStatus(O4S超越死亡)
+            ? sa.Data.DefaultSafeColor : sa.Data.DefaultDangerColor;
+
+    private void O4S画矩形(ScriptAccessory sa, Event evt, string name, float 宽, float 长,
+        int dur, Vector4 color, DrawModeEnum mode)
+    {
+        var dp = sa.Data.GetDefaultDrawProperties();
+        dp.Name = name;
+        dp.Color = color;
+        dp.Position = evt.SourcePosition();
+        dp.Rotation = evt.SourceRotation();
+        dp.FixRotation = true;
+        dp.Scale = new Vector2(宽, 长);
+        dp.ScaleMode = ScaleMode.None;
+        dp.DestoryAt = dur;
+        sa.Method.SendDraw(mode, DrawTypeEnum.Rect, dp);
+    }
+
+    // 9237 生死之境 5.5s：细长分割线，红色 imgui 画到读条结束
+    [ScriptMethod(
+        name: "O4S本体 - 生死之境",
+        eventType: EventTypeEnum.StartCasting,
+        eventCondition: ["ActionId:9237"])]
+    public void O4S本体生死之境(Event evt, ScriptAccessory sa)
+    {
+        if (!InMap(O4STerritory) || !_o4s本体) return;
+        if (!int.TryParse(evt["DurationMilliseconds"], out var dur)) dur = 5200;
+        O4S画矩形(sa, evt, $"O4S生死之境-{evt.SourceId():X}", O4S生死之境宽, O4S生死之境长,
+            dur, O4S红, DrawModeEnum.Imgui);
+        Dbg(sa, $"生死之境9237：{evt.SourcePosition():F1} rot {evt.SourceRotation():F2}");
+    }
+
+    // 9235 生者暗黑光 / 9236 死者暗黑光 5.5s：两条一起读，只画自己该站的那条(安全色)。
+    // 身上是死者之伤(1381) → 站生者暗黑光；身上是生者之伤(1380) → 站死者暗黑光
+    [ScriptMethod(
+        name: "O4S本体 - 生死暗黑光安全区",
+        eventType: EventTypeEnum.StartCasting,
+        eventCondition: ["ActionId:regex:^(9235|9236)$"])]
+    public void O4S本体生死暗黑光(Event evt, ScriptAccessory sa)
+    {
+        if (!InMap(O4STerritory) || !_o4s本体) return;
+        if (sa.Data.Objects.SearchByEntityId(sa.Data.Me) is not IBattleChara me) return;
+
+        uint 安全技能 = me.HasStatus(O4S死者之伤) ? 9235u : me.HasStatus(O4S生者之伤) ? 9236u : 0u;
+        if (安全技能 == 0)
+        {
+            Dbg(sa, "生死暗黑光：身上没有生者/死者之伤，不画");
+            return;
+        }
+        if (evt.ActionId() != 安全技能) return;
+
+        if (!int.TryParse(evt["DurationMilliseconds"], out var dur)) dur = 5200;
+        O4S画矩形(sa, evt, $"O4S生死暗黑光-{evt.SourceId():X}", O4S生死暗黑光宽, O4S生死暗黑光长,
+            dur, sa.Data.DefaultSafeColor, DrawModeEnum.Default);
+        Dbg(sa, $"生死暗黑光：自己该站 {安全技能}，画 {evt.SourcePosition():F1}");
+    }
+
+    // 9232 外围暗黑光 5.5s：施法者站在场外，矩形横穿场地
+    [ScriptMethod(
+        name: "O4S本体 - 外围暗黑光",
+        eventType: EventTypeEnum.StartCasting,
+        eventCondition: ["ActionId:9232"])]
+    public void O4S本体外围暗黑光(Event evt, ScriptAccessory sa)
+    {
+        if (!InMap(O4STerritory) || !_o4s本体) return;
+        if (!int.TryParse(evt["DurationMilliseconds"], out var dur)) dur = 5200;
+        O4S画矩形(sa, evt, $"O4S外围暗黑光-{evt.SourceId():X}", O4S外围暗黑光宽, O4S外围暗黑光长,
+            dur, O4S暗黑光颜色(sa), DrawModeEnum.Default);
+    }
+
+    // 9292 中核暗黑光 5.5s
+    [ScriptMethod(
+        name: "O4S本体 - 中核暗黑光",
+        eventType: EventTypeEnum.StartCasting,
+        eventCondition: ["ActionId:9292"])]
+    public void O4S本体中核暗黑光(Event evt, ScriptAccessory sa)
+    {
+        if (!InMap(O4STerritory) || !_o4s本体) return;
+        if (!int.TryParse(evt["DurationMilliseconds"], out var dur)) dur = 5200;
+        O4S画矩形(sa, evt, $"O4S中核暗黑光-{evt.SourceId():X}", O4S中核暗黑光宽, O4S中核暗黑光长,
+            dur, O4S暗黑光颜色(sa), DrawModeEnum.Default);
+    }
+
+    // ---- 双重攻击 ----
+    // Tether 0039 与 9244 双重攻击(4.5s，以自身为心 8m 圆)同帧判定：被连线的人拉到 boss 方向的场边吃，
+    // 圈画给全队看，被点的人额外提示到位后超硬化
+    private const float O4S双重攻击吃点半径 = 19f;   // boss 在北时即 {0,0,-19}
+    private const float O4S双重攻击半径 = 8f;    // 9244 CastType2 EffectRange=8
+    private const int O4S双重攻击时长 = 4200;
+
+    [ScriptMethod(
+        name: "O4S本体 - 双重攻击连线",
+        eventType: EventTypeEnum.Tether,
+        eventCondition: ["Id:0039"])]
+    public void O4S本体双重攻击(Event evt, ScriptAccessory sa)
+    {
+        if (!InMap(O4STerritory) || !_o4s本体) return;
+        uint tid = evt.TargetId(), sid = evt.SourceId();
+        uint target = sa.Data.PartyList.Contains(tid) ? tid
+                    : sa.Data.PartyList.Contains(sid) ? sid : 0;
+        if (target == 0) return;
+        uint bossId = target == tid ? sid : tid;
+
+        var dp = sa.Data.GetDefaultDrawProperties();
+        dp.Name = $"O4S双重攻击-{target:X}";
+        dp.Color = sa.Data.DefaultDangerColor;
+        dp.Owner = target;
+        dp.Scale = new Vector2(O4S双重攻击半径);
+        dp.ScaleMode = ScaleMode.None;
+        dp.DestoryAt = O4S双重攻击时长;
+        sa.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Circle, dp);
+
+        if (target != sa.Data.Me) return;
+        var boss = O4SBoss坐标(sa, bossId, evt.SourcePosition());
+        var dest = O4S按Boss方向(boss, O4S双重攻击吃点半径);
+        if (dest is null)
+        {
+            Dbg(sa, "Tether 0039：boss 还在场心，取不到 12 点方向，不指路");
+        }
+        else
+        {
+            sa.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement,
+                sa.WaypointDp(dest.Value, O4S双重攻击时长, 0, "O4S双重攻击指路", sa.Data.DefaultSafeColor));
+        }
+        Announce(sa, "到位后超硬化", O4S双重攻击时长);
+        Dbg(sa, $"Tether 0039：自己被点，boss {boss:F1} → 吃点 {dest:F1} + 超硬化提示");
+    }
+
+
+    // ---- 大十字·德尔塔 ----
+    // 9260 大十字·德尔塔 5.0s：结算后约 6.1s 才给全队分 debuff，所以读条后等 7s 再检测。
+    // 站位坐标按「boss 在北」写死，实跑时整体绕场心转到 boss 实际方位。
+    // 这三个 debuff 在游戏数据里同名多 ID（4.0 沿用了 ARR 的旧 ID），命中任一个都算，避免押错版本。
+    private static readonly uint[] O4S叉形闪电 = [587, 3799, 5544];
+    private static readonly uint[] O4S诅咒之嚎 = [452, 5543];
+    private static readonly uint[] O4S水属性压缩 = [1023, 2142, 5545];
+    private const uint O4S超越死亡 = 1382;
+    private const uint O4S弱不禁风 = 1385;
+
+    private const int O4S德尔塔检测延迟 = 7000;
+    private const int O4S德尔塔指路时长 = 7000;    // 到 9231 无之泛滥读条为止（实测 +6.1s）
+    private const int O4S德尔塔认领窗口 = 20;      // 秒；超过这个间隔的 9231 不算德尔塔那一轮
+    private static readonly Vector3 O4S德尔塔雷诅位 = new(13f, 0f, -13f);
+    private static readonly Vector3 O4S德尔塔雷死位 = new(-13f, 0f, -13f);
+    private static readonly Vector3 O4S德尔塔水诅位 = new(17.38f, 0f, 0.46f);
+    private static readonly Vector3 O4S德尔塔默认位 = new(0f, 0f, -19f);
+
+    private static bool O4S有任一(IBattleChara bc, uint[] ids) => ids.Any(id => bc.HasStatus(id));
+
+    // 把「假设 boss 在北」的坐标绕场心转到 boss 实际方位（bossRad = 0 为北，顺时针为正）
+    private static Vector3 O4S按Boss转(Vector3 p, float bossRad)
+    {
+        float c = MathF.Cos(bossRad), s = MathF.Sin(bossRad);
+        return new Vector3(p.X * c - p.Z * s, p.Y, p.X * s + p.Z * c);
+    }
+
+    [ScriptMethod(
+        name: "O4S本体 - 大十字德尔塔站位",
+        eventType: EventTypeEnum.StartCasting,
+        eventCondition: ["ActionId:9260"])]
+    public async void O4S本体大十字德尔塔(Event evt, ScriptAccessory sa)
+    {
+        if (!InMap(O4STerritory) || !_o4s本体) return;
+        uint bossId = evt.SourceId();
+        var 兜底 = evt.SourcePosition();
+
+        await Task.Delay(O4S德尔塔检测延迟);
+        if (!InMap(O4STerritory) || !_o4s本体) return;
+        if (sa.Data.Objects.SearchByEntityId(sa.Data.Me) is not IBattleChara me) return;
+
+        var boss = O4SBoss坐标(sa, bossId, 兜底);
+        float bossRad = MathF.Atan2(boss.X, -boss.Z);
+
+        bool 雷 = O4S有任一(me, O4S叉形闪电);
+        bool 诅 = O4S有任一(me, O4S诅咒之嚎);
+        bool 水 = O4S有任一(me, O4S水属性压缩);
+        _o4sDelta弱不禁风 = me.HasStatus(O4S弱不禁风);
+        _o4sDelta检测时刻 = DateTime.Now;
+
+        var 位 = 雷 && 诅 ? O4S德尔塔雷诅位
+               : 雷 && me.HasStatus(O4S超越死亡) ? O4S德尔塔雷死位
+               : 水 && 诅 ? O4S德尔塔水诅位
+               : O4S德尔塔默认位;
+
+        sa.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement,
+            sa.WaypointDp(O4S按Boss转(位, bossRad), O4S德尔塔指路时长, 0,
+                "O4S德尔塔指路", sa.Data.DefaultSafeColor));
+        if (水 && 诅) Announce(sa, "开盾姿", O4S德尔塔指路时长);
+
+        // 背对诅咒之嚎：自己带嚎时只背对另一个，不带时两个都要背对。绑 id 而不是当时的坐标，人走了也跟着转
+        foreach (var pid in sa.Data.PartyList)
+        {
+            if (pid == sa.Data.Me) continue;
+            if (sa.Data.Objects.SearchByEntityId(pid) is not IBattleChara other) continue;
+            if (!O4S有任一(other, O4S诅咒之嚎)) continue;
+
+            var dp = sa.Data.GetDefaultDrawProperties();
+            dp.Name = $"O4S德尔塔背对-{pid:X}";
+            dp.Color = sa.Data.DefaultDangerColor;
+            dp.Owner = sa.Data.Me;
+            dp.TargetObject = pid;
+            dp.DestoryAt = O4S德尔塔指路时长;
+            sa.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.SightAvoid, dp);
+        }
+        Dbg(sa, $"大十字德尔塔：boss {boss:F1} 方位 {bossRad * 180f / MathF.PI:F0}°，" +
+                $"雷{雷} 嚎{诅} 水{水} 死{me.HasStatus(O4S超越死亡)} 弱{_o4sDelta弱不禁风} → {位:F1}");
+    }
+
+    // 德尔塔之后的 9231 无之泛滥就是激光：撤掉德尔塔指路并按超越死亡/弱不禁风播报。
+    // 9231 也会出现在地火那一轮，所以要靠检测时刻认领，避免误报。
+    [ScriptMethod(
+        name: "O4S本体 - 德尔塔激光提示",
+        eventType: EventTypeEnum.StartCasting,
+        eventCondition: ["ActionId:9231"])]
+    public void O4S本体德尔塔激光(Event evt, ScriptAccessory sa)
+    {
+        if (!InMap(O4STerritory) || !_o4s本体) return;
+        if ((DateTime.Now - _o4sDelta检测时刻).TotalSeconds > O4S德尔塔认领窗口) return;
+        _o4sDelta检测时刻 = DateTime.MinValue;
+
+        sa.Method.RemoveDraw("O4S德尔塔.*");
+        if (sa.Data.Objects.SearchByEntityId(sa.Data.Me) is not IBattleChara me) return;
+        if (!int.TryParse(evt["DurationMilliseconds"], out var dur)) dur = 4700;
+
+        string 播报 = !me.HasStatus(O4S超越死亡) ? "避开激光"
+                    : _o4sDelta弱不禁风 ? "去最前面吃激光"
+                    : "吃激光";
+        Announce(sa, 播报, dur);
+        Dbg(sa, $"德尔塔激光：{播报}");
+    }
+
+
+    // ---- 大地摇动 ----
+    // TargetIcon 0028 点名后约 0.1s boss 才读 9242 大地摇动(4.5s)，点名事件里拿不到 boss 坐标，
+    // 所以点名只记人，等 9242 读条时用 boss 的实际方位换算站位。
+    private static readonly Vector3 O4S摇动MT位 = new(-13f, 0f, -13f);
+    private const int O4S摇动时长 = 4200;
+    private const int O4S摇动认领窗口 = 5;   // 秒
+
+    private uint _o4s摇动目标;
+    private DateTime _o4s摇动时刻 = DateTime.MinValue;
+
+    [ScriptMethod(
+        name: "O4S本体 - 大地摇动点名记录",
+        eventType: EventTypeEnum.TargetIcon,
+        eventCondition: ["Id:0028"],
+        userControl: false)]
+    public void O4S本体大地摇动点名(Event evt, ScriptAccessory sa)
+    {
+        if (!InMap(O4STerritory) || !_o4s本体) return;
+        _o4s摇动目标 = evt.TargetId();
+        _o4s摇动时刻 = DateTime.Now;
+    }
+
+    // 被点名的是 MT：去 boss 方位的 {-13,0,-13} 并开超硬化；被点名的不是 MT：只提示给 MT 上防御
+    [ScriptMethod(
+        name: "O4S本体 - 大地摇动",
+        eventType: EventTypeEnum.StartCasting,
+        eventCondition: ["ActionId:9242"])]
+    public void O4S本体大地摇动(Event evt, ScriptAccessory sa)
+    {
+        if (!InMap(O4STerritory) || !_o4s本体) return;
+        if ((DateTime.Now - _o4s摇动时刻).TotalSeconds > O4S摇动认领窗口) return;
+        if (_o4s摇动目标 != sa.Data.Me) return;
+        if (!int.TryParse(evt["DurationMilliseconds"], out var dur)) dur = O4S摇动时长;
+
+        if (!O4S是MT(sa))
+        {
+            Announce(sa, "防御指示MT", dur);
+            Dbg(sa, "大地摇动9242：自己被点且不是 MT，提示防御指示MT");
+            return;
+        }
+
+        var boss = O4SBoss坐标(sa, evt.SourceId(), evt.SourcePosition());
+        float bossRad = MathF.Atan2(boss.X, -boss.Z);
+        sa.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement,
+            sa.WaypointDp(O4S按Boss转(O4S摇动MT位, bossRad), (uint)dur, 0,
+                "O4S大地摇动指路", sa.Data.DefaultSafeColor));
+        Announce(sa, "开启超硬化", dur);
+        Dbg(sa, $"大地摇动9242：MT 被点，boss {boss:F1} 方位 {bossRad * 180f / MathF.PI:F0}°");
+    }
+
+    // ---- 无之失控（地火）----
+    // 9249 无之失控 5.0s：三个球各自从所在位置沿自身朝向，每 ~1s 前进 6m 落一发 9250(5m 圆)，出场为止。
+    // 读条一开始就能把整条弹道算出来，每一跳提前 4s 显示。
+    private const float O4S地火半径 = 5f;      // 9250 CastType2 EffectRange=5
+    private const float O4S地火步长 = 6f;
+    private const int O4S地火跳间隔 = 985;
+    private const int O4S地火起爆 = 5000;      // 9249 读条开始到第 0 跳落地
+    private const int O4S地火提前量 = 4000;
+
+    [ScriptMethod(
+        name: "O4S本体 - 无之失控地火",
+        eventType: EventTypeEnum.StartCasting,
+        eventCondition: ["ActionId:9249"])]
+    public void O4S本体无之失控(Event evt, ScriptAccessory sa)
+    {
+        if (!InMap(O4STerritory) || !_o4s本体) return;
+        var sid = evt.SourceId();
+        var p0 = evt.SourcePosition();
+        var rot = evt.SourceRotation();
+        var v = new Vector3(MathF.Sin(rot), 0f, MathF.Cos(rot));
+
+        for (int k = 0; k < 8; k++)
+        {
+            var node = p0 + v * (O4S地火步长 * k);
+            if (new Vector2(node.X, node.Z).Length() > O4S场边半径 + 0.5f) break;
+            node.Y = p0.Y;
+
+            int resolve = O4S地火起爆 + k * O4S地火跳间隔;
+            uint delay = (uint)Math.Max(resolve - O4S地火提前量, 0);
+            var dp = sa.Data.GetDefaultDrawProperties();
+            dp.Name = $"O4S地火-{sid:X}-{k}";
+            dp.Color = sa.Data.DefaultDangerColor;
+            dp.Owner = 0;
+            dp.Position = node;
+            dp.Scale = new Vector2(O4S地火半径);
+            dp.ScaleMode = ScaleMode.None;
+            dp.Delay = delay;
+            dp.DestoryAt = (uint)(resolve - delay);
+            sa.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Circle, dp);
+        }
+        Dbg(sa, $"无之失控9249：{sid:X} 起点 {p0:F1} rot {rot:F2}");
     }
     #endregion
 }
