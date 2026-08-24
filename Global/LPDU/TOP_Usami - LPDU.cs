@@ -59,7 +59,7 @@ public class TopReborn
          """;
 
     private const string Name = "The Omega Protocol (Ultimate) TOP - LPDU";
-    private const string Version = "0.0.0.21";
+    private const string Version = "0.0.0.22";
     private const string DebugVersion = "a";
 
     private const bool Debugging = false;
@@ -2272,7 +2272,9 @@ public class TopReborn
             Vector3 raw = isLeft ? new Vector3(90f, 0, 106f) : new Vector3(110f, 0, 106f);
 
             bool isTether  = marker != 0;                       // 十字/三角及其搭档，去蟑螂侧
-            bool needBack  = marker is 10 or 11;                // 十字组靠场外；三角组靠场中；光头侧暂不分内外
+            // 默认档位：十字组靠场外、三角组靠场中；光头侧暂不分内外。
+            // 只是待命点的默认建议，真正的内外档在拳头阶段按实际站位判定，整组对调也认。
+            bool needBack  = marker is 10 or 11;
             int  dir       = isTether ? _p5A.蟑螂位置 : _p5A.光头位置;
 
             if (needBack) raw += new Vector3(0, 0, 8);
@@ -2452,9 +2454,10 @@ public class TopReborn
         int     marker  = _pd.Priorities[myIndex];
         Vector3 myPos   = ev.TargetPosition;
         
-        bool isShieldTarget = marker is 20 or 21;               // 三角组（内档远线），需往场中被盾击
         bool isOutside      = _p5A.玩家场外;                     // 拳头阶段判定的场内外
         bool isBind         = marker != 0;                      // 远线组（十字/三角及其搭档）
+        // 内外档只看拳头阶段的实际站位，不认头标：十字组与三角组整组对调时跟着换活
+        bool isShieldTarget = isBind && !isOutside;             // 远线内档组（十字/三角皆可），需往场中被盾击
 
         // 2. 计算手臂编号。两侧对调后整套引导跟着转 180°，故基准由光头改为蟑螂
         int     beetle12 = _p5A.蟑螂位置 * 3;          // 0~11
@@ -2511,7 +2514,7 @@ public class TopReborn
             
         var myIndex = sa.GetMyIndex();
         var markerVal = _pd.Priorities[myIndex];
-        var isShieldTarget = markerVal is 20 or 21;
+        var isShieldTarget = markerVal != 0 && !_p5A.玩家场外;    // 远线内档组去场中，不引导激光手
         if (isShieldTarget) return;
 
         sa.DebugMsg($"玩家引导激光手方位为：{_p5A.玩家引导激光手方位} / 12", Debugging);
@@ -2595,7 +2598,7 @@ public class TopReborn
         var myIndex = sa.GetMyIndex();
         var markerVal = _pd.Priorities[myIndex];
             
-        if (markerVal is not 20 and not 21) return;    // 三角组（内档远线）
+        if (markerVal == 0 || _p5A.玩家场外) return;    // 仅远线内档组（十字/三角组可整组对调）
         var myArmUnit = _p5A.玩家引导激光手方位;
             
         var centerBiasPos = new Vector3(100, 0, 105).RotateAndExtend(Center, myArmUnit * 30f.DegToRad());
@@ -2829,8 +2832,8 @@ public class TopReborn
             // 后续只改这里即可
             Vector3[] basePos =
             {
-                new(95.8f, 0, 108.22f),    // 1   无标场内·逆时针侧   FarTarget
-                new(90.6f, 0, 109.2f),   // 2   无标场内·顺时针侧   FarTarget
+                new(96.6f, 0, 110f),    // 1   无标场内·逆时针侧   FarTarget
+                new(90.6f, 0, 110f),   // 2   无标场内·顺时针侧   FarTarget
                 new(98f,   0, 119f),  // 3   无标场外·逆时针侧   NearTarget
                 new(89.4f, 0, 83.8f),  // 4   无标场外·顺时针侧   NearTarget
                 new(93.5f, 0, 100f),    // 20  三角（内档远线）    FarSource
@@ -2863,7 +2866,7 @@ public class TopReborn
 
             // 4. 方位旋转
             pos = pos.RotateAndExtend(Center, _p5A.蟑螂位置 * 90f.DegToRad());
-            sa.DrawGuidance(pos, 0, 5000, "P5A2_一传_指路");
+            sa.DrawGuidance(pos, 0, 10000, "P5A2_一传_指路");
         }
         finally
         {
