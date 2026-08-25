@@ -59,7 +59,7 @@ public class TopReborn
          """;
 
     private const string Name = "The Omega Protocol (Ultimate) TOP - LPDU";
-    private const string Version = "0.0.0.22";
+    private const string Version = "0.0.0.23";
     private const string DebugVersion = "a";
 
     private const bool Debugging = false;
@@ -81,6 +81,9 @@ public class TopReborn
     
     [UserSetting("Special Mode: enable the \"*\" features listed in the method settings (see note)")]
     public bool SpecialMode { get; set; } = false;
+
+    [UserSetting("P3A Hello World: also draw tethers from you to the two destination")]
+    public bool HelloWorldDestinationGuidance { get; set; } = false;
 
     public void Init(ScriptAccessory sa)
     {
@@ -1621,6 +1624,10 @@ public class TopReborn
                 var dp = sa.DrawCircle(pos, 0, 10000, $"P3A_你好世界_初始目的地标注_R{round}_{prefix}{i}", 0.5f, isSafe: true, draw: false);
                 dp.Color = sa.Data.DefaultSafeColor.WithW(2f);
                 sa.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Circle, dp);
+
+                // 可选：自身到两个目的地圈的指路线，名字挂在同一前缀下，随目的地标注一起被删除
+                if (HelloWorldDestinationGuidance)
+                    sa.DrawGuidance(pos, 0, 10000, $"P3A_你好世界_初始目的地标注_R{round}_{prefix}{i}_Guidance");
             }
         }
     }
@@ -2319,22 +2326,48 @@ public class TopReborn
         sa.Method.RemoveDraw($"P5A1_一运_待命地点.*");
         return;
 
-        // 每个象限固定站 2 人，直接与同象限的另一人比到场心的距离：
-        // 远者场外（引导靠边的手），近者场内（引导靠中的手）
-        // 注意：别人的 _pd.Priorities 不可信（远线无标搭档只在本人客户端被补成 11/21，别人看到的是 0），故不按头标筛人
+        // 每个象限固定站 2 人，与同象限的另一人比“谁更靠场外”：远者场外（引导靠边的手），近者场内（引导靠中的手）
+        // 注意 1：别人的 _pd.Priorities 不可信（远线无标搭档只在本人客户端被补成 11/21，别人看到的是 0），故不按头标筛人
+        // 注意 2：不能比到场心的直线距离。同象限两个待命点只差一个 8 码的“后退”量（CalcWaitPoint 里的 z+8，
+        //         旋转 90°*dir 后即下面的 outward 轴），左右方向上却允许各自随手偏两三码；横向偏移会盖过半径差，
+        //         实测 (91.44, 89.12) 与 (86.98, 93.93) 这一对，前者才是靠外的那个，半径反而更小。
+        //         故把两人都投影到 outward 轴上再比大小，只认“后退”分量。
         bool IsOutsideByPosition(int selfIndex)
         {
-            var myDist = myPos.GetLength(Center);
+            // 象限 dir 与 dir-1 归属以 dir 为基准方向的那一侧（与 CalcWaitPoint 的旋转、以及激光手那边
+            // “象限 == 光头位置 为光头的逆时针侧”一致），两侧基准相差 180°，outward 轴正好反向
+            var quadrant = _p5A.玩家四分之一半场;
+            var dir       = quadrant == _p5A.蟑螂位置 || quadrant == (_p5A.蟑螂位置 + 3) % 4
+                ? _p5A.蟑螂位置
+                : _p5A.光头位置;
+            var outward   = new Vector3(100, 0, 101).RotateAndExtend(Center, dir * 90f.DegToRad()) - Center;
+
+            // 同象限只应有另 1 人，取最近的那个防止有人路过时被误选
+            Vector3? partnerPos  = null;
+            var      partnerDist = float.MaxValue;
             for (int i = 0; i < sa.Data.PartyList.Count; i++)
             {
                 if (i == selfIndex) continue;
                 var obj = sa.GetById(sa.Data.PartyList[i]);
                 if (obj is null) continue;
-                if (obj.Position.GetRadian(Center).RadianToRegion(4, isDiagDiv: false) != _p5A.玩家四分之一半场) continue;
-                return myDist > obj.Position.GetLength(Center);
+                var pos = obj.Position;
+                if (pos.GetRadian(Center).RadianToRegion(4, isDiagDiv: false) != quadrant) continue;
+                var dist = pos.GetLength(myPos);
+                if (dist >= partnerDist) continue;
+                partnerDist = dist;
+                partnerPos  = pos;
             }
-            sa.DebugMsg($"P5A1_一运_记录拳头：本象限未找到另一人，按场内处理", Debugging);
-            return false;
+
+            if (partnerPos is null)
+            {
+                sa.DebugMsg($"P5A1_一运_记录拳头：本象限未找到另一人，按场内处理", Debugging);
+                return false;
+            }
+
+            var myScore      = Vector3.Dot(myPos - Center, outward);
+            var partnerScore = Vector3.Dot(partnerPos.Value - Center, outward);
+            sa.DebugMsg($"P5A1_一运_记录拳头：外向轴（dir={dir}）投影 我 {myScore:F2} / 同象限另一人 {partnerScore:F2}", Debugging);
+            return myScore > partnerScore;
         }
     }
     
