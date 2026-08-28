@@ -23,7 +23,7 @@ using KodakkuAssist.Module.Script.Type;
 namespace KarlinScriptNamespace
 {
     // 1112 为忆罪宫，仅用于 "/e =Exaflare" 地火模拟器（补丁部分）
-    [ScriptType(name:"Dragonsong's Reprise (Ultimate) - LPDU", territorys: [968, 1112], guid: "baadb811-5bd3-4e61-bb1f-f3eab163c52f", version:"0.0.0.6", author: "Karlin")]
+    [ScriptType(name:"Dragonsong's Reprise (Ultimate) DSR - LPDU", territorys: [968, 1112], guid: "baadb811-5bd3-4e61-bb1f-f3eab163c52f", version:"0.0.0.6", author: "Karlin")]
     public class DragongSingDrawLpdu
     {
         
@@ -1152,31 +1152,25 @@ namespace KarlinScriptNamespace
             if (ParsTargetIcon(@event["Id"]) != -279) return;
             Task.Delay(100).ContinueWith(t =>
             {
-                List<int> g1Mem = [];
-                List<int> g2Mem = [];
+                // 默认分组：MT/H1/D1/D3(偶数index)为g1，ST/H2/D2/D4(奇数index)为g2
+                var group = new int[8];
+                for (int i = 0; i < 8; i++) group[i] = i % 2 == 0 ? 1 : 2;
 
-                // 2 6
-                // 2 1 3 7
-                // 6 0 
-                g1Mem.Add(p2Jump.Item1);
-                g2Mem.Add(p2Jump.Item2);
-                if (p2Jump.Item1 != 0 && p2Jump.Item2 != 0) g2Mem.Add(0);
-                if (p2Jump.Item1 != 2 && p2Jump.Item2 != 2) g2Mem.Add(2);
-                if (p2Jump.Item1 != 6 && p2Jump.Item2 != 6) g2Mem.Add(6);
-                if (p2Jump.Item1 != 1 && p2Jump.Item2 != 1) g1Mem.Add(1);
-                if (p2Jump.Item1 != 3 && p2Jump.Item2 != 3) g1Mem.Add(3);
-                if (p2Jump.Item1 != 7 && p2Jump.Item2 != 7) g1Mem.Add(7);
-                if (p2Jump.Item1 != 4 && p2Jump.Item2 != 4)
+                // 劈刀点名强制归组：-280(Item1)进g1，-279(Item2)进g2
+                // 点名者若不在目标组，则与自己的对位(MT-ST/H1-H2/D1-D2/D3-D4)互换，保持4/4
+                void ForceGroup(int index, int target)
                 {
-                    if (g2Mem.Count <= 3) g2Mem.Add(4);
-                    else g1Mem.Add(4);
+                    if (index < 0 || index > 7) return;
+                    if (group[index] == target) return;
+                    var partner = index ^ 1;
+                    group[partner] = group[index];
+                    group[index] = target;
                 }
-                if (p2Jump.Item1 != 5 && p2Jump.Item2 != 5)
-                {
-                    if (g1Mem.Count <= 3) g1Mem.Add(5);
-                    else g2Mem.Add(5);
-                }
-                
+
+                ForceGroup(p2Jump.Item1, 1);
+                ForceGroup(p2Jump.Item2, 2);
+
+
                 var drot = p2AdelPos.X > 100? float.Pi / 45: float.Pi / -45;
                 var meIndex = accessory.Data.PartyList.ToList().IndexOf(accessory.Data.Me);
                 var dp = accessory.Data.GetDefaultDrawProperties();
@@ -1188,7 +1182,7 @@ namespace KarlinScriptNamespace
 
                 var cpos = new Vector3(100, 0, 100);
                 var sPos = (p2ZPos - cpos) / 15 * 19.5f + cpos;
-                if (g1Mem.IndexOf(meIndex) != -1)
+                if (meIndex >= 0 && meIndex < 8 && group[meIndex] == 1)
                 {
                     dp.TargetPosition = RotatePoint(sPos, cpos, float.Pi + drot * 3);
                 }
@@ -1246,68 +1240,129 @@ namespace KarlinScriptNamespace
             var s1 = p2Stone.IndexOf(true);
             var s2 = p2Stone.LastIndexOf(true);
             //记录分组
+            // if (s1 != s2)
+            // {
+            //     p2StoneMem = (s1, s2);
+            //     //AB mt h2
+            //     if (s1 == 0 && s2 == 3)
+            //     {
+            //         p2StoneTeam = [0, 6, 5, 1, 3, 7, 6, 2];
+            //     }
+            //     //AB d14
+            //     if (s1 == 4 && s2 == 7)
+            //     {
+            //         p2StoneTeam = [4, 0, 5, 1, 7, 3, 6, 2];
+            //     }
+            //     //AC 双t
+            //     if (s1 == 0 && s2 == 1)
+            //     {
+            //         p2StoneTeam = [0, 4, 7, 3, 1, 5, 6, 2];
+            //     }
+            //     //AC d12
+            //     if (s1 == 4 && s2 == 5)
+            //     {
+            //         p2StoneTeam = [4, 0, 7, 3, 5, 1, 6, 2];
+            //     }
+            //     //AD mt H1
+            //     if (s1 == 0 && s2 == 2)
+            //     {
+            //         p2StoneTeam = [0, 4, 7, 3, 2, 6, 5, 1];
+            //     }
+            //     //AD d13
+            //     if (s1 == 4 && s2 == 6)
+            //     {
+            //         p2StoneTeam = [4, 0, 7, 3, 6, 2, 5, 1];
+            //     }
+            //     //BC h2 st
+            //     if (s1 == 1 && s2 == 3)
+            //     {
+            //         p2StoneTeam = [3, 7, 4, 0, 1, 5, 6, 2];
+            //     }
+            //     //BC d24
+            //     if (s1 == 5 && s2 == 7)
+            //     {
+            //         p2StoneTeam = [7, 3, 4, 0, 5, 1, 6, 2];
+            //     }
+            //     //BD h12
+            //     if (s1 == 2 && s2 == 3)
+            //     {
+            //         p2StoneTeam = [4, 0, 3, 7, 5, 1, 2, 6];
+            //     }
+            //     //BD d34
+            //     if (s1 == 6 && s2 == 7)
+            //     {
+            //         p2StoneTeam = [4, 0, 7, 3, 5, 1, 6, 2];
+            //     }
+            //     //CD st h1
+            //     if (s1 == 1 && s2 == 2)
+            //     {
+            //         p2StoneTeam = [2, 6, 7, 3, 1, 5, 4, 0];
+            //     }
+            //     //CD d23
+            //     if (s1 == 5 && s2 == 6)
+            //     {
+            //         p2StoneTeam = [6, 2, 7, 3, 5, 1, 4, 0];
+            //     }
+            // }
             if (s1 != s2)
             {
                 p2StoneMem = (s1, s2);
-                //AB mt h2
-                if (s1 == 0 && s2 == 3)
+
+                // 基础站位：
+                // N: MT D3
+                // E: H2 D2
+                // S: H1 D4
+                // W: ST D1
+                p2StoneTeam = [0, 6, 3, 5, 2, 7, 1, 4];
+
+                HashSet<int> meteorPlayers = [s1, s2];
+
+                foreach (var meteor in meteorPlayers)
                 {
-                    p2StoneTeam = [0, 4, 5, 1, 3, 7, 6, 2];
-                }
-                //AB d14
-                if (s1 == 4 && s2 == 7)
-                {
-                    p2StoneTeam = [4, 0, 5, 1, 7, 3, 6, 2];
-                }
-                //AC 双t
-                if (s1 == 0 && s2 == 1)
-                {
-                    p2StoneTeam = [0, 4, 7, 3, 1, 5, 6, 2];
-                }
-                //AC d12
-                if (s1 == 4 && s2 == 5)
-                {
-                    p2StoneTeam = [4, 0, 7, 3, 5, 1, 6, 2];
-                }
-                //AD mt H1
-                if (s1 == 0 && s2 == 2)
-                {
-                    p2StoneTeam = [0, 4, 7, 3, 2, 6, 5, 1];
-                }
-                //AD d13
-                if (s1 == 4 && s2 == 6)
-                {
-                    p2StoneTeam = [4, 0, 7, 3, 6, 2, 5, 1];
-                }
-                //BC h2 st
-                if (s1 == 1 && s2 == 3)
-                {
-                    p2StoneTeam = [3, 7, 4, 0, 1, 5, 6, 2];
-                }
-                //BC d24
-                if (s1 == 5 && s2 == 7)
-                {
-                    p2StoneTeam = [7, 3, 4, 0, 5, 1, 6, 2];
-                }
-                //BD h12
-                if (s1 == 2 && s2 == 3)
-                {
-                    p2StoneTeam = [4, 0, 3, 7, 5, 1, 2, 6];
-                }
-                //BD d34
-                if (s1 == 6 && s2 == 7)
-                {
-                    p2StoneTeam = [4, 0, 7, 3, 5, 1, 6, 2];
-                }
-                //CD st h1
-                if (s1 == 1 && s2 == 2)
-                {
-                    p2StoneTeam = [2, 6, 7, 3, 1, 5, 4, 0];
-                }
-                //CD d23
-                if (s1 == 5 && s2 == 6)
-                {
-                    p2StoneTeam = [6, 2, 7, 3, 5, 1, 4, 0];
+                    var pos = p2StoneTeam.IndexOf(meteor);
+
+                    // 0=N, 1=E, 2=S, 3=W
+                    var group = pos / 2;
+
+                    // 0=TN lane, 1=DPS lane
+                    var lane = pos % 2;
+
+                    // 已经在 N / S，不需要移动
+                    if (group == 0 || group == 2)
+                        continue;
+
+                    int clockwiseGroup;
+                    int counterClockwiseGroup;
+
+                    if (group == 1)
+                    {
+                        // E -> 顺时针 S，逆时针 N
+                        clockwiseGroup = 2;
+                        counterClockwiseGroup = 0;
+                    }
+                    else
+                    {
+                        // W -> 顺时针 N，逆时针 S
+                        clockwiseGroup = 0;
+                        counterClockwiseGroup = 2;
+                    }
+
+                    // 只找同 lane 的对位
+                    var clockwisePos = clockwiseGroup * 2 + lane;
+                    var counterClockwisePos = counterClockwiseGroup * 2 + lane;
+
+                    // 默认顺时针
+                    var targetPos = clockwisePos;
+
+                    // 顺时针对位本身也是陨石 -> 改走逆时针
+                    if (meteorPlayers.Contains(p2StoneTeam[clockwisePos]))
+                    {
+                        targetPos = counterClockwisePos;
+                    }
+
+                    // 只交换陨石本人和对位，不移动整组
+                    (p2StoneTeam[pos], p2StoneTeam[targetPos]) =
+                        (p2StoneTeam[targetPos], p2StoneTeam[pos]);
                 }
             }
         }
