@@ -30,11 +30,24 @@ namespace KarlinScriptNamespace
         [UserSetting("P5 一运连线冲锋显示延迟(ms)")]
         public int p5TetherCrashDelay { get; set; } = 3000;
 
-        [UserSetting("P6 分散分摊标记")]
+        [UserSetting("P5.2 - derive the priority order from the pre-positions automatically.\n" +
+                    "When the Doom debuffs are applied，\n" +
+                    "The priority order is then determined from each player's current pre-position: all 8 players are sorted \n" +
+                    "from left to right (west to east relative to Ser Guerrique). \n" +
+                    "Uncheck this to use P5DeathPriorityManual instead.")]
+        public bool P5DeathPriorityAuto { get; set; } = true;
+
+        [UserSetting("P5.2 - manual priority order, only used when P5DeathPriorityAuto is unchecked. \n" +
+                     "Highest priority first, keep the surrounding double quotes, e.g. \"MTOTD1R1R2D2H1H2\". \n" +
+                     "Accepted slot names: MT, OT (or ST), H1, H2, melee D1/D2, ranged R1/R2 (or D3/D4). \n" +
+                     "All 8 slots must appear exactly once, otherwise MT OT H1 H2 D1 D2 R1 R2 is used.")]
+        public string P5DeathPriorityManual { get; set; } = "MTOTH1H2D1D2R1R2";
+
+        // [UserSetting("P6 分散分摊标记")]
         public bool p6Mark {  get; set; }=false;
 
-        [UserSetting("P7 死亡轮回116分摊")]
-        public bool p7_116 { get; set; } = true;
+        // [UserSetting("P7 死亡轮回116分摊")]
+        public bool p7_116 { get; set; } = false;
 
         object lockObj=new object();
         
@@ -79,6 +92,10 @@ namespace KarlinScriptNamespace
         (int, int) p2StoneMem = (-1, -1);
 
         private bool p5DeathMarkDone = false;
+
+        // P5 二运处理优先级：下标 = 名次(0 最高)，值 = PartyList 下标。第 4 个死宣落地时锁定，之前退回默认职能序
+        private int[] p5Priority = [0, 1, 2, 3, 4, 5, 6, 7];
+        private volatile bool p5PriorityReady = false;
 
         private bool autoTargetHighestHpRunning = false;
         private string? autoTargetHighestHpActionGuid = null;
@@ -148,7 +165,8 @@ namespace KarlinScriptNamespace
         private static PriorityDict _dfg = new PriorityDict();              // P3 机制记录
         private List<Vector3> _p3TowerAppearPos = [];                       // P3 塔生成位置
         private int _p4MirageDiveNum = 0;                                   // P4 幻象冲次数
-        private bool _p4PrepareToCenter = false;                            // P4 幻象冲准备回中
+        private List<bool> _p4BuffChangeDrawn = new bool[8].ToList();       // P4 红蓝Buff置换指路是否已画（按人）
+        private List<bool> _p4PrepareToCenter = new bool[8].ToList();       // P4 幻象冲准备回中（按人）
         private List<bool> _p4MirageDiveNumFirstRoundTarget = new bool[8].ToList();         // P4 幻象冲第一轮目标
         private List<int> _p4MirageDivePos = [];                            // P4 幻象冲目标方位，左上为0顺时针增加
         private Vector3 _p5VedrfolnirPos = new Vector3(0, 0, 0);            // P5 白龙位置
@@ -175,9 +193,16 @@ namespace KarlinScriptNamespace
 
         private const uint ChariotBlade = 298;
 
-        // 补丁内部调试开关：为 true 时，仅供调试的记录类方法也会出现在用户设置面板
-        private const bool Debugging = false;
+        // 补丁内部调试开关：为 true 时，仅供调试的记录类方法也会出现在用户设置面板；
+        // 同时所有「只画自己」的指路会改为把全队 8 人各自的指路一起画出来，便于一眼检查分配是否正确。
+        // 个人 TTS / TextInfo 语音文字提示不受影响，仍然只给自己播。
+        private const bool Debugging = true;
 
+        /// <summary>
+        /// 取位置index对应玩家的ObjectId，作为指路箭头起点。Debug 模式下用来把全队的指路画在各自身上。
+        /// </summary>
+        private static uint 指路起点(ScriptAccessory sa, int idx)
+            => idx >= 0 && idx < sa.Data.PartyList.Count ? sa.Data.PartyList[idx] : sa.Data.Me;
 
 
         public void Init(ScriptAccessory accessory)
@@ -210,6 +235,8 @@ namespace KarlinScriptNamespace
             p2Jump = (-1, -1);
             
             p5DeathMarkDone = false;
+            p5Priority = [0, 1, 2, 3, 4, 5, 6, 7];
+            p5PriorityReady = false;
 
             accessory.Method.MarkClear();
 
@@ -471,91 +498,82 @@ namespace KarlinScriptNamespace
         public void P1_索尼击退位置(Event @event, ScriptAccessory accessory)
         {
             accessory.Log.Debug($"parse{parse}");
-            if (parse !=1.2) return;
-            
-            var dp = accessory.Data.GetDefaultDrawProperties();
-            dp.Color = accessory.Data.DefaultSafeColor;
-            dp.Scale = new(1);
-            dp.Owner = accessory.Data.Me;
-            dp.DestoryAt = 4000;
-            dp.ScaleMode |= ScaleMode.YByDistance;
+            if (parse != 1.2) return;
 
-            var index = accessory.Data.PartyList.ToList().IndexOf(accessory.Data.Me);
-            
-                
+            var myIndex = accessory.Data.PartyList.ToList().IndexOf(accessory.Data.Me);
             var cpos = new Vector3(100, 0, 100);
             var npos = new Vector3(100, 0, 96);
-            
-            //○
-            if (p1sony[index] == 0)
-            {
-                var p1= RotatePoint(npos, cpos, float.Pi / 2);
-                var p2= RotatePoint(npos, cpos, float.Pi / -2);
-                
-                dp.Name= "P1索尼○1";
-                dp.TargetPosition = p1;
-                accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
-                dp.Name = "P1索尼○2";
-                dp.TargetPosition = p2;
-                accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
-            }
-            //▽
-            if (p1sony[index] == 1)
-            {
-                if(index==2||index==3)
-                {
-                    var p = RotatePoint(npos, cpos, float.Pi / 4 * 3);
-                    dp.Name = "P1索尼▽奶";
-                    dp.TargetPosition = p;
-                    accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
-                }
-                else
-                {
-                    var p = RotatePoint(npos, cpos, float.Pi / -4);
-                    dp.Name = "P1索尼▽D";
-                    dp.TargetPosition = p;
-                    accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
-                }
-            }
-            //□
-            if (p1sony[index] == 2)
-            {
-                if (index == 0 || index == 1)
-                {
-                    var p = RotatePoint(npos, cpos, float.Pi / 4);
-                    dp.Name = "P1索尼□T";
-                    dp.TargetPosition = p;
-                    accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
-                }
-                else
-                {
-                    var p = RotatePoint(npos, cpos, float.Pi / -4 * 3);
-                    dp.Name = "P1索尼□D";
-                    dp.TargetPosition = p;
-                    accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
-                }
-            }
-            //×
-            if (p1sony[index] == 3)
-            {
-                if (index == 0 || index == 1)
-                {
-                    var p = npos;
-                    dp.Name = "P1索尼×T";
-                    dp.TargetPosition = p;
-                    accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
-                }
-                else
-                {
-                    var p = RotatePoint(npos, cpos, float.Pi);
-                    dp.Name = "P1索尼×D";
-                    dp.TargetPosition = p;
-                    accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
-                }
-            }
 
+            // 正常模式只画自己，Debug 模式把全队 8 人的索尼击退终点一起画出来
+            for (var index = 0; index < accessory.Data.PartyList.Count; index++)
+            {
+                if (!Debugging && index != myIndex) continue;
 
+                var dp = accessory.Data.GetDefaultDrawProperties();
+                dp.Color = accessory.Data.DefaultSafeColor;
+                dp.Scale = new(1);
+                dp.Owner = 指路起点(accessory, index);
+                dp.DestoryAt = 4000;
+                dp.ScaleMode |= ScaleMode.YByDistance;
+
+                //○
+                if (p1sony[index] == 0)
+                {
+                    dp.Name = $"P1索尼○1-{index}";
+                    dp.TargetPosition = RotatePoint(npos, cpos, float.Pi / 2);
+                    accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
+                    dp.Name = $"P1索尼○2-{index}";
+                    dp.TargetPosition = RotatePoint(npos, cpos, float.Pi / -2);
+                    accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
+                }
+                //▽
+                if (p1sony[index] == 1)
+                {
+                    if (index == 2 || index == 3)
+                    {
+                        dp.Name = $"P1索尼▽奶-{index}";
+                        dp.TargetPosition = RotatePoint(npos, cpos, float.Pi / 4 * 3);
+                    }
+                    else
+                    {
+                        dp.Name = $"P1索尼▽D-{index}";
+                        dp.TargetPosition = RotatePoint(npos, cpos, float.Pi / -4);
+                    }
+                    accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
+                }
+                //□
+                if (p1sony[index] == 2)
+                {
+                    if (index == 0 || index == 1)
+                    {
+                        dp.Name = $"P1索尼□T-{index}";
+                        dp.TargetPosition = RotatePoint(npos, cpos, float.Pi / 4);
+                    }
+                    else
+                    {
+                        dp.Name = $"P1索尼□D-{index}";
+                        dp.TargetPosition = RotatePoint(npos, cpos, float.Pi / -4 * 3);
+                    }
+                    accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
+                }
+                //×
+                if (p1sony[index] == 3)
+                {
+                    if (index == 0 || index == 1)
+                    {
+                        dp.Name = $"P1索尼×T-{index}";
+                        dp.TargetPosition = npos;
+                    }
+                    else
+                    {
+                        dp.Name = $"P1索尼×D-{index}";
+                        dp.TargetPosition = RotatePoint(npos, cpos, float.Pi);
+                    }
+                    accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
+                }
+            }
         }
+
         [ScriptMethod(name: "P1 光翼闪", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:25316"])]
         public void P1_光翼闪(Event @event, ScriptAccessory accessory)
         {
@@ -614,26 +632,32 @@ namespace KarlinScriptNamespace
             // 纯洁心灵引导顺序H1H2, D1D2，D3D4，MTST
             var myIndex = accessory.GetMyIndex();
             // 此处为第一次纯洁心灵，如果非H1H2，不参与
-            if (myIndex is not (2 or 3)) return;
+            if (!Debugging && myIndex is not (2 or 3)) return;
             // todo 修改delay与destroy
-            P1_绘制纯洁心灵引导(accessory, 0, 15000);
+            // 第一次由H1H2两人引导，正常模式只画自己那一份
+            int[] firstBaitIdx = [2, 3];
+            foreach (var baitIdx in firstBaitIdx)
+            {
+                if (!Debugging && baitIdx != myIndex) continue;
+                P1_绘制纯洁心灵引导(accessory, baitIdx, 0, 15000);
+            }
         }
 
-        private void P1_绘制纯洁心灵引导(ScriptAccessory sa, int delay, int destroy)
+        private void P1_绘制纯洁心灵引导(ScriptAccessory sa, int playerIndex, int delay, int destroy)
         {
-            var myIndex = sa.GetMyIndex();
             Vector3[] baitPos = [new(87.0f, 0.0f, 108.0f), new(91.0f, 0.0f, 108.0f)];
-            var baitPosIdx = 1 - myIndex % 2;   // 偶数索引(MT/H1/D1/D3)在内点，奇数索引(ST/H2/D2/D4)在外点
+            var baitPosIdx = 1 - playerIndex % 2;   // 偶数索引(MT/H1/D1/D3)在内点，奇数索引(ST/H2/D2/D4)在外点
             for (var posIdx = 0; posIdx < baitPos.Length; posIdx++)
             {
                 var color = baitPosIdx == posIdx ? PosColorPlayer.V4 : PosColorNormal.V4;
                 var dp = sa.DrawStaticCircle(baitPos[posIdx], color, delay, destroy, $"纯洁心灵", 0.5f);
                 sa.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Circle, dp);
                 if (baitPosIdx != posIdx) continue;
-                var dpGuide = sa.DrawGuidance(baitPos[posIdx], delay, destroy, $"纯洁心灵指路");
+                var dpGuide = sa.DrawGuidance(指路起点(sa, playerIndex), baitPos[posIdx], delay, destroy, $"纯洁心灵指路{playerIndex}");
                 sa.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dpGuide);
             }
         }
+
 
         [ScriptMethod(name: "P1 纯洁心灵引导后续", eventType: EventTypeEnum.ActionEffect, eventCondition: ["ActionId:25369"], 
             userControl: false)]
@@ -648,9 +672,10 @@ namespace KarlinScriptNamespace
                 sa.Log.Debug($"纯洁心灵引导次数：{_pureOfHeartBaitCount}");
                 if (_pureOfHeartBaitCount > 6) return;
                 var baitDict = new Dictionary<int, int> { { 1, 4 }, { 2, 5 }, { 3, 6 }, { 4, 7 }, { 5, 0 }, { 6, 1 } };
-                if (baitDict[_pureOfHeartBaitCount] != myIndex) return;
+                var baitIdx = baitDict[_pureOfHeartBaitCount];
+                if (!Debugging && baitIdx != myIndex) return;
                 sa.Log.Debug($"开始绘制玩家的纯洁心灵引导");
-                P1_绘制纯洁心灵引导(sa, 0, 5000);
+                P1_绘制纯洁心灵引导(sa, baitIdx, 0, 5000);
             }
         }
 
@@ -975,17 +1000,24 @@ namespace KarlinScriptNamespace
             var safeDir = _p2SafeDirection.IndexOf(false);
             var northPos = new Vector3(100, 0, 80);
             var myIndex = accessory.GetMyIndex();
-            var isStGroup = myIndex % 2 == 1;
-            // ST组在0、1、2、3
-            var tposCenter =
-                northPos.RotatePoint(_center, isStGroup ? safeDir * float.Pi / 4 : (safeDir + 4) * float.Pi / 4);
-            var tposIn = tposCenter.PointInOutside(_center, 7.5f);
-            var tposLeft = tposCenter.RotatePoint(_center, 20f.DegToRad());
-            var tposRight = tposCenter.RotatePoint(_center, -20f.DegToRad());
-            List<Vector3> tposList = [tposCenter, tposIn, tposLeft, tposRight];
 
-            var dp = accessory.DrawGuidance(tposList[myIndex / 2], 0, 7000, $"P2一运安全区位置{myIndex}");
-            accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
+            // 正常模式只画自己，Debug 模式把全队 8 人的分散点一起画出来
+            for (var i = 0; i < accessory.Data.PartyList.Count; i++)
+            {
+                if (!Debugging && i != myIndex) continue;
+                var isStGroup = i % 2 == 1;
+                // ST组在0、1、2、3
+                var tposCenter =
+                    northPos.RotatePoint(_center, isStGroup ? safeDir * float.Pi / 4 : (safeDir + 4) * float.Pi / 4);
+                var tposIn = tposCenter.PointInOutside(_center, 7.5f);
+                var tposLeft = tposCenter.RotatePoint(_center, 20f.DegToRad());
+                var tposRight = tposCenter.RotatePoint(_center, -20f.DegToRad());
+                List<Vector3> tposList = [tposCenter, tposIn, tposLeft, tposRight];
+
+                var dp = accessory.DrawGuidance(指路起点(accessory, i), tposList[i / 2], 0, 7000, $"P2一运安全区位置{i}");
+                accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
+            }
+
 
             _thrustEvent.Reset();
         }
@@ -996,7 +1028,7 @@ namespace KarlinScriptNamespace
             if (_dsrPhase != DsrPhase.Phase2Strength) return;
             var myIndex = accessory.GetMyIndex();
 
-            accessory.Method.RemoveDraw($"P2一运安全区位置{myIndex}");
+            accessory.Method.RemoveDraw(Debugging ? "P2一运安全区位置.*" : $"P2一运安全区位置{myIndex}");
         }
 
         [ScriptMethod(name: "P2 一运骑神边缘位置记录", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:25550"], userControl: false)]
@@ -1013,14 +1045,13 @@ namespace KarlinScriptNamespace
         {
             if (_dsrPhase != DsrPhase.Phase2Strength) return;
             var myIndex = sa.GetMyIndex();
-            if (myIndex > 1) return;
+            if (!Debugging && myIndex > 1) return;
             _thordanCastAtEdgeEvent.WaitOne();
             lock (_p2TetherKnightId)
             {
                 var sid = @event.SourceId();
                 var sname = @event.SourceName();
                 var spos = @event.SourcePosition();
-                // var rad = spos.FindRadian(_p2ThordanPos);
 
                 var atRight = spos.IsAtRight(_p2ThordanPos, _center);
                 _p2TetherKnightId[atRight ? 1 : 0] = sid;
@@ -1029,23 +1060,29 @@ namespace KarlinScriptNamespace
                 sa.Log.Debug($"记录{sname}（对话{@event.Id()}）在{(atRight ? "右" : "左")}");
 
                 if (_p2TetherKnightId.Contains(0)) return;
-                var targetKnightIdx = myIndex == 0 ? 0 : 1;
-                var chara = sa.GetById(_p2TetherKnightId[targetKnightIdx]);
-                if (chara == null) return;
 
-                var knightPos = chara.Position;
-                var tetherEdgePos = _p2ThordanPos.RotatePoint(_center, (myIndex == 0 ? 1 : -1) * 18f.DegToRad());
-                tetherEdgePos = tetherEdgePos.PointInOutside(_center, 3f);
-                var dp = sa.DrawGuidance(knightPos, tetherEdgePos, 0, 10000, $"接线路径");
-                sa.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
+                // 正常模式只画自己那条接线，Debug 模式把 MT/ST 两条接线路径都画出来
+                for (var i = 0; i < 2; i++)
+                {
+                    if (!Debugging && i != myIndex) continue;
+                    var chara = sa.GetById(_p2TetherKnightId[i]);
+                    if (chara == null) continue;
+
+                    var knightPos = chara.Position;
+                    var tetherEdgePos = _p2ThordanPos.RotatePoint(_center, (i == 0 ? 1 : -1) * 18f.DegToRad());
+                    tetherEdgePos = tetherEdgePos.PointInOutside(_center, 3f);
+                    var dp = sa.DrawGuidance(knightPos, tetherEdgePos, 0, 10000, $"接线路径{i}");
+                    sa.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
+                }
             }
         }
+
 
         [ScriptMethod(name: "P2 一运接线提示删除", eventType: EventTypeEnum.ActionEffect, eventCondition: ["ActionId:25550"], userControl: false)]
         public void P2_一运接线提示删除(Event @event, ScriptAccessory sa)
         {
             if (_dsrPhase != DsrPhase.Phase2Strength) return;
-            sa.Method.RemoveDraw($"接线路径");
+            sa.Method.RemoveDraw($"接线路径.*");
             _thordanCastAtEdgeEvent.Reset();
         }
 
@@ -1058,29 +1095,6 @@ namespace KarlinScriptNamespace
             parse = 2.2;
         }
 
-        [ScriptMethod(name: "P2 二运预站位", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:25569"])]
-        public void P2_二运预站位(Event @event, ScriptAccessory accessory)
-        {
-            var index = accessory.Data.PartyList.IndexOf(accessory.Data.Me);
-            var dp = accessory.Data.GetDefaultDrawProperties();
-            dp.Name = "P2_二运预站位";
-            dp.Color = accessory.Data.DefaultSafeColor;
-            dp.Owner = accessory.Data.Me; 
-            dp.DestoryAt = 4000;
-            dp.Scale = new Vector2(2);
-            dp.ScaleMode = ScaleMode.YByDistance;
-            if (index == 0) dp.TargetPosition = new(92, 0, 99);
-            if (index == 1) dp.TargetPosition = new(109, 0, 101);
-            if (index == 2) dp.TargetPosition = new(92, 0, 99);
-            if (index == 3) dp.TargetPosition = new(109, 0, 101);
-            if (index == 4) dp.TargetPosition = new(92, 0, 99);
-            if (index == 5) dp.TargetPosition = new(109, 0, 101);
-            if (index == 6) dp.TargetPosition = new(92, 0, 99);
-            if (index == 7) dp.TargetPosition = new(109, 0, 101);
-
-            accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
-
-        }
 
         [ScriptMethod(name: "P2 二运龙眼背对", eventType: EventTypeEnum.EnvControl, eventCondition: ["DirectorId:8003759A", "Id:00020001"])]
         public void P2_二运龙眼背对(Event @event, ScriptAccessory accessory)
@@ -1172,37 +1186,39 @@ namespace KarlinScriptNamespace
 
 
                 var drot = p2AdelPos.X > 100? float.Pi / 45: float.Pi / -45;
-                var meIndex = accessory.Data.PartyList.ToList().IndexOf(accessory.Data.Me);
-                var dp = accessory.Data.GetDefaultDrawProperties();
-                dp.Scale = new(1.5f, 20);
-                dp.Color = accessory.Data.DefaultSafeColor.WithW(3);
-                dp.Owner = accessory.Data.Me;
-                dp.DestoryAt = 5000;
-                dp.ScaleMode |= ScaleMode.YByDistance;
-
+                var myIndex = accessory.Data.PartyList.ToList().IndexOf(accessory.Data.Me);
                 var cpos = new Vector3(100, 0, 100);
                 var sPos = (p2ZPos - cpos) / 15 * 19.5f + cpos;
-                if (meIndex >= 0 && meIndex < 8 && group[meIndex] == 1)
+
+                // 正常模式只画自己，Debug 模式把全队 8 人的劈刀起跑路径一起画出来
+                for (var meIndex = 0; meIndex < accessory.Data.PartyList.Count; meIndex++)
                 {
-                    dp.TargetPosition = RotatePoint(sPos, cpos, float.Pi + drot * 3);
+                    if (!Debugging && meIndex != myIndex) continue;
+
+                    var dp = accessory.Data.GetDefaultDrawProperties();
+                    dp.Name = $"P2 2运劈刀起跑{meIndex}";
+                    dp.Scale = new(1.5f, 20);
+                    dp.Color = accessory.Data.DefaultSafeColor.WithW(3);
+                    dp.Owner = 指路起点(accessory, meIndex);
+                    dp.DestoryAt = 5000;
+                    dp.ScaleMode |= ScaleMode.YByDistance;
+                    dp.TargetPosition = group[meIndex] == 1
+                        ? RotatePoint(sPos, cpos, float.Pi + drot * 3)
+                        : RotatePoint(sPos, cpos, drot * 3);
+
+                    accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
+
+                    var dp2 = accessory.Data.GetDefaultDrawProperties();
+                    dp2.Name = $"P2 2运劈刀绕圈{meIndex}";
+                    dp2.Color = accessory.Data.DefaultSafeColor.WithW(3);
+                    dp2.Scale = new(1.5f, 20);
+                    dp2.ScaleMode |= ScaleMode.YByDistance;
+                    dp2.DestoryAt = 15000;
+                    dp2.Position = dp.TargetPosition;
+                    dp2.TargetPosition = RotatePoint(dp2.Position.Value, cpos, drot * 5);
+                    accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp2);
                 }
-                else
-                {
-                    dp.TargetPosition = RotatePoint(sPos, cpos, drot * 3);
-                }
 
-                accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
-
-
-
-                var dp2 = accessory.Data.GetDefaultDrawProperties();
-                dp2.Color = accessory.Data.DefaultSafeColor.WithW(3);
-                dp2.Scale = new(1.5f, 20);
-                dp2.ScaleMode |= ScaleMode.YByDistance;
-                dp2.DestoryAt = 15000;
-                dp2.Position=dp.TargetPosition;
-                dp2.TargetPosition = RotatePoint(dp2.Position.Value, cpos, drot * 5);
-                accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp2);
             });
         }
         [ScriptMethod(name: "P2 二运光球爆炸范围", eventType: EventTypeEnum.AddCombatant, eventCondition: ["DataId:13070"])]
@@ -1311,9 +1327,9 @@ namespace KarlinScriptNamespace
                 // 基础站位：
                 // N: MT D3
                 // E: H2 D2
-                // S: H1 D4
-                // W: ST D1
-                p2StoneTeam = [0, 6, 3, 5, 2, 7, 1, 4];
+                // S: ST D4
+                // W: H1 D1
+                p2StoneTeam = [0, 6, 3, 5, 1, 7, 2, 4];
 
                 HashSet<int> meteorPlayers = [s1, s2];
 
@@ -1392,18 +1408,24 @@ namespace KarlinScriptNamespace
             if (parse != 2.2) return;
             Task.Delay(100).ContinueWith(t =>
             {
-                var idIndex = accessory.Data.PartyList.ToList().IndexOf(accessory.Data.Me);
-                var dir4=p2StoneTeam.IndexOf(idIndex)/2;
-                var dp = accessory.Data.GetDefaultDrawProperties();
-                dp.Name = "P2 2运冰分摊位置(ImGui)";
-                dp.Scale = new(3f, 10);
-                dp.ScaleMode |= ScaleMode.YByDistance;
-                dp.Color = accessory.Data.DefaultSafeColor;
-                dp.Owner = accessory.Data.Me;
-                dp.TargetPosition = RotatePoint(new(100,0,88.5f),new(100,0,100),float.Pi/2*dir4);
-                dp.DestoryAt = 7000;
+                var myIndex = accessory.Data.PartyList.ToList().IndexOf(accessory.Data.Me);
+                // 正常模式只画自己，Debug 模式把全队 8 人的冰分摊点一起画出来
+                for (var idIndex = 0; idIndex < accessory.Data.PartyList.Count; idIndex++)
+                {
+                    if (!Debugging && idIndex != myIndex) continue;
+                    var dir4 = p2StoneTeam.IndexOf(idIndex) / 2;
+                    var dp = accessory.Data.GetDefaultDrawProperties();
+                    dp.Name = $"P2 2运冰分摊位置(ImGui){idIndex}";
+                    dp.Scale = new(3f, 10);
+                    dp.ScaleMode |= ScaleMode.YByDistance;
+                    dp.Color = accessory.Data.DefaultSafeColor;
+                    dp.Owner = 指路起点(accessory, idIndex);
+                    dp.TargetPosition = RotatePoint(new(100, 0, 88.5f), new(100, 0, 100), float.Pi / 2 * dir4);
+                    dp.DestoryAt = 7000;
 
-                accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
+                    accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
+                }
+
             });
             
 
@@ -1437,57 +1459,123 @@ namespace KarlinScriptNamespace
             {
                 List<int> towerMem = [-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1];
                 List<int> alternate = [];
-                //高优先级
+                HashSet<int> meteorPlayers = [p2StoneMem.Item1, p2StoneMem.Item2];
+
+                // 每组两人的优先级：
+                // 1. 如果本组有陨石，陨石强制高优先，另一人低优先。
+                // 2. 如果本组没有陨石，保持原 TN > DPS：p2StoneTeam 偶数位为 TN，奇数位为 DPS。
+                (int High, int Low)[] groupPriority = new (int High, int Low)[4];
                 for (int i = 0; i < 4; i++)
                 {
-                    var MemIndex = p2StoneTeam[i * 2];
-                    //中
-                    if (p2Tower[i * 3 + 1])
+                    var first = p2StoneTeam[i * 2];
+                    var second = p2StoneTeam[i * 2 + 1];
+                    var firstMeteor = meteorPlayers.Contains(first);
+                    var secondMeteor = meteorPlayers.Contains(second);
+
+                    if (firstMeteor && !secondMeteor)
                     {
-                        towerMem[i * 3 + 1] = MemIndex;
-                        continue;
+                        groupPriority[i] = (first, second);
                     }
-                    //左
-                    if (p2Tower[i * 3])
+                    else if (secondMeteor && !firstMeteor)
                     {
-                        towerMem[i * 3] = MemIndex;
-                        continue;
+                        groupPriority[i] = (second, first);
                     }
-                    //右
-                    if (p2Tower[i * 3 + 2])
+                    else
                     {
-                        towerMem[i * 3 + 2] = MemIndex;
-                        continue;
+                        // 正常情况：本组无陨石，按 TN > DPS。
+                        // 如果极端情况下同组两人都是陨石，也用 TN > DPS 作为稳定 fallback。
+                        groupPriority[i] = (first, second);
                     }
                 }
 
-                //低优先级
+                // ===== 先分配两个陨石的外围塔 =====
+                // 两个陨石优先踩严格 180° 对称的外围塔。
+                // 外围 12 塔每 30° 一个，因此对面塔 index = (index + 6) % 12。
+                // 如果有多组 180° 解，按 中 -> 左 -> 右 选择。
+                List<(int Group, int Player)> meteorHigh = [];
                 for (int i = 0; i < 4; i++)
                 {
-                    var MemIndex = p2StoneTeam[i * 2 + 1];
-                    //左
-                    if (p2Tower[i * 3] && towerMem[i * 3] == -1)
-                    {
-                        towerMem[i * 3] = MemIndex;
-                        continue;
-                    }
-                    //右
-                    if (p2Tower[i * 3 + 2] && towerMem[i * 3 + 2] == -1)
-                    {
-                        towerMem[i * 3 + 2] = MemIndex;
-                        continue;
-                    }
-                    //内左
-                    if (p2Tower[i + 12] && towerMem[i + 12] == -1)
-                    {
-                        towerMem[i + 12] = MemIndex;
-                        continue;
-                    }
-                    //补塔
-                    alternate.Add(MemIndex);
+                    if (meteorPlayers.Contains(groupPriority[i].High))
+                        meteorHigh.Add((i, groupPriority[i].High));
                 }
 
-                //补塔
+                if (meteorHigh.Count == 2)
+                {
+                    var firstMeteor = meteorHigh[0];
+                    var secondMeteor = meteorHigh[1];
+
+                    // 换组完成后正常应处于对面两组（N/S）。
+                    if ((firstMeteor.Group + 2) % 4 == secondMeteor.Group)
+                    {
+                        int[] meteorOuterOrder = [1, 0, 2]; // 中 -> 左 -> 右
+                        foreach (var offset in meteorOuterOrder)
+                        {
+                            var firstTower = firstMeteor.Group * 3 + offset;
+                            var oppositeTower = (firstTower + 6) % 12;
+
+                            if (oppositeTower / 3 != secondMeteor.Group) continue;
+                            if (!p2Tower[firstTower] || !p2Tower[oppositeTower]) continue;
+
+                            towerMem[firstTower] = firstMeteor.Player;
+                            towerMem[oppositeTower] = secondMeteor.Player;
+                            break;
+                        }
+                    }
+                }
+
+                // ===== 分配四组高优先 =====
+                // 陨石若已经通过 180° 规则分配则保持；其余高优先仍按 中 -> 左 -> 右 找外围塔。
+                int[] highOuterOrder = [1, 0, 2];
+                for (int i = 0; i < 4; i++)
+                {
+                    var memIndex = groupPriority[i].High;
+                    if (towerMem.Contains(memIndex)) continue;
+
+                    foreach (var offset in highOuterOrder)
+                    {
+                        var towerIndex = i * 3 + offset;
+                        if (!p2Tower[towerIndex] || towerMem[towerIndex] != -1) continue;
+
+                        towerMem[towerIndex] = memIndex;
+                        break;
+                    }
+                }
+
+                // ===== 分配四组低优先 =====
+                // 先补本组剩余外围塔。保持原本“左 -> 右”的偏好；
+                // 如果陨石为了 180° 对称没有踩中塔，则允许低优先补中塔。
+                // 本组外围都没有空位时，再踩本组内塔；仍没有则进入统一补塔。
+                int[] lowOuterOrder = [0, 2, 1]; // 左 -> 右 -> 中(fallback)
+                for (int i = 0; i < 4; i++)
+                {
+                    var memIndex = groupPriority[i].Low;
+                    var assigned = false;
+
+                    foreach (var offset in lowOuterOrder)
+                    {
+                        var towerIndex = i * 3 + offset;
+                        if (!p2Tower[towerIndex] || towerMem[towerIndex] != -1) continue;
+
+                        towerMem[towerIndex] = memIndex;
+                        assigned = true;
+                        break;
+                    }
+
+                    if (assigned) continue;
+
+                    // 本组内塔
+                    var innerTower = i + 12;
+                    if (p2Tower[innerTower] && towerMem[innerTower] == -1)
+                    {
+                        towerMem[innerTower] = memIndex;
+                        continue;
+                    }
+
+                    // 补其他未分配内塔
+                    alternate.Add(memIndex);
+                }
+
+                // 补塔
                 foreach (var mem in alternate)
                 {
                     for (int i = 12; i < 16; i++)
@@ -1500,37 +1588,43 @@ namespace KarlinScriptNamespace
                     }
                 }
 
-                var idIndex = accessory.Data.PartyList.ToList().IndexOf(accessory.Data.Me);
+                var myIndex = accessory.Data.PartyList.ToList().IndexOf(accessory.Data.Me);
                 var npos = new Vector3(100, 0, 82);
                 var npos2 = new Vector3(100, 0, 94);
                 var cpos = new Vector3(100, 0, 100);
-                var dp = accessory.Data.GetDefaultDrawProperties();
-                var tIndex = towerMem.IndexOf(idIndex);
-                if (tIndex >= 0 && tIndex < 12)
-                {
-                    dp.Position = RotatePoint(npos, cpos, float.Pi / 6 * (tIndex - 1));
-                }
-                if (tIndex >= 12 && tIndex < 16)
-                {
-                    dp.Position = RotatePoint(npos2, cpos, float.Pi / 2 * (tIndex - 12) + float.Pi / 4);
-                }
 
-                dp.Name = "P2 2运第一轮塔位置(ImGui)";
-                dp.DestoryAt = 12000;
-                dp.Color = accessory.Data.DefaultSafeColor;
-                dp.Scale = new(3);
-                accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Circle, dp);
+                // 正常模式只画自己，Debug 模式把全队 8 人的塔位置一起画出来
+                for (var idIndex = 0; idIndex < accessory.Data.PartyList.Count; idIndex++)
+                {
+                    if (!Debugging && idIndex != myIndex) continue;
+                    var tIndex = towerMem.IndexOf(idIndex);
+                    var dp = accessory.Data.GetDefaultDrawProperties();
+                    if (tIndex >= 0 && tIndex < 12)
+                    {
+                        dp.Position = RotatePoint(npos, cpos, float.Pi / 6 * (tIndex - 1));
+                    }
+                    if (tIndex >= 12 && tIndex < 16)
+                    {
+                        dp.Position = RotatePoint(npos2, cpos, float.Pi / 2 * (tIndex - 12) + float.Pi / 4);
+                    }
 
-                var dp2 = accessory.Data.GetDefaultDrawProperties();
-                dp2.Name = "P2 2运第一轮塔位置(ImGui)";
-                dp2.Color= accessory.Data.DefaultSafeColor;
-                dp2.Owner = accessory.Data.Me;
-                dp2.TargetPosition = dp.Position;
-                dp2.Scale = new(3f, 10);
-                dp2.ScaleMode |= ScaleMode.YByDistance;
-                dp2.Delay = 7500;
-                dp2.DestoryAt = 4500;
-                accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp2);
+                    dp.Name = $"P2 2运第一轮塔位置(ImGui){idIndex}";
+                    dp.DestoryAt = 12000;
+                    dp.Color = accessory.Data.DefaultSafeColor;
+                    dp.Scale = new(3);
+                    accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Circle, dp);
+
+                    var dp2 = accessory.Data.GetDefaultDrawProperties();
+                    dp2.Name = $"P2 2运第一轮塔位置(ImGui){idIndex}";
+                    dp2.Color = accessory.Data.DefaultSafeColor;
+                    dp2.Owner = 指路起点(accessory, idIndex);
+                    dp2.TargetPosition = dp.Position;
+                    dp2.Scale = new(3f, 10);
+                    dp2.ScaleMode |= ScaleMode.YByDistance;
+                    dp2.Delay = 7500;
+                    dp2.DestoryAt = 4500;
+                    accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp2);
+                }
 
             });
         }
@@ -1539,23 +1633,28 @@ namespace KarlinScriptNamespace
         {
             if (parse != 2.2) return;
 
-            var index = accessory.Data.PartyList.ToList().IndexOf(accessory.Data.Me);
-            var posIndex =p2StoneTeam.IndexOf(index);
-            if (index == p2StoneMem.Item1) posIndex = p2StoneTeam.IndexOf(p2StoneMem.Item2);
-            if (index == p2StoneMem.Item2) posIndex = p2StoneTeam.IndexOf(p2StoneMem.Item1);
-
+            var myIndex = accessory.Data.PartyList.ToList().IndexOf(accessory.Data.Me);
             var npos = new Vector3(100, 0, 82);
             var cpos = new Vector3(100, 0, 100);
-            var dp = accessory.Data.GetDefaultDrawProperties();
-            dp.TargetPosition = RotatePoint(npos, cpos, float.Pi / 4 * posIndex);
-            
 
-            dp.Name = "P2 2运第一轮塔位置(ImGui)";
-            dp.DestoryAt = 11000;
-            dp.Color = accessory.Data.DefaultSafeColor;
-            dp.Position = dp.TargetPosition;
-            dp.Scale = new(3);
-            accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Circle, dp);
+            // 正常模式只画自己，Debug 模式把全队 8 人的第二轮塔位置一起画出来
+            for (var index = 0; index < accessory.Data.PartyList.Count; index++)
+            {
+                if (!Debugging && index != myIndex) continue;
+                var posIndex = p2StoneTeam.IndexOf(index);
+                if (index == p2StoneMem.Item1) posIndex = p2StoneTeam.IndexOf(p2StoneMem.Item2);
+                if (index == p2StoneMem.Item2) posIndex = p2StoneTeam.IndexOf(p2StoneMem.Item1);
+
+                var dp = accessory.Data.GetDefaultDrawProperties();
+                dp.TargetPosition = RotatePoint(npos, cpos, float.Pi / 4 * posIndex);
+                dp.Name = $"P2 2运第二轮塔位置(ImGui){index}";
+                dp.DestoryAt = 11000;
+                dp.Color = accessory.Data.DefaultSafeColor;
+                dp.Position = dp.TargetPosition;
+                dp.Scale = new(3);
+                accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Circle, dp);
+            }
+
 
 
         }
@@ -1865,19 +1964,25 @@ namespace KarlinScriptNamespace
             {
                 var idIndex = accessory.Data.PartyList.ToList().IndexOf(accessory.Data.Me);
                 var myTower = -1;
-                //D4
-                if (idIndex == 7) { myTower = 0; }
-                //H2
+                // D3 -> NE
+                if (idIndex == 6) { myTower = 0; }
+
+                // H2 -> SE
                 if (idIndex == 3) { myTower = 1; }
-                //H1
-                if (idIndex == 2) { myTower = 2; }
-                //D3
-                if (idIndex == 6) { myTower = 3; }
-                //St
-                if (idIndex == 1) 
+
+                // D4 -> SW
+                if (idIndex == 7) { myTower = 2; }
+
+                // H1 -> NW
+                if (idIndex == 2) { myTower = 3; }
+
+                // MT -> 北
+                if (idIndex == 0)
                 {
-                    
-                    if (p3Tower[0] >= 2) { myTower = 0;}
+                    if (p3Tower[0] >= 2)
+                    {
+                        myTower = 0;
+                    }
                     else
                     {
                         if (p3Tower[1] > 2) { myTower = 1; }
@@ -1896,10 +2001,13 @@ namespace KarlinScriptNamespace
                         else if (p3Tower[3] > 2) { myTower = 3; }
                     }
                 }
-                //D1
-                if (idIndex == 4)
+                // ST -> 南
+                if (idIndex == 1)
                 {
-                    if (p3Tower[2] >= 2) { myTower = 2; }
+                    if (p3Tower[2] >= 2)
+                    {
+                        myTower = 2;
+                    }
                     else
                     {
                         if (p3Tower[3] > 2) { myTower = 3; }
@@ -1907,10 +2015,13 @@ namespace KarlinScriptNamespace
                         else if (p3Tower[0] > 2) { myTower = 0; }
                     }
                 }
-                //Mt
-                if (idIndex == 0)
+                // D1 -> 西
+                if (idIndex == 4)
                 {
-                    if (p3Tower[3] >= 2) { myTower = 3; }
+                    if (p3Tower[3] >= 2)
+                    {
+                        myTower = 3;
+                    }
                     else
                     {
                         if (p3Tower[0] > 2) { myTower = 0; }
@@ -1980,7 +2091,7 @@ namespace KarlinScriptNamespace
             _dsrPhase = DsrPhase.Phase3Nidhogg;
             _p3DfgEnable = false;
             // 百位：一麻+0，二麻+100，三麻+100
-            // 十位：下箭头+0，中+10，下箭头+20
+            // 十位：上箭头+0，中+10，下箭头+20
             // 个位：左中右站位分别+0, +1, +2
             // 如此安排，个位可随时变，十位改变后，个位无力干涉
             _dfg.Init(sa, "堕天龙炎冲");
@@ -2027,8 +2138,8 @@ namespace KarlinScriptNamespace
 
                 var dirVal = stid switch
                 {
-                    2756 => 20, // 上箭头，上B
-                    2757 => 0, // 下箭头，下D
+                    2756 => 0, // 上箭头，上B
+                    2757 => 20, // 下箭头，下D
                     2755 => 10, // 原地，中
                     _ => 10
                 };
@@ -2037,24 +2148,31 @@ namespace KarlinScriptNamespace
                 _dfg.AddActionCount();
                 sa.Log.Debug($"玩家 {sa.GetPlayerJobByIndex(tidx)} 为 {dirVal switch
                 {
-                    0 => "下箭头",
+                    0 => "上箭头",
                     10 => "原地",
-                    _ => "上箭头"
+                    _ => "下箭头"
                 }}。");
 
                 if (_dfg.ActionCount != 8) return;
 
-                // 获得自身数值，并依据方位更新
+                // 此刻八人都在预站位上，三组一起按 X 排序刷新左中右。
+                // 只刷新自己那组的话，其余两组的个位恒为 0，FindPriorityIndexOfKey 只能按队列序号破平，
+                // 组内同箭头的两人位次就是错的（Debug 全队绘制、以及踩塔时按位次找人都会受影响）。
+                for (var g = 0; g < 3; g++)
+                    P3_刷新组内左右位置(sa, g);
+
                 var myPriority = _dfg.Priorities[sa.GetMyIndex()];
-                P3_刷新同组左右位置(sa, myPriority);
                 sa.Log.Debug($"玩家在 {_dfg.Annotation} 机制的数值为：{myPriority}");
             }
         }
 
-        private void P3_刷新同组左右位置(ScriptAccessory sa, int myPriority)
+        /// <summary>
+        /// 按当前实际 X 坐标刷新某一组（0=一麻，1=二麻，2=三麻）组内成员的左中右位次（优先级个位）
+        /// </summary>
+        private void P3_刷新组内左右位置(ScriptAccessory sa, int groupIdx)
         {
-            // 获得同组玩家Id
-            var myGroupVal = (myPriority / 100) switch
+            // 获得该组玩家Id
+            var myGroupVal = groupIdx switch
             {
                 // 此处取值含义为
                 // 十位：从第几个开始取
@@ -2067,7 +2185,7 @@ namespace KarlinScriptNamespace
 
             if (myGroupVal == 0)
             {
-                sa.Log.Error($"GetDfgGroupPlayers 中 myGroupVal == 0");
+                sa.Log.Error($"P3_刷新组内左右位置 中 groupIdx = {groupIdx} 非法");
                 return;
             }
 
@@ -2079,12 +2197,12 @@ namespace KarlinScriptNamespace
                 var eid = sa.Data.PartyList[pidx];
                 var prior = myGroupDict[i].Value;
                 myGroupPlayerIds.Add(new KeyValuePair<int, ulong>(pidx, eid));
-                sa.Log.Debug($"与我同组的玩家有{sa.GetPlayerJobByIndex(pidx)}，其优先级数值为{prior}, EntityId为{eid}");
+                sa.Log.Debug($"第 {groupIdx + 1} 组玩家有{sa.GetPlayerJobByIndex(pidx)}，其优先级数值为{prior}, EntityId为{eid}");
             }
 
-            // 根据同组左右位置排序
+            // 根据组内左右位置排序，取不到对象的人排到最后，避免空引用
             var sortedGroupPlayerIds = myGroupPlayerIds
-                .OrderBy(v => sa.GetById(v.Value).Position.X)
+                .OrderBy(v => sa.GetById(v.Value)?.Position.X ?? float.MaxValue)
                 .ToList();
 
             // 根据排序为优先级字典添加值
@@ -2143,12 +2261,25 @@ namespace KarlinScriptNamespace
             if (_dsrPhase != DsrPhase.Phase3Nidhogg) return;
             if (!_p3DfgEnable) return;
             _dfg.AddActionCount(10);
+
+            var myIndex = sa.GetMyIndex();
+            // 正常模式只画自己，Debug 模式把全队 8 人的麻将流程一起画出来
+            for (var i = 0; i < sa.Data.PartyList.Count; i++)
+            {
+                if (!Debugging && i != myIndex) continue;
+                P3_绘制麻将放塔与分摊(sa, i);
+            }
+        }
+
+        private void P3_绘制麻将放塔与分摊(ScriptAccessory sa, int playerIndex)
+        {
             // 仅需获得排序，便可知麻将流程
-            var myPriority = _dfg.Priorities[sa.GetMyIndex()];
-            var myDfgIdx = _dfg.FindPriorityIndexOfKey(sa.GetMyIndex());
+            var myPriority = _dfg.Priorities[playerIndex];
+            var myDfgIdx = _dfg.FindPriorityIndexOfKey(playerIndex);
             var hasArrow = myPriority / 10 % 10 != 1;
             var posStr = P3_取麻将方位字符(myDfgIdx, myDfgIdx is 3 or 4);
             var towerPos = P3_取麻将塔坐标(myDfgIdx);
+            var job = sa.GetPlayerJobByIndex(playerIndex);
 
             const int lashGnashCastTime = 7600;
             const int inOutCastFirst = 3700;
@@ -2162,26 +2293,26 @@ namespace KarlinScriptNamespace
                     case 0:
                     case 1:
                     case 2:
-                        sa.Log.Debug($"一麻{posStr} 第一轮，先去{posStr}{towerPos}放塔，再回人群");
-                        P3_绘制塔指路(towerPos, 0, lashGnashCastTime, $"放塔1", sa);
+                        sa.Log.Debug($"{job} 一麻{posStr} 第一轮，先去{posStr}{towerPos}放塔，再回人群");
+                        P3_绘制塔指路(towerPos, 0, lashGnashCastTime, $"放塔1-{playerIndex}", sa, playerIndex);
                         // 十位数代表箭头，若为1则是原地，无需画面向
-                        P3_绘制塔面向(towerPos, 0, lashGnashCastTime, $"放塔1面向", sa, hasArrow);
-                        P3_绘制回人群(lashGnashCastTime, towerExistTime, $"人群", sa);
+                        P3_绘制塔面向(towerPos, 0, lashGnashCastTime, $"放塔1面向-{playerIndex}", sa, hasArrow);
+                        P3_绘制回人群(lashGnashCastTime, towerExistTime, $"人群-{playerIndex}", sa, playerIndex);
                         break;
                     case 3:
                     case 4:
-                        sa.Log.Debug($"二麻{posStr} 第一轮，先回人群，再去{posStr}{towerPos}放塔");
-                        P3_绘制回人群(0, lashGnashCastTime, $"人群", sa);
+                        sa.Log.Debug($"{job} 二麻{posStr} 第一轮，先回人群，再去{posStr}{towerPos}放塔");
+                        P3_绘制回人群(0, lashGnashCastTime, $"人群-{playerIndex}", sa, playerIndex);
                         const int jump2DelayTime = lashGnashCastTime + inOutCastFirst + inOutCastSecond;
                         const int jump2Destroy = 17700 - jump2DelayTime;  // 17700 从下方时间节点处取
-                        P3_绘制塔指路(towerPos, jump2DelayTime, jump2Destroy, $"放塔2", sa);
-                        P3_绘制塔面向(towerPos, jump2DelayTime, jump2Destroy, $"放塔2面向", sa, hasArrow);
+                        P3_绘制塔指路(towerPos, jump2DelayTime, jump2Destroy, $"放塔2-{playerIndex}", sa, playerIndex);
+                        P3_绘制塔面向(towerPos, jump2DelayTime, jump2Destroy, $"放塔2面向-{playerIndex}", sa, hasArrow);
                         break;
                     case 5:
                     case 6:
                     case 7:
-                        sa.Log.Debug($"三麻{posStr} 第一轮，回人群");
-                        P3_绘制回人群(0, lashGnashCastTime, $"人群", sa);
+                        sa.Log.Debug($"{job} 三麻{posStr} 第一轮，回人群");
+                        P3_绘制回人群(0, lashGnashCastTime, $"人群-{playerIndex}", sa, playerIndex);
                         break;
                 }
             }
@@ -2191,25 +2322,25 @@ namespace KarlinScriptNamespace
                 {
                     case 0:
                     case 2:
-                        sa.Log.Debug($"一麻{posStr} 第二轮，引导后回人群");
-                        P3_绘制回人群(26900 - 21500, 28900 - 26900, $"分摊", sa);
+                        sa.Log.Debug($"{job} 一麻{posStr} 第二轮，引导后回人群");
+                        P3_绘制回人群(26900 - 21500, 28900 - 26900, $"分摊-{playerIndex}", sa, playerIndex);
                         break;
                     case 1:
-                        sa.Log.Debug($"一麻{posStr} 第二轮，回人群");
-                        P3_绘制回人群(0, lashGnashCastTime, $"分摊", sa);
+                        sa.Log.Debug($"{job} 一麻{posStr} 第二轮，回人群");
+                        P3_绘制回人群(0, lashGnashCastTime, $"分摊-{playerIndex}", sa, playerIndex);
                         break;
                     case 3:
                     case 4:
-                        sa.Log.Debug($"二麻{posStr} 第二轮，回人群");
-                        P3_绘制回人群(0, lashGnashCastTime, $"分摊", sa);
+                        sa.Log.Debug($"{job} 二麻{posStr} 第二轮，回人群");
+                        P3_绘制回人群(0, lashGnashCastTime, $"分摊-{playerIndex}", sa, playerIndex);
                         break;
                     case 5:
                     case 6:
                     case 7:
-                        sa.Log.Debug($"三麻{posStr}第二轮，先去{posStr}{towerPos}放塔，再回人群");
-                        P3_绘制塔指路(towerPos, 0, lashGnashCastTime, $"放塔", sa);
-                        P3_绘制塔面向(towerPos, 0, lashGnashCastTime, $"放塔3面向", sa, hasArrow);
-                        P3_绘制回人群(lashGnashCastTime, towerExistTime, $"人群", sa);
+                        sa.Log.Debug($"{job} 三麻{posStr}第二轮，先去{posStr}{towerPos}放塔，再回人群");
+                        P3_绘制塔指路(towerPos, 0, lashGnashCastTime, $"放塔-{playerIndex}", sa, playerIndex);
+                        P3_绘制塔面向(towerPos, 0, lashGnashCastTime, $"放塔3面向-{playerIndex}", sa, hasArrow);
+                        P3_绘制回人群(lashGnashCastTime, towerExistTime, $"人群-{playerIndex}", sa, playerIndex);
                         break;
                 }
             }
@@ -2218,6 +2349,7 @@ namespace KarlinScriptNamespace
                 sa.Log.Error($"P3_麻将放塔与分摊 出错，_dfg.ActionCount = {_dfg.ActionCount}");
             }
         }
+
 
         [ScriptMethod(name: "P3 麻将踩塔指路", eventType: EventTypeEnum.ActionEffect, 
             eventCondition:["ActionId:regex:^(2638[234])$", "TargetIndex:1"], userControl: Debugging)]
@@ -2232,7 +2364,6 @@ namespace KarlinScriptNamespace
                 var tid = ev.TargetId;
                 var aid = ev.ActionId;
                 var sid = ev.SourceId;
-                var myDfgIdx = _dfg.FindPriorityIndexOfKey(sa.GetMyIndex());
                 // 后面生成塔位置的sid已经不是原来的sid了，需要在这里找到他经偏置后的位置
                 var tpos = P3_取塔生成坐标(sa, sid, aid);
                 _p3TowerAppearPos.Add(tpos);
@@ -2250,10 +2381,13 @@ namespace KarlinScriptNamespace
                     return;
                 }
 
+                // 本轮放塔的那一组刚站定，按其实际位置刷新组内左右位次，以便更改后续逻辑。
+                // 不论是不是自己所在的组都要刷，否则其它组的位次会一直停在预站位时的旧值
+                P3_刷新组内左右位置(sa, towerRound);
+
+                // 刷新后再取自己的数值与位次，避免用到刷新前的旧值
                 var myPriority = _dfg.Priorities[sa.GetMyIndex()];
-                // 一/二/三麻玩家放完塔，刷新组内成员相对位置，以便更改后续逻辑
-                if (towerRound == myPriority / 100)
-                    P3_刷新同组左右位置(sa, myPriority);
+                var myDfgIdx = _dfg.FindPriorityIndexOfKey(sa.GetMyIndex());
 
                 // 根据三枚塔坐标左中右排序
                 _p3TowerAppearPos.Sort((pos1, pos2) => pos1.X.CompareTo(pos2.X));
@@ -2266,20 +2400,19 @@ namespace KarlinScriptNamespace
             }
         }
 
-        private DrawPropertiesEdit P3_绘制塔指路(Vector3 towerPos, int delay, int destroy, string name, ScriptAccessory accessory, bool draw = true)
+        private DrawPropertiesEdit P3_绘制塔指路(Vector3 towerPos, int delay, int destroy, string name, ScriptAccessory accessory, int playerIndex, bool draw = true)
         {
-            var dp = accessory.DrawDirPos(towerPos, delay, destroy, name);
+            var dp = accessory.DrawGuidance(指路起点(accessory, playerIndex), towerPos, delay, destroy, name);
             if (draw)
                 accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
             return dp;
         }
         private DrawPropertiesEdit P3_绘制塔面向(Vector3 towerPos, int delay, int destroy, string name, ScriptAccessory accessory, bool draw = true)
         {
-            const int left = 0;
-            const int middle = 1;
-            const int right = 2;
-
-            var targetPos = towerPos.ExtendPoint(-90f.DegToRad(), 3.1f);
+            // 上箭头（破碎冲）向面向方向前冲 14m 放塔，下箭头（回避跳跃）向面向反方向后跳 14m 放塔，
+            // 二者站在左右两个对称站位上、朝同一方向，塔即落在同两个点。
+            // 上下箭头站位对调后，面向须一并翻转 180°，塔才仍落在原来的位置。
+            var targetPos = towerPos.ExtendPoint(90f.DegToRad(), 3.1f);
             var dp = accessory.DrawDirPos2Pos(towerPos, targetPos, delay, destroy, name);
             dp.Scale = new Vector2(3f);
             dp.Color = ColorHelper.ColorYellow.V4;
@@ -2288,14 +2421,15 @@ namespace KarlinScriptNamespace
             return dp;
         }
 
-        private DrawPropertiesEdit P3_绘制回人群(int delay, int destroy, string name, ScriptAccessory accessory, bool draw = true)
+        private DrawPropertiesEdit P3_绘制回人群(int delay, int destroy, string name, ScriptAccessory accessory, int playerIndex, bool draw = true)
         {
             var stackPos = new Vector3(100, 0, 92);
-            var dp = accessory.DrawDirPos(stackPos, delay, destroy, name);
+            var dp = accessory.DrawGuidance(指路起点(accessory, playerIndex), stackPos, delay, destroy, name);
             if (draw)
                 accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
             return dp;
         }
+
 
         private void P3_绘制塔范围(ScriptAccessory sa, int towerRound, int myDfgIdx, int myPriority)
         {
@@ -2307,19 +2441,7 @@ namespace KarlinScriptNamespace
 
             const int towerExistTime = 7100;
 
-            var myRound = myDfgIdx switch
-            {
-                // 玩家需踩第几轮塔
-                0 => 1,
-                2 => 1,
-                1 => 2,
-                3 => 2,
-                4 => 2,
-                5 => 0,
-                6 => 0,
-                7 => 0,
-                _ => -1
-            };
+            var myRound = P3_取踩塔轮次(myDfgIdx);
             if (myRound == -1)
             {
                 sa.Log.Error($"myDfgIdx = {myDfgIdx} 导致 myRound = {myRound}");
@@ -2327,6 +2449,7 @@ namespace KarlinScriptNamespace
             }
             var isMyRound = myRound == towerRound;
             var myTowerPos = P3_取麻将方位字符(myDfgIdx);
+            var myIndex = sa.GetMyIndex();
 
             for (int i = 0; i < _p3TowerAppearPos.Count; i++)
             {
@@ -2338,12 +2461,37 @@ namespace KarlinScriptNamespace
                 var dp1 = sa.DrawStaticCircle(_p3TowerAppearPos[i], color, 0, towerExistTime, $"塔{towerRound}{thisTowerPos}", 5f);
                 sa.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Circle, dp1);
 
-                if (!isMyTower) continue;
-                sa.Log.Debug($"检测到玩家需踩第 {myRound} 轮的 {myTowerPos} 塔");
-                var dp01 = sa.DrawDirPos(_p3TowerAppearPos[i], 0, towerExistTime, $"塔{towerRound}{thisTowerPos}指路");
-                sa.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp01);
+                // 正常模式只画自己的踩塔指路，Debug 模式把这一轮里全队各自要踩的塔都指出来
+                for (var p = 0; p < sa.Data.PartyList.Count; p++)
+                {
+                    if (!Debugging && p != myIndex) continue;
+                    var pDfgIdx = _dfg.FindPriorityIndexOfKey(p);
+                    if (P3_取踩塔轮次(pDfgIdx) != towerRound) continue;
+                    if (P3_取麻将方位字符(pDfgIdx) != thisTowerPos) continue;
+
+                    sa.Log.Debug($"检测到 {sa.GetPlayerJobByIndex(p)} 需踩第 {towerRound} 轮的 {thisTowerPos} 塔");
+                    var dp01 = sa.DrawGuidance(指路起点(sa, p), _p3TowerAppearPos[i], 0, towerExistTime, $"塔{towerRound}{thisTowerPos}指路{p}");
+                    sa.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp01);
+                }
             }
         }
+
+        /// <summary>
+        /// 由麻将优先级位次得出该玩家需踩第几轮塔，-1 为异常值
+        /// </summary>
+        private static int P3_取踩塔轮次(int dfgIdx) => dfgIdx switch
+        {
+            0 => 1,
+            2 => 1,
+            1 => 2,
+            3 => 2,
+            4 => 2,
+            5 => 0,
+            6 => 0,
+            7 => 0,
+            _ => -1
+        };
+
 
         private Vector3 P3_取塔生成坐标(ScriptAccessory sa, ulong sid, uint type)
         {
@@ -2405,7 +2553,8 @@ namespace KarlinScriptNamespace
             _p4MirageDiveNum = 0;
             _p4MirageDiveNumFirstRoundTarget = new bool[8].ToList();
             _p4MirageDivePos = [];
-            _p4PrepareToCenter = false;
+            _p4BuffChangeDrawn = new bool[8].ToList();
+            _p4PrepareToCenter = new bool[8].ToList();
             sa.Log.Debug($"当前阶段为：{_dsrPhase}");
         }
 
@@ -2416,8 +2565,8 @@ namespace KarlinScriptNamespace
             var tid = @event.TargetId();
             if (tid != accessory.Data.Me) return;
             var myIndex = accessory.GetMyIndex();
-            // MT D1 D2 H1
-            var isBlueEye = myIndex is 0 or 2 or 4 or 5;
+            // D1 D2 D3 D4
+            var isBlueEye = myIndex is 4 or 5 or 6 or 7;
             var isTank = myIndex is 0 or 1;
             accessory.Method.TextInfo($"{(isTank ? "开启盾姿，" : "")}{(isBlueEye ? "左侧蓝球" : "右侧红球")}就位", 3000, isTank);
         }
@@ -2428,20 +2577,27 @@ namespace KarlinScriptNamespace
         {
             if (_dsrPhase != DsrPhase.Phase4Eyes) return;
             var tid = @event.TargetId();
-            if (tid != accessory.Data.Me) return;
+            if (!Debugging && tid != accessory.Data.Me) return;
             const uint redBuff = 2775;
             const uint blueBuff = 2776;
             var stid = @event.StatusId();
-            var myIndex = accessory.GetMyIndex();
-            if (_drawn[0]) return;
-            _drawn[0] = true;
+            var tidx = accessory.GetPlayerIdIndex(tid);
+            if (tidx is < 0 or > 7) return;
+            // H1 H2 D3 D4 拿蓝Buff，MT ST D1 D2 拿红Buff
+            var needBlue = tidx is 2 or 3 or 6 or 7;
+            // 每人只在第一次拿到红蓝Buff时判定一次，否则P4全程的Buff变动都会重复画线
+            if (_p4BuffChangeDrawn[tidx]) return;
+            _p4BuffChangeDrawn[tidx] = true;
 
-            var needChange = (myIndex < 4 && stid != blueBuff) || (myIndex >= 4 && stid != redBuff);
+            var needChange = needBlue ? stid != blueBuff : stid != redBuff;
             if (!needChange) return;
-            var dp = accessory.DrawGuidance(_center, 0, 5000, $"红蓝Buff置换");
+            var dp = accessory.DrawGuidance(指路起点(accessory, tidx), _center, 0, 5000, $"红蓝Buff置换{tidx}");
             accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
-            accessory.Method.TextInfo($"场中换Buff", 3000);
+            // 文字提示只给自己
+            if (tid == accessory.Data.Me)
+                accessory.Method.TextInfo($"场中换Buff", 3000);
         }
+
 
         [ScriptMethod(name: "P4 红蓝Buff置换消除", eventType: EventTypeEnum.StatusAdd, eventCondition: ["StatusID:regex:^(277[56])$"],
             userControl: false)]
@@ -2449,16 +2605,19 @@ namespace KarlinScriptNamespace
         {
             if (_dsrPhase != DsrPhase.Phase4Eyes) return;
             var tid = @event.TargetId();
-            if (tid != accessory.Data.Me) return;
+            if (!Debugging && tid != accessory.Data.Me) return;
             const uint redBuff = 2775;
             const uint blueBuff = 2776;
             var stid = @event.StatusId();
-            var myIndex = accessory.GetMyIndex();
+            var tidx = accessory.GetPlayerIdIndex(tid);
+            if (tidx is < 0 or > 7) return;
+            var needBlue = tidx is 2 or 3 or 6 or 7;
 
-            var changeComplete = (myIndex < 4 && stid == blueBuff) || (myIndex >= 4 && stid == redBuff);
+            var changeComplete = needBlue ? stid == blueBuff : stid == redBuff;
             if (!changeComplete) return;
-            accessory.Method.RemoveDraw($"红蓝Buff置换");
+            accessory.Method.RemoveDraw($"红蓝Buff置换{tidx}");
         }
+
 
         [ScriptMethod(name: "P4 DPS撞球提示", eventType: EventTypeEnum.AddCombatant, eventCondition: ["DataId:regex:^(1260[78])$"],
             userControl: true)]
@@ -2469,20 +2628,28 @@ namespace KarlinScriptNamespace
             _drawn[1] = true;
             // 球出现开始计时
             var myIndex = accessory.GetMyIndex();
-            if (myIndex < 4) return;
+            if (!Debugging && myIndex is not (0 or 1 or 4 or 5)) return;
 
-            var orbPos = new Vector3(83, 0, 100);
-            if (myIndex is 6 or 7)
-                orbPos = orbPos.FoldPointHorizon(_center.X);
+            // 正常模式只画自己，Debug 模式把撞红球的 MT ST D1 D2 指路一起画出来
+            for (var i = 0; i < accessory.Data.PartyList.Count; i++)
+            {
+                if (i is not (0 or 1 or 4 or 5)) continue;
+                if (!Debugging && i != myIndex) continue;
 
-            // 要细致的话，需要找到球什么时候变大的时间点
-            var dp0 = accessory.DrawGuidance(orbPos, 4000, 2000, $"DPS撞球准备");
-            dp0.Color = accessory.Data.DefaultDangerColor;
-            var dp1 = accessory.DrawGuidance(orbPos, 6000, 5000, $"DPS撞球");
-            dp1.Color = accessory.Data.DefaultSafeColor;
-            accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp0);
-            accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp1);
+                var orbPos = new Vector3(83, 0, 100);
+                if (i is 0 or 1)
+                    orbPos = orbPos.FoldPointHorizon(_center.X);
+
+                // 要细致的话，需要找到球什么时候变大的时间点
+                var dp0 = accessory.DrawGuidance(指路起点(accessory, i), orbPos, 4000, 2000, $"DPS撞球准备{i}");
+                dp0.Color = accessory.Data.DefaultDangerColor;
+                var dp1 = accessory.DrawGuidance(指路起点(accessory, i), orbPos, 6000, 5000, $"DPS撞球{i}");
+                dp1.Color = accessory.Data.DefaultSafeColor;
+                accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp0);
+                accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp1);
+            }
         }
+
 
         [ScriptMethod(name: "P4 DPS撞球提示消失", eventType: EventTypeEnum.ActionEffect, eventCondition: ["ActionId:26817"],
             userControl: false)]
@@ -2490,11 +2657,12 @@ namespace KarlinScriptNamespace
         {
             if (_dsrPhase != DsrPhase.Phase4Eyes) return;
             var tid = @event.TargetId();
-            if (tid != accessory.Data.Me) return;
+            if (!Debugging && tid != accessory.Data.Me) return;
             var myIndex = accessory.GetMyIndex();
-            if (myIndex < 4) return;
+            if (!Debugging && myIndex is not (0 or 1 or 4 or 5)) return;
             accessory.Method.RemoveDraw($"DPS撞球.*");
         }
+
 
         [ScriptMethod(name: "P4 TN撞球提示", eventType: EventTypeEnum.AddCombatant, eventCondition: ["DataId:regex:^(1260[78])$"],
             userControl: true)]
@@ -2505,22 +2673,30 @@ namespace KarlinScriptNamespace
             _drawn[2] = true;
             // 球出现开始计时
             var myIndex = accessory.GetMyIndex();
-            if (myIndex >= 4) return;
+            if (!Debugging && myIndex is not (2 or 3 or 6 or 7)) return;
 
-            var orbPos = new Vector3(90, 0, 93);
-            if (myIndex >= 2)
-                orbPos = orbPos.FoldPointVertical(_center.Z);
-            if (myIndex % 2 == 1)
-                orbPos = orbPos.FoldPointHorizon(_center.X);
+            // 正常模式只画自己，Debug 模式把撞蓝球的 H1 H2 D3 D4 指路一起画出来
+            // 四个球位：D3左上、H1右上、D4左下、H2右下
+            for (var i = 0; i < accessory.Data.PartyList.Count; i++)
+            {
+                if (i is not (2 or 3 or 6 or 7)) continue;
+                if (!Debugging && i != myIndex) continue;
 
-            // accessory.Method.TextInfo($"与DPS换Buff", 2500);
-            var dp0 = accessory.DrawGuidance(orbPos, 10000, 2000, $"TN撞球准备");
-            dp0.Color = accessory.Data.DefaultDangerColor;
-            var dp1 = accessory.DrawGuidance(orbPos, 12000, 5000, $"TN撞球");
-            dp1.Color = accessory.Data.DefaultSafeColor;
-            accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp0);
-            accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp1);
+                var orbPos = new Vector3(90, 0, 93);
+                if (i is 3 or 7)
+                    orbPos = orbPos.FoldPointVertical(_center.Z);
+                if (i is 2 or 3)
+                    orbPos = orbPos.FoldPointHorizon(_center.X);
+
+                var dp0 = accessory.DrawGuidance(指路起点(accessory, i), orbPos, 10000, 2000, $"TN撞球准备{i}");
+                dp0.Color = accessory.Data.DefaultDangerColor;
+                var dp1 = accessory.DrawGuidance(指路起点(accessory, i), orbPos, 12000, 5000, $"TN撞球{i}");
+                dp1.Color = accessory.Data.DefaultSafeColor;
+                accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp0);
+                accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp1);
+            }
         }
+
 
         [ScriptMethod(name: "P4 TN撞球前换Buff提示", eventType: EventTypeEnum.ActionEffect, eventCondition: ["ActionId:26817"],
             userControl: true)]
@@ -2531,9 +2707,9 @@ namespace KarlinScriptNamespace
             _drawn[5] = true;
             // 球出现开始计时
             var myIndex = accessory.GetMyIndex();
-            if (myIndex >= 4) return;
+            if (myIndex is not (2 or 3 or 6 or 7)) return;
 
-            accessory.Method.TextInfo($"与DPS换Buff", 2500);
+            accessory.Method.TextInfo($"与红球组换Buff", 2500);
         }
 
         [ScriptMethod(name: "P4 TN撞球提示消失", eventType: EventTypeEnum.ActionEffect, eventCondition: ["ActionId:26815"],
@@ -2542,11 +2718,12 @@ namespace KarlinScriptNamespace
         {
             if (_dsrPhase != DsrPhase.Phase4Eyes) return;
             var tid = @event.TargetId();
-            if (tid != accessory.Data.Me) return;
+            if (!Debugging && tid != accessory.Data.Me) return;
             var myIndex = accessory.GetMyIndex();
-            if (myIndex >= 4) return;
+            if (!Debugging && myIndex is not (2 or 3 or 6 or 7)) return;
             accessory.Method.RemoveDraw($"TN撞球.*");
         }
+
 
         [ScriptMethod(name: "P4 幻象冲初始就位提示", eventType: EventTypeEnum.RemoveCombatant, eventCondition: ["DataId:12607"],
             userControl: true)]
@@ -2556,18 +2733,27 @@ namespace KarlinScriptNamespace
             if (_drawn[3]) return;
             _drawn[3] = true;
 
-            Vector3 targetPos;
             var myIndex = accessory.GetMyIndex();
-            if (myIndex >= 4)
-                targetPos = new(90, 0, 100);
-            else
+            // 正常模式只画自己，Debug 模式把全队 8 人的初始就位点一起画出来
+            for (var i = 0; i < accessory.Data.PartyList.Count; i++)
             {
-                targetPos = new(84.5f, 0, 94.5f);
-                targetPos = targetPos.RotatePoint(new(90, 0, 100), myIndex * 90f.DegToRad());
+                if (!Debugging && i != myIndex) continue;
+
+                Vector3 targetPos;
+                // 左上为0顺时针增加：D3左上、H1右上、H2右下、D4左下，MT ST D1 D2 回中
+                var corner = i switch { 6 => 0, 2 => 1, 3 => 2, 7 => 3, _ => -1 };
+                if (corner < 0)
+                    targetPos = new(90, 0, 100);
+                else
+                {
+                    targetPos = new(84.5f, 0, 94.5f);
+                    targetPos = targetPos.RotatePoint(new(90, 0, 100), corner * 90f.DegToRad());
+                }
+                var dp = accessory.DrawGuidance(指路起点(accessory, i), targetPos, 0, 5000, $"幻象冲就位提示{i}");
+                accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
             }
-            var dp = accessory.DrawGuidance(targetPos, 0, 5000, $"幻象冲就位提示");
-            accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
         }
+
 
         [ScriptMethod(name: "P4 幻象冲次数与目标记录", eventType: EventTypeEnum.ActionEffect, eventCondition: ["ActionId:26820", "TargetIndex:1"],
             userControl: false)]
@@ -2576,6 +2762,7 @@ namespace KarlinScriptNamespace
             if (_dsrPhase != DsrPhase.Phase4Eyes) return;
             var tid = @event.TargetId();
             var tidx = accessory.GetPlayerIdIndex(tid);
+            if (tidx is < 0 or > 7) return;
             lock (_p4MirageDiveNumFirstRoundTarget)
             {
                 _p4MirageDiveNum++;
@@ -2599,34 +2786,41 @@ namespace KarlinScriptNamespace
         public void P4_幻象冲等待回中提示(Event @event, ScriptAccessory sa)
         {
             if (_dsrPhase != DsrPhase.Phase4Eyes) return;
-            if (_p4PrepareToCenter) return;
             var tid = @event.TargetId();
-            if (tid != sa.Data.Me) return;
+            if (!Debugging && tid != sa.Data.Me) return;
             if (_p4MirageDiveNum > 6) return;
-            _p4PrepareToCenter = true;
+            var tidx = sa.GetPlayerIdIndex(tid);
+            if (tidx is < 0 or > 7) return;
+            if (_p4PrepareToCenter[tidx]) return;
+            _p4PrepareToCenter[tidx] = true;
 
-            var dp = sa.DrawGuidance(new Vector3(90, 0, 100), 0, 5000, $"幻象冲等待回中提示");
+            var dp = sa.DrawGuidance(指路起点(sa, tidx), new Vector3(90, 0, 100), 0, 5000, $"幻象冲等待回中提示{tidx}");
             dp.Color = sa.Data.DefaultDangerColor;
             sa.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
             sa.Log.Debug($"玩家受到伤害，准备回中");
         }
+
 
         [ScriptMethod(name: "P4 幻象冲回中提示", eventType: EventTypeEnum.StatusAdd, eventCondition: ["StatusID:2776"],
             userControl: true)]
         public void P4_幻象冲回中提示(Event @event, ScriptAccessory sa)
         {
             if (_dsrPhase != DsrPhase.Phase4Eyes) return;
-            if (!_p4PrepareToCenter) return;
             var tid = @event.TargetId();
-            if (tid != sa.Data.Me) return;
+            if (!Debugging && tid != sa.Data.Me) return;
             if (_p4MirageDiveNum > 6) return;
-            _p4PrepareToCenter = false;
+            var tidx = sa.GetPlayerIdIndex(tid);
+            if (tidx is < 0 or > 7) return;
+            // 只有刚被幻象冲点到的人才需要回中换Buff，否则P4全程的2776都会触发
+            if (!_p4PrepareToCenter[tidx]) return;
+            _p4PrepareToCenter[tidx] = false;
 
-            sa.Method.RemoveDraw($"幻象冲等待回中提示");
-            var dp = sa.DrawGuidance(new Vector3(90, 0, 100), 0, 2500, $"幻象冲回中提示");
+            sa.Method.RemoveDraw($"幻象冲等待回中提示{tidx}");
+            var dp = sa.DrawGuidance(指路起点(sa, tidx), new Vector3(90, 0, 100), 0, 2500, $"幻象冲回中提示{tidx}");
             sa.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
             sa.Log.Debug($"玩家Buff交换完毕，回中");
         }
+
 
         [ScriptMethod(name: "P4 幻象冲交换提示", eventType: EventTypeEnum.ActionEffect, eventCondition: ["ActionId:26820", "TargetIndex:1"],
             userControl: true)]
@@ -2641,18 +2835,22 @@ namespace KarlinScriptNamespace
             _mirageDiveRound.Reset();
 
             if (_p4MirageDiveNum > 6) return;
+            // 第三轮由第一轮被撞的两人去接，优先级从高到低：D3 H1 H2 D4
+            int[] firstRoundPriority = [6, 2, 3, 7];
+            var firstRoundTargets = firstRoundPriority.Where(i => _p4MirageDiveNumFirstRoundTarget[i]).ToList();
+
             var highPriorityPlayer = _p4MirageDiveNum switch
             {
-                2 => 4,
-                4 => 6,
-                6 => _p4MirageDiveNumFirstRoundTarget.IndexOf(true),
+                2 => 0,     // 第一轮结束，MT ST 去接
+                4 => 4,     // 第二轮结束，D1 D2 去接
+                6 => firstRoundTargets.Count > 0 ? firstRoundTargets[0] : 0,
                 _ => 0,
             };
             var lowPriorityPlayer = _p4MirageDiveNum switch
             {
-                2 => 5,
-                4 => 7,
-                6 => _p4MirageDiveNumFirstRoundTarget.LastIndexOf(true),
+                2 => 1,     // ST
+                4 => 5,     // D2
+                6 => firstRoundTargets.Count > 1 ? firstRoundTargets[1] : 0,
                 _ => 0,
             };
 
@@ -2664,16 +2862,18 @@ namespace KarlinScriptNamespace
             var lowPriorityPlayerJob = sa.GetPlayerJobByIndex(lowPriorityPlayer);
             var myIndex = sa.GetMyIndex();
 
-            if (myIndex == highPriorityPlayer)
+            // 正常模式只画自己，Debug 模式把高低优先级两人的就位点都画出来
+            if (Debugging || myIndex == highPriorityPlayer)
             {
-                var dp = sa.DrawGuidance(highPriorityPos, 0, 5000, $"高优先级就位{highPriorityPlayer}");
+                var dp = sa.DrawGuidance(指路起点(sa, highPriorityPlayer), highPriorityPos, 0, 5000, $"高优先级就位{highPriorityPlayer}");
                 sa.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
             }
-            if (myIndex == lowPriorityPlayer)
+            if (Debugging || myIndex == lowPriorityPlayer)
             {
-                var dp = sa.DrawGuidance(lowPriorityPos, 0, 5000, $"低优先级就位{lowPriorityPlayer}");
+                var dp = sa.DrawGuidance(指路起点(sa, lowPriorityPlayer), lowPriorityPos, 0, 5000, $"低优先级就位{lowPriorityPlayer}");
                 sa.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
             }
+
 
             var str = "";
             str += $"第{_p4MirageDiveNum / 2}轮，高优先级{highPriorityPlayerJob}去{_p4MirageDivePos[0]}号位\n";
@@ -2829,7 +3029,9 @@ namespace KarlinScriptNamespace
         public void P5_一运双龙俯冲处理位置(Event @event, ScriptAccessory accessory)
         {
             if (parse != 5.1 || ParsTargetIcon(@event["Id"]) != -310) return;
-            if (!ParseObjectId(@event["TargetId"], out var id) || id!=accessory.Data.Me) return;
+            if (!ParseObjectId(@event["TargetId"], out var id)) return;
+            if (!Debugging && id != accessory.Data.Me) return;
+            var tIdx = accessory.Data.PartyList.ToList().IndexOf(id);
 
             var dp = accessory.Data.GetDefaultDrawProperties();
             dp.Color = accessory.Data.DefaultSafeColor.WithW(2f);
@@ -2838,7 +3040,7 @@ namespace KarlinScriptNamespace
             dp.Scale = new(1,60);
             dp.DestoryAt = 5000;
             dp.ScaleMode |= ScaleMode.YByDistance;
-            dp.Name = $"P5一运双龙俯冲处理位置";
+            dp.Name = $"P5一运双龙俯冲处理位置{tIdx}";
 
             accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
 
@@ -2958,22 +3160,24 @@ namespace KarlinScriptNamespace
             if (_dsrPhase != DsrPhase.Phase5HeavensWrath) return;
             _p5VedrfolnirPosRecordEvent.WaitOne();
             var tid = @event.TargetId();
-            if (tid != accessory.Data.Me) return;
+            if (!Debugging && tid != accessory.Data.Me) return;
+            var tidx = accessory.GetPlayerIdIndex(tid);
             var spos = @event.SourcePosition();
             var atRight = spos.IsAtRight(_p5VedrfolnirPos, _center);
             var targetPos = spos.RotatePoint(_center, (atRight ? 1 : -1) * 172.5f.DegToRad());
 
             targetPos = targetPos.PointInOutside(_center, 2f);
-            var dp = accessory.DrawGuidance(targetPos, 0, 8000, $"一运连线指路");
+            var dp = accessory.DrawGuidance(指路起点(accessory, tidx), targetPos, 0, 8000, $"一运连线指路{tidx}");
             accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
         }
+
 
         [ScriptMethod(name: "P5 一运连线指路消失", eventType: EventTypeEnum.ActionEffect, eventCondition: ["ActionId:27530"],
             userControl: false)]
         public void P5_一运连线指路消失(Event @event, ScriptAccessory accessory)
         {
             if (_dsrPhase != DsrPhase.Phase5HeavensWrath) return;
-            accessory.Method.RemoveDraw($"一运连线指路");
+            accessory.Method.RemoveDraw($"一运连线指路.*");
         }
 
         [ScriptMethod(name: "P5 一运穿天指路", eventType: EventTypeEnum.TargetIcon, eventCondition: ["Id:000E"],
@@ -2983,13 +3187,15 @@ namespace KarlinScriptNamespace
             if (_dsrPhase != DsrPhase.Phase5HeavensWrath) return;
             _p5VedrfolnirPosRecordEvent.WaitOne();
             var tid = @event.TargetId();
-            if (tid != accessory.Data.Me) return;
+            if (!Debugging && tid != accessory.Data.Me) return;
+            var tidx = accessory.GetPlayerIdIndex(tid);
 
             var targetPos = _p5VedrfolnirPos.RotatePoint(_center, -67.5f.DegToRad());
             targetPos = targetPos.PointInOutside(_center, 2f);
-            var dp = accessory.DrawGuidance(targetPos, 0, 8000, $"一运穿天指路");
+            var dp = accessory.DrawGuidance(指路起点(accessory, tidx), targetPos, 0, 8000, $"一运穿天指路{tidx}");
             accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
         }
+
 
         [ScriptMethod(name: "P5 一运穿天指路消失", eventType: EventTypeEnum.ActionEffect, eventCondition: ["ActionId:29346"],
             userControl: false)]
@@ -2997,7 +3203,7 @@ namespace KarlinScriptNamespace
         {
             if (_dsrPhase != DsrPhase.Phase5HeavensWrath) return;
             _p5VedrfolnirPosRecordEvent.Reset();
-            accessory.Method.RemoveDraw($"一运穿天指路");
+            accessory.Method.RemoveDraw($"一运穿天指路.*");
         }
 
         #endregion
@@ -3009,6 +3215,8 @@ namespace KarlinScriptNamespace
             parse = 5.2;
             p5sony = [0, 0, 0, 0, 0, 0, 0, 0];
             p5sony_sixuan = [0, 0, 0, 0, 0, 0, 0, 0];
+            p5Priority = [0, 1, 2, 3, 4, 5, 6, 7];
+            p5PriorityReady = false;
             if (ParseObjectId(@event["SourceId"], out var id))
             {
                 tordanId = id;
@@ -3162,61 +3370,173 @@ namespace KarlinScriptNamespace
             if (ParseObjectId(@event["TargetId"], out var id))
             {
                 var index = accessory.Data.PartyList.ToList().IndexOf(id);
+                if (index < 0) return;
                 p5sony[index] +=10;
                 p5sony_sixuan[index] = 1;
             }
+            // 第 4 个死宣落地即为预站位，此刻锁定二运优先级，之后所有指路都以它为准
+            if (!p5PriorityReady && p5sony_sixuan.Count(x => x == 1) >= 4) P5锁定优先级(accessory);
         }
 
-        [ScriptMethod(name: "P5 二运未点死宣标记", eventType: EventTypeEnum.StatusAdd, eventCondition: ["StatusID:2976"])]
-        public async void P5_二运未点死宣标记(Event @event, ScriptAccessory accessory)
+        // 标准八位是 MT OT H1 H2 D1 D2 R1 R2，另外兼容 ST / D3D4 / M1M2 / O1O2 等叫法，手填时大小写和分隔符都无所谓
+        private static readonly Dictionary<string, int> p5PriorityAlias = new(StringComparer.OrdinalIgnoreCase)
         {
-            if (parse != 5.2) return;
+            ["MT"] = 0, ["T1"] = 0,
+            ["ST"] = 1, ["OT"] = 1, ["T2"] = 1,
+            ["H1"] = 2, ["H2"] = 3,
+            ["D1"] = 4, ["D2"] = 5, ["D3"] = 6, ["D4"] = 7,
+            ["O1"] = 4, ["O2"] = 5, ["M1"] = 4, ["M2"] = 5,
+            ["R1"] = 6, ["R2"] = 7,
+        };
 
-            // 2976 会触发很多次，只让这个标记逻辑执行一次
-            if (p5DeathMarkDone) return;
-            p5DeathMarkDone = true;
-
-            // 等待记录 function 先把 p5sony 更新完
-            int waitCount = 0;
-            while (p5sony_sixuan.Count(x => x == 1) < 4 && waitCount < 20)
-            {
-                await Task.Delay(100);
-                waitCount++;
-            }
-
-            int markIndex = 1;
-
-            // 从低到高，给所有 p5sony 为 0 的人上标记
-            for (int i = 0; i < p5sony_sixuan.Count; i++)
-            {
-                if (p5sony_sixuan[i] == 0)
-                {
-                    var target = PartyIndexToMarkerTarget(i);
-
-                    if (markIndex <= 3)
-                    {
-                        accessory.Method.SendChat($"/mk 止步{markIndex} <{target}>");
-                        accessory.Method.SendChat($"/e 止步{markIndex} <{target}>");
-                    }
-                    else if (markIndex == 4)
-                    {
-                        accessory.Method.SendChat($"/mk 三角 <{target}>");
-                        accessory.Method.SendChat($"/e 三角 <{target}>");
-                    }
-
-                    markIndex++;
-                }
-            }
-        }
-        private int PartyIndexToMarkerTarget(int partyIndex)
+        /// <summary>
+        /// 锁定 P5 二运的处理优先级：勾了自动就按第 4 个死宣落地瞬间的预站位排，
+        /// 否则解析手填顺序；两者都取不到时退回 MT ST H1 H2 D1 D2 D3 D4。
+        /// </summary>
+        private void P5锁定优先级(ScriptAccessory accessory)
         {
-            // PartyList[7] -> <1>
-            // PartyList[0] -> <2>
-            // PartyList[1] -> <3>
-            // ...
-            // PartyList[6] -> <8>
-            return partyIndex == 7 ? 1 : partyIndex + 2;
+            var order = P5DeathPriorityAuto ? P5按预站位排优先级(accessory) : P5解析优先级文本(P5DeathPriorityManual);
+            p5Priority = order ?? [0, 1, 2, 3, 4, 5, 6, 7];
+            p5PriorityReady = true;
+            accessory.Log.Debug($"P5 二运优先级({(P5DeathPriorityAuto ? "自动" : "手动")}{(order == null ? "-取值失败，用默认" : "")})：" +
+                                string.Join(" > ", p5Priority.Select(i => _role[i])));
         }
+
+        /// <summary>
+        /// 以场中落下的盖里克方位为北，把全队按左右排序：越靠左优先级越高。
+        /// 取不到盖里克位置或凑不齐 8 人时返回 null，由调用方退回默认序。
+        /// </summary>
+        private int[]? P5按预站位排优先级(ScriptAccessory accessory)
+        {
+            var north = new Vector2(p5GreekPos.X - _center.X, p5GreekPos.Z - _center.Z);
+            if (north.LengthSquared() < 1f) return null;
+            north = Vector2.Normalize(north);
+            // 面朝北时的左手方向（X 东 / Z 南，正北为 -Z，其左手为 -X），投影越大越靠左
+            var left = new Vector2(north.Y, -north.X);
+
+            if (accessory.Data.PartyList.Count < 8) return null;
+            var scored = new List<(int idx, float score)>();
+            for (var i = 0; i < 8; i++)
+            {
+                var obj = accessory.GetById(accessory.Data.PartyList[i]);
+                if (obj == null) return null;
+                var rel = new Vector2(obj.Position.X - _center.X, obj.Position.Z - _center.Z);
+                scored.Add((i, Vector2.Dot(rel, left)));
+            }
+            return scored.OrderByDescending(s => s.score).Select(s => s.idx).ToArray();
+        }
+
+        /// <summary>
+        /// 解析形如 MTSTO1R1R2O2H1H2 的手填优先级，8 个位置各出现一次才算有效，否则返回 null。
+        /// </summary>
+        private static int[]? P5解析优先级文本(string? text)
+        {
+            if (string.IsNullOrWhiteSpace(text)) return null;
+            var token = new string(text.Where(char.IsLetterOrDigit).ToArray());
+            if (token.Length != 16) return null;
+            var order = new int[8];
+            for (var i = 0; i < 8; i++)
+            {
+                if (!p5PriorityAlias.TryGetValue(token.Substring(i * 2, 2), out var idx)) return null;
+                order[i] = idx;
+            }
+            return order.Distinct().Count() == 8 ? order : null;
+        }
+
+        /// <summary>
+        /// 某人在优先级表里的名次，不在表里的排最后。
+        /// </summary>
+        private int P5优先级名次(int partyIndex)
+        {
+            var rank = Array.IndexOf(p5Priority, partyIndex);
+            return rank < 0 ? int.MaxValue : rank;
+        }
+
+        /// <summary>
+        /// 同一个索尼/死宣分组里，优先级排在此人之前的人数——替代原来直接数 PartyList 下标的写法。
+        /// </summary>
+        private int P5同组更高优先级人数(int partyIndex, int sony)
+        {
+            var myRank = P5优先级名次(partyIndex);
+            var count = 0;
+            for (var i = 0; i < p5sony.Count; i++)
+                if (i != partyIndex && p5sony[i] == sony && P5优先级名次(i) < myRank) count++;
+            return count;
+        }
+
+        /// <summary>
+        /// 带符号的两个死宣（死宣▽ / 死宣□）里，优先级高的那个靠左去 -135°，另一个去 +135°；
+        /// 四个死宣位从左到右是 -90° / -135° / +135° / +90°，无符号的死宣○ 占掉最外侧两个。
+        /// </summary>
+        private bool P5死宣符号靠左(int partyIndex)
+        {
+            var myRank = P5优先级名次(partyIndex);
+            for (var i = 0; i < p5sony.Count; i++)
+                if (i != partyIndex && (p5sony[i] == 11 || p5sony[i] == 12) && P5优先级名次(i) < myRank) return false;
+            return true;
+        }
+
+        /// <summary>
+        /// 指路前等优先级定下来：StatusAdd 触发的指路和优先级判定是同一批事件，
+        /// 不等一下会出现先后异常，所以固定先延迟再确认 ready。
+        /// </summary>
+        private async Task P5等待优先级(int minDelayMs = 500, int timeoutMs = 2000)
+        {
+            await Task.Delay(minDelayMs);
+            for (var waited = minDelayMs; !p5PriorityReady && waited < timeoutMs; waited += 50)
+                await Task.Delay(50);
+        }
+
+        // [ScriptMethod(name: "P5 二运未点死宣标记", eventType: EventTypeEnum.StatusAdd, eventCondition: ["StatusID:2976"])]
+        // public async void P5_二运未点死宣标记(Event @event, ScriptAccessory accessory)
+        // {
+        //     if (parse != 5.2) return;
+
+        //     // 2976 会触发很多次，只让这个标记逻辑执行一次
+        //     if (p5DeathMarkDone) return;
+        //     p5DeathMarkDone = true;
+
+        //     // 等待记录 function 先把 p5sony 更新完
+        //     int waitCount = 0;
+        //     while (p5sony_sixuan.Count(x => x == 1) < 4 && waitCount < 20)
+        //     {
+        //         await Task.Delay(100);
+        //         waitCount++;
+        //     }
+
+        //     int markIndex = 1;
+
+        //     // 从低到高，给所有 p5sony 为 0 的人上标记
+        //     for (int i = 0; i < p5sony_sixuan.Count; i++)
+        //     {
+        //         if (p5sony_sixuan[i] == 0)
+        //         {
+        //             var target = PartyIndexToMarkerTarget(i);
+
+        //             if (markIndex <= 3)
+        //             {
+        //                 accessory.Method.SendChat($"/mk 止步{markIndex} <{target}>");
+        //                 accessory.Method.SendChat($"/e 止步{markIndex} <{target}>");
+        //             }
+        //             else if (markIndex == 4)
+        //             {
+        //                 accessory.Method.SendChat($"/mk 三角 <{target}>");
+        //                 accessory.Method.SendChat($"/e 三角 <{target}>");
+        //             }
+
+        //             markIndex++;
+        //         }
+        //     }
+        // }
+        // private int PartyIndexToMarkerTarget(int partyIndex)
+        // {
+        //     // PartyList[7] -> <1>
+        //     // PartyList[0] -> <2>
+        //     // PartyList[1] -> <3>
+        //     // ...
+        //     // PartyList[6] -> <8>
+        //     return partyIndex == 7 ? 1 : partyIndex + 2;
+        // }
         [ScriptMethod(name: "P5 二运盖里克位置记录", eventType: EventTypeEnum.SetObjPos, eventCondition: ["SourceDataId:12637"],userControl:false)]
         public void P5_二运盖里克位置记录(Event @event, ScriptAccessory accessory)
         {
@@ -3224,93 +3544,95 @@ namespace KarlinScriptNamespace
             p5GreekPos = JsonConvert.DeserializeObject<Vector3>(@event["SourcePosition"]);
         }
         [ScriptMethod(name: "P5 二运死宣六方站位(ImGui)", eventType: EventTypeEnum.StatusAdd, eventCondition: ["StatusID:2976"])]
-        public void P5_二运死宣六方站位(Event @event, ScriptAccessory accessory)
+        public async void P5_二运死宣六方站位(Event @event, ScriptAccessory accessory)
         {
             if (parse != 5.2) return;
-            Task.Delay(100).ContinueWith(t =>
+            await P5等待优先级();
             {
                 if (p5Deal) return;
                 var count = p5sony.Where(s => s > 5).Count();
                 if (count != 4) return;
                 p5Deal = true;
-                var idIndex = accessory.Data.PartyList.ToList().IndexOf(accessory.Data.Me);
-                var sony = p5sony[idIndex];
-                var posid = sony > 0 ? 4 : 0;
-                for (int i = 0; i < idIndex; i++)
-                {
-                    if(sony== p5sony[i])
-                    {
-                        posid++;
-                    }
-                }
+                var myIndex = accessory.Data.PartyList.ToList().IndexOf(accessory.Data.Me);
                 var cpos = new Vector3(100, 0, 100);
-                var npos = 19.5f*Vector3.Normalize(new(p5GreekPos.X - 100, p5GreekPos.Y, p5GreekPos.Z - 100)) + cpos;
-                if(posid==4||posid==7) { npos = 13 * Vector3.Normalize(new(p5GreekPos.X - 100, p5GreekPos.Y, p5GreekPos.Z - 100)) + cpos; }
-                var dp = accessory.Data.GetDefaultDrawProperties();
-                dp.Color = accessory.Data.DefaultSafeColor;
-                dp.Owner = accessory.Data.Me;
-                dp.Scale = new(1.5f, 60);
-                dp.DestoryAt = 7000;
-                dp.ScaleMode |= ScaleMode.YByDistance;
-                dp.Name = $"P5二运死宣引导站位{sony}";
 
-                var d = float.Pi / 180f;
-                if (posid == 0) dp.TargetPosition = RotatePoint(npos, cpos, d * -90);
-                if (posid == 1) dp.TargetPosition = RotatePoint(npos, cpos, d * -142.5f);
-                if (posid == 2) dp.TargetPosition = RotatePoint(npos, cpos, d * 142.5f);
-                if (posid == 3) dp.TargetPosition = RotatePoint(npos, cpos, d * 90);
-                if (posid == 4) dp.TargetPosition = RotatePoint(npos, cpos, d * -90);
-                if (posid == 5) dp.TargetPosition = RotatePoint(npos, cpos, d * -37.5f);
-                if (posid == 6) dp.TargetPosition = RotatePoint(npos, cpos, d * 37.5f);
-                if (posid == 7) dp.TargetPosition = RotatePoint(npos, cpos, d * 90);
-                accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
+                // 正常模式只画自己，Debug 模式把全队 8 人的死宣站位一起画出来
+                for (var idIndex = 0; idIndex < accessory.Data.PartyList.Count; idIndex++)
+                {
+                    if (!Debugging && idIndex != myIndex) continue;
+                    var sony = p5sony[idIndex];
+                    var posid = (sony > 0 ? 4 : 0) + P5同组更高优先级人数(idIndex, sony);
+                    var npos = 19.5f * Vector3.Normalize(new(p5GreekPos.X - 100, p5GreekPos.Y, p5GreekPos.Z - 100)) + cpos;
+                    if (posid == 4 || posid == 7) { npos = 13 * Vector3.Normalize(new(p5GreekPos.X - 100, p5GreekPos.Y, p5GreekPos.Z - 100)) + cpos; }
+                    var dp = accessory.Data.GetDefaultDrawProperties();
+                    dp.Color = accessory.Data.DefaultSafeColor;
+                    dp.Owner = 指路起点(accessory, idIndex);
+                    dp.Scale = new(1.5f, 60);
+                    dp.DestoryAt = 7000;
+                    dp.ScaleMode |= ScaleMode.YByDistance;
+                    dp.Name = $"P5二运死宣引导站位{sony}-{idIndex}";
 
-            });
+                    var d = float.Pi / 180f;
+                    if (posid == 0) dp.TargetPosition = RotatePoint(npos, cpos, d * -90);
+                    if (posid == 1) dp.TargetPosition = RotatePoint(npos, cpos, d * -142.5f);
+                    if (posid == 2) dp.TargetPosition = RotatePoint(npos, cpos, d * 142.5f);
+                    if (posid == 3) dp.TargetPosition = RotatePoint(npos, cpos, d * 90);
+                    if (posid == 4) dp.TargetPosition = RotatePoint(npos, cpos, d * -90);
+                    if (posid == 5) dp.TargetPosition = RotatePoint(npos, cpos, d * -37.5f);
+                    if (posid == 6) dp.TargetPosition = RotatePoint(npos, cpos, d * 37.5f);
+                    if (posid == 7) dp.TargetPosition = RotatePoint(npos, cpos, d * 90);
+                    accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
+                }
+
+            }
         }
         [ScriptMethod(name: "P5 二运索尼引导站位(ImGui)", eventType: EventTypeEnum.ActionEffect, eventCondition: ["ActionId:27533"])]
         public void P5_二运索尼引导站位(Event @event, ScriptAccessory accessory)
         {
             if (parse != 5.2) return;
 
-            var idIndex = accessory.Data.PartyList.ToList().IndexOf(accessory.Data.Me);
-            var sony = p5sony[idIndex];
-            var posid = sony > 0 ? 4 : 0;
-            for (int i = 0; i < idIndex; i++)
-            {
-                if (sony == p5sony[i])
-                {
-                    posid++;
-                }
-            }
+            var myIndex = accessory.Data.PartyList.ToList().IndexOf(accessory.Data.Me);
             var cpos = new Vector3(100, 0, 100);
             var npos = 10 * Vector3.Normalize(new(p5GreekPos.X - 100, p5GreekPos.Y, p5GreekPos.Z - 100)) + cpos;
 
-            var dp = accessory.Data.GetDefaultDrawProperties();
-            dp.Color = accessory.Data.DefaultSafeColor;
-            dp.Owner = accessory.Data.Me;
-            dp.Scale = new(1.5f, 60);
-            dp.DestoryAt = 8000;
-            dp.ScaleMode |= ScaleMode.YByDistance;
-            dp.Name = $"P5二运索尼引导站位{sony}";
+            // 正常模式只画自己，Debug 模式把全队 8 人的索尼引导站位一起画出来
+            for (var idIndex = 0; idIndex < accessory.Data.PartyList.Count; idIndex++)
+            {
+                if (!Debugging && idIndex != myIndex) continue;
+                var sony = p5sony[idIndex];
+                var posid = (sony > 0 ? 4 : 0) + P5同组更高优先级人数(idIndex, sony);
 
-            var d = float.Pi / 180f;
-            dp.TargetPosition = cpos;
-            if (posid == 4) dp.TargetPosition = RotatePoint(npos, cpos, d * -90);
-            if (posid == 7) dp.TargetPosition = RotatePoint(npos, cpos, d * 90);
+                var dp = accessory.Data.GetDefaultDrawProperties();
+                dp.Color = accessory.Data.DefaultSafeColor;
+                dp.Owner = 指路起点(accessory, idIndex);
+                dp.Scale = new(1.5f, 60);
+                dp.DestoryAt = 8000;
+                dp.ScaleMode |= ScaleMode.YByDistance;
+                dp.Name = $"P5二运索尼引导站位{sony}-{idIndex}";
 
+                var d = float.Pi / 180f;
+                dp.TargetPosition = cpos;
+                if (posid == 4) dp.TargetPosition = RotatePoint(npos, cpos, d * -90);
+                if (posid == 7) dp.TargetPosition = RotatePoint(npos, cpos, d * 90);
 
-            accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
+                accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
+            }
         }
+
+
         [ScriptMethod(name: "P5 二运索尼处理位置(横排法)(ImGui)", eventType: EventTypeEnum.TargetIcon)]
-        public void P5_二运索尼处理位置_横排法(Event @event, ScriptAccessory accessory)
+        public async void P5_二运索尼处理位置_横排法(Event @event, ScriptAccessory accessory)
         {
             if (parse != 5.2) return;
-            if (!ParseObjectId(@event["TargetId"], out var id) || id != accessory.Data.Me) return;
-            Task.Delay(100).ContinueWith(ca =>
+            if (!ParseObjectId(@event["TargetId"], out var id)) return;
+            if (!Debugging && id != accessory.Data.Me) return;
+            // Debug 模式下解除了只看自己的过滤，头标目标未必在小队里，先挡掉越界
+            if (accessory.Data.PartyList.IndexOf(id) < 0) return;
+            await P5等待优先级();
             {
                 var index = accessory.Data.PartyList.ToList().IndexOf(id);
                 var sony =p5sony[index];
-                var priority = p5sony.IndexOf(sony) == index;
+                var priority = P5同组更高优先级人数(index, sony) == 0;
                 var cpos = new Vector3(100, 0, 100);
                 var npos = 4*Vector3.Normalize(new(p5GreekPos.X-100,p5GreekPos.Y,p5GreekPos.Z-100))+ cpos;
                 var npos2 = 20f * Vector3.Normalize(new(p5GreekPos.X - 100, p5GreekPos.Y, p5GreekPos.Z - 100)) + cpos;
@@ -3322,13 +3644,13 @@ namespace KarlinScriptNamespace
                 dp.Scale = new(3, 60);
                 dp.DestoryAt = 5000;
                 dp.ScaleMode |= ScaleMode.YByDistance;
-                dp.Name = $"P5二运索尼{sony}处理位置";
+                dp.Name = $"P5二运索尼{sony}处理位置{index}";
 
                 var dp2 = accessory.Data.GetDefaultDrawProperties();
                 dp2.Color = accessory.Data.DefaultSafeColor;
                 dp2.Scale = new(1f);
                 dp2.DestoryAt = 5000;
-                dp2.Name = $"P5二运索尼{sony}击退终点";
+                dp2.Name = $"P5二运索尼{sony}击退终点{index}";
                 //死宣○
                 if (sony == 10)
                 {
@@ -3343,29 +3665,22 @@ namespace KarlinScriptNamespace
                         dp2.Position = RotatePoint(npos2, cpos, float.Pi / 2);
                     }
                 }
-                //死宣▽
-                if (sony == 11)
+                //死宣▽ / 死宣□：不再看符号，两人里优先级高的（死宣第二优先级）去 -135°，低的（第三优先级）去 +135°
+                if (sony == 11 || sony == 12)
                 {
-                    dp.TargetPosition = RotatePoint(npos, cpos, float.Pi * 0.75f);
-                    dp2.Position = RotatePoint(npos2, cpos, float.Pi * 0.75f);
+                    var rot = float.Pi * (P5死宣符号靠左(index) ? -0.75f : 0.75f);
+                    dp.TargetPosition = RotatePoint(npos, cpos, rot);
+                    dp2.Position = RotatePoint(npos2, cpos, rot);
                 }
-                //死宣□
-                if (sony == 12)
+                //普通▽ / 普通□：跟同符号的死宣走对角，死宣在 -135° 的去 +45°，死宣在 +135° 的去 -45°
+                if (sony == 1 || sony == 2)
                 {
-                    dp.TargetPosition = RotatePoint(npos, cpos, float.Pi * -0.75f);
-                    dp2.Position = RotatePoint(npos2, cpos, float.Pi * -0.75f);
-                }
-                //▽
-                if (sony == 1)
-                {
-                    dp.TargetPosition = RotatePoint(npos, cpos, float.Pi * -0.25f);
-                    dp2.Position = RotatePoint(npos2, cpos, float.Pi * -0.25f);
-                }
-                //□
-                if (sony == 2)
-                {
-                    dp.TargetPosition = RotatePoint(npos, cpos, float.Pi * 0.25f);
-                    dp2.Position = RotatePoint(npos2, cpos, float.Pi * 0.25f);
+                    var partner = p5sony.IndexOf(sony + 10);
+                    // 找不到同符号死宣时退回原来的 ▽ -45° / □ +45°
+                    var partnerLeft = partner >= 0 ? P5死宣符号靠左(partner) : sony == 2;
+                    var rot = float.Pi * (partnerLeft ? 0.25f : -0.25f);
+                    dp.TargetPosition = RotatePoint(npos, cpos, rot);
+                    dp2.Position = RotatePoint(npos2, cpos, rot);
                 }
                 //×
                 if (sony == 3)
@@ -3385,7 +3700,7 @@ namespace KarlinScriptNamespace
 
                 accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
                 accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Circle, dp2);
-            });
+            }
 
         }
 
@@ -3468,84 +3783,56 @@ namespace KarlinScriptNamespace
         public void P6_第一次冰火线站位(Event @event, ScriptAccessory accessory)
         {
             if (parse != 6.1) return;
-            
+
             List<Vector3> postions = [new(100, 0, 109.33f), new(95.7f, 0, 119), new(104.3f, 0, 119)];
             //45 26 37
-            var dp = accessory.Data.GetDefaultDrawProperties();
-            dp.Name = "P6 第一次冰火线站位";
-            dp.Owner = accessory.Data.Me;
-            dp.ScaleMode |= ScaleMode.YByDistance;
-            dp.Scale = new(1.5f);
-            dp.Color = accessory.Data.DefaultSafeColor;
-            dp.DestoryAt = 7000;
-            var idIndex = accessory.Data.PartyList.ToList().IndexOf(accessory.Data.Me);
-            //D1
-            if (idIndex == 4) dp.TargetPosition = postions[0];
-            if (idIndex == 2) dp.TargetPosition = postions[1];
-            if (idIndex == 3) dp.TargetPosition = postions[2];
-            //D2
-            if (idIndex == 5)
+            var myIndex = accessory.Data.PartyList.ToList().IndexOf(accessory.Data.Me);
+
+            // 正常模式只画自己，Debug 模式把 6 名非坦克的冰火线站位一起画出来
+            for (var idIndex = 0; idIndex < accessory.Data.PartyList.Count; idIndex++)
             {
-                if (p6tether[4]!= p6tether[5])
+                if (!Debugging && idIndex != myIndex) continue;
+                if (idIndex <= 1) continue;
+
+                var dp = accessory.Data.GetDefaultDrawProperties();
+                dp.Name = $"P6 第一次冰火线站位{idIndex}";
+                dp.Owner = 指路起点(accessory, idIndex);
+                dp.ScaleMode |= ScaleMode.YByDistance;
+                dp.Scale = new(1.5f);
+                dp.Color = accessory.Data.DefaultSafeColor;
+                dp.DestoryAt = 7000;
+
+                //固定位：D1→左下，H1→中，D3→右下
+                if (idIndex == 4) dp.TargetPosition = postions[0];
+                if (idIndex == 2) dp.TargetPosition = postions[1];
+                if (idIndex == 6) dp.TargetPosition = postions[2];
+                //D2：与 D1 同色则和另一组同色的互换
+                if (idIndex == 5)
                 {
-                    dp.TargetPosition = postions[0];
+                    if (p6tether[4] != p6tether[5]) dp.TargetPosition = postions[0];
+                    else if (p6tether[2] == p6tether[3]) dp.TargetPosition = postions[1];
+                    else dp.TargetPosition = postions[2];
                 }
-                else
+                //H2：与 H1 同色则和另一组同色的互换
+                if (idIndex == 3)
                 {
-                    if(p6tether[2] == p6tether[6])
-                    {
-                        dp.TargetPosition = postions[1];
-                    }
-                    else
-                    {
-                        dp.TargetPosition = postions[2];
-                    }
+                    if (p6tether[2] != p6tether[3]) dp.TargetPosition = postions[1];
+                    else if (p6tether[4] == p6tether[5]) dp.TargetPosition = postions[0];
+                    else dp.TargetPosition = postions[2];
                 }
-            }
-            //D3
-            if (idIndex == 6)
-            {
-                if (p6tether[2] != p6tether[6])
+                //D4：与 D3 同色则和另一组同色的互换
+                if (idIndex == 7)
                 {
-                    dp.TargetPosition = postions[1];
+                    if (p6tether[6] != p6tether[7]) dp.TargetPosition = postions[2];
+                    else if (p6tether[4] == p6tether[5]) dp.TargetPosition = postions[0];
+                    else dp.TargetPosition = postions[1];
                 }
-                else
-                {
-                    if (p6tether[4] == p6tether[5])
-                    {
-                        dp.TargetPosition = postions[0];
-                    }
-                    else
-                    {
-                        dp.TargetPosition = postions[2];
-                    }
-                }
-            }
-            //D4
-            if (idIndex == 7)
-            {
-                if (p6tether[3] != p6tether[7])
-                {
-                    dp.TargetPosition = postions[2];
-                }
-                else
-                {
-                    if (p6tether[4] == p6tether[5])
-                    {
-                        dp.TargetPosition = postions[0];
-                    }
-                    else
-                    {
-                        dp.TargetPosition = postions[1];
-                    }
-                }
-            }
-            if (idIndex >1)
-            {
+
                 accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
             }
-            
         }
+
+
         [ScriptMethod(name: "P6 第一次冰火线黑龙扇形", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:27955"])]
         public void P6_第一次冰火线黑龙扇形(Event @event, ScriptAccessory accessory)
         {
@@ -4005,26 +4292,34 @@ namespace KarlinScriptNamespace
             if (parse != 6.3) return;
             var aidStr = @event["ActionId"];
             if (aidStr != "27956" && aidStr != "27957") return;
-            var dp = accessory.Data.GetDefaultDrawProperties();
-            dp.Name = "P6 第二次冰火线ND站位";
-            dp.Color = accessory.Data.DefaultSafeColor;
-            dp.Owner = accessory.Data.Me;
-            dp.Scale = new(1.5f);
-            dp.ScaleMode |= ScaleMode.YByDistance;
-            dp.DestoryAt = 7000;
 
-            var idIndex = accessory.Data.PartyList.ToList().IndexOf(accessory.Data.Me);
+            var myIndex = accessory.Data.PartyList.ToList().IndexOf(accessory.Data.Me);
+            // 正常模式只画自己，Debug 模式把 6 名非坦克的 ND 站位一起画出来
+            for (var idIndex = 0; idIndex < accessory.Data.PartyList.Count; idIndex++)
+            {
+                if (!Debugging && idIndex != myIndex) continue;
+                if (idIndex <= 1) continue;
 
-            if (idIndex == 2) dp.TargetPosition = new(100, 0, 80.5f);
-            if (idIndex == 3) dp.TargetPosition = new(100, 0, 119.7f);
-            if (idIndex == 4) dp.TargetPosition = new(103.7f, 0, 89.2f);
-            if (idIndex == 5) dp.TargetPosition = new(97, 0, 110.2f);
-            if (idIndex == 6) dp.TargetPosition = new(107.2f, 0, 81.7f);
-            if (idIndex == 7) dp.TargetPosition = new(92.5f, 0, 118);
+                var dp = accessory.Data.GetDefaultDrawProperties();
+                dp.Name = $"P6 第二次冰火线ND站位{idIndex}";
+                dp.Color = accessory.Data.DefaultSafeColor;
+                dp.Owner = 指路起点(accessory, idIndex);
+                dp.Scale = new(1.5f);
+                dp.ScaleMode |= ScaleMode.YByDistance;
+                dp.DestoryAt = 7000;
 
-            accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
+                if (idIndex == 2) dp.TargetPosition = new(100, 0, 80.5f);
+                if (idIndex == 3) dp.TargetPosition = new(100, 0, 119.7f);
+                if (idIndex == 4) dp.TargetPosition = new(103.7f, 0, 89.2f);
+                if (idIndex == 5) dp.TargetPosition = new(97, 0, 110.2f);
+                if (idIndex == 6) dp.TargetPosition = new(107.2f, 0, 81.7f);
+                if (idIndex == 7) dp.TargetPosition = new(92.5f, 0, 118);
 
+                accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
+            }
         }
+
+
         [ScriptMethod(name: "P6 双龙冰火俯冲", eventType: EventTypeEnum.StatusAdd)]
         public void P6_双龙冰火俯冲(Event @event, ScriptAccessory accessory)
         {
@@ -4293,11 +4588,17 @@ namespace KarlinScriptNamespace
             if (_p6DragonsGlowAction[0] && _p6DragonsGlowAction[1])
             {
                 // 场中分摊死刑，自己不是T不显示指路
-                if (myIndex > 1) return;
+                if (!Debugging && myIndex > 1) return;
                 // 删除K佬脚本中双T的小啾啾
                 accessory.Method.RemoveDraw("P6 第二次冰火线ND站位.*");
-                var dp = accessory.DrawDirPos(_center, 0, 6000, $"冰火场中分摊指路");
-                accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
+
+                // 正常模式只画自己，Debug 模式把双T的指路都画出来
+                for (var i = 0; i < 2; i++)
+                {
+                    if (!Debugging && i != myIndex) continue;
+                    var dp = accessory.DrawGuidance(指路起点(accessory, i), _center, 0, 6000, $"冰火场中分摊指路{i}");
+                    accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
+                }
             }
             else
             {
@@ -4315,21 +4616,27 @@ namespace KarlinScriptNamespace
                 accessory.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Circle, dp);
 
                 // 场边分散，自己不是T不显示指路
-                if (myIndex > 1) return;
+                if (!Debugging && myIndex > 1) return;
                 // 删除K佬脚本中双T的小啾啾
                 accessory.Method.RemoveDraw("P6 第二次冰火线ND站位.*");
                 var isIceAndFire2 = _dsrPhase == DsrPhase.Phase6IceAndFire2;
 
-                var dp0 = accessory.DrawDirPos(tankBusterPosition[isIceAndFire2 ? myIndex + 2 : myIndex], 0, 6000,
-                    $"冰火死刑位置指路");
-                accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp0);
+                // 正常模式只画自己，Debug 模式把双T的死刑点都画出来
+                for (var i = 0; i < 2; i++)
+                {
+                    if (!Debugging && i != myIndex) continue;
+                    var busterPos = tankBusterPosition[isIceAndFire2 ? i + 2 : i];
 
-                var dp1 = accessory.DrawStaticCircle(tankBusterPosition[isIceAndFire2 ? myIndex + 2 : myIndex],
-                    PosColorPlayer.V4.WithW(1.5f), 0, 6000, $"冰火死刑点区域", 1f);
-                accessory.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Circle, dp1);
+                    var dp0 = accessory.DrawGuidance(指路起点(accessory, i), busterPos, 0, 6000, $"冰火死刑位置指路{i}");
+                    accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp0);
+
+                    var dp1 = accessory.DrawStaticCircle(busterPos, PosColorPlayer.V4.WithW(1.5f), 0, 6000, $"冰火死刑点区域{i}", 1f);
+                    accessory.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Circle, dp1);
+                }
             }
             _iceAndFireEvent.Reset();
         }
+
 
         #endregion 冰火
 
@@ -4408,7 +4715,6 @@ namespace KarlinScriptNamespace
 
             var myIndex = accessory.GetMyIndex();
             var myPartIdx = myIndex >= 2 ? 2 : myIndex;
-            var targetPos = nearOrFarSafePos[nearOrFarDirPosIdx[myPartIdx]];
 
             for (var i = 0; i < 3; i++)
             {
@@ -4418,11 +4724,19 @@ namespace KarlinScriptNamespace
                 accessory.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Circle, dp0);
             }
 
-            var dp = accessory.DrawDirPos(targetPos, 0, 7500, $"一远近指路");
-            accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
+            // 正常模式只画自己，Debug 模式把全队 8 人的远近指路一起画出来
+            for (var i = 0; i < accessory.Data.PartyList.Count; i++)
+            {
+                if (!Debugging && i != myIndex) continue;
+                var partIdx = i >= 2 ? 2 : i;
+                var dp = accessory.DrawGuidance(指路起点(accessory, i), nearOrFarSafePos[nearOrFarDirPosIdx[partIdx]], 0, 7500, $"一远近指路{i}");
+                accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
+            }
+
             _nearOrFarCauterizeEvent.Reset();
             _nearOrFarWingsEvent.Reset();
         }
+
 
         private Vector3[] P6_取象限安全点(List<bool> wings)
         {
@@ -4467,7 +4781,6 @@ namespace KarlinScriptNamespace
 
             var myIndex = accessory.GetMyIndex();
             var myPartIdx = myIndex >= 2 ? 2 : myIndex;
-            var targetPos = nearOrFarSafePos[nearOrFarDirPosIdx[myPartIdx]];
 
             for (var i = 0; i < 3; i++)
             {
@@ -4477,11 +4790,19 @@ namespace KarlinScriptNamespace
                 accessory.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Circle, dp0);
             }
 
-            var dp = accessory.DrawDirPos(targetPos, 0, 7500, $"二远近指路");
-            accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
+            // 正常模式只画自己，Debug 模式把全队 8 人的远近指路一起画出来
+            for (var i = 0; i < accessory.Data.PartyList.Count; i++)
+            {
+                if (!Debugging && i != myIndex) continue;
+                var partIdx = i >= 2 ? 2 : i;
+                var dp = accessory.DrawGuidance(指路起点(accessory, i), nearOrFarSafePos[nearOrFarDirPosIdx[partIdx]], 0, 7500, $"二远近指路{i}");
+                accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
+            }
+
             _nearOrFarInOutEvent.Reset();
             _nearOrFarWingsEvent.Reset();
         }
+
 
         private static Vector3[] P6_取直线安全点(List<bool> wings)
         {
@@ -4550,11 +4871,17 @@ namespace KarlinScriptNamespace
             cauterizePos[1] = new Vector3(105f, 0, 79f);
 
             var myIndex = accessory.GetMyIndex();
-            if (myIndex > 1) return;
+            if (!Debugging && myIndex > 1) return;
 
-            var dp = accessory.DrawDirPos(cauterizePos[myIndex], 0, 5000, $"俯冲T挡枪位置{myIndex}");
-            accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
+            // 正常模式只画自己，Debug 模式把双T的挡枪位都画出来
+            for (var i = 0; i < 2; i++)
+            {
+                if (!Debugging && i != myIndex) continue;
+                var dp = accessory.DrawGuidance(指路起点(accessory, i), cauterizePos[i], 0, 5000, $"俯冲T挡枪位置{i}");
+                accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
+            }
         }
+
 
         #endregion 俯冲
 
@@ -4683,40 +5010,45 @@ namespace KarlinScriptNamespace
                 var idstr = @event["ActionId"];
                 if (idstr != "29452" && idstr != "29453" && idstr != "29454") return;
 
-                var idIndex = accessory.Data.PartyList.ToList().IndexOf(accessory.Data.Me);
-
-                var isme = false;
+                var myIndex = accessory.Data.PartyList.ToList().IndexOf(accessory.Data.Me);
                 accessory.Log.Debug($"parse:{parse}");
-                if (parse == 7.2 || !p7_116)
-                {
-                    if (idstr == "29452" && (idIndex == 3 || idIndex == 5 || idIndex == 7)) isme = true;
-                    if (idstr == "29453" && (idIndex == 2 || idIndex == 4 || idIndex == 6)) isme = true;
-                    if (idstr == "29454" && (idIndex == 0 || idIndex == 1)) isme = true;
-                }
-                else
-                {
-                    if (parse == 7.5)
-                    {
-                        if (idstr == "29452" && (idIndex == 0)) isme = true;
-                        if (idstr == "29453" && (idIndex != 0 && idIndex != 1)) isme = true;
-                        if (idstr == "29454" && (idIndex == 1)) isme = true;
-                    }
-                    if (parse == 7.8)
-                    {
-                        if (idstr == "29452" && (idIndex == 1)) isme = true;
-                        if (idstr == "29453" && (idIndex != 0 && idIndex != 1)) isme = true;
-                        if (idstr == "29454" && (idIndex == 0)) isme = true;
-                    }
-                }
 
-                if (isme)
+                // 正常模式只画自己，Debug 模式把全队 8 人的分摊归属一起画出来
+                for (var idIndex = 0; idIndex < accessory.Data.PartyList.Count; idIndex++)
                 {
+                    if (!Debugging && idIndex != myIndex) continue;
+
+                    var isme = false;
+                    if (parse == 7.2 || !p7_116)
+                    {
+                        if (idstr == "29452" && (idIndex == 3 || idIndex == 5 || idIndex == 7)) isme = true;
+                        if (idstr == "29453" && (idIndex == 2 || idIndex == 4 || idIndex == 6)) isme = true;
+                        if (idstr == "29454" && (idIndex == 0 || idIndex == 1)) isme = true;
+                    }
+                    else
+                    {
+                        if (parse == 7.5)
+                        {
+                            if (idstr == "29452" && (idIndex == 0)) isme = true;
+                            if (idstr == "29453" && (idIndex != 0 && idIndex != 1)) isme = true;
+                            if (idstr == "29454" && (idIndex == 1)) isme = true;
+                        }
+                        if (parse == 7.8)
+                        {
+                            if (idstr == "29452" && (idIndex == 1)) isme = true;
+                            if (idstr == "29453" && (idIndex != 0 && idIndex != 1)) isme = true;
+                            if (idstr == "29454" && (idIndex == 0)) isme = true;
+                        }
+                    }
+
+                    if (!isme) continue;
+
                     var dp = accessory.Data.GetDefaultDrawProperties();
-                    dp.Name = "P7 死亡轮回剑分摊处";
+                    dp.Name = $"P7 死亡轮回剑分摊处{idIndex}";
                     dp.Color = accessory.Data.DefaultSafeColor;
                     dp.Scale = new(1.5f);
                     dp.ScaleMode |= ScaleMode.YByDistance;
-                    dp.Owner = accessory.Data.Me;
+                    dp.Owner = 指路起点(accessory, idIndex);
                     if (ParseObjectId(@event["SourceId"], out var sid))
                     {
                         dp.TargetObject = sid;
@@ -4724,21 +5056,20 @@ namespace KarlinScriptNamespace
                     dp.DestoryAt = 6700;
                     accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
 
-                    dp = accessory.Data.GetDefaultDrawProperties();
-                    dp.Name = "P7 死亡轮回剑分摊范围";
-                    dp.Color = accessory.Data.DefaultSafeColor;
-                    dp.Scale = new(4);
+                    var dpArea = accessory.Data.GetDefaultDrawProperties();
+                    dpArea.Name = "P7 死亡轮回剑分摊范围";
+                    dpArea.Color = accessory.Data.DefaultSafeColor;
+                    dpArea.Scale = new(4);
                     if (ParseObjectId(@event["SourceId"], out var sid2))
                     {
-                        dp.Owner = sid2;
+                        dpArea.Owner = sid2;
                     }
-                    dp.DestoryAt = 12000;
-                    accessory.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Circle, dp);
+                    dpArea.DestoryAt = 12000;
+                    accessory.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Circle, dpArea);
                 }
             });
-            
-            
         }
+
 
         [ScriptMethod(name: "P7 一号核爆", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:28058"])]
         public void P7_一号核爆(Event @event, ScriptAccessory accessory)
@@ -6675,4 +7006,3 @@ namespace KarlinScriptNamespace
     #endregion
 
 }
-
