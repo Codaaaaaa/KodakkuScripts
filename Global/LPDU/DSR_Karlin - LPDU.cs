@@ -23,7 +23,7 @@ using KodakkuAssist.Module.Script.Type;
 namespace KarlinScriptNamespace
 {
     // 1112 为忆罪宫，仅用于 "/e =Exaflare" 地火模拟器（补丁部分）
-    [ScriptType(name:"Dragonsong's Reprise (Ultimate) DSR - LPDU", territorys: [968, 1112], guid: "baadb811-5bd3-4e61-bb1f-f3eab163c52f", note: Note, version:"0.0.0.6", author: "Karlin/Usami")]
+    [ScriptType(name:"Dragonsong's Reprise (Ultimate) DSR - LPDU", territorys: [968, 1112], guid: "baadb811-5bd3-4e61-bb1f-f3eab163c52f", note: Note, version:"0.0.0.7", author: "Karlin/Usami")]
     public class DragongSingDrawLpdu
     {
         private const string Note = 
