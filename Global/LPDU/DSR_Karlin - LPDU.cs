@@ -23,15 +23,34 @@ using KodakkuAssist.Module.Script.Type;
 namespace KarlinScriptNamespace
 {
     // 1112 为忆罪宫，仅用于 "/e =Exaflare" 地火模拟器（补丁部分）
-    [ScriptType(name:"Dragonsong's Reprise (Ultimate) DSR - LPDU", territorys: [968, 1112], guid: "baadb811-5bd3-4e61-bb1f-f3eab163c52f", version:"0.0.0.6", author: "Karlin")]
+    [ScriptType(name:"Dragonsong's Reprise (Ultimate) DSR - LPDU", territorys: [968, 1112], guid: "baadb811-5bd3-4e61-bb1f-f3eab163c52f", note: Note, version:"0.0.0.6", author: "Karlin/Usami")]
     public class DragongSingDrawLpdu
     {
+        private const string Note = 
+        $"""
+        Adapted from the scripts of Karlin / Usami.
+
+        -----------Important-----------
+
+        By default, P5DeathPriorityAuto is enabled. For P5 DotH, the script does not use a fixed job priority.
+        Instead, when the 4th Doom debuff is applied, it takes a snapshot of all 8 players' current pre-positions and determines the priority from their actual lineup.
         
-        [UserSetting("P5 一运连线冲锋显示延迟(ms)")]
+        If someone is out of position or has not joined the lineup at that moment, the script may calculate the wrong priority and subsequent p5 DotH tether may be incorrect.
+        
+        If your group prefers a fixed priority, disable P5DeathPriorityAuto and manually configure P5DeathPriorityManual instead.
+
+        Accepted manual slots are:
+
+        MT / OT(ST) / H1 / H2 / M1(D1) / M2(D2) / R1(D3) / R2(D4)
+
+        All 8 slots must appear exactly once.
+        """;
+        
+        [UserSetting("P5 Wrath of the Heavens - Spiral Pierce guidance delay (ms)")]
         public int p5TetherCrashDelay { get; set; } = 3000;
 
         [UserSetting("P5.2 - derive the priority order from the pre-positions automatically.\n" +
-                    "When the Doom debuffs are applied，\n" +
+                    "When the Doom debuffs are applied, \n" +
                     "The priority order is then determined from each player's current pre-position: all 8 players are sorted \n" +
                     "from left to right (west to east relative to Ser Guerrique). \n" +
                     "Uncheck this to use P5DeathPriorityManual instead.")]
@@ -41,7 +60,7 @@ namespace KarlinScriptNamespace
                      "Highest priority first, keep the surrounding double quotes, e.g. \"MTOTD1R1R2D2H1H2\". \n" +
                      "Accepted slot names: MT, OT (or ST), H1, H2, melee D1/D2, ranged R1/R2 (or D3/D4). \n" +
                      "All 8 slots must appear exactly once, otherwise MT OT H1 H2 D1 D2 R1 R2 is used.")]
-        public string P5DeathPriorityManual { get; set; } = "MTOTH1H2D1D2R1R2";
+        public string P5DeathPriorityManual { get; set; } = "MTOTH1H2M1M2R1R2";
 
         // [UserSetting("P6 分散分摊标记")]
         public bool p6Mark {  get; set; }=false;
@@ -102,29 +121,29 @@ namespace KarlinScriptNamespace
         private string? autoTargetHighestHpActionGuid = null;
 
         // ===== 以下设置与状态来自合并进来的绝龙诗补丁 =====
-        [UserSetting("站位提示圈绘图-普通颜色")]
+        [UserSetting("Position marker circle - normal color")]
         public static ScriptColor PosColorNormal { get; set; } = new ScriptColor { V4 = new Vector4(1.0f, 1.0f, 1.0f, 1.0f) };
-        [UserSetting("站位提示圈绘图-玩家站位颜色")]
+        [UserSetting("Position marker circle - player position color")]
         public static ScriptColor PosColorPlayer { get; set; } = new ScriptColor { V4 = new Vector4(0.0f, 1.0f, 1.0f, 1.0f) };
 
         public enum ExaflareSpecStrategyEnum
         {
-            绝不去前方_NeverFront,
-            绝不跑无脑火_NeverUniverse,
-            绝不多跑_LeastMovement,
-            绝对前方_AlwaysFront,
-            关闭_PleaseDontDoThat,
+            NeverFront,
+            NeverUniverse,
+            LeastMovement,
+            AlwaysFront,
+            Disabled,
         }
-        [UserSetting("地火指路特殊策略")]
-        public static ExaflareSpecStrategyEnum ExaflareStrategy { get; set; } = ExaflareSpecStrategyEnum.绝不跑无脑火_NeverUniverse;
+        [UserSetting("Exaflare's Edge guidance strategy")]
+        public static ExaflareSpecStrategyEnum ExaflareStrategy { get; set; } = ExaflareSpecStrategyEnum.NeverUniverse;
 
-        [UserSetting("地火（百京核爆）使用程序预设颜色")]
+        [UserSetting("Exaflare's Edge - use built-in colors")]
         public static bool ExaflareBuiltInColor { get; set; } = true;
-        [UserSetting("地火（百京核爆）爆炸区颜色")]
+        [UserSetting("Exaflare's Edge - explosion area color")]
         public ScriptColor ExaflareColor { get; set; } = new ScriptColor { V4 = new Vector4(1.0f, 1.0f, 0f, 1.0f) };
-        [UserSetting("地火（百京核爆）是否绘制下一枚地火预警区")]
+        [UserSetting("Exaflare's Edge - draw the next explosion warning area")]
         public static bool ExaflareWarnDrawn { get; set; } = true;
-        [UserSetting("地火（百京核爆）预警区颜色")]
+        [UserSetting("Exaflare's Edge - warning area color")]
         public ScriptColor ExaflareWarnColor { get; set; } = new ScriptColor { V4 = new Vector4(0.6f, 0.6f, 1.0f, 1.0f) };
 
         private enum DsrPhase
@@ -194,15 +213,12 @@ namespace KarlinScriptNamespace
 
         private const uint ChariotBlade = 298;
 
-        // 补丁内部调试开关：为 true 时，仅供调试的记录类方法也会出现在用户设置面板；
-        // 同时所有「只画自己」的指路会改为把全队 8 人各自的指路一起画出来，便于一眼检查分配是否正确。
-        // 个人 TTS / TextInfo 语音文字提示不受影响，仍然只给自己播。
-        private const bool Debugging = true;
+        private const bool Debugging = false;
 
         /// <summary>
         /// 取位置index对应玩家的ObjectId，作为指路箭头起点。Debug 模式下用来把全队的指路画在各自身上。
         /// </summary>
-        private static uint 指路起点(ScriptAccessory sa, int idx)
+        private static uint GuidanceOwner(ScriptAccessory sa, int idx)
             => idx >= 0 && idx < sa.Data.PartyList.Count ? sa.Data.PartyList[idx] : sa.Data.Me;
 
 
@@ -272,9 +288,9 @@ namespace KarlinScriptNamespace
 
         #region P1
 
-        [ScriptMethod(name: "---- 《P1 & P4.5 门神》 ----", eventType: EventTypeEnum.NpcYell, eventCondition: ["HelloayaWorld"],
+        [ScriptMethod(name: "---- [P1 & P4.5 Ser Adelphel & Ser Grinnaux] ----", eventType: EventTypeEnum.NpcYell, eventCondition: ["HelloayaWorld"],
             userControl: true)]
-        public void P1_分节线(Event @event, ScriptAccessory accessory)
+        public void P1_SectionDivider(Event @event, ScriptAccessory accessory)
         {
         }
 
@@ -286,8 +302,8 @@ namespace KarlinScriptNamespace
                 p1GrenoId=sid;
             }
         }
-        [ScriptMethod(name: "P1 阶段记录", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:25300"],userControl:false)]
-        public void P1_阶段记录(Event @event, ScriptAccessory accessory)
+        [ScriptMethod(name: "P1 Phase Record", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:25300"],userControl:false)]
+        public void P1_PhaseRecord(Event @event, ScriptAccessory accessory)
         {
             if(parse==0) { parse = 1; }
             parse = Math.Round(parse + 0.1, 1);
@@ -297,8 +313,8 @@ namespace KarlinScriptNamespace
             }
             
         }
-        [ScriptMethod(name: "P1 钢铁",eventType: EventTypeEnum.StartCasting,eventCondition: ["ActionId:25307"])]
-        public void P1_钢铁(Event @event, ScriptAccessory accessory)
+        [ScriptMethod(name: "P1 Full Dimension",eventType: EventTypeEnum.StartCasting,eventCondition: ["ActionId:25307"])]
+        public void P1_FullDimension(Event @event, ScriptAccessory accessory)
         {
             var dp=accessory.Data.GetDefaultDrawProperties();
             dp.Scale = new(6);
@@ -310,8 +326,8 @@ namespace KarlinScriptNamespace
             dp.DestoryAt = 5000;
             accessory.Method.SendDraw(DrawModeEnum.Default,DrawTypeEnum.Circle,dp);
         }
-        [ScriptMethod(name: "P1 月环", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:25306"])]
-        public void P1_月环(Event @event, ScriptAccessory accessory)
+        [ScriptMethod(name: "P1 Empty Dimension", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:25306"])]
+        public void P1_EmptyDimension(Event @event, ScriptAccessory accessory)
         {
             var dp = accessory.Data.GetDefaultDrawProperties();
             dp.Scale = new(70);
@@ -326,11 +342,11 @@ namespace KarlinScriptNamespace
             accessory.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Donut, dp);
         }
 
-        [ScriptMethod(name: "P1 苍穹炽焰", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:25309"])]
-        public void P1_苍穹炽焰(Event @event, ScriptAccessory accessory)
+        [ScriptMethod(name: "P1 Heavensblaze", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:25309"])]
+        public void P1_Heavensblaze(Event @event, ScriptAccessory accessory)
         {
             var dp = accessory.Data.GetDefaultDrawProperties();
-            dp.Name = "P1_苍穹炽焰";
+            dp.Name = "P1_Heavensblaze";
             dp.Scale = new(4);
             dp.Color = accessory.Data.DefaultSafeColor;
             if (ParseObjectId(@event["TargetId"], out var tid))
@@ -342,8 +358,8 @@ namespace KarlinScriptNamespace
 
         }
 
-        [ScriptMethod(name: "P1 直线多维空间斩", eventType: EventTypeEnum.TargetIcon)]
-        public void P1_直线多维空间斩(Event @event, ScriptAccessory accessory)
+        [ScriptMethod(name: "P1 Hyperdimensional Slash", eventType: EventTypeEnum.TargetIcon)]
+        public void P1_HyperdimensionalSlash(Event @event, ScriptAccessory accessory)
         {
             if (parse <1|| parse>=2) return;
             if (ParsTargetIcon(@event["Id"]) != 0) return;
@@ -358,12 +374,12 @@ namespace KarlinScriptNamespace
                 dp.TargetObject = tid;
             }
             dp.DestoryAt = 6000;
-            dp.Name = $"P1 直线多维空间斩{tid:X}";
+            dp.Name = $"P1 Hyperdimensional Slash{tid:X}";
             accessory.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Rect, dp);
         }
 
-        [ScriptMethod(name: "P1 次元裂缝危险区", eventType: EventTypeEnum.AddCombatant, eventCondition: ["DataId:13071"])]
-        public void P1_次元裂缝危险区(Event @event, ScriptAccessory accessory)
+        [ScriptMethod(name: "P1 Hyperdimensional Rift Danger Zone", eventType: EventTypeEnum.AddCombatant, eventCondition: ["DataId:13071"])]
+        public void P1_HyperdimensionalRiftDangerZone(Event @event, ScriptAccessory accessory)
         {
             var dp = accessory.Data.GetDefaultDrawProperties();
             dp.Scale = new(9);
@@ -373,26 +389,26 @@ namespace KarlinScriptNamespace
                 dp.Owner = id;
             }
             dp.DestoryAt = 60000;
-            dp.Name = $"P1 次元裂缝危险区{id:X}";
+            dp.Name = $"P1 Hyperdimensional Riftdanger zone{id:X}";
             accessory.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Circle, dp);
         }
-        [ScriptMethod(name: "P1 次元裂缝危险区移除", eventType: EventTypeEnum.RemoveCombatant, eventCondition: ["DataId:13071"],userControl:false)]
-        public void P1_次元裂缝危险区移除(Event @event, ScriptAccessory accessory)
+        [ScriptMethod(name: "P1 Hyperdimensional Rift Danger Zone Remove", eventType: EventTypeEnum.RemoveCombatant, eventCondition: ["DataId:13071"],userControl:false)]
+        public void P1_HyperdimensionalRiftDangerZoneRemove(Event @event, ScriptAccessory accessory)
         {
             if (ParseObjectId(@event["SourceId"], out var id))
             {
-                accessory.Method.RemoveDraw($"P1 次元裂缝危险区{id:X}");
+                accessory.Method.RemoveDraw($"P1 Hyperdimensional Riftdanger zone{id:X}");
             }
         }
 
-        [ScriptMethod(name: "P1 光芒剑阿代尔斐尔位置(ImGui)", eventType: EventTypeEnum.Targetable, eventCondition: ["Targetable:True"])]
-        public void P1_光芒剑阿代尔斐尔位置(Event @event, ScriptAccessory accessory)
+        [ScriptMethod(name: "P1 Shining Blade Ser Adelphel Position (ImGui)", eventType: EventTypeEnum.Targetable, eventCondition: ["Targetable:True"])]
+        public void P1_ShiningBladeSerAdelphelPosition(Event @event, ScriptAccessory accessory)
         {
             if (parse!=1.1) return;
             if (!ParseObjectId(@event["SourceId"], out var sid)) return;
             if (sid != p1AdelId) return;
             var dp = accessory.Data.GetDefaultDrawProperties();
-            dp.Name = "P1_光芒剑阿代尔斐尔位置";
+            dp.Name = "P1_ShiningBladeSerAdelphelPosition";
             dp.TargetObject = sid;
             dp.Owner = accessory.Data.Me;
             dp.Color = accessory.Data.DefaultSafeColor;
@@ -402,8 +418,8 @@ namespace KarlinScriptNamespace
 
 
         }
-        [ScriptMethod(name: "P1 光芒剑(火神冲)", eventType: EventTypeEnum.ActionEffect, eventCondition: ["ActionId:25294"])]
-        public void P1_光芒剑(Event @event, ScriptAccessory accessory)
+        [ScriptMethod(name: "P1 Shining Blade", eventType: EventTypeEnum.ActionEffect, eventCondition: ["ActionId:25294"])]
+        public void P1_ShiningBlade(Event @event, ScriptAccessory accessory)
         {
             if (p1Charge) return;
             p1Charge = true;
@@ -416,60 +432,60 @@ namespace KarlinScriptNamespace
             {
                 if(MathF.Abs(r+float.Pi/4)<0.1 || MathF.Abs(r - float.Pi *0.75f) < 0.1)
                 {
-                    dp.Name = "P1_光芒剑(111.00,111.00)";
+                    dp.Name = "P1_ShiningBlade(111.00,111.00)";
                     dp.Position = new(111, 0, 111);
                     accessory.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Circle, dp);
-                    dp.Name = "P1_光芒剑(89.00,89.00)";
+                    dp.Name = "P1_ShiningBlade(89.00,89.00)";
                     dp.Position = new(89, 0, 89);
                     accessory.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Circle, dp);
                 }
                 if (MathF.Abs(r - float.Pi / 4) < 0.1 || MathF.Abs(r + float.Pi * 0.75f) < 0.1)
                 {
-                    dp.Name = "P1_光芒剑(111.00,89.00)";
+                    dp.Name = "P1_ShiningBlade(111.00,89.00)";
                     dp.Position = new(111, 0, 89);
                     accessory.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Circle, dp);
-                    dp.Name = "P1_光芒剑(89.00,111.00)";
+                    dp.Name = "P1_ShiningBlade(89.00,111.00)";
                     dp.Position = new(89, 0, 111);
                     accessory.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Circle, dp);
                 }
             }
 
-            dp.Name = "P1_光芒剑(78.00,100.00)";
+            dp.Name = "P1_ShiningBlade(78.00,100.00)";
             dp.Position = new(78, 0, 100);
             accessory.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Circle, dp);
-            dp.Name = "P1_光芒剑(92.52,100.00)";
+            dp.Name = "P1_ShiningBlade(92.52,100.00)";
             dp.Position = new(92.52f, 0, 100);
             accessory.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Circle, dp);
-            dp.Name = "P1_光芒剑(107.48,100.00)";
+            dp.Name = "P1_ShiningBlade(107.48,100.00)";
             dp.Position = new(107.48f, 0, 100);
             accessory.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Circle, dp);
-            dp.Name = "P1_光芒剑(122.00,100.00)";
+            dp.Name = "P1_ShiningBlade(122.00,100.00)";
             dp.Position = new(122, 0, 100);
             accessory.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Circle, dp);
-            dp.Name = "P1_光芒剑(100.00,78.00)";
+            dp.Name = "P1_ShiningBlade(100.00,78.00)";
             dp.Position = new(100, 0, 78);
             accessory.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Circle, dp);
-            dp.Name = "P1_光芒剑(100,92.52.00)";
+            dp.Name = "P1_ShiningBlade(100,92.52.00)";
             dp.Position = new(100, 0, 92.52f);
             accessory.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Circle, dp);
-            dp.Name = "P1_光芒剑(100.00,107.48)";
+            dp.Name = "P1_ShiningBlade(100.00,107.48)";
             dp.Position = new(100, 0, 107.48f);
             accessory.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Circle, dp);
-            dp.Name = "P1_光芒剑(100.00,122.00)";
+            dp.Name = "P1_ShiningBlade(100.00,122.00)";
             dp.Position = new(100, 0, 122);
             accessory.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Circle, dp);
 
         }
-        [ScriptMethod(name: "P1 光球爆炸范围移除", eventType: EventTypeEnum.ActionEffect, eventCondition: ["ActionId:25295"], userControl: false)]
-        public void P1_光球爆炸范围移除(Event @event, ScriptAccessory accessory)
+        [ScriptMethod(name: "P1 Bright Flare AoE Remove", eventType: EventTypeEnum.ActionEffect, eventCondition: ["ActionId:25295"], userControl: false)]
+        public void P1_BrightFlareAoERemove(Event @event, ScriptAccessory accessory)
         {
             if (parse > 2) return;
             var pos= JsonConvert.DeserializeObject<Vector3>(@event["SourcePosition"]);
-            var name = $"P1_光芒剑\\({pos.X:f2},{pos.Z:f2}\\)";
+            var name = $"P1_ShiningBlade\\({pos.X:f2},{pos.Z:f2}\\)";
             accessory.Method.RemoveDraw(name);
         }
-        [ScriptMethod(name: "P1 击退预测", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:25308"])]
-        public void P1_击退预测(Event @event, ScriptAccessory accessory)
+        [ScriptMethod(name: "P1 Faith Unmoving Prediction", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:25308"])]
+        public void P1_FaithUnmovingPrediction(Event @event, ScriptAccessory accessory)
         {
             var dp = accessory.Data.GetDefaultDrawProperties();
             dp.Scale = new(1.5f,16);
@@ -483,8 +499,8 @@ namespace KarlinScriptNamespace
             dp.DestoryAt = 5000;
             accessory.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Displacement, dp);
         }
-        [ScriptMethod(name: "P1 索尼记录", eventType: EventTypeEnum.TargetIcon, userControl: false)]
-        public void P1_索尼记录(Event @event, ScriptAccessory accessory)
+        [ScriptMethod(name: "P1 PlayStation Record", eventType: EventTypeEnum.TargetIcon, userControl: false)]
+        public void P1_PlayStationRecord(Event @event, ScriptAccessory accessory)
         {
             
             if (parse != 1.2) return;
@@ -496,8 +512,8 @@ namespace KarlinScriptNamespace
                 p1sony[index] = sony;
             }
         }
-        [ScriptMethod(name: "P1 索尼击退位置(ImGui)", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:25308"])]
-        public void P1_索尼击退位置(Event @event, ScriptAccessory accessory)
+        [ScriptMethod(name: "P1 PlayStation Knockback Position (ImGui)", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:25308"])]
+        public void P1_PlayStationKnockbackPosition(Event @event, ScriptAccessory accessory)
         {
             accessory.Log.Debug($"parse{parse}");
             if (parse != 1.2) return;
@@ -514,17 +530,17 @@ namespace KarlinScriptNamespace
                 var dp = accessory.Data.GetDefaultDrawProperties();
                 dp.Color = accessory.Data.DefaultSafeColor;
                 dp.Scale = new(1);
-                dp.Owner = 指路起点(accessory, index);
+                dp.Owner = GuidanceOwner(accessory, index);
                 dp.DestoryAt = 4000;
                 dp.ScaleMode |= ScaleMode.YByDistance;
 
                 //○
                 if (p1sony[index] == 0)
                 {
-                    dp.Name = $"P1索尼○1-{index}";
+                    dp.Name = $"P1 PlayStation○1-{index}";
                     dp.TargetPosition = RotatePoint(npos, cpos, float.Pi / 2);
                     accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
-                    dp.Name = $"P1索尼○2-{index}";
+                    dp.Name = $"P1 PlayStation○2-{index}";
                     dp.TargetPosition = RotatePoint(npos, cpos, float.Pi / -2);
                     accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
                 }
@@ -533,12 +549,12 @@ namespace KarlinScriptNamespace
                 {
                     if (index == 2 || index == 3)
                     {
-                        dp.Name = $"P1索尼▽奶-{index}";
+                        dp.Name = $"P1 PlayStation▽Healer-{index}";
                         dp.TargetPosition = RotatePoint(npos, cpos, float.Pi / 4 * 3);
                     }
                     else
                     {
-                        dp.Name = $"P1索尼▽D-{index}";
+                        dp.Name = $"P1 PlayStation▽D-{index}";
                         dp.TargetPosition = RotatePoint(npos, cpos, float.Pi / -4);
                     }
                     accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
@@ -548,12 +564,12 @@ namespace KarlinScriptNamespace
                 {
                     if (index == 0 || index == 1)
                     {
-                        dp.Name = $"P1索尼□T-{index}";
+                        dp.Name = $"P1 PlayStation□T-{index}";
                         dp.TargetPosition = RotatePoint(npos, cpos, float.Pi / 4);
                     }
                     else
                     {
-                        dp.Name = $"P1索尼□D-{index}";
+                        dp.Name = $"P1 PlayStation□D-{index}";
                         dp.TargetPosition = RotatePoint(npos, cpos, float.Pi / -4 * 3);
                     }
                     accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
@@ -563,12 +579,12 @@ namespace KarlinScriptNamespace
                 {
                     if (index == 0 || index == 1)
                     {
-                        dp.Name = $"P1索尼×T-{index}";
+                        dp.Name = $"P1 PlayStation×T-{index}";
                         dp.TargetPosition = npos;
                     }
                     else
                     {
-                        dp.Name = $"P1索尼×D-{index}";
+                        dp.Name = $"P1 PlayStation×D-{index}";
                         dp.TargetPosition = RotatePoint(npos, cpos, float.Pi);
                     }
                     accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
@@ -576,8 +592,8 @@ namespace KarlinScriptNamespace
             }
         }
 
-        [ScriptMethod(name: "P1 光翼闪", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:25316"])]
-        public void P1_光翼闪(Event @event, ScriptAccessory accessory)
+        [ScriptMethod(name: "P1 Brightwing", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:25316"])]
+        public void P1_Brightwing(Event @event, ScriptAccessory accessory)
         {
             var dp = accessory.Data.GetDefaultDrawProperties();
             dp.Scale = new(18);
@@ -595,8 +611,8 @@ namespace KarlinScriptNamespace
             accessory.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Fan, dp); 
         }
 
-        [ScriptMethod(name: "P1 苍穹刻印玩家", eventType: EventTypeEnum.StatusAdd, eventCondition: ["StatusID:2661"])]
-        public void P1_苍穹刻印玩家(Event @event, ScriptAccessory accessory)
+        [ScriptMethod(name: "P1 Skyblind Player", eventType: EventTypeEnum.StatusAdd, eventCondition: ["StatusID:2661"])]
+        public void P1_SkyblindPlayer(Event @event, ScriptAccessory accessory)
         {
             var dp = accessory.Data.GetDefaultDrawProperties();
             dp.Scale = new(3);
@@ -609,11 +625,11 @@ namespace KarlinScriptNamespace
             accessory.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Circle, dp);
             
         }
-        [ScriptMethod(name: "P1 苍穹刻印落地", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:25370"])]
-        public void P1_苍穹刻印落地(Event @event, ScriptAccessory accessory)
+        [ScriptMethod(name: "P1 Skyblind Drop", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:25370"])]
+        public void P1_SkyblindDrop(Event @event, ScriptAccessory accessory)
         {
             var dp = accessory.Data.GetDefaultDrawProperties();
-            dp.Name = "P1_苍穹刻印落地";
+            dp.Name = "P1_SkyblindDrop";
             dp.Scale = new(3);
             dp.Color = accessory.Data.DefaultDangerColor;
             if (ParseObjectId(@event["SourceId"], out var sid))
@@ -625,9 +641,9 @@ namespace KarlinScriptNamespace
 
         }
         private bool _pureOfHeartBaitShown = false;
-        [ScriptMethod(name: "P1 纯洁心灵引导", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:25316"], 
+        [ScriptMethod(name: "P1 Pure of Heart Guide", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:25316"], 
             userControl: true)]
-        public void P1_纯洁心灵引导(Event @event, ScriptAccessory accessory)
+        public void P1_PureOfHeartGuide(Event @event, ScriptAccessory accessory)
         {
             _pureOfHeartBaitCount = 0;
             _pureOfHeartBaitShown = true;
@@ -641,29 +657,29 @@ namespace KarlinScriptNamespace
             foreach (var baitIdx in firstBaitIdx)
             {
                 if (!Debugging && baitIdx != myIndex) continue;
-                P1_绘制纯洁心灵引导(accessory, baitIdx, 0, 15000);
+                P1_DrawPureOfHeartGuide(accessory, baitIdx, 0, 15000);
             }
         }
 
-        private void P1_绘制纯洁心灵引导(ScriptAccessory sa, int playerIndex, int delay, int destroy)
+        private void P1_DrawPureOfHeartGuide(ScriptAccessory sa, int playerIndex, int delay, int destroy)
         {
             Vector3[] baitPos = [new(87.0f, 0.0f, 108.0f), new(91.0f, 0.0f, 108.0f)];
             var baitPosIdx = 1 - playerIndex % 2;   // 偶数索引(MT/H1/D1/D3)在内点，奇数索引(ST/H2/D2/D4)在外点
             for (var posIdx = 0; posIdx < baitPos.Length; posIdx++)
             {
                 var color = baitPosIdx == posIdx ? PosColorPlayer.V4 : PosColorNormal.V4;
-                var dp = sa.DrawStaticCircle(baitPos[posIdx], color, delay, destroy, $"纯洁心灵", 0.5f);
+                var dp = sa.DrawStaticCircle(baitPos[posIdx], color, delay, destroy, $"Pure of Heart", 0.5f);
                 sa.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Circle, dp);
                 if (baitPosIdx != posIdx) continue;
-                var dpGuide = sa.DrawGuidance(指路起点(sa, playerIndex), baitPos[posIdx], delay, destroy, $"纯洁心灵指路{playerIndex}");
+                var dpGuide = sa.DrawGuidance(GuidanceOwner(sa, playerIndex), baitPos[posIdx], delay, destroy, $"Pure of Heartguidance{playerIndex}");
                 sa.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dpGuide);
             }
         }
 
 
-        [ScriptMethod(name: "P1 纯洁心灵引导后续", eventType: EventTypeEnum.ActionEffect, eventCondition: ["ActionId:25369"], 
+        [ScriptMethod(name: "P1 Pure of Heart Guide Follow Up", eventType: EventTypeEnum.ActionEffect, eventCondition: ["ActionId:25369"], 
             userControl: false)]
-        public void P1_纯洁心灵引导后续(Event @event, ScriptAccessory sa)
+        public void P1_PureOfHeartGuideFollowUp(Event @event, ScriptAccessory sa)
         {
             if (!_pureOfHeartBaitShown) return;
             if (@event.TargetIndex() != 1) return;
@@ -671,13 +687,13 @@ namespace KarlinScriptNamespace
             lock (this)
             {
                 _pureOfHeartBaitCount++;
-                sa.Log.Debug($"纯洁心灵引导次数：{_pureOfHeartBaitCount}");
+                sa.Log.Debug($"Pure of Heartguidecount: {_pureOfHeartBaitCount}");
                 if (_pureOfHeartBaitCount > 6) return;
                 var baitDict = new Dictionary<int, int> { { 1, 4 }, { 2, 5 }, { 3, 6 }, { 4, 7 }, { 5, 0 }, { 6, 1 } };
                 var baitIdx = baitDict[_pureOfHeartBaitCount];
                 if (!Debugging && baitIdx != myIndex) return;
-                sa.Log.Debug($"开始绘制玩家的纯洁心灵引导");
-                P1_绘制纯洁心灵引导(sa, baitIdx, 0, 5000);
+                sa.Log.Debug($"Start drawing player Pure of Heartguide");
+                P1_DrawPureOfHeartGuide(sa, baitIdx, 0, 5000);
             }
         }
 
@@ -685,15 +701,15 @@ namespace KarlinScriptNamespace
 
         #region P2
 
-        [ScriptMethod(name: "---- 《P2 骑神托尔丹》 ----", eventType: EventTypeEnum.NpcYell, eventCondition: ["HelloayaWorld"],
+        [ScriptMethod(name: "---- [P2 King Thordan] ----", eventType: EventTypeEnum.NpcYell, eventCondition: ["HelloayaWorld"],
             userControl: true)]
-        public void P2_分节线(Event @event, ScriptAccessory accessory)
+        public void P2_SectionDivider(Event @event, ScriptAccessory accessory)
         {
         }
 
-        #region 一运
-        [ScriptMethod(name: "P2 1运记录", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:25555"],userControl:false)]
-        public void P2_1运记录(Event @event, ScriptAccessory accessory)
+        #region FirstMechanic
+        [ScriptMethod(name: "P2 Strength of the Ward - Record", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:25555"],userControl:false)]
+        public void P2_StrengthOfTheWardRecord(Event @event, ScriptAccessory accessory)
         {
             parse = 2.1;
             firstTargetIcon = null;
@@ -702,8 +718,8 @@ namespace KarlinScriptNamespace
                 tordanId = id;
             }
         }
-        [ScriptMethod(name: "P2 1运波勒克兰冲锋", eventType: EventTypeEnum.NpcYell, eventCondition: ["Id:3781"])]
-        public void P2_1运波勒克兰冲锋(Event @event, ScriptAccessory accessory)
+        [ScriptMethod(name: "P2 Strength of the Ward - Ser Paulecrain Charge", eventType: EventTypeEnum.NpcYell, eventCondition: ["Id:3781"])]
+        public void P2_StrengthOfTheWardSerPaulecrainCharge(Event @event, ScriptAccessory accessory)
         {
             if (parse != 2.1) return;
             var dp = accessory.Data.GetDefaultDrawProperties();
@@ -716,8 +732,8 @@ namespace KarlinScriptNamespace
             dp.DestoryAt = 7000;
             accessory.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Rect, dp);
         }
-        [ScriptMethod(name: "P2 1运伊尼亚斯冲锋", eventType: EventTypeEnum.NpcYell, eventCondition: ["Id:3782"])]
-        public void P2_1运伊尼亚斯冲锋(Event @event, ScriptAccessory accessory)
+        [ScriptMethod(name: "P2 Strength of the Ward - Ser Ignasse Charge", eventType: EventTypeEnum.NpcYell, eventCondition: ["Id:3782"])]
+        public void P2_StrengthOfTheWardSerIgnasseCharge(Event @event, ScriptAccessory accessory)
         {
             if (parse != 2.1) return;
             var dp = accessory.Data.GetDefaultDrawProperties();
@@ -730,8 +746,8 @@ namespace KarlinScriptNamespace
             dp.DestoryAt = 7000;
             accessory.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Rect, dp);
         }
-        [ScriptMethod(name: "P2 1运韦尔吉纳冲锋", eventType: EventTypeEnum.NpcYell, eventCondition: ["Id:3783"])]
-        public void P2_1运韦尔吉纳冲锋(Event @event, ScriptAccessory accessory)
+        [ScriptMethod(name: "P2 Strength of the Ward - Ser Vellguine Charge", eventType: EventTypeEnum.NpcYell, eventCondition: ["Id:3783"])]
+        public void P2_StrengthOfTheWardSerVellguineCharge(Event @event, ScriptAccessory accessory)
         {
             if (parse != 2.1) return;
             var dp = accessory.Data.GetDefaultDrawProperties();
@@ -744,8 +760,8 @@ namespace KarlinScriptNamespace
             dp.DestoryAt = 7000;
             accessory.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Rect, dp);
         }
-        [ScriptMethod(name: "P2 1运冲锋位置记录", eventType: EventTypeEnum.NpcYell,userControl:false)]
-        public void P2_1运冲锋位置记录(Event @event, ScriptAccessory accessory)
+        [ScriptMethod(name: "P2 Strength of the Ward - Charge Position Record", eventType: EventTypeEnum.NpcYell,userControl:false)]
+        public void P2_StrengthOfTheWardChargePositionRecord(Event @event, ScriptAccessory accessory)
         {
             if (parse != 2.1) return;
             var str= @event["Id"];
@@ -773,14 +789,14 @@ namespace KarlinScriptNamespace
                 p2SafeDir[7] = false;
             }
         }
-        [ScriptMethod(name: "P2 1运冲锋安全区位置(Imgui)", eventType: EventTypeEnum.NpcYell, eventCondition: ["Id:3781"])]
-        public void P2_1运冲锋安全区位置(Event @event, ScriptAccessory accessory)
+        [ScriptMethod(name: "P2 Strength of the Ward - Charge Safe Zone Position (ImGui)", eventType: EventTypeEnum.NpcYell, eventCondition: ["Id:3781"])]
+        public void P2_StrengthOfTheWardChargeSafeZonePosition(Event @event, ScriptAccessory accessory)
         {
             if (parse != 2.1) return;
             Task.Delay(100).ContinueWith(y =>
             {
                 var dp = accessory.Data.GetDefaultDrawProperties();
-                dp.Name = "P2 1运冲锋安全区位置";
+                dp.Name = "P2 Strength of the Wardchargesafe-zone position";
                 dp.ScaleMode |= ScaleMode.YByDistance;
                 dp.Color = accessory.Data.DefaultSafeColor;
                 dp.Owner = accessory.Data.Me;
@@ -803,13 +819,13 @@ namespace KarlinScriptNamespace
             });
             
         }
-        [ScriptMethod(name: "P2 1运地震", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:25558"])]
-        public void P2_1运地震(Event @event, ScriptAccessory accessory)
+        [ScriptMethod(name: "P2 Strength of the Ward - Heavy Impact", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:25558"])]
+        public void P2_StrengthOfTheWardHeavyImpact(Event @event, ScriptAccessory accessory)
         {
             if (parse != 2.1) return;
             var dp = accessory.Data.GetDefaultDrawProperties();
             dp.Color = accessory.Data.DefaultDangerColor;
-            dp.Name = "P2 1运地震";
+            dp.Name = "P2 Strength of the WardHeavy Impact";
             if (ParseObjectId(@event["SourceId"], out var sid))
             {
                 dp.Owner = sid;
@@ -844,8 +860,8 @@ namespace KarlinScriptNamespace
             dp.DestoryAt = 4000;
             accessory.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Donut, dp);
         }
-        [ScriptMethod(name: "P2 1运穿天记录", eventType: EventTypeEnum.TargetIcon,userControl:false)]
-        public void P2_1运穿天记录(Event @event, ScriptAccessory accessory)
+        [ScriptMethod(name: "P2 Strength of the Ward - Skyward Leap Record", eventType: EventTypeEnum.TargetIcon,userControl:false)]
+        public void P2_StrengthOfTheWardSkywardLeapRecord(Event @event, ScriptAccessory accessory)
         {
             if (parse != 2.1) return;
             if (ParsTargetIcon(@event["Id"]) != 0) return;
@@ -855,12 +871,12 @@ namespace KarlinScriptNamespace
                 p2BlueCircle.Add(id);
             }
         }
-        [ScriptMethod(name: "P2 1运空间破碎", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:25564"])]
-        public void P2_1运空间破碎(Event @event, ScriptAccessory accessory)
+        [ScriptMethod(name: "P2 Strength of the Ward - Dimensional Slash", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:25564"])]
+        public void P2_StrengthOfTheWardDimensionalSlash(Event @event, ScriptAccessory accessory)
         {
             if (parse != 2.1) return;
             var dp = accessory.Data.GetDefaultDrawProperties();
-            dp.Name = "P2 1运空间破碎";
+            dp.Name = "P2 Strength of the WardDimensional Slash";
             dp.Color = accessory.Data.DefaultDangerColor;
             if (ParseObjectId(@event["SourceId"], out var sid))
             {
@@ -874,8 +890,8 @@ namespace KarlinScriptNamespace
 
            
         }
-        [ScriptMethod(name: "P2 1运穿天(大圈)", eventType: EventTypeEnum.TargetIcon)]
-        public void P2_1运穿天(Event @event, ScriptAccessory accessory)
+        [ScriptMethod(name: "P2 Strength of the Ward - Skyward Leap", eventType: EventTypeEnum.TargetIcon)]
+        public void P2_StrengthOfTheWardSkywardLeap(Event @event, ScriptAccessory accessory)
         {
             if (parse != 2.1) return;
             if (ParsTargetIcon(@event["Id"]) != 0) return;
@@ -891,12 +907,12 @@ namespace KarlinScriptNamespace
             accessory.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Circle, dp);
             
         }
-        [ScriptMethod(name: "P2 一运穿天连线(ImGui)", eventType: EventTypeEnum.ActionEffect, eventCondition: ["ActionId:25562"])]
-        public void P2_一运穿天连线(Event @event, ScriptAccessory accessory)
+        [ScriptMethod(name: "P2 Strength of the Ward - Skyward Leap Tether (ImGui)", eventType: EventTypeEnum.ActionEffect, eventCondition: ["ActionId:25562"])]
+        public void P2_StrengthOfTheWardSkywardLeapTether(Event @event, ScriptAccessory accessory)
         {
             if (parse != 2.1) return;
             var dp = accessory.Data.GetDefaultDrawProperties();
-            dp.Name = "P2 一运穿天连线";
+            dp.Name = "P2 Strength of the WardSkyward Leaptether";
             dp.Color = accessory.Data.DefaultDangerColor;
             dp.Owner = p2BlueCircle[0];
             dp.ScaleMode |= ScaleMode.YByDistance;
@@ -907,8 +923,8 @@ namespace KarlinScriptNamespace
                 accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Line, dp);
             }
         }
-        [ScriptMethod(name: "P2 1运让勒努冲锋", eventType: EventTypeEnum.NpcYell, eventCondition: ["Id:2551"])]
-        public void P2_1运让勒努冲锋(Event @event, ScriptAccessory accessory)
+        [ScriptMethod(name: "P2 Strength of the Ward - Ser Janlenoux Charge", eventType: EventTypeEnum.NpcYell, eventCondition: ["Id:2551"])]
+        public void P2_StrengthOfTheWardSerJanlenouxCharge(Event @event, ScriptAccessory accessory)
         {
             if (parse != 2.1) return;
             var dp = accessory.Data.GetDefaultDrawProperties();
@@ -924,8 +940,8 @@ namespace KarlinScriptNamespace
             dp.ScaleMode |= ScaleMode.YByDistance;
             accessory.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Rect, dp);
         }
-        [ScriptMethod(name: "P2 1运阿代尔菲尔冲锋", eventType: EventTypeEnum.NpcYell, eventCondition: ["Id:2550"])]
-        public void P2_1运阿代尔菲尔冲锋(Event @event, ScriptAccessory accessory)
+        [ScriptMethod(name: "P2 Strength of the Ward - Ser Adelphel Charge", eventType: EventTypeEnum.NpcYell, eventCondition: ["Id:2550"])]
+        public void P2_StrengthOfTheWardSerAdelphelCharge(Event @event, ScriptAccessory accessory)
         {
             if (parse != 2.1) return;
             var dp = accessory.Data.GetDefaultDrawProperties();
@@ -941,12 +957,12 @@ namespace KarlinScriptNamespace
             dp.ScaleMode |= ScaleMode.YByDistance;
             accessory.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Rect, dp);
         }
-        [ScriptMethod(name: "P2 1运骑神位置(Imgui)", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:25563"])]
-        public void P2_1运骑神位置(Event @event, ScriptAccessory accessory)
+        [ScriptMethod(name: "P2 Strength of the Ward - Thordan Position (ImGui)", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:25563"])]
+        public void P2_StrengthOfTheWardThordanPosition(Event @event, ScriptAccessory accessory)
         {
             if (parse != 2.1) return;
             var dp = accessory.Data.GetDefaultDrawProperties();
-            dp.Name = "P2 1运骑神位置";
+            dp.Name = "P2 Strength of the WardThordanposition";
             dp.Scale = new(8, 50);
             dp.Color = accessory.Data.DefaultSafeColor;
             dp.TargetObject = tordanId;
@@ -957,27 +973,27 @@ namespace KarlinScriptNamespace
             accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Line, dp);
         }
 
-        [ScriptMethod(name: "P2 一运不可视刀范围", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:25545"])]
-        public void P2_一运不可视刀范围(Event @event, ScriptAccessory accessory)
+        [ScriptMethod(name: "P2 Strength of the Ward - Ascalon's Mercy Concealed - AoE", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:25545"])]
+        public void P2_StrengthOfTheWardAscalonsMercyConcealedAoE(Event @event, ScriptAccessory accessory)
         {
             var sid = @event.SourceId();
-            var dp = accessory.DrawFan(sid, float.Pi / 6, 0, 30, 0, 0, 1500, $"不可视刀");
+            var dp = accessory.DrawFan(sid, float.Pi / 6, 0, 30, 0, 0, 1500, $"Ascalon's Mercy Concealed");
             dp.Color = accessory.Data.DefaultDangerColor.WithW(1.5f);
             accessory.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Fan, dp);
         }
 
-        [ScriptMethod(name: "P2 一运阶段记录", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:25555"], userControl: false)]
-        public void P2_一运阶段记录(Event @event, ScriptAccessory sa)
+        [ScriptMethod(name: "P2 Strength of the Ward - Phase Record", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:25555"], userControl: false)]
+        public void P2_StrengthOfTheWardPhaseRecord(Event @event, ScriptAccessory sa)
         {
             _dsrPhase = DsrPhase.Phase2Strength;
             _p2SafeDirection = new bool[8].ToList();
             _p2ThordanPos = new Vector3(0, 0, 0);
             _p2TetherKnightId = [0, 0];
-            sa.Log.Debug($"当前阶段为：{_dsrPhase}");
+            sa.Log.Debug($"Current phase: {_dsrPhase}");
         }
 
-        [ScriptMethod(name: "P2 一运冲锋方位记录", eventType: EventTypeEnum.NpcYell, eventCondition: ["Id:regex:^(378[123])$"], userControl: false)]
-        public void P2_一运冲锋方位记录(Event @event, ScriptAccessory sa)
+        [ScriptMethod(name: "P2 Strength of the Ward - Charge Direction Record", eventType: EventTypeEnum.NpcYell, eventCondition: ["Id:regex:^(378[123])$"], userControl: false)]
+        public void P2_StrengthOfTheWardChargeDirectionRecord(Event @event, ScriptAccessory sa)
         {
             if (_dsrPhase != DsrPhase.Phase2Strength) return;
 
@@ -986,14 +1002,14 @@ namespace KarlinScriptNamespace
             lock (_p2SafeDirection)
             {
                 _p2SafeDirection[dir % 4] = true;
-                sa.Log.Debug($"List内部true的数量：{_p2SafeDirection.Count(x => x)}");
+                sa.Log.Debug($"Number of true entries in list: {_p2SafeDirection.Count(x => x)}");
                 if (_p2SafeDirection.Count(x => x) != 3) return;
                 _thrustEvent.Set();
             }
         }
 
-        [ScriptMethod(name: "P2 一运分散安全位置指引", eventType: EventTypeEnum.NpcYell, eventCondition: ["Id:3781"], userControl: true)]
-        public void P2_一运分散安全位置指引(Event @event, ScriptAccessory accessory)
+        [ScriptMethod(name: "P2 Strength of the Ward - Spread Safe Position Guidance", eventType: EventTypeEnum.NpcYell, eventCondition: ["Id:3781"], userControl: true)]
+        public void P2_StrengthOfTheWardSpreadSafePositionGuidance(Event @event, ScriptAccessory accessory)
         {
             if (_dsrPhase != DsrPhase.Phase2Strength) return;
             _thrustEvent.WaitOne();
@@ -1016,7 +1032,7 @@ namespace KarlinScriptNamespace
                 var tposRight = tposCenter.RotatePoint(_center, -20f.DegToRad());
                 List<Vector3> tposList = [tposCenter, tposIn, tposLeft, tposRight];
 
-                var dp = accessory.DrawGuidance(指路起点(accessory, i), tposList[i / 2], 0, 7000, $"P2一运安全区位置{i}");
+                var dp = accessory.DrawGuidance(GuidanceOwner(accessory, i), tposList[i / 2], 0, 7000, $"P2 Strength of the Wardsafe-zone position{i}");
                 accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
             }
 
@@ -1024,17 +1040,17 @@ namespace KarlinScriptNamespace
             _thrustEvent.Reset();
         }
 
-        [ScriptMethod(name: "P2 一运分散安全位置指引消失", eventType: EventTypeEnum.ActionEffect, eventCondition: ["ActionId:25548"], userControl: false)]
-        public void P2_一运分散安全位置指引消失(Event @event, ScriptAccessory accessory)
+        [ScriptMethod(name: "P2 Strength of the Ward - Spread Safe Position Guidance Remove", eventType: EventTypeEnum.ActionEffect, eventCondition: ["ActionId:25548"], userControl: false)]
+        public void P2_StrengthOfTheWardSpreadSafePositionGuidanceRemove(Event @event, ScriptAccessory accessory)
         {
             if (_dsrPhase != DsrPhase.Phase2Strength) return;
             var myIndex = accessory.GetMyIndex();
 
-            accessory.Method.RemoveDraw(Debugging ? "P2一运安全区位置.*" : $"P2一运安全区位置{myIndex}");
+            accessory.Method.RemoveDraw(Debugging ? "P2 Strength of the Wardsafe-zone position.*" : $"P2 Strength of the Wardsafe-zone position{myIndex}");
         }
 
-        [ScriptMethod(name: "P2 一运骑神边缘位置记录", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:25550"], userControl: false)]
-        public void P2_一运骑神边缘位置记录(Event @event, ScriptAccessory accessory)
+        [ScriptMethod(name: "P2 Strength of the Ward - Thordan Edge Position Record", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:25550"], userControl: false)]
+        public void P2_StrengthOfTheWardThordanEdgePositionRecord(Event @event, ScriptAccessory accessory)
         {
             if (_dsrPhase != DsrPhase.Phase2Strength) return;
             var spos = @event.SourcePosition();
@@ -1042,8 +1058,8 @@ namespace KarlinScriptNamespace
             _thordanCastAtEdgeEvent.Set();
         }
 
-        [ScriptMethod(name: "P2 一运坦克接线提示", eventType: EventTypeEnum.NpcYell, eventCondition: ["Id:regex:^(255[01])$"], userControl: true)]
-        public void P2_一运坦克接线提示(Event @event, ScriptAccessory sa)
+        [ScriptMethod(name: "P2 Strength of the Ward - Tank Tether Prompt", eventType: EventTypeEnum.NpcYell, eventCondition: ["Id:regex:^(255[01])$"], userControl: true)]
+        public void P2_StrengthOfTheWardTankTetherPrompt(Event @event, ScriptAccessory sa)
         {
             if (_dsrPhase != DsrPhase.Phase2Strength) return;
             var myIndex = sa.GetMyIndex();
@@ -1059,7 +1075,7 @@ namespace KarlinScriptNamespace
                 _p2TetherKnightId[atRight ? 1 : 0] = sid;
 
                 // 此处Id为16进制转10进制表示
-                sa.Log.Debug($"记录{sname}（对话{@event.Id()}）在{(atRight ? "右" : "左")}");
+                sa.Log.Debug($"Record {sname}(dialogue {@event.Id()}) at {(atRight ? "Right" : "Left")}");
 
                 if (_p2TetherKnightId.Contains(0)) return;
 
@@ -1073,38 +1089,38 @@ namespace KarlinScriptNamespace
                     var knightPos = chara.Position;
                     var tetherEdgePos = _p2ThordanPos.RotatePoint(_center, (i == 0 ? 1 : -1) * 18f.DegToRad());
                     tetherEdgePos = tetherEdgePos.PointInOutside(_center, 3f);
-                    var dp = sa.DrawGuidance(knightPos, tetherEdgePos, 0, 10000, $"接线路径{i}");
+                    var dp = sa.DrawGuidance(knightPos, tetherEdgePos, 0, 10000, $"tether path {i}");
                     sa.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
                 }
             }
         }
 
 
-        [ScriptMethod(name: "P2 一运接线提示删除", eventType: EventTypeEnum.ActionEffect, eventCondition: ["ActionId:25550"], userControl: false)]
-        public void P2_一运接线提示删除(Event @event, ScriptAccessory sa)
+        [ScriptMethod(name: "P2 Strength of the Ward - Tether Prompt Remove", eventType: EventTypeEnum.ActionEffect, eventCondition: ["ActionId:25550"], userControl: false)]
+        public void P2_StrengthOfTheWardTetherPromptRemove(Event @event, ScriptAccessory sa)
         {
             if (_dsrPhase != DsrPhase.Phase2Strength) return;
-            sa.Method.RemoveDraw($"接线路径.*");
+            sa.Method.RemoveDraw($"tether path .*");
             _thordanCastAtEdgeEvent.Reset();
         }
 
         #endregion
 
-        #region 二运
-        [ScriptMethod(name: "P2 二运记录", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:25569"], userControl: false)]
-        public void P2_二运记录(Event @event, ScriptAccessory accessory)
+        #region SecondMechanic
+        [ScriptMethod(name: "P2 Sanctity of the Ward - Record", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:25569"], userControl: false)]
+        public void P2_SanctityOfTheWardRecord(Event @event, ScriptAccessory accessory)
         {
             parse = 2.2;
         }
 
 
-        [ScriptMethod(name: "P2 二运龙眼背对", eventType: EventTypeEnum.EnvControl, eventCondition: ["DirectorId:8003759A", "Id:00020001"])]
-        public void P2_二运龙眼背对(Event @event, ScriptAccessory accessory)
+        [ScriptMethod(name: "P2 Sanctity of the Ward - The Dragon's Glory Gaze", eventType: EventTypeEnum.EnvControl, eventCondition: ["DirectorId:8003759A", "Id:00020001"])]
+        public void P2_SanctityOfTheWardDragonsGloryGaze(Event @event, ScriptAccessory accessory)
         {
             if (parse != 2.2) return;
             var index=int.Parse(@event["Index"],System.Globalization.NumberStyles.HexNumber);
             var dp = accessory.Data.GetDefaultDrawProperties();
-            dp.Name = "P2_二运龙眼背对";
+            dp.Name = "P2_SanctityOfTheWardDragonsGloryGaze";
             dp.Color = accessory.Data.DefaultDangerColor;
             dp.Owner = accessory.Data.Me;
             dp.Delay = 4500;
@@ -1119,12 +1135,12 @@ namespace KarlinScriptNamespace
             if (index == 7) dp.TargetPosition = new(75.25f, 0, 75.25f);
             accessory.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.SightAvoid, dp);
         }
-        [ScriptMethod(name: "P2 二运骑神背对", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:25552"])]
-        public void P2_二运骑神背对(Event @event, ScriptAccessory accessory)
+        [ScriptMethod(name: "P2 Sanctity of the Ward - The Dragon's Gaze", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:25552"])]
+        public void P2_SanctityOfTheWardDragonsGaze(Event @event, ScriptAccessory accessory)
         {
             if (parse != 2.2) return;
             var dp = accessory.Data.GetDefaultDrawProperties();
-            dp.Name = "P2_二运骑神背对";
+            dp.Name = "P2_SanctityOfTheWardDragonsGaze";
             dp.Color = accessory.Data.DefaultDangerColor;
             dp.Owner = accessory.Data.Me;
             if (ParseObjectId(@event["TargetId"], out var id))
@@ -1135,15 +1151,15 @@ namespace KarlinScriptNamespace
             accessory.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.SightAvoid, dp);
 
         }
-        [ScriptMethod(name: "P2 二运泽菲兰位置记录", eventType: EventTypeEnum.NpcYell, eventCondition: ["Id:2549"], userControl: false)]
-        public void P2_二运泽菲兰位置记录(Event @event, ScriptAccessory accessory)
+        [ScriptMethod(name: "P2 Sanctity of the Ward - Ser Zephirin Position Record", eventType: EventTypeEnum.NpcYell, eventCondition: ["Id:2549"], userControl: false)]
+        public void P2_SanctityOfTheWardSerZephirinPositionRecord(Event @event, ScriptAccessory accessory)
         {
             if (parse != 2.2) return;
             p2ZPos = JsonConvert.DeserializeObject<Vector3>(@event["SourcePosition"]);
             
         }
-        [ScriptMethod(name: "P2 二运劈刀记录", eventType: EventTypeEnum.TargetIcon, userControl: false)]
-        public void P2_二运劈刀记录(Event @event, ScriptAccessory accessory)
+        [ScriptMethod(name: "P2 Sanctity of the Ward - Sacred Sever Record", eventType: EventTypeEnum.TargetIcon, userControl: false)]
+        public void P2_SanctityOfTheWardSacredSeverRecord(Event @event, ScriptAccessory accessory)
         {
             if (parse != 2.2) return;
             var tid = ParsTargetIcon(@event["Id"]);
@@ -1155,14 +1171,14 @@ namespace KarlinScriptNamespace
                 if (tid == -279) p2Jump.Item2 = index;
             }
         }
-        [ScriptMethod(name: "P2 二运阿代尔菲尔位置", eventType: EventTypeEnum.SetObjPos, eventCondition: ["SourceDataId:12601"], userControl: false)]
-        public void P2_二运阿代尔菲尔位置(Event @event, ScriptAccessory accessory)
+        [ScriptMethod(name: "P2 Sanctity of the Ward - Ser Adelphel Position", eventType: EventTypeEnum.SetObjPos, eventCondition: ["SourceDataId:12601"], userControl: false)]
+        public void P2_SanctityOfTheWardSerAdelphelPosition(Event @event, ScriptAccessory accessory)
         {
             if (parse != 2.2) return;
             p2AdelPos=JsonConvert.DeserializeObject<Vector3>(@event["SourcePosition"]);
         }
-        [ScriptMethod(name: "P2 二运劈刀起跑位置(Imgui)", eventType: EventTypeEnum.TargetIcon)]
-        public void P2_二运劈刀起跑位置(Event @event, ScriptAccessory accessory)
+        [ScriptMethod(name: "P2 Sanctity of the Ward - Sacred Sever Start Position (ImGui)", eventType: EventTypeEnum.TargetIcon)]
+        public void P2_SanctityOfTheWardSacredSeverStartPosition(Event @event, ScriptAccessory accessory)
         {
             if (parse != 2.2) return;
             if (ParsTargetIcon(@event["Id"]) != -279) return;
@@ -1198,10 +1214,10 @@ namespace KarlinScriptNamespace
                     if (!Debugging && meIndex != myIndex) continue;
 
                     var dp = accessory.Data.GetDefaultDrawProperties();
-                    dp.Name = $"P2 2运劈刀起跑{meIndex}";
+                    dp.Name = $"P2 Sanctity of the WardSacred Severstart{meIndex}";
                     dp.Scale = new(1.5f, 20);
                     dp.Color = accessory.Data.DefaultSafeColor.WithW(3);
-                    dp.Owner = 指路起点(accessory, meIndex);
+                    dp.Owner = GuidanceOwner(accessory, meIndex);
                     dp.DestoryAt = 5000;
                     dp.ScaleMode |= ScaleMode.YByDistance;
                     dp.TargetPosition = group[meIndex] == 1
@@ -1211,7 +1227,7 @@ namespace KarlinScriptNamespace
                     accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
 
                     var dp2 = accessory.Data.GetDefaultDrawProperties();
-                    dp2.Name = $"P2 2运劈刀绕圈{meIndex}";
+                    dp2.Name = $"P2 Sanctity of the WardSacred Severcircle path{meIndex}";
                     dp2.Color = accessory.Data.DefaultSafeColor.WithW(3);
                     dp2.Scale = new(1.5f, 20);
                     dp2.ScaleMode |= ScaleMode.YByDistance;
@@ -1223,8 +1239,8 @@ namespace KarlinScriptNamespace
 
             });
         }
-        [ScriptMethod(name: "P2 二运光球爆炸范围", eventType: EventTypeEnum.AddCombatant, eventCondition: ["DataId:13070"])]
-        public void P2_二运光球爆炸范围(Event @event, ScriptAccessory accessory)
+        [ScriptMethod(name: "P2 Sanctity of the Ward - Bright Flare AoE", eventType: EventTypeEnum.AddCombatant, eventCondition: ["DataId:13070"])]
+        public void P2_SanctityOfTheWardBrightFlareAoE(Event @event, ScriptAccessory accessory)
         {
             if (parse != 2.2) return;
             var dp = accessory.Data.GetDefaultDrawProperties();
@@ -1236,18 +1252,18 @@ namespace KarlinScriptNamespace
                 dp.Owner = id;
             }
             dp.DestoryAt = 2000;
-            dp.Name = $"P2二运光球爆炸范围{idStr}";
+            dp.Name = $"P2 Sanctity of the WardBright FlareAoE{idStr}";
 
             accessory.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Circle, dp);
         }
-        [ScriptMethod(name: "P2 光球爆炸范围移除", eventType: EventTypeEnum.ActionEffect, eventCondition: ["ActionId:25295"],userControl:false)]
-        public void P2_光球爆炸范围移除(Event @event, ScriptAccessory accessory)
+        [ScriptMethod(name: "P2 Bright Flare AoE Remove", eventType: EventTypeEnum.ActionEffect, eventCondition: ["ActionId:25295"],userControl:false)]
+        public void P2_BrightFlareAoERemove(Event @event, ScriptAccessory accessory)
         {
             if (parse != 2.2) return;
-            accessory.Method.RemoveDraw($"P2二运光球爆炸范围{@event["SourceId"]}");
+            accessory.Method.RemoveDraw($"P2 Sanctity of the WardBright FlareAoE{@event["SourceId"]}");
         }
-        [ScriptMethod(name: "P2 二运陨石记录", eventType: EventTypeEnum.TargetIcon,userControl:false)]
-        public void P2_2运陨石记录(Event @event, ScriptAccessory accessory)
+        [ScriptMethod(name: "P2 Sanctity of the Ward - Holy Comet Record", eventType: EventTypeEnum.TargetIcon,userControl:false)]
+        public void P2_SanctityOfTheWardHolyCometRecord(Event @event, ScriptAccessory accessory)
         {
             if (parse != 2.2) return;
             if (ParsTargetIcon(@event["Id"]) != -45) return;
@@ -1384,8 +1400,8 @@ namespace KarlinScriptNamespace
                 }
             }
         }
-        [ScriptMethod(name: "P2 二运陨石连线(ImGui)", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:25576"])]
-        public void P2_2运陨石连线(Event @event, ScriptAccessory accessory)
+        [ScriptMethod(name: "P2 Sanctity of the Ward - Holy Comet Tether (ImGui)", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:25576"])]
+        public void P2_SanctityOfTheWardHolyCometTether(Event @event, ScriptAccessory accessory)
         {
             if (parse != 2.2) return;
             Task.Delay(100).ContinueWith(t =>
@@ -1399,13 +1415,13 @@ namespace KarlinScriptNamespace
                 dp.Owner = accessory.Data.PartyList[s1];
                 dp.TargetObject = accessory.Data.PartyList[s2];
                 dp.DestoryAt = 12000;
-                dp.Name = "P2 2运陨石双人连线(ImGui)";
+                dp.Name = "P2 Sanctity of the WardHoly Cometpairtether(ImGui)";
                 accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Line, dp);
             });
 
         }
-        [ScriptMethod(name: "P2 二运冰分摊位置(ImGui)", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:25576"])]
-        public void P2_2运冰分摊位置(Event @event, ScriptAccessory accessory)
+        [ScriptMethod(name: "P2 Sanctity of the Ward - Hiemal Storm Position (ImGui)", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:25576"])]
+        public void P2_SanctityOfTheWardHiemalStormPosition(Event @event, ScriptAccessory accessory)
         {
             if (parse != 2.2) return;
             Task.Delay(100).ContinueWith(t =>
@@ -1417,11 +1433,11 @@ namespace KarlinScriptNamespace
                     if (!Debugging && idIndex != myIndex) continue;
                     var dir4 = p2StoneTeam.IndexOf(idIndex) / 2;
                     var dp = accessory.Data.GetDefaultDrawProperties();
-                    dp.Name = $"P2 2运冰分摊位置(ImGui){idIndex}";
+                    dp.Name = $"P2 Sanctity of the WardHiemal Stormposition(ImGui){idIndex}";
                     dp.Scale = new(3f, 10);
                     dp.ScaleMode |= ScaleMode.YByDistance;
                     dp.Color = accessory.Data.DefaultSafeColor;
-                    dp.Owner = 指路起点(accessory, idIndex);
+                    dp.Owner = GuidanceOwner(accessory, idIndex);
                     dp.TargetPosition = RotatePoint(new(100, 0, 88.5f), new(100, 0, 100), float.Pi / 2 * dir4);
                     dp.DestoryAt = 7000;
 
@@ -1436,8 +1452,8 @@ namespace KarlinScriptNamespace
 
 
         }
-        [ScriptMethod(name: "P2 二运第一轮塔记录", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:29564"],userControl:false)]
-        public void P2_二运第一轮塔记录(Event @event, ScriptAccessory accessory)
+        [ScriptMethod(name: "P2 Sanctity of the Ward - Round 1 Tower Record", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:29564"],userControl:false)]
+        public void P2_SanctityOfTheWardRound1TowerRecord(Event @event, ScriptAccessory accessory)
         {
             if (parse != 2.2) return;
             var sourcePos = JsonConvert.DeserializeObject<Vector3>(@event["SourcePosition"]);
@@ -1453,8 +1469,8 @@ namespace KarlinScriptNamespace
                 p2Tower[dir] = true;
             }
         }
-        [ScriptMethod(name: "P2 二运第一轮塔位置(ImGui)", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:29563"])]
-        public void P2_二运第一轮塔位置(Event @event, ScriptAccessory accessory)
+        [ScriptMethod(name: "P2 Sanctity of the Ward - Round 1 Tower Position (ImGui)", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:29563"])]
+        public void P2_SanctityOfTheWardRound1TowerPosition(Event @event, ScriptAccessory accessory)
         {
             if (parse != 2.2) return;
 
@@ -1807,7 +1823,7 @@ namespace KarlinScriptNamespace
 
                     // ---------- 塔位置圆圈 ----------
                     dp.Name =
-                        $"P2 2运第一轮塔位置(ImGui){idIndex}";
+                        $"P2 Sanctity of the Wardtower round 1position(ImGui){idIndex}";
 
                     dp.DestoryAt = 12000;
                     dp.Color = accessory.Data.DefaultSafeColor;
@@ -1825,13 +1841,13 @@ namespace KarlinScriptNamespace
                         accessory.Data.GetDefaultDrawProperties();
 
                     dp2.Name =
-                        $"P2 2运第一轮塔位置(ImGui){idIndex}";
+                        $"P2 Sanctity of the Wardtower round 1position(ImGui){idIndex}";
 
                     dp2.Color =
                         accessory.Data.DefaultSafeColor;
 
                     dp2.Owner =
-                        指路起点(accessory, idIndex);
+                        GuidanceOwner(accessory, idIndex);
 
                     dp2.TargetPosition =
                         dp.Position;
@@ -1852,8 +1868,8 @@ namespace KarlinScriptNamespace
                 }
             });
         }
-        [ScriptMethod(name: "P2 二运第二轮塔位置(ImGui)", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:28650"])]
-        public void P2_二运第二轮塔位置(Event @event, ScriptAccessory accessory)
+        [ScriptMethod(name: "P2 Sanctity of the Ward - Round 2 Tower Position (ImGui)", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:28650"])]
+        public void P2_SanctityOfTheWardRound2TowerPosition(Event @event, ScriptAccessory accessory)
         {
             if (parse != 2.2) return;
 
@@ -1871,7 +1887,7 @@ namespace KarlinScriptNamespace
 
                 var dp = accessory.Data.GetDefaultDrawProperties();
                 dp.TargetPosition = RotatePoint(npos, cpos, float.Pi / 4 * posIndex);
-                dp.Name = $"P2 2运第二轮塔位置(ImGui){index}";
+                dp.Name = $"P2 Sanctity of the Wardtower round 2position(ImGui){index}";
                 dp.DestoryAt = 11000;
                 dp.Color = accessory.Data.DefaultSafeColor;
                 dp.Position = dp.TargetPosition;
@@ -1882,21 +1898,21 @@ namespace KarlinScriptNamespace
 
 
         }
-        [ScriptMethod(name: "P2 二运阶段记录", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:25569"], userControl: false)]
-        public void P2_二运阶段记录(Event @event, ScriptAccessory sa)
+        [ScriptMethod(name: "P2 Sanctity of the Ward - Phase Record", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:25569"], userControl: false)]
+        public void P2_SanctityOfTheWardPhaseRecord(Event @event, ScriptAccessory sa)
         {
             _dsrPhase = DsrPhase.Phase2Sancity;
-            sa.Log.Debug($"当前阶段为：{_dsrPhase}");
+            sa.Log.Debug($"Current phase: {_dsrPhase}");
         }
 
         #endregion
-        [ScriptMethod(name: "P2 二运结束记录", eventType: EventTypeEnum.ActionEffect, eventCondition: ["ActionId:25533"],userControl:false)]
-        public void P2_二运结束记录(Event @event, ScriptAccessory accessory)
+        [ScriptMethod(name: "P2 Sanctity of the Ward - End Record", eventType: EventTypeEnum.ActionEffect, eventCondition: ["ActionId:25533"],userControl:false)]
+        public void P2_SanctityOfTheWardEndRecord(Event @event, ScriptAccessory accessory)
         {
             parse = 2.3;
         }
-        [ScriptMethod(name: "P2 骑神奋力一挥（右)", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:25536"])]
-        public void P2_骑神奋力一挥_右(Event @event, ScriptAccessory accessory)
+        [ScriptMethod(name: "P2 Thordan Broad Swing Right", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:25536"])]
+        public void P2_ThordanBroadSwing_Right(Event @event, ScriptAccessory accessory)
         {
             var dp = accessory.Data.GetDefaultDrawProperties();
             dp.Color = accessory.Data.DefaultDangerColor;
@@ -1918,8 +1934,8 @@ namespace KarlinScriptNamespace
             accessory.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Fan, dp);
 
         }
-        [ScriptMethod(name: "P2 骑神奋力一挥（左)", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:25537"])]
-        public void P2_骑神奋力一挥_左(Event @event, ScriptAccessory accessory)
+        [ScriptMethod(name: "P2 Thordan Broad Swing Left", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:25537"])]
+        public void P2_ThordanBroadSwing_Left(Event @event, ScriptAccessory accessory)
         {
             var dp = accessory.Data.GetDefaultDrawProperties();
             dp.Color = accessory.Data.DefaultDangerColor;
@@ -1946,14 +1962,14 @@ namespace KarlinScriptNamespace
 
         #region P3
 
-        [ScriptMethod(name: "---- 《P3 尼德霍格》 ----", eventType: EventTypeEnum.NpcYell, eventCondition: ["HelloayaWorld"],
+        [ScriptMethod(name: "---- [P3 Nidhogg] ----", eventType: EventTypeEnum.NpcYell, eventCondition: ["HelloayaWorld"],
             userControl: true)]
-        public void P3_分节线(Event @event, ScriptAccessory accessory)
+        public void P3_SectionDivider(Event @event, ScriptAccessory accessory)
         {
         }
 
-        [ScriptMethod(name: "P3 记录", eventType: EventTypeEnum.ActionEffect, eventCondition: ["ActionId:26376"],userControl:false)]
-        public void P3_记录(Event @event, ScriptAccessory accessory)
+        [ScriptMethod(name: "P3 Record", eventType: EventTypeEnum.ActionEffect, eventCondition: ["ActionId:26376"],userControl:false)]
+        public void P3_Record(Event @event, ScriptAccessory accessory)
         {
             parse = 3;
             if (ParseObjectId(@event["SourceId"], out var id))
@@ -1961,8 +1977,8 @@ namespace KarlinScriptNamespace
                 p3BossId = id;
             }
         }
-        [ScriptMethod(name: "P3 牙尾连旋(钢铁月环)", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:26386"])]
-        public void P3_牙尾连旋(Event @event, ScriptAccessory accessory)
+        [ScriptMethod(name: "P3 Gnash and Lash", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:26386"])]
+        public void P3_GnashAndLash(Event @event, ScriptAccessory accessory)
         {
             var dp = accessory.Data.GetDefaultDrawProperties();
             dp.Color = accessory.Data.DefaultDangerColor;
@@ -1983,8 +1999,8 @@ namespace KarlinScriptNamespace
             accessory.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Donut, dp);
 
         }
-        [ScriptMethod(name: "P3 尾牙连旋(月环钢铁)", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:26387"])]
-        public void P3_尾牙连旋(Event @event, ScriptAccessory accessory)
+        [ScriptMethod(name: "P3 Lash and Gnash", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:26387"])]
+        public void P3_LashAndGnash(Event @event, ScriptAccessory accessory)
         {
             var dp = accessory.Data.GetDefaultDrawProperties();
             dp.Color = accessory.Data.DefaultDangerColor;
@@ -2005,8 +2021,8 @@ namespace KarlinScriptNamespace
             accessory.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Circle, dp);
 
         }
-        [ScriptMethod(name: "P3 原地塔预测", eventType: EventTypeEnum.ActionEffect, eventCondition: ["ActionId:26382"])]
-        public void P3_原地塔预测(Event @event, ScriptAccessory accessory)
+        [ScriptMethod(name: "P3 Dark High Jump Tower Prediction", eventType: EventTypeEnum.ActionEffect, eventCondition: ["ActionId:26382"])]
+        public void P3_DarkHighJumpTowerPrediction(Event @event, ScriptAccessory accessory)
         {
             var dp = accessory.Data.GetDefaultDrawProperties();
             dp.Color = accessory.Data.DefaultSafeColor;
@@ -2018,22 +2034,8 @@ namespace KarlinScriptNamespace
             dp.DestoryAt = 4000;
             accessory.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Circle, dp);
         }
-        [ScriptMethod(name: "P3 上箭头塔预测", eventType: EventTypeEnum.ActionEffect, eventCondition: ["ActionId:26383"])]
-        public void P3_上箭头塔预测(Event @event, ScriptAccessory accessory)
-        {
-            var dp = accessory.Data.GetDefaultDrawProperties();
-            dp.Color = accessory.Data.DefaultSafeColor;
-            if (ParseObjectId(@event["SourceId"], out var id))
-            {
-                dp.Owner = id;
-            }
-            dp.Offset = new(0, 0, -14);
-            dp.Scale = new(5);
-            dp.DestoryAt = 4000;
-            accessory.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Circle, dp);
-        }
-        [ScriptMethod(name: "P3 下箭头塔预测", eventType: EventTypeEnum.ActionEffect, eventCondition: ["ActionId:26384"])]
-        public void P3_下箭头塔预测(Event @event, ScriptAccessory accessory)
+        [ScriptMethod(name: "P3 Dark Spineshatter Dive Tower Prediction", eventType: EventTypeEnum.ActionEffect, eventCondition: ["ActionId:26383"])]
+        public void P3_DarkSpineshatterDiveTowerPrediction(Event @event, ScriptAccessory accessory)
         {
             var dp = accessory.Data.GetDefaultDrawProperties();
             dp.Color = accessory.Data.DefaultSafeColor;
@@ -2046,8 +2048,22 @@ namespace KarlinScriptNamespace
             dp.DestoryAt = 4000;
             accessory.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Circle, dp);
         }
-        [ScriptMethod(name: "P3 塔位置确定", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:26385"])]
-        public void P3_塔位置确定(Event @event, ScriptAccessory accessory)
+        [ScriptMethod(name: "P3 Dark Elusive Jump Tower Prediction", eventType: EventTypeEnum.ActionEffect, eventCondition: ["ActionId:26384"])]
+        public void P3_DarkElusiveJumpTowerPrediction(Event @event, ScriptAccessory accessory)
+        {
+            var dp = accessory.Data.GetDefaultDrawProperties();
+            dp.Color = accessory.Data.DefaultSafeColor;
+            if (ParseObjectId(@event["SourceId"], out var id))
+            {
+                dp.Owner = id;
+            }
+            dp.Offset = new(0, 0, -14);
+            dp.Scale = new(5);
+            dp.DestoryAt = 4000;
+            accessory.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Circle, dp);
+        }
+        [ScriptMethod(name: "P3 Tower Position Resolve", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:26385"])]
+        public void P3_TowerPositionResolve(Event @event, ScriptAccessory accessory)
         {
             var dp = accessory.Data.GetDefaultDrawProperties();
             dp.Color = accessory.Data.DefaultSafeColor;
@@ -2059,8 +2075,8 @@ namespace KarlinScriptNamespace
             dp.DestoryAt = 2500;
             accessory.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Circle, dp);
         }
-        [ScriptMethod(name: "P3 麻将武神枪引导", eventType: EventTypeEnum.ActionEffect, eventCondition: ["ActionId:26385"])]
-        public void P3_麻将武神枪引导(Event @event, ScriptAccessory accessory)
+        [ScriptMethod(name: "P3 Dive from Grace - Geirskogul Guide", eventType: EventTypeEnum.ActionEffect, eventCondition: ["ActionId:26385"])]
+        public void P3_DiveFromGraceGeirskogulGuide(Event @event, ScriptAccessory accessory)
         {
             var dp = accessory.Data.GetDefaultDrawProperties();
             dp.Color = accessory.Data.DefaultDangerColor;
@@ -2073,8 +2089,8 @@ namespace KarlinScriptNamespace
             dp.TargetResolvePattern=PositionResolvePatternEnum.PlayerNearestOrder;
             accessory.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Rect, dp);
         }
-        [ScriptMethod(name: "P3 四塔武神枪引导", eventType: EventTypeEnum.StartCasting)]
-        public void P3_四塔武神枪引导(Event @event, ScriptAccessory accessory)
+        [ScriptMethod(name: "P3 Four Towers Geirskogul Guide", eventType: EventTypeEnum.StartCasting)]
+        public void P3_FourTowersGeirskogulGuide(Event @event, ScriptAccessory accessory)
         {
             if (parse != 3) return;
             var aid = @event["ActionId"];
@@ -2082,7 +2098,7 @@ namespace KarlinScriptNamespace
             var str = @event["SourceId"];
             var dp = accessory.Data.GetDefaultDrawProperties();
             dp.Color = accessory.Data.DefaultDangerColor;
-            dp.Name = $"P3_四塔武神枪引导{str}";
+            dp.Name = $"P3_FourTowersGeirskogulGuide{str}";
             if (ParseObjectId(str, out var id))
             {
                 dp.Owner = id;
@@ -2093,14 +2109,14 @@ namespace KarlinScriptNamespace
             dp.TargetResolvePattern = PositionResolvePatternEnum.PlayerNearestOrder;
             accessory.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Rect, dp);
         }
-        [ScriptMethod(name: "P3 四塔武神枪移除", eventType: EventTypeEnum.Tether, eventCondition: ["Id:0054"],userControl:false)]
-        public void P3_四塔武神枪移除(Event @event, ScriptAccessory accessory)
+        [ScriptMethod(name: "P3 Four Towers Geirskogul Remove", eventType: EventTypeEnum.Tether, eventCondition: ["Id:0054"],userControl:false)]
+        public void P3_FourTowersGeirskogulRemove(Event @event, ScriptAccessory accessory)
         {
             if (parse != 3) return;
-            accessory.Method.RemoveDraw($"P3_四塔武神枪引导{@event["SourceId"]}");
+            accessory.Method.RemoveDraw($"P3_FourTowersGeirskogulGuide{@event["SourceId"]}");
         }
-        [ScriptMethod(name: "P3 武神枪确定", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:26378"])]
-        public void P3_武神枪确定(Event @event, ScriptAccessory accessory)
+        [ScriptMethod(name: "P3 Geirskogul Resolve", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:26378"])]
+        public void P3_GeirskogulResolve(Event @event, ScriptAccessory accessory)
         {
             var dp = accessory.Data.GetDefaultDrawProperties();
             dp.Color = accessory.Data.DefaultDangerColor;
@@ -2112,8 +2128,8 @@ namespace KarlinScriptNamespace
             dp.DestoryAt = 4500;
             accessory.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Rect, dp);
         }
-        [ScriptMethod(name: "P3 同组麻将连线(ImGui)", eventType: EventTypeEnum.StatusAdd)]
-        public void P3_同组麻将连线(Event @event, ScriptAccessory accessory)
+        [ScriptMethod(name: "P3 Same Group - Dive from Grace Tether (ImGui)", eventType: EventTypeEnum.StatusAdd)]
+        public void P3_SameGroupDiveFromGraceTether(Event @event, ScriptAccessory accessory)
         {
             if (parse != 3) return;
             var stasusid = @event["StatusID"];
@@ -2139,7 +2155,7 @@ namespace KarlinScriptNamespace
                     foreach (var tid in p3majong[stasusid])
                     {
                         var dp=accessory.Data.GetDefaultDrawProperties();
-                        dp.Name = "P3 同组麻将连线";
+                        dp.Name = "P3 same groupDive from Gracetether";
                         dp.Owner = id;
                         dp.TargetObject = tid;
                         dp.Color=accessory.Data.DefaultSafeColor;
@@ -2151,8 +2167,8 @@ namespace KarlinScriptNamespace
 
             }
         }
-        [ScriptMethod(name: "P3 腾龙枪", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:26380"])]
-        public void P3_腾龙枪(Event @event, ScriptAccessory accessory)
+        [ScriptMethod(name: "P3 Drachenlance", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:26380"])]
+        public void P3_Drachenlance(Event @event, ScriptAccessory accessory)
         {
             var dp = accessory.Data.GetDefaultDrawProperties();
             dp.Color = accessory.Data.DefaultDangerColor;
@@ -2165,8 +2181,8 @@ namespace KarlinScriptNamespace
             dp.DestoryAt = 3500;
             accessory.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Fan, dp);
         }
-        [ScriptMethod(name: "P3 四塔记录", eventType: EventTypeEnum.StartCasting,userControl:false)]
-        public void P3_四塔记录(Event @event, ScriptAccessory accessory)
+        [ScriptMethod(name: "P3 Four Towers Record", eventType: EventTypeEnum.StartCasting,userControl:false)]
+        public void P3_FourTowersRecord(Event @event, ScriptAccessory accessory)
         {
             if (parse != 3) return;
             var aid = @event["ActionId"];
@@ -2176,8 +2192,8 @@ namespace KarlinScriptNamespace
             var dir = PositionTo8Dir(sourcePos, new(100, 0, 100))/2;
             p3Tower[dir] = num;
         }
-        [ScriptMethod(name: "P3 四塔站位(ImGui)", eventType: EventTypeEnum.StartCasting)]
-        public void P3_四塔站位(Event @event, ScriptAccessory accessory)
+        [ScriptMethod(name: "P3 Four Towers Positioning (ImGui)", eventType: EventTypeEnum.StartCasting)]
+        public void P3_FourTowersPositioning(Event @event, ScriptAccessory accessory)
         {
             if (parse != 3 || p3TowerDeal) return;
             var aid = @event["ActionId"];
@@ -2263,8 +2279,8 @@ namespace KarlinScriptNamespace
 
             });
         }
-        [ScriptMethod(name: "P3 追魂炮T辅助(ImGui)", eventType: EventTypeEnum.Tether, eventCondition: ["Id:0054"])]
-        public void P3_追魂T炮辅助(Event @event, ScriptAccessory accessory)
+        [ScriptMethod(name: "P3 Soul Tether Tank Assist (ImGui)", eventType: EventTypeEnum.Tether, eventCondition: ["Id:0054"])]
+        public void P3_SoulTetherTankAssist(Event @event, ScriptAccessory accessory)
         {
             if (parse != 3) return;
             if (!ParseObjectId(@event["SourceId"], out var id)) return;
@@ -2273,7 +2289,7 @@ namespace KarlinScriptNamespace
             {
                 p3Boom[idIndex] = true;
                 var dp = accessory.Data.GetDefaultDrawProperties();
-                dp.Name = $"P3 追魂炮{(idIndex==0?"M":"S")}T辅助";
+                dp.Name = $"P3 Soul Tether{(idIndex==0?"M":"S")} tank assist";
                 dp.Color = accessory.Data.DefaultSafeColor;
                 dp.Owner = id;
                 dp.Scale = new(10);
@@ -2283,14 +2299,14 @@ namespace KarlinScriptNamespace
                 accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Line, dp);
             }
         }
-        [ScriptMethod(name: "P3 追魂炮范围", eventType: EventTypeEnum.Tether, eventCondition: ["Id:0054"])]
-        public void P3_追魂炮范围(Event @event, ScriptAccessory accessory)
+        [ScriptMethod(name: "P3 Soul Tether AoE", eventType: EventTypeEnum.Tether, eventCondition: ["Id:0054"])]
+        public void P3_SoulTetherAoE(Event @event, ScriptAccessory accessory)
         {
             if (parse != 3) return;
             if (!ParseObjectId(@event["SourceId"], out var id)) return;
             
             var dp = accessory.Data.GetDefaultDrawProperties();
-            dp.Name = "P3_追魂炮范围";
+            dp.Name = "P3_SoulTetherAoE";
             dp.Color = accessory.Data.DefaultDangerColor;
             dp.Owner = id;
             dp.Scale = new(5);
@@ -2308,9 +2324,9 @@ namespace KarlinScriptNamespace
             }
         }
 
-        [ScriptMethod(name: "P3 阶段记录", eventType: EventTypeEnum.ActionEffect,
+        [ScriptMethod(name: "P3 Phase Record", eventType: EventTypeEnum.ActionEffect,
             eventCondition: ["ActionId:26376"], userControl: Debugging)]
-        public void P3_阶段记录(Event ev, ScriptAccessory sa)
+        public void P3_PhaseRecord(Event ev, ScriptAccessory sa)
         {
             _dsrPhase = DsrPhase.Phase3Nidhogg;
             _p3DfgEnable = false;
@@ -2318,14 +2334,14 @@ namespace KarlinScriptNamespace
             // 十位：上箭头+0，中+10，下箭头+20
             // 个位：左中右站位分别+0, +1, +2
             // 如此安排，个位可随时变，十位改变后，个位无力干涉
-            _dfg.Init(sa, "堕天龙炎冲");
+            _dfg.Init(sa, "Dive from Grace");
             _p3TowerAppearPos = [];
-            sa.Log.Debug($"当前阶段为：{_dsrPhase}");
+            sa.Log.Debug($"Current phase: {_dsrPhase}");
         }
 
-        [ScriptMethod(name: "P3 堕天龙炎冲流程指路", eventType: EventTypeEnum.StatusAdd,
+        [ScriptMethod(name: "P3 Dive from Grace - Sequence Guidance", eventType: EventTypeEnum.StatusAdd,
             eventCondition:["StatusID:regex:^(300[456])$"], userControl: true)]
-        public void P3_堕天龙炎冲流程指路(Event ev, ScriptAccessory sa)
+        public void P3_DiveFromGraceSequenceGuidance(Event ev, ScriptAccessory sa)
         {
             if (_dsrPhase != DsrPhase.Phase3Nidhogg) return;
             _p3DfgEnable = true;
@@ -2344,13 +2360,13 @@ namespace KarlinScriptNamespace
             {
                 // 前三位一麻，中二位二麻，后三位三麻
                 _dfg.AddPriority(tidx, lmVal);
-                sa.Log.Debug($"玩家 {sa.GetPlayerJobByIndex(tidx)} 为 {lmVal/100+1} 麻。");
+                sa.Log.Debug($"player {sa.GetPlayerJobByIndex(tidx)}  is  {lmVal/100+1}  DFG.");
             }
         }
 
-        [ScriptMethod(name: "P3 箭头记录", eventType: EventTypeEnum.StatusAdd,
+        [ScriptMethod(name: "P3 Arrow Record", eventType: EventTypeEnum.StatusAdd,
             eventCondition:["StatusID:regex:^(275[567])$"], userControl: Debugging)]
-        public void P3_箭头记录(Event ev, ScriptAccessory sa)
+        public void P3_ArrowRecord(Event ev, ScriptAccessory sa)
         {
             if (_dsrPhase != DsrPhase.Phase3Nidhogg) return;
             if (!_p3DfgEnable) return;
@@ -2370,12 +2386,12 @@ namespace KarlinScriptNamespace
 
                 _dfg.AddPriority(tidx, dirVal);
                 _dfg.AddActionCount();
-                sa.Log.Debug($"玩家 {sa.GetPlayerJobByIndex(tidx)} 为 {dirVal switch
+                sa.Log.Debug($"player {sa.GetPlayerJobByIndex(tidx)}  is  {dirVal switch
                 {
-                    0 => "上箭头",
-                    10 => "原地",
-                    _ => "下箭头"
-                }}。");
+                    0 => "DarkSpineshatterDive",
+                    10 => "DarkHighJump",
+                    _ => "DarkElusiveJump"
+                }}.");
 
                 if (_dfg.ActionCount != 8) return;
 
@@ -2383,17 +2399,17 @@ namespace KarlinScriptNamespace
                 // 只刷新自己那组的话，其余两组的个位恒为 0，FindPriorityIndexOfKey 只能按队列序号破平，
                 // 组内同箭头的两人位次就是错的（Debug 全队绘制、以及踩塔时按位次找人都会受影响）。
                 for (var g = 0; g < 3; g++)
-                    P3_刷新组内左右位置(sa, g);
+                    P3_RefreshWithinGroupLeftRightPosition(sa, g);
 
                 var myPriority = _dfg.Priorities[sa.GetMyIndex()];
-                sa.Log.Debug($"玩家在 {_dfg.Annotation} 机制的数值为：{myPriority}");
+                sa.Log.Debug($"player at  {_dfg.Annotation} mechanic of value is : {myPriority}");
             }
         }
 
         /// <summary>
         /// 按当前实际 X 坐标刷新某一组（0=一麻，1=二麻，2=三麻）组内成员的左中右位次（优先级个位）
         /// </summary>
-        private void P3_刷新组内左右位置(ScriptAccessory sa, int groupIdx)
+        private void P3_RefreshWithinGroupLeftRightPosition(ScriptAccessory sa, int groupIdx)
         {
             // 获得该组玩家Id
             var myGroupVal = groupIdx switch
@@ -2409,7 +2425,7 @@ namespace KarlinScriptNamespace
 
             if (myGroupVal == 0)
             {
-                sa.Log.Error($"P3_刷新组内左右位置 中 groupIdx = {groupIdx} 非法");
+                sa.Log.Error($"P3_RefreshWithinGroupLeftRightPosition center groupIdx = {groupIdx} invalid");
                 return;
             }
 
@@ -2421,7 +2437,7 @@ namespace KarlinScriptNamespace
                 var eid = sa.Data.PartyList[pidx];
                 var prior = myGroupDict[i].Value;
                 myGroupPlayerIds.Add(new KeyValuePair<int, ulong>(pidx, eid));
-                sa.Log.Debug($"第 {groupIdx + 1} 组玩家有{sa.GetPlayerJobByIndex(pidx)}，其优先级数值为{prior}, EntityId为{eid}");
+                sa.Log.Debug($"# {groupIdx + 1} groupplayer has {sa.GetPlayerJobByIndex(pidx)},  its priorityvalue is {prior}, EntityId is {eid}");
             }
 
             // 根据组内左右位置排序，取不到对象的人排到最后，避免空引用
@@ -2437,31 +2453,31 @@ namespace KarlinScriptNamespace
                 _dfg.Priorities[pidx] = _dfg.Priorities[pidx] / 10 * 10;
                 _dfg.AddPriority(pidx, i);
 
-                sa.Log.Debug($"检测到{sa.GetPlayerJobByIndex(pidx)}在{P3_取麻将方位字符(i, sortedGroupPlayerIds.Count == 2)}，更新其优先级值为{_dfg.Priorities[pidx]}");
+                sa.Log.Debug($"Detected {sa.GetPlayerJobByIndex(pidx)} at {P3_GetDiveFromGraceDirectionChar(i, sortedGroupPlayerIds.Count == 2)}, Update  its priorityvalue is {_dfg.Priorities[pidx]}");
             }
         }
 
-        private string P3_取麻将方位字符(int myDfgIdx, bool isSecondRound = false)
+        private string P3_GetDiveFromGraceDirectionChar(int myDfgIdx, bool isSecondRound = false)
         {
             var str = myDfgIdx switch
             {
-                0 => "左",
-                1 => "中",
-                2 => "右",
-                3 => "左",
-                4 => "右",
-                5 => "左",
-                6 => "中",
-                7 => "右",
-                _ => "未知"
+                0 => "Left",
+                1 => "center",
+                2 => "Right",
+                3 => "Left",
+                4 => "Right",
+                5 => "Left",
+                6 => "center",
+                7 => "Right",
+                _ => "unknown"
             };
 
             if (isSecondRound && myDfgIdx is 0 or 1)
-                str = myDfgIdx == 1 ? "右" : "左";
+                str = myDfgIdx == 1 ? "Right" : "Left";
             return str;
         }
 
-        private Vector3 P3_取麻将塔坐标(int myDfgIdx)
+        private Vector3 P3_GetDiveFromGraceTowerPosition(int myDfgIdx)
         {
             var towerPos = myDfgIdx switch
             {
@@ -2478,9 +2494,9 @@ namespace KarlinScriptNamespace
             return towerPos;
         }
 
-        [ScriptMethod(name: "P3 麻将放塔与分摊", eventType: EventTypeEnum.StartCasting,
+        [ScriptMethod(name: "P3 Dive from Grace - Tower and Stack", eventType: EventTypeEnum.StartCasting,
             eventCondition:["ActionId:regex:^(2638[67])$"], userControl: Debugging)]
-        public void P3_麻将放塔与分摊(Event @event, ScriptAccessory sa)
+        public void P3_DiveFromGraceTowerAndStack(Event @event, ScriptAccessory sa)
         {
             if (_dsrPhase != DsrPhase.Phase3Nidhogg) return;
             if (!_p3DfgEnable) return;
@@ -2491,18 +2507,18 @@ namespace KarlinScriptNamespace
             for (var i = 0; i < sa.Data.PartyList.Count; i++)
             {
                 if (!Debugging && i != myIndex) continue;
-                P3_绘制麻将放塔与分摊(sa, i);
+                P3_DrawDiveFromGraceTowerAndStack(sa, i);
             }
         }
 
-        private void P3_绘制麻将放塔与分摊(ScriptAccessory sa, int playerIndex)
+        private void P3_DrawDiveFromGraceTowerAndStack(ScriptAccessory sa, int playerIndex)
         {
             // 仅需获得排序，便可知麻将流程
             var myPriority = _dfg.Priorities[playerIndex];
             var myDfgIdx = _dfg.FindPriorityIndexOfKey(playerIndex);
             var hasArrow = myPriority / 10 % 10 != 1;
-            var posStr = P3_取麻将方位字符(myDfgIdx, myDfgIdx is 3 or 4);
-            var towerPos = P3_取麻将塔坐标(myDfgIdx);
+            var posStr = P3_GetDiveFromGraceDirectionChar(myDfgIdx, myDfgIdx is 3 or 4);
+            var towerPos = P3_GetDiveFromGraceTowerPosition(myDfgIdx);
             var job = sa.GetPlayerJobByIndex(playerIndex);
 
             const int lashGnashCastTime = 7600;
@@ -2517,26 +2533,26 @@ namespace KarlinScriptNamespace
                     case 0:
                     case 1:
                     case 2:
-                        sa.Log.Debug($"{job} 一麻{posStr} 第一轮，先去{posStr}{towerPos}放塔，再回人群");
-                        P3_绘制塔指路(towerPos, 0, lashGnashCastTime, $"放塔1-{playerIndex}", sa, playerIndex);
+                        sa.Log.Debug($"{job} one DFG{posStr} round 1, first go {posStr}{towerPos}drop tower, then return party");
+                        P3_DrawTowerGuidance(towerPos, 0, lashGnashCastTime, $"drop tower1-{playerIndex}", sa, playerIndex);
                         // 十位数代表箭头，若为1则是原地，无需画面向
-                        P3_绘制塔面向(towerPos, 0, lashGnashCastTime, $"放塔1面向-{playerIndex}", sa, hasArrow);
-                        P3_绘制回人群(lashGnashCastTime, towerExistTime, $"人群-{playerIndex}", sa, playerIndex);
+                        P3_DrawTowerFacing(towerPos, 0, lashGnashCastTime, $"drop tower1facing-{playerIndex}", sa, hasArrow);
+                        P3_DrawReturnToParty(lashGnashCastTime, towerExistTime, $"Party-{playerIndex}", sa, playerIndex);
                         break;
                     case 3:
                     case 4:
-                        sa.Log.Debug($"{job} 二麻{posStr} 第一轮，先回人群，再去{posStr}{towerPos}放塔");
-                        P3_绘制回人群(0, lashGnashCastTime, $"人群-{playerIndex}", sa, playerIndex);
+                        sa.Log.Debug($"{job} two DFG{posStr} round 1, first return party, then go {posStr}{towerPos}drop tower");
+                        P3_DrawReturnToParty(0, lashGnashCastTime, $"Party-{playerIndex}", sa, playerIndex);
                         const int jump2DelayTime = lashGnashCastTime + inOutCastFirst + inOutCastSecond;
                         const int jump2Destroy = 17700 - jump2DelayTime;  // 17700 从下方时间节点处取
-                        P3_绘制塔指路(towerPos, jump2DelayTime, jump2Destroy, $"放塔2-{playerIndex}", sa, playerIndex);
-                        P3_绘制塔面向(towerPos, jump2DelayTime, jump2Destroy, $"放塔2面向-{playerIndex}", sa, hasArrow);
+                        P3_DrawTowerGuidance(towerPos, jump2DelayTime, jump2Destroy, $"drop tower2-{playerIndex}", sa, playerIndex);
+                        P3_DrawTowerFacing(towerPos, jump2DelayTime, jump2Destroy, $"drop tower2facing-{playerIndex}", sa, hasArrow);
                         break;
                     case 5:
                     case 6:
                     case 7:
-                        sa.Log.Debug($"{job} 三麻{posStr} 第一轮，回人群");
-                        P3_绘制回人群(0, lashGnashCastTime, $"人群-{playerIndex}", sa, playerIndex);
+                        sa.Log.Debug($"{job} three DFG{posStr} round 1, return party");
+                        P3_DrawReturnToParty(0, lashGnashCastTime, $"Party-{playerIndex}", sa, playerIndex);
                         break;
                 }
             }
@@ -2546,38 +2562,38 @@ namespace KarlinScriptNamespace
                 {
                     case 0:
                     case 2:
-                        sa.Log.Debug($"{job} 一麻{posStr} 第二轮，引导后回人群");
-                        P3_绘制回人群(26900 - 21500, 28900 - 26900, $"分摊-{playerIndex}", sa, playerIndex);
+                        sa.Log.Debug($"{job} one DFG{posStr} round 2, guidebackreturn party");
+                        P3_DrawReturnToParty(26900 - 21500, 28900 - 26900, $"stack-{playerIndex}", sa, playerIndex);
                         break;
                     case 1:
-                        sa.Log.Debug($"{job} 一麻{posStr} 第二轮，回人群");
-                        P3_绘制回人群(0, lashGnashCastTime, $"分摊-{playerIndex}", sa, playerIndex);
+                        sa.Log.Debug($"{job} one DFG{posStr} round 2, return party");
+                        P3_DrawReturnToParty(0, lashGnashCastTime, $"stack-{playerIndex}", sa, playerIndex);
                         break;
                     case 3:
                     case 4:
-                        sa.Log.Debug($"{job} 二麻{posStr} 第二轮，回人群");
-                        P3_绘制回人群(0, lashGnashCastTime, $"分摊-{playerIndex}", sa, playerIndex);
+                        sa.Log.Debug($"{job} two DFG{posStr} round 2, return party");
+                        P3_DrawReturnToParty(0, lashGnashCastTime, $"stack-{playerIndex}", sa, playerIndex);
                         break;
                     case 5:
                     case 6:
                     case 7:
-                        sa.Log.Debug($"{job} 三麻{posStr}第二轮，先去{posStr}{towerPos}放塔，再回人群");
-                        P3_绘制塔指路(towerPos, 0, lashGnashCastTime, $"放塔-{playerIndex}", sa, playerIndex);
-                        P3_绘制塔面向(towerPos, 0, lashGnashCastTime, $"放塔3面向-{playerIndex}", sa, hasArrow);
-                        P3_绘制回人群(lashGnashCastTime, towerExistTime, $"人群-{playerIndex}", sa, playerIndex);
+                        sa.Log.Debug($"{job} three DFG{posStr}round 2, first go {posStr}{towerPos}drop tower, then return party");
+                        P3_DrawTowerGuidance(towerPos, 0, lashGnashCastTime, $"drop tower-{playerIndex}", sa, playerIndex);
+                        P3_DrawTowerFacing(towerPos, 0, lashGnashCastTime, $"drop tower3facing-{playerIndex}", sa, hasArrow);
+                        P3_DrawReturnToParty(lashGnashCastTime, towerExistTime, $"Party-{playerIndex}", sa, playerIndex);
                         break;
                 }
             }
             else
             {
-                sa.Log.Error($"P3_麻将放塔与分摊 出错，_dfg.ActionCount = {_dfg.ActionCount}");
+                sa.Log.Error($"P3_DiveFromGraceTowerAndStack error, _dfg.ActionCount = {_dfg.ActionCount}");
             }
         }
 
 
-        [ScriptMethod(name: "P3 麻将踩塔指路", eventType: EventTypeEnum.ActionEffect, 
+        [ScriptMethod(name: "P3 Dive from Grace - Soak Tower Guidance", eventType: EventTypeEnum.ActionEffect, 
             eventCondition:["ActionId:regex:^(2638[234])$", "TargetIndex:1"], userControl: Debugging)]
-        public void P3_麻将踩塔指路(Event ev, ScriptAccessory sa)
+        public void P3_DiveFromGraceSoakTowerGuidance(Event ev, ScriptAccessory sa)
         {
             if (_dsrPhase != DsrPhase.Phase3Nidhogg) return;
             // 此举动为放塔，若玩家组不按预站位处理，此时有机会对脚本进行调整
@@ -2589,7 +2605,7 @@ namespace KarlinScriptNamespace
                 var aid = ev.ActionId;
                 var sid = ev.SourceId;
                 // 后面生成塔位置的sid已经不是原来的sid了，需要在这里找到他经偏置后的位置
-                var tpos = P3_取塔生成坐标(sa, sid, aid);
+                var tpos = P3_GetTowerSpawnPosition(sa, sid, aid);
                 _p3TowerAppearPos.Add(tpos);
 
                 var towerRound = _dfg.ActionCount switch
@@ -2601,13 +2617,13 @@ namespace KarlinScriptNamespace
                 };
                 if (towerRound == -1)
                 {
-                    sa.Log.Debug($"_dfg.ActionCount == {_dfg.ActionCount}，未到数值，退出");
+                    sa.Log.Debug($"_dfg.ActionCount == {_dfg.ActionCount}, not reached value, exit");
                     return;
                 }
 
                 // 本轮放塔的那一组刚站定，按其实际位置刷新组内左右位次，以便更改后续逻辑。
                 // 不论是不是自己所在的组都要刷，否则其它组的位次会一直停在预站位时的旧值
-                P3_刷新组内左右位置(sa, towerRound);
+                P3_RefreshWithinGroupLeftRightPosition(sa, towerRound);
 
                 // 刷新后再取自己的数值与位次，避免用到刷新前的旧值
                 var myPriority = _dfg.Priorities[sa.GetMyIndex()];
@@ -2617,21 +2633,21 @@ namespace KarlinScriptNamespace
                 _p3TowerAppearPos.Sort((pos1, pos2) => pos1.X.CompareTo(pos2.X));
 
                 // 输入当前的轮次，以及我的优先级位次，画塔
-                P3_绘制塔范围(sa, towerRound, myDfgIdx, myPriority);
+                P3_DrawTowerAoE(sa, towerRound, myDfgIdx, myPriority);
 
                 // 清空塔
                 _p3TowerAppearPos = [];
             }
         }
 
-        private DrawPropertiesEdit P3_绘制塔指路(Vector3 towerPos, int delay, int destroy, string name, ScriptAccessory accessory, int playerIndex, bool draw = true)
+        private DrawPropertiesEdit P3_DrawTowerGuidance(Vector3 towerPos, int delay, int destroy, string name, ScriptAccessory accessory, int playerIndex, bool draw = true)
         {
-            var dp = accessory.DrawGuidance(指路起点(accessory, playerIndex), towerPos, delay, destroy, name);
+            var dp = accessory.DrawGuidance(GuidanceOwner(accessory, playerIndex), towerPos, delay, destroy, name);
             if (draw)
                 accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
             return dp;
         }
-        private DrawPropertiesEdit P3_绘制塔面向(Vector3 towerPos, int delay, int destroy, string name, ScriptAccessory accessory, bool draw = true)
+        private DrawPropertiesEdit P3_DrawTowerFacing(Vector3 towerPos, int delay, int destroy, string name, ScriptAccessory accessory, bool draw = true)
         {
             // 上箭头（破碎冲）向面向方向前冲 14m 放塔，下箭头（回避跳跃）向面向反方向后跳 14m 放塔，
             // 二者站在左右两个对称站位上、朝同一方向，塔即落在同两个点。
@@ -2645,17 +2661,17 @@ namespace KarlinScriptNamespace
             return dp;
         }
 
-        private DrawPropertiesEdit P3_绘制回人群(int delay, int destroy, string name, ScriptAccessory accessory, int playerIndex, bool draw = true)
+        private DrawPropertiesEdit P3_DrawReturnToParty(int delay, int destroy, string name, ScriptAccessory accessory, int playerIndex, bool draw = true)
         {
             var stackPos = new Vector3(100, 0, 92);
-            var dp = accessory.DrawGuidance(指路起点(accessory, playerIndex), stackPos, delay, destroy, name);
+            var dp = accessory.DrawGuidance(GuidanceOwner(accessory, playerIndex), stackPos, delay, destroy, name);
             if (draw)
                 accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
             return dp;
         }
 
 
-        private void P3_绘制塔范围(ScriptAccessory sa, int towerRound, int myDfgIdx, int myPriority)
+        private void P3_DrawTowerAoE(ScriptAccessory sa, int towerRound, int myDfgIdx, int myPriority)
         {
             // 计算持续时间
             // towerExistTime - towerCastingTime
@@ -2665,24 +2681,24 @@ namespace KarlinScriptNamespace
 
             const int towerExistTime = 7100;
 
-            var myRound = P3_取踩塔轮次(myDfgIdx);
+            var myRound = P3_GetSoakTowerRound(myDfgIdx);
             if (myRound == -1)
             {
-                sa.Log.Error($"myDfgIdx = {myDfgIdx} 导致 myRound = {myRound}");
+                sa.Log.Error($"myDfgIdx = {myDfgIdx} causes  myRound = {myRound}");
                 return;
             }
             var isMyRound = myRound == towerRound;
-            var myTowerPos = P3_取麻将方位字符(myDfgIdx);
+            var myTowerPos = P3_GetDiveFromGraceDirectionChar(myDfgIdx);
             var myIndex = sa.GetMyIndex();
 
             for (int i = 0; i < _p3TowerAppearPos.Count; i++)
             {
                 // 当前是玩家放塔轮次，且该塔为玩家方位
-                var thisTowerPos = P3_取麻将方位字符(i, towerRound == 1);
+                var thisTowerPos = P3_GetDiveFromGraceDirectionChar(i, towerRound == 1);
                 var isMyTower = isMyRound && (thisTowerPos == myTowerPos);
 
                 var color = isMyTower ? sa.Data.DefaultSafeColor.WithW(1.5f) : sa.Data.DefaultDangerColor;
-                var dp1 = sa.DrawStaticCircle(_p3TowerAppearPos[i], color, 0, towerExistTime, $"塔{towerRound}{thisTowerPos}", 5f);
+                var dp1 = sa.DrawStaticCircle(_p3TowerAppearPos[i], color, 0, towerExistTime, $"tower{towerRound}{thisTowerPos}", 5f);
                 sa.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Circle, dp1);
 
                 // 正常模式只画自己的踩塔指路，Debug 模式把这一轮里全队各自要踩的塔都指出来
@@ -2690,11 +2706,11 @@ namespace KarlinScriptNamespace
                 {
                     if (!Debugging && p != myIndex) continue;
                     var pDfgIdx = _dfg.FindPriorityIndexOfKey(p);
-                    if (P3_取踩塔轮次(pDfgIdx) != towerRound) continue;
-                    if (P3_取麻将方位字符(pDfgIdx) != thisTowerPos) continue;
+                    if (P3_GetSoakTowerRound(pDfgIdx) != towerRound) continue;
+                    if (P3_GetDiveFromGraceDirectionChar(pDfgIdx) != thisTowerPos) continue;
 
-                    sa.Log.Debug($"检测到 {sa.GetPlayerJobByIndex(p)} 需踩第 {towerRound} 轮的 {thisTowerPos} 塔");
-                    var dp01 = sa.DrawGuidance(指路起点(sa, p), _p3TowerAppearPos[i], 0, towerExistTime, $"塔{towerRound}{thisTowerPos}指路{p}");
+                    sa.Log.Debug($"Detected  {sa.GetPlayerJobByIndex(p)} needs soak # {towerRound}  round of  {thisTowerPos} tower");
+                    var dp01 = sa.DrawGuidance(GuidanceOwner(sa, p), _p3TowerAppearPos[i], 0, towerExistTime, $"tower{towerRound}{thisTowerPos}guidance{p}");
                     sa.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp01);
                 }
             }
@@ -2703,7 +2719,7 @@ namespace KarlinScriptNamespace
         /// <summary>
         /// 由麻将优先级位次得出该玩家需踩第几轮塔，-1 为异常值
         /// </summary>
-        private static int P3_取踩塔轮次(int dfgIdx) => dfgIdx switch
+        private static int P3_GetSoakTowerRound(int dfgIdx) => dfgIdx switch
         {
             0 => 1,
             2 => 1,
@@ -2717,7 +2733,7 @@ namespace KarlinScriptNamespace
         };
 
 
-        private Vector3 P3_取塔生成坐标(ScriptAccessory sa, ulong sid, uint type)
+        private Vector3 P3_GetTowerSpawnPosition(ScriptAccessory sa, ulong sid, uint type)
         {
             // const uint inPlace = 26382;
             // const uint front = 26383;
@@ -2756,21 +2772,21 @@ namespace KarlinScriptNamespace
 
         #region P4
 
-        [ScriptMethod(name: "---- 《P4 龙眼》 ----", eventType: EventTypeEnum.NpcYell, eventCondition: ["HelloayaWorld"],
+        [ScriptMethod(name: "---- [P4 Eyes of Nidhogg] ----", eventType: EventTypeEnum.NpcYell, eventCondition: ["HelloayaWorld"],
             userControl: true)]
-        public void P4_分节线(Event @event, ScriptAccessory accessory)
+        public void P4_SectionDivider(Event @event, ScriptAccessory accessory)
         {
         }
 
-        [ScriptMethod(name: "P4 记录", eventType: EventTypeEnum.CancelAction, eventCondition: ["ActionId:29750"], userControl: false)]
-        public void P4_记录(Event @event, ScriptAccessory accessory)
+        [ScriptMethod(name: "P4 Record", eventType: EventTypeEnum.CancelAction, eventCondition: ["ActionId:29750"], userControl: false)]
+        public void P4_Record(Event @event, ScriptAccessory accessory)
         {
             parse = 4;
         }
 
-        [ScriptMethod(name: "P4 阶段记录", eventType: EventTypeEnum.StatusAdd, eventCondition: ["StatusID:2748"],
+        [ScriptMethod(name: "P4 Phase Record", eventType: EventTypeEnum.StatusAdd, eventCondition: ["StatusID:2748"],
             userControl: false)]
-        public void P4_阶段记录(Event @event, ScriptAccessory sa)
+        public void P4_PhaseRecord(Event @event, ScriptAccessory sa)
         {
             if (_dsrPhase == DsrPhase.Phase4Eyes) return;
             _dsrPhase = DsrPhase.Phase4Eyes;
@@ -2779,12 +2795,12 @@ namespace KarlinScriptNamespace
             _p4MirageDivePos = [];
             _p4BuffChangeDrawn = new bool[8].ToList();
             _p4PrepareToCenter = new bool[8].ToList();
-            sa.Log.Debug($"当前阶段为：{_dsrPhase}");
+            sa.Log.Debug($"Current phase: {_dsrPhase}");
         }
 
-        [ScriptMethod(name: "P4 开场就位提示", eventType: EventTypeEnum.StatusAdd, eventCondition: ["StatusID:2748"],
+        [ScriptMethod(name: "P4 Opening Position Prompt", eventType: EventTypeEnum.StatusAdd, eventCondition: ["StatusID:2748"],
             userControl: true)]
-        public void P4_开场就位提示(Event @event, ScriptAccessory accessory)
+        public void P4_OpeningPositionPrompt(Event @event, ScriptAccessory accessory)
         {
             var tid = @event.TargetId();
             if (tid != accessory.Data.Me) return;
@@ -2792,12 +2808,12 @@ namespace KarlinScriptNamespace
             // D1 D2 D3 D4
             var isBlueEye = myIndex is 4 or 5 or 6 or 7;
             var isTank = myIndex is 0 or 1;
-            accessory.Method.TextInfo($"{(isTank ? "开启盾姿，" : "")}{(isBlueEye ? "左侧蓝球" : "右侧红球")}就位", 3000, isTank);
+            accessory.Method.TextInfo($"{(isTank ? "EnableTankStance, " : "")}{(isBlueEye ? "BlueOrbLeft" : "RedOrbRight")} positioning", 3000, isTank);
         }
 
-        [ScriptMethod(name: "P4 红蓝Buff置换提示", eventType: EventTypeEnum.StatusAdd, eventCondition: ["StatusID:regex:^(277[56])$"],
+        [ScriptMethod(name: "P4 Clawbound/Fangbound Tether Swap", eventType: EventTypeEnum.StatusAdd, eventCondition: ["StatusID:regex:^(277[56])$"],
             userControl: true)]
-        public void P4_红蓝Buff置换(Event @event, ScriptAccessory accessory)
+        public void P4_ClawFangTetherSwap(Event @event, ScriptAccessory accessory)
         {
             if (_dsrPhase != DsrPhase.Phase4Eyes) return;
             var tid = @event.TargetId();
@@ -2815,17 +2831,17 @@ namespace KarlinScriptNamespace
 
             var needChange = needBlue ? stid != blueBuff : stid != redBuff;
             if (!needChange) return;
-            var dp = accessory.DrawGuidance(指路起点(accessory, tidx), _center, 0, 5000, $"红蓝Buff置换{tidx}");
+            var dp = accessory.DrawGuidance(GuidanceOwner(accessory, tidx), _center, 0, 5000, $"Clawbound/Fangbound tether swap{tidx}");
             accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
             // 文字提示只给自己
             if (tid == accessory.Data.Me)
-                accessory.Method.TextInfo($"场中换Buff", 3000);
+                accessory.Method.TextInfo($"arena centerswap buff", 3000);
         }
 
 
-        [ScriptMethod(name: "P4 红蓝Buff置换消除", eventType: EventTypeEnum.StatusAdd, eventCondition: ["StatusID:regex:^(277[56])$"],
+        [ScriptMethod(name: "P4 Clawbound/Fangbound Tether Swap Remove", eventType: EventTypeEnum.StatusAdd, eventCondition: ["StatusID:regex:^(277[56])$"],
             userControl: false)]
-        public void P4_红蓝Buff置换消除(Event @event, ScriptAccessory accessory)
+        public void P4_ClawFangTetherSwapRemove(Event @event, ScriptAccessory accessory)
         {
             if (_dsrPhase != DsrPhase.Phase4Eyes) return;
             var tid = @event.TargetId();
@@ -2839,13 +2855,13 @@ namespace KarlinScriptNamespace
 
             var changeComplete = needBlue ? stid == blueBuff : stid == redBuff;
             if (!changeComplete) return;
-            accessory.Method.RemoveDraw($"红蓝Buff置换{tidx}");
+            accessory.Method.RemoveDraw($"Clawbound/Fangbound tether swap{tidx}");
         }
 
 
-        [ScriptMethod(name: "P4 DPS撞球提示", eventType: EventTypeEnum.AddCombatant, eventCondition: ["DataId:regex:^(1260[78])$"],
+        [ScriptMethod(name: "P4 DPS Orb Soak Prompt", eventType: EventTypeEnum.AddCombatant, eventCondition: ["DataId:regex:^(1260[78])$"],
             userControl: true)]
-        public void P4_DPS撞球提示(Event @event, ScriptAccessory accessory)
+        public void P4_DPSOrbSoakPrompt(Event @event, ScriptAccessory accessory)
         {
             if (_dsrPhase != DsrPhase.Phase4Eyes) return;
             if (_drawn[1]) return;
@@ -2865,9 +2881,9 @@ namespace KarlinScriptNamespace
                     orbPos = orbPos.FoldPointHorizon(_center.X);
 
                 // 要细致的话，需要找到球什么时候变大的时间点
-                var dp0 = accessory.DrawGuidance(指路起点(accessory, i), orbPos, 4000, 2000, $"DPS撞球准备{i}");
+                var dp0 = accessory.DrawGuidance(GuidanceOwner(accessory, i), orbPos, 4000, 2000, $"DPSorb soakprepare {i}");
                 dp0.Color = accessory.Data.DefaultDangerColor;
-                var dp1 = accessory.DrawGuidance(指路起点(accessory, i), orbPos, 6000, 5000, $"DPS撞球{i}");
+                var dp1 = accessory.DrawGuidance(GuidanceOwner(accessory, i), orbPos, 6000, 5000, $"DPSorb soak{i}");
                 dp1.Color = accessory.Data.DefaultSafeColor;
                 accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp0);
                 accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp1);
@@ -2875,22 +2891,22 @@ namespace KarlinScriptNamespace
         }
 
 
-        [ScriptMethod(name: "P4 DPS撞球提示消失", eventType: EventTypeEnum.ActionEffect, eventCondition: ["ActionId:26817"],
+        [ScriptMethod(name: "P4 DPS Orb Soak Prompt Remove", eventType: EventTypeEnum.ActionEffect, eventCondition: ["ActionId:26817"],
             userControl: false)]
-        public void P4_DPS撞球提示消失(Event @event, ScriptAccessory accessory)
+        public void P4_DPSOrbSoakPromptRemove(Event @event, ScriptAccessory accessory)
         {
             if (_dsrPhase != DsrPhase.Phase4Eyes) return;
             var tid = @event.TargetId();
             if (!Debugging && tid != accessory.Data.Me) return;
             var myIndex = accessory.GetMyIndex();
             if (!Debugging && myIndex is not (0 or 1 or 4 or 5)) return;
-            accessory.Method.RemoveDraw($"DPS撞球.*");
+            accessory.Method.RemoveDraw($"DPSorb soak.*");
         }
 
 
-        [ScriptMethod(name: "P4 TN撞球提示", eventType: EventTypeEnum.AddCombatant, eventCondition: ["DataId:regex:^(1260[78])$"],
+        [ScriptMethod(name: "P4 TN Orb Soak Prompt", eventType: EventTypeEnum.AddCombatant, eventCondition: ["DataId:regex:^(1260[78])$"],
             userControl: true)]
-        public void P4_TN撞球提示(Event @event, ScriptAccessory accessory)
+        public void P4_TNOrbSoakPrompt(Event @event, ScriptAccessory accessory)
         {
             if (_dsrPhase != DsrPhase.Phase4Eyes) return;
             if (_drawn[2]) return;
@@ -2912,9 +2928,9 @@ namespace KarlinScriptNamespace
                 if (i is 2 or 3)
                     orbPos = orbPos.FoldPointHorizon(_center.X);
 
-                var dp0 = accessory.DrawGuidance(指路起点(accessory, i), orbPos, 10000, 2000, $"TN撞球准备{i}");
+                var dp0 = accessory.DrawGuidance(GuidanceOwner(accessory, i), orbPos, 10000, 2000, $"TNorb soakprepare {i}");
                 dp0.Color = accessory.Data.DefaultDangerColor;
-                var dp1 = accessory.DrawGuidance(指路起点(accessory, i), orbPos, 12000, 5000, $"TN撞球{i}");
+                var dp1 = accessory.DrawGuidance(GuidanceOwner(accessory, i), orbPos, 12000, 5000, $"TNorb soak{i}");
                 dp1.Color = accessory.Data.DefaultSafeColor;
                 accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp0);
                 accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp1);
@@ -2922,9 +2938,9 @@ namespace KarlinScriptNamespace
         }
 
 
-        [ScriptMethod(name: "P4 TN撞球前换Buff提示", eventType: EventTypeEnum.ActionEffect, eventCondition: ["ActionId:26817"],
+        [ScriptMethod(name: "P4 TN Orb Soak Pre Swap Prompt", eventType: EventTypeEnum.ActionEffect, eventCondition: ["ActionId:26817"],
             userControl: true)]
-        public void P4_TN撞球前换Buff提示(Event @event, ScriptAccessory accessory)
+        public void P4_TNOrbSoakPreSwapPrompt(Event @event, ScriptAccessory accessory)
         {
             if (_dsrPhase != DsrPhase.Phase4Eyes) return;
             if (_drawn[5]) return;
@@ -2933,25 +2949,25 @@ namespace KarlinScriptNamespace
             var myIndex = accessory.GetMyIndex();
             if (myIndex is not (2 or 3 or 6 or 7)) return;
 
-            accessory.Method.TextInfo($"与红球组换Buff", 2500);
+            accessory.Method.TextInfo($"swap tethers with the red-orb group", 2500);
         }
 
-        [ScriptMethod(name: "P4 TN撞球提示消失", eventType: EventTypeEnum.ActionEffect, eventCondition: ["ActionId:26815"],
+        [ScriptMethod(name: "P4 TN Orb Soak Prompt Remove", eventType: EventTypeEnum.ActionEffect, eventCondition: ["ActionId:26815"],
             userControl: false)]
-        public void P4_TN撞球提示消失(Event @event, ScriptAccessory accessory)
+        public void P4_TNOrbSoakPromptRemove(Event @event, ScriptAccessory accessory)
         {
             if (_dsrPhase != DsrPhase.Phase4Eyes) return;
             var tid = @event.TargetId();
             if (!Debugging && tid != accessory.Data.Me) return;
             var myIndex = accessory.GetMyIndex();
             if (!Debugging && myIndex is not (2 or 3 or 6 or 7)) return;
-            accessory.Method.RemoveDraw($"TN撞球.*");
+            accessory.Method.RemoveDraw($"TNorb soak.*");
         }
 
 
-        [ScriptMethod(name: "P4 幻象冲初始就位提示", eventType: EventTypeEnum.RemoveCombatant, eventCondition: ["DataId:12607"],
+        [ScriptMethod(name: "P4 Mirage Dive Initial Position Prompt", eventType: EventTypeEnum.RemoveCombatant, eventCondition: ["DataId:12607"],
             userControl: true)]
-        public void P4_幻象冲初始就位提示(Event @event, ScriptAccessory accessory)
+        public void P4_MirageDiveInitialPositionPrompt(Event @event, ScriptAccessory accessory)
         {
             if (_dsrPhase != DsrPhase.Phase4Eyes) return;
             if (_drawn[3]) return;
@@ -2973,15 +2989,15 @@ namespace KarlinScriptNamespace
                     targetPos = new(84.5f, 0, 94.5f);
                     targetPos = targetPos.RotatePoint(new(90, 0, 100), corner * 90f.DegToRad());
                 }
-                var dp = accessory.DrawGuidance(指路起点(accessory, i), targetPos, 0, 5000, $"幻象冲就位提示{i}");
+                var dp = accessory.DrawGuidance(GuidanceOwner(accessory, i), targetPos, 0, 5000, $"Mirage Dive positioningprompt{i}");
                 accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
             }
         }
 
 
-        [ScriptMethod(name: "P4 幻象冲次数与目标记录", eventType: EventTypeEnum.ActionEffect, eventCondition: ["ActionId:26820", "TargetIndex:1"],
+        [ScriptMethod(name: "P4 Mirage Dive Count and Target Record", eventType: EventTypeEnum.ActionEffect, eventCondition: ["ActionId:26820", "TargetIndex:1"],
             userControl: false)]
-        public void P4_幻象冲次数与目标记录(Event @event, ScriptAccessory accessory)
+        public void P4_MirageDiveCountAndTargetRecord(Event @event, ScriptAccessory accessory)
         {
             if (_dsrPhase != DsrPhase.Phase4Eyes) return;
             var tid = @event.TargetId();
@@ -3005,9 +3021,9 @@ namespace KarlinScriptNamespace
             }
         }
 
-        [ScriptMethod(name: "P4 幻象冲等待回中提示", eventType: EventTypeEnum.ActionEffect, eventCondition: ["ActionId:26820", "TargetIndex:1"],
+        [ScriptMethod(name: "P4 Mirage Dive Wait Return Center Prompt", eventType: EventTypeEnum.ActionEffect, eventCondition: ["ActionId:26820", "TargetIndex:1"],
             userControl: true)]
-        public void P4_幻象冲等待回中提示(Event @event, ScriptAccessory sa)
+        public void P4_MirageDiveWaitReturnCenterPrompt(Event @event, ScriptAccessory sa)
         {
             if (_dsrPhase != DsrPhase.Phase4Eyes) return;
             var tid = @event.TargetId();
@@ -3018,16 +3034,16 @@ namespace KarlinScriptNamespace
             if (_p4PrepareToCenter[tidx]) return;
             _p4PrepareToCenter[tidx] = true;
 
-            var dp = sa.DrawGuidance(指路起点(sa, tidx), new Vector3(90, 0, 100), 0, 5000, $"幻象冲等待回中提示{tidx}");
+            var dp = sa.DrawGuidance(GuidanceOwner(sa, tidx), new Vector3(90, 0, 100), 0, 5000, $"Mirage Divewaitreturn centerprompt{tidx}");
             dp.Color = sa.Data.DefaultDangerColor;
             sa.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
-            sa.Log.Debug($"玩家受到伤害，准备回中");
+            sa.Log.Debug($"playertook damage, prepare return center");
         }
 
 
-        [ScriptMethod(name: "P4 幻象冲回中提示", eventType: EventTypeEnum.StatusAdd, eventCondition: ["StatusID:2776"],
+        [ScriptMethod(name: "P4 Mirage Dive Return Center Prompt", eventType: EventTypeEnum.StatusAdd, eventCondition: ["StatusID:2776"],
             userControl: true)]
-        public void P4_幻象冲回中提示(Event @event, ScriptAccessory sa)
+        public void P4_MirageDiveReturnCenterPrompt(Event @event, ScriptAccessory sa)
         {
             if (_dsrPhase != DsrPhase.Phase4Eyes) return;
             var tid = @event.TargetId();
@@ -3039,16 +3055,16 @@ namespace KarlinScriptNamespace
             if (!_p4PrepareToCenter[tidx]) return;
             _p4PrepareToCenter[tidx] = false;
 
-            sa.Method.RemoveDraw($"幻象冲等待回中提示{tidx}");
-            var dp = sa.DrawGuidance(指路起点(sa, tidx), new Vector3(90, 0, 100), 0, 2500, $"幻象冲回中提示{tidx}");
+            sa.Method.RemoveDraw($"Mirage Divewaitreturn centerprompt{tidx}");
+            var dp = sa.DrawGuidance(GuidanceOwner(sa, tidx), new Vector3(90, 0, 100), 0, 2500, $"Mirage Divereturn centerprompt{tidx}");
             sa.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
-            sa.Log.Debug($"玩家Buff交换完毕，回中");
+            sa.Log.Debug($"playerBuffswap complete, return center");
         }
 
 
-        [ScriptMethod(name: "P4 幻象冲交换提示", eventType: EventTypeEnum.ActionEffect, eventCondition: ["ActionId:26820", "TargetIndex:1"],
+        [ScriptMethod(name: "P4 Mirage Dive Swap Prompt", eventType: EventTypeEnum.ActionEffect, eventCondition: ["ActionId:26820", "TargetIndex:1"],
             userControl: true)]
-        public void P4_幻象冲交换提示(Event @event, ScriptAccessory sa)
+        public void P4_MirageDiveSwapPrompt(Event @event, ScriptAccessory sa)
         {
             if (_dsrPhase != DsrPhase.Phase4Eyes) return;
             if (_drawn[4]) return;
@@ -3089,19 +3105,19 @@ namespace KarlinScriptNamespace
             // 正常模式只画自己，Debug 模式把高低优先级两人的就位点都画出来
             if (Debugging || myIndex == highPriorityPlayer)
             {
-                var dp = sa.DrawGuidance(指路起点(sa, highPriorityPlayer), highPriorityPos, 0, 5000, $"高优先级就位{highPriorityPlayer}");
+                var dp = sa.DrawGuidance(GuidanceOwner(sa, highPriorityPlayer), highPriorityPos, 0, 5000, $"high priority positioning{highPriorityPlayer}");
                 sa.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
             }
             if (Debugging || myIndex == lowPriorityPlayer)
             {
-                var dp = sa.DrawGuidance(指路起点(sa, lowPriorityPlayer), lowPriorityPos, 0, 5000, $"低优先级就位{lowPriorityPlayer}");
+                var dp = sa.DrawGuidance(GuidanceOwner(sa, lowPriorityPlayer), lowPriorityPos, 0, 5000, $"low priority positioning{lowPriorityPlayer}");
                 sa.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
             }
 
 
             var str = "";
-            str += $"第{_p4MirageDiveNum / 2}轮，高优先级{highPriorityPlayerJob}去{_p4MirageDivePos[0]}号位\n";
-            str += $"第{_p4MirageDiveNum / 2}轮，低优先级{lowPriorityPlayerJob}去{_p4MirageDivePos[1]}号位";
+            str += $"#{_p4MirageDiveNum / 2} round, high priority{highPriorityPlayerJob}go {_p4MirageDivePos[0]} position\n";
+            str += $"#{_p4MirageDiveNum / 2} round, low priority{lowPriorityPlayerJob}go {_p4MirageDivePos[1]} position";
             sa.Log.Debug(str);
             _p4MirageDivePos.Clear();
         }
@@ -3110,20 +3126,20 @@ namespace KarlinScriptNamespace
 
         #region P5
 
-        [ScriptMethod(name: "---- 《P5 伪典托尔丹》 ----", eventType: EventTypeEnum.NpcYell, eventCondition: ["HelloayaWorld"],
+        [ScriptMethod(name: "---- [P5 Dark King Thordan] ----", eventType: EventTypeEnum.NpcYell, eventCondition: ["HelloayaWorld"],
             userControl: true)]
-        public void P5_分节线(Event @event, ScriptAccessory accessory)
+        public void P5_SectionDivider(Event @event, ScriptAccessory accessory)
         {
         }
 
-        #region 一运
-        [ScriptMethod(name: "P5 一运记录", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:27529"], userControl: false)]
-        public void P5_一运记录(Event @event, ScriptAccessory accessory)
+        #region FirstMechanic
+        [ScriptMethod(name: "P5 Wrath of the Heavens - Record", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:27529"], userControl: false)]
+        public void P5_WrathOfTheHeavensRecord(Event @event, ScriptAccessory accessory)
         {
             parse = 5.1;
         }
-        [ScriptMethod(name: "P5 一运旋风冲", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:27531"])]
-        public void P5_一运旋风冲(Event @event, ScriptAccessory accessory)
+        [ScriptMethod(name: "P5 Wrath of the Heavens - Twisting Dive", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:27531"])]
+        public void P5_WrathOfTheHeavensTwistingDive(Event @event, ScriptAccessory accessory)
         {
             if (parse != 5.1) return;
             var dp = accessory.Data.GetDefaultDrawProperties();
@@ -3135,13 +3151,13 @@ namespace KarlinScriptNamespace
 
             dp.Scale = new(10,60);
             dp.DestoryAt = 6000;
-            dp.Name = $"P5一运旋风冲";
+            dp.Name = $"P5 Wrath of the HeavensTwisting Dive";
             
             accessory.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Rect, dp);
             
         }
-        [ScriptMethod(name: "P5 一运白龙位置连线(ImGui)", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:27531"])]
-        public void P5_一运白龙位置连线(Event @event, ScriptAccessory accessory)
+        [ScriptMethod(name: "P5 Wrath of the Heavens - Hraesvelgr Position Tether (ImGui)", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:27531"])]
+        public void P5_WrathOfTheHeavensHraesvelgrPositionTether(Event @event, ScriptAccessory accessory)
         {
             if (parse != 5.1) return;
             var dp = accessory.Data.GetDefaultDrawProperties();
@@ -3154,13 +3170,13 @@ namespace KarlinScriptNamespace
             dp.Scale = new(5);
             dp.ScaleMode |= ScaleMode.YByDistance;
             dp.DestoryAt = 6000;
-            dp.Name = $"P5一运白龙位置连线";
+            dp.Name = $"P5 Wrath of the HeavensHraesvelgrpositiontether";
 
             accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Line, dp);
 
         }
-        [ScriptMethod(name: "P5 一运双骑士螺旋枪", eventType: EventTypeEnum.Tether, eventCondition: ["Id:0005"])]
-        public void P5_一运双骑士连线(Event @event, ScriptAccessory accessory)
+        [ScriptMethod(name: "P5 Wrath of the Heavens - Spiral Pierce", eventType: EventTypeEnum.Tether, eventCondition: ["Id:0005"])]
+        public void P5_WrathOfTheHeavensSpiralPierce(Event @event, ScriptAccessory accessory)
         {
             if (parse != 5.1) return;
             var dp = accessory.Data.GetDefaultDrawProperties();
@@ -3178,13 +3194,13 @@ namespace KarlinScriptNamespace
             dp.ScaleMode |= ScaleMode.YByDistance;
             dp.Delay = p5TetherCrashDelay;
             dp.DestoryAt = 6000- p5TetherCrashDelay;
-            dp.Name = $"P5一运双骑士连线冲锋";
+            dp.Name = $"P5 Wrath of the HeavensSpiral Piercecharge";
 
             accessory.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Rect, dp);
 
         }
-        [ScriptMethod(name: "P5 一运雷翼", eventType: EventTypeEnum.StatusAdd, eventCondition: ["StatusID:2833"])]
-        public void P5_一运雷翼(Event @event, ScriptAccessory accessory)
+        [ScriptMethod(name: "P5 Wrath of the Heavens - Chain Lightning", eventType: EventTypeEnum.StatusAdd, eventCondition: ["StatusID:2833"])]
+        public void P5_WrathOfTheHeavensChainLightning(Event @event, ScriptAccessory accessory)
         {
             if (parse != 5.1) return;
             var dp = accessory.Data.GetDefaultDrawProperties();
@@ -3196,12 +3212,12 @@ namespace KarlinScriptNamespace
             dp.Scale = new(5);
             dp.DestoryAt = 5000;
             dp.Delay = int.TryParse(@event["DurationMilliseconds"], out var d) ? (d - dp.DestoryAt) :8000;
-            dp.Name = $"P5一运雷翼{id:X8}";
+            dp.Name = $"P5 Wrath of the HeavensChain Lightning{id:X8}";
             accessory.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Circle, dp);
 
         }
-        [ScriptMethod(name: "P5 一运穿天", eventType: EventTypeEnum.TargetIcon)]
-        public void P5_一运穿天(Event @event, ScriptAccessory accessory)
+        [ScriptMethod(name: "P5 Wrath of the Heavens - Skyward Leap", eventType: EventTypeEnum.TargetIcon)]
+        public void P5_WrathOfTheHeavensSkywardLeap(Event @event, ScriptAccessory accessory)
         {
             if (parse != 5.1 || ParsTargetIcon(@event["Id"]) != -316) return;
             var dp = accessory.Data.GetDefaultDrawProperties();
@@ -3213,13 +3229,13 @@ namespace KarlinScriptNamespace
             dp.Scale = new(24);
             dp.Delay = 2000;
             dp.DestoryAt = 4000;
-            dp.Name = $"P5一运穿天{id:X8}";
+            dp.Name = $"P5 Wrath of the HeavensSkyward Leap{id:X8}";
 
             accessory.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Circle, dp);
 
         }
-        [ScriptMethod(name: "P5 阿斯卡隆之仁・揭示", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:25546"])]
-        public void P5_阿斯卡隆之仁揭示(Event @event, ScriptAccessory accessory)
+        [ScriptMethod(name: "P5 Ascalon's Mercy Revealed", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:25546"])]
+        public void P5_AscalonsMercyRevealed(Event @event, ScriptAccessory accessory)
         {
             var dp = accessory.Data.GetDefaultDrawProperties();
             dp.Color = accessory.Data.DefaultDangerColor;
@@ -3233,7 +3249,7 @@ namespace KarlinScriptNamespace
             dp.DestoryAt = 4000;
             foreach (var tid in accessory.Data.PartyList)
             {
-                dp.Name = $"P5 阿斯卡隆之仁・揭示 {tid:X8}";
+                dp.Name = $"P5 Ascalon's Mercy Revealed {tid:X8}";
                 dp.TargetObject = tid;
                 accessory.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Fan, dp);
             }
@@ -3242,15 +3258,15 @@ namespace KarlinScriptNamespace
 
 
         }
-        [ScriptMethod(name: "P5 一运双龙俯冲处理位置记录", eventType: EventTypeEnum.SetObjPos,eventCondition: ["SourceDataId:12603"],userControl:false)]
-        public void P5_一运双龙俯冲处理位置记录(Event @event, ScriptAccessory accessory)
+        [ScriptMethod(name: "P5 Wrath of the Heavens - Cauterize Handling Position Record", eventType: EventTypeEnum.SetObjPos,eventCondition: ["SourceDataId:12603"],userControl:false)]
+        public void P5_WrathOfTheHeavensCauterizeHandlingPositionRecord(Event @event, ScriptAccessory accessory)
         {
             if (parse != 5.1) return;
             var pos= JsonConvert.DeserializeObject<Vector3>(@event["SourcePosition"]);
             p5DivePos = new((pos.X - 100) / 9 * 19 + 100, pos.Y, (pos.Z - 100) / 9 * 19 + 100);
         }
-        [ScriptMethod(name: "P5 一运双龙俯冲处理位置", eventType: EventTypeEnum.TargetIcon)]
-        public void P5_一运双龙俯冲处理位置(Event @event, ScriptAccessory accessory)
+        [ScriptMethod(name: "P5 Wrath of the Heavens - Cauterize Handling Position", eventType: EventTypeEnum.TargetIcon)]
+        public void P5_WrathOfTheHeavensCauterizeHandlingPosition(Event @event, ScriptAccessory accessory)
         {
             if (parse != 5.1 || ParsTargetIcon(@event["Id"]) != -310) return;
             if (!ParseObjectId(@event["TargetId"], out var id)) return;
@@ -3264,13 +3280,13 @@ namespace KarlinScriptNamespace
             dp.Scale = new(1,60);
             dp.DestoryAt = 5000;
             dp.ScaleMode |= ScaleMode.YByDistance;
-            dp.Name = $"P5一运双龙俯冲处理位置{tIdx}";
+            dp.Name = $"P5 Wrath of the HeavensCauterizehandling position{tIdx}";
 
             accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
 
         }
-        [ScriptMethod(name: "P5 一运白龙俯冲", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:27534"])]
-        public void P5_一运白龙俯冲(Event @event, ScriptAccessory accessory)
+        [ScriptMethod(name: "P5 Wrath of the Heavens - Hraesvelgr Cauterize", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:27534"])]
+        public void P5_WrathOfTheHeavensHraesvelgrCauterize(Event @event, ScriptAccessory accessory)
         {
             if (parse != 5.1) return;
             var dp = accessory.Data.GetDefaultDrawProperties();
@@ -3281,13 +3297,13 @@ namespace KarlinScriptNamespace
             }
             dp.Scale = new(20, 48);
             dp.DestoryAt = 6000;
-            dp.Name = $"P5一运白龙俯冲";
+            dp.Name = $"P5 Wrath of the HeavensHraesvelgr Cauterize";
 
             accessory.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Rect, dp);
 
         }
-        [ScriptMethod(name: "P5 一运黑龙俯冲", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:27533"])]
-        public void P5_一运黑龙俯冲(Event @event, ScriptAccessory accessory)
+        [ScriptMethod(name: "P5 Wrath of the Heavens - Nidhogg Cauterize", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:27533"])]
+        public void P5_WrathOfTheHeavensNidhoggCauterize(Event @event, ScriptAccessory accessory)
         {
             if (parse != 5.1) return;
             var dp = accessory.Data.GetDefaultDrawProperties();
@@ -3298,23 +3314,23 @@ namespace KarlinScriptNamespace
             }
             dp.Scale = new(20, 48);
             dp.DestoryAt = 6000;
-            dp.Name = $"P5一运黑龙俯冲";
+            dp.Name = $"P5 Wrath of the HeavensNidhogg Cauterize";
 
             accessory.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Rect, dp);
 
         }
-        [ScriptMethod(name: "P5 一运格里诺位置记录", eventType: EventTypeEnum.SetObjPos, eventCondition: ["SourceDataId:12602"], userControl: false)]
-        public void P5_一运格里诺位置记录(Event @event, ScriptAccessory accessory)
+        [ScriptMethod(name: "P5 Wrath of the Heavens - Ser Grinnaux Position Record", eventType: EventTypeEnum.SetObjPos, eventCondition: ["SourceDataId:12602"], userControl: false)]
+        public void P5_WrathOfTheHeavensSerGrinnauxPositionRecord(Event @event, ScriptAccessory accessory)
         {
             if (parse != 5.1) return;
             p5GrenoPos = JsonConvert.DeserializeObject<Vector3>(@event["SourcePosition"]);
         }
-        [ScriptMethod(name: "P5 一运连线格里诺(ImGui)", eventType: EventTypeEnum.ActionEffect, eventCondition: ["ActionId:25546"])]
-        public void P5_一运连线格里诺(Event @event, ScriptAccessory accessory)
+        [ScriptMethod(name: "P5 Wrath of the Heavens - Tether Ser Grinnaux (ImGui)", eventType: EventTypeEnum.ActionEffect, eventCondition: ["ActionId:25546"])]
+        public void P5_WrathOfTheHeavensTetherSerGrinnaux(Event @event, ScriptAccessory accessory)
         {
             if (parse != 5.1) return;
             var dp = accessory.Data.GetDefaultDrawProperties();
-            dp.Name = "P5 一运连线格里诺";
+            dp.Name = "P5 Wrath of the HeavenstetherSer Grinnaux";
             dp.Color = accessory.Data.DefaultSafeColor;
             dp.Owner = accessory.Data.Me;
             dp.TargetPosition = p5GrenoPos;
@@ -3324,52 +3340,52 @@ namespace KarlinScriptNamespace
             accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Line, dp);
 
         }
-        [ScriptMethod(name: "P5 一运阶段记录", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:27529"], userControl: false)]
-        public void P5_一运阶段记录(Event @event, ScriptAccessory sa)
+        [ScriptMethod(name: "P5 Wrath of the Heavens - Phase Record", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:27529"], userControl: false)]
+        public void P5_WrathOfTheHeavensPhaseRecord(Event @event, ScriptAccessory sa)
         {
             _dsrPhase = DsrPhase.Phase5HeavensWrath;
-            sa.Log.Debug($"当前阶段为：{_dsrPhase}");
+            sa.Log.Debug($"Current phase: {_dsrPhase}");
         }
 
-        [ScriptMethod(name: "P5 一运旋风预警", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:27531"])]
-        public async void P5_一运旋风预警(Event @event, ScriptAccessory accessory)
+        [ScriptMethod(name: "P5 Wrath of the Heavens - Twister Warning", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:27531"])]
+        public async void P5_WrathOfTheHeavensTwisterWarning(Event @event, ScriptAccessory accessory)
         {
-            P5_绘制旋风(3000, 3000, accessory);
+            P5_DrawTwister(3000, 3000, accessory);
             await Task.Delay(3000);
-            accessory.Method.TextInfo("旋风", 3000, true);
+            accessory.Method.TextInfo("Twister", 3000, true);
         }
 
-        [ScriptMethod(name: "P5 一运旋风危险位置", eventType: EventTypeEnum.ObjectChanged, eventCondition: ["DataId:2001168", "Operate:Add"])]
-        public void P5_一运旋风危险位置(Event @event, ScriptAccessory accessory)
+        [ScriptMethod(name: "P5 Wrath of the Heavens - Twister Danger Position", eventType: EventTypeEnum.ObjectChanged, eventCondition: ["DataId:2001168", "Operate:Add"])]
+        public void P5_WrathOfTheHeavensTwisterDangerPosition(Event @event, ScriptAccessory accessory)
         {
             var spos = @event.SourcePosition();
-            var dp = accessory.DrawStaticCircle(spos, ColorHelper.ColorRed.V4.WithW(3), 0, 4000, $"旋风{spos}");
+            var dp = accessory.DrawStaticCircle(spos, ColorHelper.ColorRed.V4.WithW(3), 0, 4000, $"Twister{spos}");
             accessory.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Circle, dp);
         }
 
-        private void P5_绘制旋风(int delay, int destroy, ScriptAccessory accessory)
+        private void P5_DrawTwister(int delay, int destroy, ScriptAccessory accessory)
         {
             for (var i = 0; i < accessory.Data.PartyList.Count; i++)
             {
-                var dp = accessory.DrawCircle(accessory.Data.PartyList[i], 1.5f, delay, destroy, $"旋风{i}", true);
+                var dp = accessory.DrawCircle(accessory.Data.PartyList[i], 1.5f, delay, destroy, $"Twister{i}", true);
                 dp.Color = accessory.Data.DefaultDangerColor.WithW(2f);
                 accessory.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Circle, dp);
             }
         }
 
-        [ScriptMethod(name: "P5 一运大圈火预警", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:25573"])]
-        public void P5_一运大圈火预警(Event @event, ScriptAccessory accessory)
+        [ScriptMethod(name: "P5 Wrath of the Heavens - Altar Flare Warning", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:25573"])]
+        public void P5_WrathOfTheHeavensAltarFlareWarning(Event @event, ScriptAccessory accessory)
         {
             if (_dsrPhase != DsrPhase.Phase5HeavensWrath) return;
             var spos = @event.SourcePosition();
-            var dp = accessory.DrawStaticCircle(spos, ColorHelper.ColorRed.V4.WithW(1.5f), 0, 4000, $"大圈火危险区", 8f);
+            var dp = accessory.DrawStaticCircle(spos, ColorHelper.ColorRed.V4.WithW(1.5f), 0, 4000, $"Altar Flaredanger zone", 8f);
             dp.ScaleMode |= ScaleMode.ByTime;
             accessory.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Circle, dp);
         }
 
-        [ScriptMethod(name: "P5 一运白龙位置记录", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:27531"],
+        [ScriptMethod(name: "P5 Wrath of the Heavens - Hraesvelgr Position Record", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:27531"],
             userControl: false)]
-        public void P5_一运白龙位置记录(Event @event, ScriptAccessory accessory)
+        public void P5_WrathOfTheHeavensHraesvelgrPositionRecord(Event @event, ScriptAccessory accessory)
         {
             if (_dsrPhase != DsrPhase.Phase5HeavensWrath) return;
             var spos = @event.SourcePosition();
@@ -3377,9 +3393,9 @@ namespace KarlinScriptNamespace
             _p5VedrfolnirPosRecordEvent.Set();
         }
 
-        [ScriptMethod(name: "P5 一运连线指路", eventType: EventTypeEnum.Tether, eventCondition: ["Id:0005"],
+        [ScriptMethod(name: "P5 Wrath of the Heavens - Tether Guidance", eventType: EventTypeEnum.Tether, eventCondition: ["Id:0005"],
             userControl: true)]
-        public void P5_一运连线指路(Event @event, ScriptAccessory accessory)
+        public void P5_WrathOfTheHeavensTetherGuidance(Event @event, ScriptAccessory accessory)
         {
             if (_dsrPhase != DsrPhase.Phase5HeavensWrath) return;
             _p5VedrfolnirPosRecordEvent.WaitOne();
@@ -3391,22 +3407,22 @@ namespace KarlinScriptNamespace
             var targetPos = spos.RotatePoint(_center, (atRight ? 1 : -1) * 172.5f.DegToRad());
 
             targetPos = targetPos.PointInOutside(_center, 2f);
-            var dp = accessory.DrawGuidance(指路起点(accessory, tidx), targetPos, 0, 8000, $"一运连线指路{tidx}");
+            var dp = accessory.DrawGuidance(GuidanceOwner(accessory, tidx), targetPos, 0, 8000, $"first mechanictetherguidance{tidx}");
             accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
         }
 
 
-        [ScriptMethod(name: "P5 一运连线指路消失", eventType: EventTypeEnum.ActionEffect, eventCondition: ["ActionId:27530"],
+        [ScriptMethod(name: "P5 Wrath of the Heavens - Tether Guidance Remove", eventType: EventTypeEnum.ActionEffect, eventCondition: ["ActionId:27530"],
             userControl: false)]
-        public void P5_一运连线指路消失(Event @event, ScriptAccessory accessory)
+        public void P5_WrathOfTheHeavensTetherGuidanceRemove(Event @event, ScriptAccessory accessory)
         {
             if (_dsrPhase != DsrPhase.Phase5HeavensWrath) return;
-            accessory.Method.RemoveDraw($"一运连线指路.*");
+            accessory.Method.RemoveDraw($"first mechanictetherguidance.*");
         }
 
-        [ScriptMethod(name: "P5 一运穿天指路", eventType: EventTypeEnum.TargetIcon, eventCondition: ["Id:000E"],
+        [ScriptMethod(name: "P5 Wrath of the Heavens - Skyward Leap Guidance", eventType: EventTypeEnum.TargetIcon, eventCondition: ["Id:000E"],
             userControl: true)]
-        public void P5_一运穿天指路(Event @event, ScriptAccessory accessory)
+        public void P5_WrathOfTheHeavensSkywardLeapGuidance(Event @event, ScriptAccessory accessory)
         {
             if (_dsrPhase != DsrPhase.Phase5HeavensWrath) return;
             _p5VedrfolnirPosRecordEvent.WaitOne();
@@ -3416,25 +3432,25 @@ namespace KarlinScriptNamespace
 
             var targetPos = _p5VedrfolnirPos.RotatePoint(_center, -67.5f.DegToRad());
             targetPos = targetPos.PointInOutside(_center, 2f);
-            var dp = accessory.DrawGuidance(指路起点(accessory, tidx), targetPos, 0, 8000, $"一运穿天指路{tidx}");
+            var dp = accessory.DrawGuidance(GuidanceOwner(accessory, tidx), targetPos, 0, 8000, $"first mechanicSkyward Leapguidance{tidx}");
             accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
         }
 
 
-        [ScriptMethod(name: "P5 一运穿天指路消失", eventType: EventTypeEnum.ActionEffect, eventCondition: ["ActionId:29346"],
+        [ScriptMethod(name: "P5 Wrath of the Heavens - Skyward Leap Guidance Remove", eventType: EventTypeEnum.ActionEffect, eventCondition: ["ActionId:29346"],
             userControl: false)]
-        public void P5_一运穿天指路消失(Event @event, ScriptAccessory accessory)
+        public void P5_WrathOfTheHeavensSkywardLeapGuidanceRemove(Event @event, ScriptAccessory accessory)
         {
             if (_dsrPhase != DsrPhase.Phase5HeavensWrath) return;
             _p5VedrfolnirPosRecordEvent.Reset();
-            accessory.Method.RemoveDraw($"一运穿天指路.*");
+            accessory.Method.RemoveDraw($"first mechanicSkyward Leapguidance.*");
         }
 
         #endregion
 
-        #region 二运
-        [ScriptMethod(name: "P5 二运记录", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:27538"], userControl: false)]
-        public void P5_二运记录(Event @event, ScriptAccessory accessory)
+        #region SecondMechanic
+        [ScriptMethod(name: "P5 Death of the Heavens - Record", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:27538"], userControl: false)]
+        public void P5_DeathOfTheHeavensRecord(Event @event, ScriptAccessory accessory)
         {
             parse = 5.2;
             p5sony = [0, 0, 0, 0, 0, 0, 0, 0];
@@ -3446,8 +3462,8 @@ namespace KarlinScriptNamespace
                 tordanId = id;
             }
         }
-        [ScriptMethod(name: "P5 二运黑龙俯冲", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:27533"])]
-        public void P5_二运黑龙俯冲(Event @event, ScriptAccessory accessory)
+        [ScriptMethod(name: "P5 Death of the Heavens - Nidhogg Cauterize", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:27533"])]
+        public void P5_DeathOfTheHeavensNidhoggCauterize(Event @event, ScriptAccessory accessory)
         {
             if (parse != 5.2) return;
             var dp = accessory.Data.GetDefaultDrawProperties();
@@ -3458,13 +3474,13 @@ namespace KarlinScriptNamespace
             }
             dp.Scale = new(20, 48);
             dp.DestoryAt = 6000;
-            dp.Name = $"P5一运黑龙俯冲";
+            dp.Name = $"P5 Wrath of the HeavensNidhogg Cauterize";
 
             accessory.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Rect, dp);
 
         }
-        [ScriptMethod(name: "P5 二运旋风冲", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:27531"])]
-        public void P5_二运旋风冲(Event @event, ScriptAccessory accessory)
+        [ScriptMethod(name: "P5 Death of the Heavens - Twisting Dive", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:27531"])]
+        public void P5_DeathOfTheHeavensTwistingDive(Event @event, ScriptAccessory accessory)
         {
             if (parse != 5.2) return;
             var dp = accessory.Data.GetDefaultDrawProperties();
@@ -3476,13 +3492,13 @@ namespace KarlinScriptNamespace
 
             dp.Scale = new(10, 60);
             dp.DestoryAt = 6000;
-            dp.Name = $"P5二运旋风冲";
+            dp.Name = $"P5 Death of the HeavensTwisting Dive";
 
             accessory.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Rect, dp);
 
         }
-        [ScriptMethod(name: "P5 二运战女神之枪", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:27539"])]
-        public void P5_二运战女神之枪(Event @event, ScriptAccessory accessory)
+        [ScriptMethod(name: "P5 Death of the Heavens - Spear of the Fury", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:27539"])]
+        public void P5_DeathOfTheHeavensSpearOfTheFury(Event @event, ScriptAccessory accessory)
         {
             if (parse != 5.2) return;
             var dp = accessory.Data.GetDefaultDrawProperties();
@@ -3493,13 +3509,13 @@ namespace KarlinScriptNamespace
             }
             dp.Scale = new(10, 50);
             dp.DestoryAt = 6000;
-            dp.Name = $"P5二运战女神之枪";
+            dp.Name = $"P5 Death of the HeavensSpear of the Fury";
 
             accessory.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Rect, dp);
 
         }
-        [ScriptMethod(name: "P5 二运地震", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:25558"])]
-        public void P5_二运地震(Event @event, ScriptAccessory accessory)
+        [ScriptMethod(name: "P5 Death of the Heavens - Heavy Impact", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:25558"])]
+        public void P5_DeathOfTheHeavensHeavyImpact(Event @event, ScriptAccessory accessory)
         {
             if (parse != 5.2) return;
             var dp = accessory.Data.GetDefaultDrawProperties();
@@ -3508,7 +3524,7 @@ namespace KarlinScriptNamespace
             {
                 dp.Owner = sid;
             }
-            dp.Name = "P5_二运地震";
+            dp.Name = "P5_DeathOfTheHeavensHeavyImpact";
 
             dp.Scale = new(6);
             dp.DestoryAt = 6000;
@@ -3539,8 +3555,8 @@ namespace KarlinScriptNamespace
             dp.DestoryAt = 4000;
             accessory.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Donut, dp);
         }
-        [ScriptMethod(name: "P5 二运龙眼背对", eventType: EventTypeEnum.EnvControl, eventCondition: ["DirectorId:8003759A", "Id:00020001"])]
-        public void P5_二运龙眼背对(Event @event, ScriptAccessory accessory)
+        [ScriptMethod(name: "P5 Death of the Heavens - The Dragon's Glory Gaze", eventType: EventTypeEnum.EnvControl, eventCondition: ["DirectorId:8003759A", "Id:00020001"])]
+        public void P5_DeathOfTheHeavensDragonsGloryGaze(Event @event, ScriptAccessory accessory)
         {
             if (parse != 5.2) return;
             var index = int.Parse(@event["Index"], System.Globalization.NumberStyles.HexNumber);
@@ -3557,11 +3573,11 @@ namespace KarlinScriptNamespace
             if (index == 5) dp.TargetPosition = new(75.25f, 0, 124.75f);
             if (index == 6) dp.TargetPosition = new(65, 0, 100);
             if (index == 7) dp.TargetPosition = new(75.25f, 0, 75.25f);
-            dp.Name = "P5 二运龙眼背对";
+            dp.Name = "P5 Death of the HeavensThe Dragon's Glory gaze";
             accessory.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.SightAvoid, dp);
         }
-        [ScriptMethod(name: "P5 二运骑神背对", eventType: EventTypeEnum.EnvControl, eventCondition: ["DirectorId:8003759A", "Id:00020001"])]
-        public void P5_二运骑神背对(Event @event, ScriptAccessory accessory)
+        [ScriptMethod(name: "P5 Death of the Heavens - The Dragon's Gaze", eventType: EventTypeEnum.EnvControl, eventCondition: ["DirectorId:8003759A", "Id:00020001"])]
+        public void P5_DeathOfTheHeavensDragonsGaze(Event @event, ScriptAccessory accessory)
         {
             if (parse != 5.2) return;
             var dp = accessory.Data.GetDefaultDrawProperties();
@@ -3571,11 +3587,11 @@ namespace KarlinScriptNamespace
             dp.Delay = 16000;
             dp.DestoryAt = 7000;
             
-            dp.Name = "P5 二运骑神背对";
+            dp.Name = "P5 Death of the HeavensThe Dragon's Gaze";
             accessory.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.SightAvoid, dp);
         }
-        [ScriptMethod(name: "P5 二运索尼记录", eventType: EventTypeEnum.TargetIcon,userControl:false)]
-        public void P5_二运索尼记录(Event @event, ScriptAccessory accessory)
+        [ScriptMethod(name: "P5 Death of the Heavens - PlayStation Record", eventType: EventTypeEnum.TargetIcon,userControl:false)]
+        public void P5_DeathOfTheHeavensPlayStationRecord(Event @event, ScriptAccessory accessory)
         {
             if (parse != 5.2) return;
             var sony = ParsTargetIcon(@event["Id"])+49;
@@ -3586,8 +3602,8 @@ namespace KarlinScriptNamespace
                 p5sony[index] += sony;
             }
         }
-        [ScriptMethod(name: "P5 二运死宣记录", eventType: EventTypeEnum.StatusAdd, eventCondition: ["StatusID:2976"],userControl: false)]
-        public void P5_二运死宣记录(Event @event, ScriptAccessory accessory)
+        [ScriptMethod(name: "P5 Death of the Heavens - Doom Record", eventType: EventTypeEnum.StatusAdd, eventCondition: ["StatusID:2976"],userControl: false)]
+        public void P5_DeathOfTheHeavensDoomRecord(Event @event, ScriptAccessory accessory)
         {
             if (parse != 5.2) return;
             
@@ -3599,7 +3615,7 @@ namespace KarlinScriptNamespace
                 p5sony_sixuan[index] = 1;
             }
             // 第 4 个死宣落地即为预站位，此刻锁定二运优先级，之后所有指路都以它为准
-            if (!p5PriorityReady && p5sony_sixuan.Count(x => x == 1) >= 4) P5锁定优先级(accessory);
+            if (!p5PriorityReady && p5sony_sixuan.Count(x => x == 1) >= 4) P5LockPriority(accessory);
         }
 
         // 标准八位是 MT OT H1 H2 D1 D2 R1 R2，另外兼容 ST / D3D4 / M1M2 / O1O2 等叫法，手填时大小写和分隔符都无所谓
@@ -3609,7 +3625,7 @@ namespace KarlinScriptNamespace
             ["ST"] = 1, ["OT"] = 1, ["T2"] = 1,
             ["H1"] = 2, ["H2"] = 3,
             ["D1"] = 4, ["D2"] = 5, ["D3"] = 6, ["D4"] = 7,
-            ["O1"] = 4, ["O2"] = 5, ["M1"] = 4, ["M2"] = 5,
+            ["O1"] = 4, ["O2"] = 5, ["M1"] = 4, ["M2"] = 5, ["M1"] = 4, ["M2"] = 5,
             ["R1"] = 6, ["R2"] = 7,
         };
 
@@ -3617,12 +3633,12 @@ namespace KarlinScriptNamespace
         /// 锁定 P5 二运的处理优先级：勾了自动就按第 4 个死宣落地瞬间的预站位排，
         /// 否则解析手填顺序；两者都取不到时退回 MT ST H1 H2 D1 D2 D3 D4。
         /// </summary>
-        private void P5锁定优先级(ScriptAccessory accessory)
+        private void P5LockPriority(ScriptAccessory accessory)
         {
-            var order = P5DeathPriorityAuto ? P5按预站位排优先级(accessory) : P5解析优先级文本(P5DeathPriorityManual);
+            var order = P5DeathPriorityAuto ? P5SortPriorityByPrePosition(accessory) : P5ParsePriorityText(P5DeathPriorityManual);
             p5Priority = order ?? [0, 1, 2, 3, 4, 5, 6, 7];
             p5PriorityReady = true;
-            accessory.Log.Debug($"P5 二运优先级({(P5DeathPriorityAuto ? "自动" : "手动")}{(order == null ? "-取值失败，用默认" : "")})：" +
+            accessory.Log.Debug($"P5 Death of the Heavenspriority({(P5DeathPriorityAuto ? "Auto" : "Manual")}{(order == null ? "-ReadFailed, UseDefault" : "")}): " +
                                 string.Join(" > ", p5Priority.Select(i => _role[i])));
         }
 
@@ -3630,7 +3646,7 @@ namespace KarlinScriptNamespace
         /// 以场中落下的盖里克方位为北，把全队按左右排序：越靠左优先级越高。
         /// 取不到盖里克位置或凑不齐 8 人时返回 null，由调用方退回默认序。
         /// </summary>
-        private int[]? P5按预站位排优先级(ScriptAccessory accessory)
+        private int[]? P5SortPriorityByPrePosition(ScriptAccessory accessory)
         {
             var north = new Vector2(p5GreekPos.X - _center.X, p5GreekPos.Z - _center.Z);
             if (north.LengthSquared() < 1f) return null;
@@ -3653,7 +3669,7 @@ namespace KarlinScriptNamespace
         /// <summary>
         /// 解析形如 MTSTO1R1R2O2H1H2 的手填优先级，8 个位置各出现一次才算有效，否则返回 null。
         /// </summary>
-        private static int[]? P5解析优先级文本(string? text)
+        private static int[]? P5ParsePriorityText(string? text)
         {
             if (string.IsNullOrWhiteSpace(text)) return null;
             var token = new string(text.Where(char.IsLetterOrDigit).ToArray());
@@ -3670,7 +3686,7 @@ namespace KarlinScriptNamespace
         /// <summary>
         /// 某人在优先级表里的名次，不在表里的排最后。
         /// </summary>
-        private int P5优先级名次(int partyIndex)
+        private int P5PriorityRank(int partyIndex)
         {
             var rank = Array.IndexOf(p5Priority, partyIndex);
             return rank < 0 ? int.MaxValue : rank;
@@ -3679,12 +3695,12 @@ namespace KarlinScriptNamespace
         /// <summary>
         /// 同一个索尼/死宣分组里，优先级排在此人之前的人数——替代原来直接数 PartyList 下标的写法。
         /// </summary>
-        private int P5同组更高优先级人数(int partyIndex, int sony)
+        private int P5HigherPriorityCountInGroup(int partyIndex, int sony)
         {
-            var myRank = P5优先级名次(partyIndex);
+            var myRank = P5PriorityRank(partyIndex);
             var count = 0;
             for (var i = 0; i < p5sony.Count; i++)
-                if (i != partyIndex && p5sony[i] == sony && P5优先级名次(i) < myRank) count++;
+                if (i != partyIndex && p5sony[i] == sony && P5PriorityRank(i) < myRank) count++;
             return count;
         }
 
@@ -3692,11 +3708,11 @@ namespace KarlinScriptNamespace
         /// 带符号的两个死宣（死宣▽ / 死宣□）里，优先级高的那个靠左去 -135°，另一个去 +135°；
         /// 四个死宣位从左到右是 -90° / -135° / +135° / +90°，无符号的死宣○ 占掉最外侧两个。
         /// </summary>
-        private bool P5死宣符号靠左(int partyIndex)
+        private bool P5DoomSymbolOnLeft(int partyIndex)
         {
-            var myRank = P5优先级名次(partyIndex);
+            var myRank = P5PriorityRank(partyIndex);
             for (var i = 0; i < p5sony.Count; i++)
-                if (i != partyIndex && (p5sony[i] == 11 || p5sony[i] == 12) && P5优先级名次(i) < myRank) return false;
+                if (i != partyIndex && (p5sony[i] == 11 || p5sony[i] == 12) && P5PriorityRank(i) < myRank) return false;
             return true;
         }
 
@@ -3704,7 +3720,7 @@ namespace KarlinScriptNamespace
         /// 指路前等优先级定下来：StatusAdd 触发的指路和优先级判定是同一批事件，
         /// 不等一下会出现先后异常，所以固定先延迟再确认 ready。
         /// </summary>
-        private async Task P5等待优先级(int minDelayMs = 500, int timeoutMs = 2000)
+        private async Task P5WaitForPriority(int minDelayMs = 500, int timeoutMs = 2000)
         {
             await Task.Delay(minDelayMs);
             for (var waited = minDelayMs; !p5PriorityReady && waited < timeoutMs; waited += 50)
@@ -3761,17 +3777,17 @@ namespace KarlinScriptNamespace
         //     // PartyList[6] -> <8>
         //     return partyIndex == 7 ? 1 : partyIndex + 2;
         // }
-        [ScriptMethod(name: "P5 二运盖里克位置记录", eventType: EventTypeEnum.SetObjPos, eventCondition: ["SourceDataId:12637"],userControl:false)]
-        public void P5_二运盖里克位置记录(Event @event, ScriptAccessory accessory)
+        [ScriptMethod(name: "P5 Death of the Heavens - Ser Guerrique Position Record", eventType: EventTypeEnum.SetObjPos, eventCondition: ["SourceDataId:12637"],userControl:false)]
+        public void P5_DeathOfTheHeavensSerGuerriquePositionRecord(Event @event, ScriptAccessory accessory)
         {
             if (parse != 5.2) return;
             p5GreekPos = JsonConvert.DeserializeObject<Vector3>(@event["SourcePosition"]);
         }
-        [ScriptMethod(name: "P5 二运死宣六方站位(ImGui)", eventType: EventTypeEnum.StatusAdd, eventCondition: ["StatusID:2976"])]
-        public async void P5_二运死宣六方站位(Event @event, ScriptAccessory accessory)
+        [ScriptMethod(name: "P5 Death of the Heavens - Doom Hexagon Positioning (ImGui)", eventType: EventTypeEnum.StatusAdd, eventCondition: ["StatusID:2976"])]
+        public async void P5_DeathOfTheHeavensDoomHexagonPositioning(Event @event, ScriptAccessory accessory)
         {
             if (parse != 5.2) return;
-            await P5等待优先级();
+            await P5WaitForPriority();
             {
                 if (p5Deal) return;
                 var count = p5sony.Where(s => s > 5).Count();
@@ -3785,16 +3801,16 @@ namespace KarlinScriptNamespace
                 {
                     if (!Debugging && idIndex != myIndex) continue;
                     var sony = p5sony[idIndex];
-                    var posid = (sony > 0 ? 4 : 0) + P5同组更高优先级人数(idIndex, sony);
+                    var posid = (sony > 0 ? 4 : 0) + P5HigherPriorityCountInGroup(idIndex, sony);
                     var npos = 19.5f * Vector3.Normalize(new(p5GreekPos.X - 100, p5GreekPos.Y, p5GreekPos.Z - 100)) + cpos;
                     if (posid == 4 || posid == 7) { npos = 13 * Vector3.Normalize(new(p5GreekPos.X - 100, p5GreekPos.Y, p5GreekPos.Z - 100)) + cpos; }
                     var dp = accessory.Data.GetDefaultDrawProperties();
                     dp.Color = accessory.Data.DefaultSafeColor;
-                    dp.Owner = 指路起点(accessory, idIndex);
+                    dp.Owner = GuidanceOwner(accessory, idIndex);
                     dp.Scale = new(1.5f, 60);
                     dp.DestoryAt = 7000;
                     dp.ScaleMode |= ScaleMode.YByDistance;
-                    dp.Name = $"P5二运死宣引导站位{sony}-{idIndex}";
+                    dp.Name = $"P5 Death of the HeavensDoomguidepositioning{sony}-{idIndex}";
 
                     var d = float.Pi / 180f;
                     if (posid == 0) dp.TargetPosition = RotatePoint(npos, cpos, d * -90);
@@ -3810,8 +3826,8 @@ namespace KarlinScriptNamespace
 
             }
         }
-        [ScriptMethod(name: "P5 二运索尼引导站位(ImGui)", eventType: EventTypeEnum.ActionEffect, eventCondition: ["ActionId:27533"])]
-        public void P5_二运索尼引导站位(Event @event, ScriptAccessory accessory)
+        [ScriptMethod(name: "P5 Death of the Heavens - PlayStation Guide Position (ImGui)", eventType: EventTypeEnum.ActionEffect, eventCondition: ["ActionId:27533"])]
+        public void P5_DeathOfTheHeavensPlayStationGuidePosition(Event @event, ScriptAccessory accessory)
         {
             if (parse != 5.2) return;
 
@@ -3824,15 +3840,15 @@ namespace KarlinScriptNamespace
             {
                 if (!Debugging && idIndex != myIndex) continue;
                 var sony = p5sony[idIndex];
-                var posid = (sony > 0 ? 4 : 0) + P5同组更高优先级人数(idIndex, sony);
+                var posid = (sony > 0 ? 4 : 0) + P5HigherPriorityCountInGroup(idIndex, sony);
 
                 var dp = accessory.Data.GetDefaultDrawProperties();
                 dp.Color = accessory.Data.DefaultSafeColor;
-                dp.Owner = 指路起点(accessory, idIndex);
+                dp.Owner = GuidanceOwner(accessory, idIndex);
                 dp.Scale = new(1.5f, 60);
                 dp.DestoryAt = 8000;
                 dp.ScaleMode |= ScaleMode.YByDistance;
-                dp.Name = $"P5二运索尼引导站位{sony}-{idIndex}";
+                dp.Name = $"P5 Death of the HeavensPlayStationguidepositioning{sony}-{idIndex}";
 
                 var d = float.Pi / 180f;
                 dp.TargetPosition = cpos;
@@ -3844,19 +3860,19 @@ namespace KarlinScriptNamespace
         }
 
 
-        [ScriptMethod(name: "P5 二运索尼处理位置(横排法)(ImGui)", eventType: EventTypeEnum.TargetIcon)]
-        public async void P5_二运索尼处理位置_横排法(Event @event, ScriptAccessory accessory)
+        [ScriptMethod(name: "P5 Death of the Heavens - PlayStation Position Horizontal Row (ImGui)", eventType: EventTypeEnum.TargetIcon)]
+        public async void P5_DeathOfTheHeavensPlayStationPosition_HorizontalRow(Event @event, ScriptAccessory accessory)
         {
             if (parse != 5.2) return;
             if (!ParseObjectId(@event["TargetId"], out var id)) return;
             if (!Debugging && id != accessory.Data.Me) return;
             // Debug 模式下解除了只看自己的过滤，头标目标未必在小队里，先挡掉越界
             if (accessory.Data.PartyList.IndexOf(id) < 0) return;
-            await P5等待优先级();
+            await P5WaitForPriority();
             {
                 var index = accessory.Data.PartyList.ToList().IndexOf(id);
                 var sony =p5sony[index];
-                var priority = P5同组更高优先级人数(index, sony) == 0;
+                var priority = P5HigherPriorityCountInGroup(index, sony) == 0;
                 var cpos = new Vector3(100, 0, 100);
                 var npos = 4*Vector3.Normalize(new(p5GreekPos.X-100,p5GreekPos.Y,p5GreekPos.Z-100))+ cpos;
                 var npos2 = 20f * Vector3.Normalize(new(p5GreekPos.X - 100, p5GreekPos.Y, p5GreekPos.Z - 100)) + cpos;
@@ -3868,13 +3884,13 @@ namespace KarlinScriptNamespace
                 dp.Scale = new(3, 60);
                 dp.DestoryAt = 5000;
                 dp.ScaleMode |= ScaleMode.YByDistance;
-                dp.Name = $"P5二运索尼{sony}处理位置{index}";
+                dp.Name = $"P5 Death of the HeavensPlayStation{sony}handling position{index}";
 
                 var dp2 = accessory.Data.GetDefaultDrawProperties();
                 dp2.Color = accessory.Data.DefaultSafeColor;
                 dp2.Scale = new(1f);
                 dp2.DestoryAt = 5000;
-                dp2.Name = $"P5二运索尼{sony}击退终点{index}";
+                dp2.Name = $"P5 Death of the HeavensPlayStation{sony}knockbackendpoint{index}";
                 //死宣○
                 if (sony == 10)
                 {
@@ -3892,7 +3908,7 @@ namespace KarlinScriptNamespace
                 //死宣▽ / 死宣□：不再看符号，两人里优先级高的（死宣第二优先级）去 -135°，低的（第三优先级）去 +135°
                 if (sony == 11 || sony == 12)
                 {
-                    var rot = float.Pi * (P5死宣符号靠左(index) ? -0.75f : 0.75f);
+                    var rot = float.Pi * (P5DoomSymbolOnLeft(index) ? -0.75f : 0.75f);
                     dp.TargetPosition = RotatePoint(npos, cpos, rot);
                     dp2.Position = RotatePoint(npos2, cpos, rot);
                 }
@@ -3901,7 +3917,7 @@ namespace KarlinScriptNamespace
                 {
                     var partner = p5sony.IndexOf(sony + 10);
                     // 找不到同符号死宣时退回原来的 ▽ -45° / □ +45°
-                    var partnerLeft = partner >= 0 ? P5死宣符号靠左(partner) : sony == 2;
+                    var partnerLeft = partner >= 0 ? P5DoomSymbolOnLeft(partner) : sony == 2;
                     var rot = float.Pi * (partnerLeft ? 0.25f : -0.25f);
                     dp.TargetPosition = RotatePoint(npos, cpos, rot);
                     dp2.Position = RotatePoint(npos2, cpos, rot);
@@ -3930,20 +3946,20 @@ namespace KarlinScriptNamespace
 
 
 
-        [ScriptMethod(name: "P5 二运阶段记录", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:27538"], userControl: false)]
-        public void P5_二运阶段记录(Event @event, ScriptAccessory sa)
+        [ScriptMethod(name: "P5 Death of the Heavens - Phase Record", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:27538"], userControl: false)]
+        public void P5_DeathOfTheHeavensPhaseRecord(Event @event, ScriptAccessory sa)
         {
             _dsrPhase = DsrPhase.Phase5HeavensDeath;
-            sa.Log.Debug($"当前阶段为：{_dsrPhase}");
+            sa.Log.Debug($"Current phase: {_dsrPhase}");
         }
 
-        [ScriptMethod(name: "P5 二运斧头哥方位指引", eventType: EventTypeEnum.PlayActionTimeline, eventCondition: ["Id:7747", "SourceDataId:12637"])]
-        public void P5_二运斧头哥方位指引(Event @event, ScriptAccessory sa)
+        [ScriptMethod(name: "P5 Death of the Heavens - Ser Guerrique Direction Guidance", eventType: EventTypeEnum.PlayActionTimeline, eventCondition: ["Id:7747", "SourceDataId:12637"])]
+        public void P5_DeathOfTheHeavensSerGuerriqueDirectionGuidance(Event @event, ScriptAccessory sa)
         {
             if (_dsrPhase != DsrPhase.Phase5HeavensDeath) return;
             var spos = @event.SourcePosition();
-            sa.Log.Debug($"找到斧头哥位置{spos}");
-            var dp = sa.DrawDirPos2Pos(_center, spos, 0, 4000, $"场中指向斧头哥", 2f);
+            sa.Log.Debug($"Found Ser Guerrique position: {spos}");
+            var dp = sa.DrawDirPos2Pos(_center, spos, 0, 4000, $"arena centerpoints to Ser Guerrique", 2f);
             dp.Color = ColorHelper.ColorWhite.V4;
             sa.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Displacement, dp);
         }
@@ -3953,21 +3969,21 @@ namespace KarlinScriptNamespace
 
         #region P6
 
-        [ScriptMethod(name: "---- 《P6 双龙》 ----", eventType: EventTypeEnum.NpcYell, eventCondition: ["HelloayaWorld"],
+        [ScriptMethod(name: "---- [P6 Nidhogg & Hraesvelgr] ----", eventType: EventTypeEnum.NpcYell, eventCondition: ["HelloayaWorld"],
             userControl: true)]
-        public void P6_分节线(Event @event, ScriptAccessory accessory)
+        public void P6_SectionDivider(Event @event, ScriptAccessory accessory)
         {
         }
 
-        [ScriptMethod(name: "P6 开场记录", eventType: EventTypeEnum.ActionEffect, eventCondition: ["ActionId:26215"], userControl: false)]
-        public void P6_开场记录(Event @event, ScriptAccessory accessory)
+        [ScriptMethod(name: "P6 Opening Record", eventType: EventTypeEnum.ActionEffect, eventCondition: ["ActionId:26215"], userControl: false)]
+        public void P6_OpeningRecord(Event @event, ScriptAccessory accessory)
         {
             parse = 6.1;
             p6FireBallCount = 0;
             p6FireBallCount2 = 0;
         }
-        [ScriptMethod(name: "P6 阶段累加", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:27969"],userControl:false)]
-        public void P6_阶段累加(Event @event, ScriptAccessory accessory)
+        [ScriptMethod(name: "P6 Phase Advance", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:27969"],userControl:false)]
+        public void P6_PhaseAdvance(Event @event, ScriptAccessory accessory)
         {
             parse=Math.Round(parse + 0.1, 1);
             if (ParseObjectId(@event["SourceId"], out var id))
@@ -3975,16 +3991,16 @@ namespace KarlinScriptNamespace
                 whiteDragonId = id;
             }
         }
-        [ScriptMethod(name: "P6 黑龙ID", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:27971"], userControl: false)]
-        public void P6_黑龙ID(Event @event, ScriptAccessory accessory)
+        [ScriptMethod(name: "P6 Nidhogg ID", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:27971"], userControl: false)]
+        public void P6_NidhoggId(Event @event, ScriptAccessory accessory)
         {
             if (ParseObjectId(@event["SourceId"], out var id))
             {
                 darkDragonId = id;
             }
         }
-        [ScriptMethod(name: "P6 白龙位置id记录", eventType: EventTypeEnum.SetObjPos, eventCondition: ["SourceDataId:12613"], userControl: false)]
-        public void P6_白龙位置id记录(Event @event, ScriptAccessory accessory)
+        [ScriptMethod(name: "P6 Hraesvelgr Position ID Record", eventType: EventTypeEnum.SetObjPos, eventCondition: ["SourceDataId:12613"], userControl: false)]
+        public void P6_HraesvelgrPositionidRecord(Event @event, ScriptAccessory accessory)
         {
             p6WhitePos = JsonConvert.DeserializeObject<Vector3>(@event["SourcePosition"]);
             if (ParseObjectId(@event["SourceId"], out var sid))
@@ -3994,8 +4010,8 @@ namespace KarlinScriptNamespace
 
         }
         // 一冰火(6.1)存 p6tether、二冰火(6.3)存 p6tether2；连白龙(圣龙)=冰=2，连黑龙(邪龙)=火=1
-        [ScriptMethod(name: "P6 冰火线收集", eventType: EventTypeEnum.Tether, userControl: false)]
-        public void P6_开场冰火线收集(Event @event, ScriptAccessory accessory)
+        [ScriptMethod(name: "P6 Opening Wyrmsbreath Collect", eventType: EventTypeEnum.Tether, userControl: false)]
+        public void P6_OpeningWyrmsbreathCollect(Event @event, ScriptAccessory accessory)
         {
             if (parse != 6.1 && parse != 6.3) return;
 
@@ -4016,8 +4032,8 @@ namespace KarlinScriptNamespace
             var tetherList = parse == 6.1 ? p6tether : p6tether2;
             tetherList[playerIdx] = dragonId == whiteDragonId ? 2 : 1;
         }
-        [ScriptMethod(name: "P6 第一次冰火线站位(Imgui)", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:27960"])]
-        public void P6_第一次冰火线站位(Event @event, ScriptAccessory accessory)
+        [ScriptMethod(name: "P6 Wyrmsbreath 1 - Positioning (ImGui)", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:27960"])]
+        public void P6_Wyrmsbreath1Positioning(Event @event, ScriptAccessory accessory)
         {
             if (parse != 6.1) return;
 
@@ -4032,8 +4048,8 @@ namespace KarlinScriptNamespace
                 if (idIndex <= 1) continue;
 
                 var dp = accessory.Data.GetDefaultDrawProperties();
-                dp.Name = $"P6 第一次冰火线站位{idIndex}";
-                dp.Owner = 指路起点(accessory, idIndex);
+                dp.Name = $"P6 Wyrmsbreath 1positioning{idIndex}";
+                dp.Owner = GuidanceOwner(accessory, idIndex);
                 dp.ScaleMode |= ScaleMode.YByDistance;
                 dp.Scale = new(1.5f);
                 dp.Color = accessory.Data.DefaultSafeColor;
@@ -4070,8 +4086,8 @@ namespace KarlinScriptNamespace
         }
 
 
-        [ScriptMethod(name: "P6 第一次冰火线黑龙扇形", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:27955"])]
-        public void P6_第一次冰火线黑龙扇形(Event @event, ScriptAccessory accessory)
+        [ScriptMethod(name: "P6 Wyrmsbreath 1 - Nidhogg Cone", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:27955"])]
+        public void P6_Wyrmsbreath1NidhoggCone(Event @event, ScriptAccessory accessory)
         {
             var dp = accessory.Data.GetDefaultDrawProperties();
             dp.Color = accessory.Data.DefaultDangerColor;
@@ -4082,12 +4098,12 @@ namespace KarlinScriptNamespace
             dp.Scale = new(50);
             dp.Radian = float.Pi / 6f;
             dp.DestoryAt = 7000;
-            dp.Name = "P6 第一次冰火线黑龙扇形";
+            dp.Name = "P6 Wyrmsbreath 1Nidhoggcone";
             accessory.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Fan, dp);
 
         }
-        [ScriptMethod(name: "P6 第一次冰火线白龙扇形", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:27957"])]
-        public void P6_第一次冰火线白龙扇形(Event @event, ScriptAccessory accessory)
+        [ScriptMethod(name: "P6 Wyrmsbreath 1 - Hraesvelgr Cone", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:27957"])]
+        public void P6_Wyrmsbreath1HraesvelgrCone(Event @event, ScriptAccessory accessory)
         {
             var dp = accessory.Data.GetDefaultDrawProperties();
             dp.Color = accessory.Data.DefaultDangerColor;
@@ -4098,13 +4114,13 @@ namespace KarlinScriptNamespace
             dp.Scale = new(50);
             dp.Radian = float.Pi / 6f;
             dp.DestoryAt = 7000;
-            dp.Name = "P6 第一次冰火线白龙扇形";
+            dp.Name = "P6 Wyrmsbreath 1Hraesvelgrcone";
             accessory.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Fan, dp);
 
         }
 
         [ScriptMethod(
-            name: "读条27969自动选中附近最高血量敌人",
+            name: "Auto-target nearby highest-HP enemy during cast 27969",
             eventType: EventTypeEnum.StartCasting,
             eventCondition: ["ActionId:27969"]
         )]
@@ -4179,11 +4195,11 @@ namespace KarlinScriptNamespace
             return false;
         }
 
-        [ScriptMethod(name: "P6 无尽轮回", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:27969"], userControl: false)]
-        public void P6_无尽轮回(Event @event, ScriptAccessory accessory)
+        [ScriptMethod(name: "P6 Akh Afah", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:27969"], userControl: false)]
+        public void P6_AkhAfah(Event @event, ScriptAccessory accessory)
         {
             var dp = accessory.Data.GetDefaultDrawProperties();
-            dp.Name = "P6 无尽轮回";
+            dp.Name = "P6 Akh Afah";
             dp.Scale = new(4);
             dp.DestoryAt = 8300;
             var idIndex = accessory.Data.PartyList.ToList().IndexOf(accessory.Data.Me);
@@ -4209,22 +4225,22 @@ namespace KarlinScriptNamespace
             }
 
         }
-        [ScriptMethod(name: "P6 灭杀誓言分散", eventType: EventTypeEnum.ActionEffect, eventCondition: ["ActionId:27960"], userControl: false)]
-        public void P6_灭杀誓言分散(Event @event, ScriptAccessory accessory)
+        [ScriptMethod(name: "P6 Mortal Vow Spread", eventType: EventTypeEnum.ActionEffect, eventCondition: ["ActionId:27960"], userControl: false)]
+        public void P6_MortalVowSpread(Event @event, ScriptAccessory accessory)
         {
             if (parse != 6.1) return;
             var dp = accessory.Data.GetDefaultDrawProperties();
             dp.DestoryAt = 7300;
             for (int i = 4; i < accessory.Data.PartyList.Count; i++)
             {
-                dp.Name = $"P6 灭杀誓言分散 D{i-3}";
+                dp.Name = $"P6 Mortal Vowspread D{i-3}";
                 dp.Owner = accessory.Data.PartyList[i];
                 dp.Color = accessory.Data.DefaultDangerColor;
                 accessory.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Circle, dp);
             }
         }
-        [ScriptMethod(name: "P6 灭杀誓言范围", eventType: EventTypeEnum.StatusAdd, eventCondition: ["StatusID:2896"])]
-        public void P6_灭杀誓言范围(Event @event, ScriptAccessory accessory)
+        [ScriptMethod(name: "P6 Mortal Vow AoE", eventType: EventTypeEnum.StatusAdd, eventCondition: ["StatusID:2896"])]
+        public void P6_MortalVowAoE(Event @event, ScriptAccessory accessory)
         {
             var dp = accessory.Data.GetDefaultDrawProperties();
             dp.Color = accessory.Data.DefaultDangerColor;
@@ -4236,13 +4252,13 @@ namespace KarlinScriptNamespace
             dp.DestoryAt = 5000;
             dp.Delay = int.TryParse(@event["DurationMilliseconds"], out var d) ? d - 5000 : 0;
             
-            dp.Name = $"P6 灭杀誓言";
+            dp.Name = $"P6 Mortal Vow";
 
             accessory.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Circle, dp);
 
         }
-        [ScriptMethod(name: "P6 第一次冰火线安全点(ImGui)", eventType: EventTypeEnum.ActionEffect, eventCondition: ["ActionId:26215"])]
-        public void P6_第一次冰火线安全点(Event @event, ScriptAccessory accessory)
+        [ScriptMethod(name: "P6 Wyrmsbreath 1 - Safe Point (ImGui)", eventType: EventTypeEnum.ActionEffect, eventCondition: ["ActionId:26215"])]
+        public void P6_Wyrmsbreath1SafePoint(Event @event, ScriptAccessory accessory)
         {
             if (parse != 6.1) return;
             var dp = accessory.Data.GetDefaultDrawProperties();
@@ -4251,7 +4267,7 @@ namespace KarlinScriptNamespace
             dp.Scale = new(0.2f);
             dp.Delay = 20000;
             dp.DestoryAt = 15000;
-            dp.Name = $"P6 第一次冰火线安全点";
+            dp.Name = $"P6 Wyrmsbreath 1safe point";
 
             dp.Position = new(95.7f, 0, 119);
             accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Circle, dp);
@@ -4260,8 +4276,8 @@ namespace KarlinScriptNamespace
             dp.Position = new(100, 0, 109.33f);
             accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Circle, dp);
         }
-        [ScriptMethod(name: "P6 神圣之翼(左近)", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:27939"])]
-        public void P6_神圣之翼左近(Event @event, ScriptAccessory accessory)
+        [ScriptMethod(name: "P6 Hallowed Wings Left Near", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:27939"])]
+        public void P6_HallowedWingsLeftNear(Event @event, ScriptAccessory accessory)
         {
             var dp = accessory.Data.GetDefaultDrawProperties();
             dp.Color = accessory.Data.DefaultDangerColor;
@@ -4273,10 +4289,10 @@ namespace KarlinScriptNamespace
             dp.DestoryAt = 8000;
             dp.CentreResolvePattern=PositionResolvePatternEnum.PlayerNearestOrder;
             dp.CentreOrderIndex = 1;
-            dp.Name = "P6_神圣之翼近1";
+            dp.Name = "P6_Hallowed Wingsnear1";
             accessory.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Circle, dp);
             dp.CentreOrderIndex = 2;
-            dp.Name = "P6_神圣之翼近2";
+            dp.Name = "P6_Hallowed Wingsnear2";
             accessory.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Circle, dp);
 
             var dp2 = accessory.Data.GetDefaultDrawProperties();
@@ -4285,12 +4301,12 @@ namespace KarlinScriptNamespace
             dp2.Owner = id;
             dp2.DestoryAt = 8000;
             dp2.Offset = new(-11, 0, 0);
-            dp2.Name = "P6_神圣之翼左";
+            dp2.Name = "P6_Hallowed Wingsleft";
             accessory.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Rect, dp2);
 
         }
-        [ScriptMethod(name: "P6 神圣之翼(左远)", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:27940"])]
-        public void P6_神圣之翼左远(Event @event, ScriptAccessory accessory)
+        [ScriptMethod(name: "P6 Hallowed Wings Left Far", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:27940"])]
+        public void P6_HallowedWingsLeftFar(Event @event, ScriptAccessory accessory)
         {
             var dp = accessory.Data.GetDefaultDrawProperties();
             dp.Color = accessory.Data.DefaultDangerColor;
@@ -4302,10 +4318,10 @@ namespace KarlinScriptNamespace
             dp.DestoryAt = 8000;
             dp.CentreResolvePattern = PositionResolvePatternEnum.PlayerFarestOrder;
             dp.CentreOrderIndex = 1;
-            dp.Name = "P6_神圣之翼远1";
+            dp.Name = "P6_Hallowed Wingsfar1";
             accessory.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Circle, dp);
             dp.CentreOrderIndex = 2;
-            dp.Name = "P6_神圣之翼远2";
+            dp.Name = "P6_Hallowed Wingsfar2";
             accessory.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Circle, dp);
 
             var dp2 = accessory.Data.GetDefaultDrawProperties();
@@ -4314,12 +4330,12 @@ namespace KarlinScriptNamespace
             dp2.Owner = id;
             dp2.DestoryAt = 8000;
             dp2.Offset = new(-11, 0, 0);
-            dp2.Name = "P6_神圣之翼左";
+            dp2.Name = "P6_Hallowed Wingsleft";
             accessory.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Rect, dp2);
 
         }
-        [ScriptMethod(name: "P6 神圣之翼(右近)", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:27942"])]
-        public void P6_神圣之翼右近(Event @event, ScriptAccessory accessory)
+        [ScriptMethod(name: "P6 Hallowed Wings Right Near", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:27942"])]
+        public void P6_HallowedWingsRightNear(Event @event, ScriptAccessory accessory)
         {
             var dp = accessory.Data.GetDefaultDrawProperties();
             dp.Color = accessory.Data.DefaultDangerColor;
@@ -4331,10 +4347,10 @@ namespace KarlinScriptNamespace
             dp.DestoryAt = 8000;
             dp.CentreResolvePattern = PositionResolvePatternEnum.PlayerNearestOrder;
             dp.CentreOrderIndex = 1;
-            dp.Name = "P6_神圣之翼近1";
+            dp.Name = "P6_Hallowed Wingsnear1";
             accessory.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Circle, dp);
             dp.CentreOrderIndex = 2;
-            dp.Name = "P6_神圣之翼近2";
+            dp.Name = "P6_Hallowed Wingsnear2";
             accessory.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Circle, dp);
 
             var dp2 = accessory.Data.GetDefaultDrawProperties();
@@ -4343,12 +4359,12 @@ namespace KarlinScriptNamespace
             dp2.Owner = id;
             dp2.DestoryAt = 8000;
             dp2.Offset = new(11, 0, 0);
-            dp2.Name = "P6_神圣之翼右";
+            dp2.Name = "P6_Hallowed Wingsright";
             accessory.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Rect, dp2);
 
         }
-        [ScriptMethod(name: "P6 神圣之翼(右远)", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:27943"])]
-        public void P6_神圣之翼右远(Event @event, ScriptAccessory accessory)
+        [ScriptMethod(name: "P6 Hallowed Wings Right Far", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:27943"])]
+        public void P6_HallowedWingsRightFar(Event @event, ScriptAccessory accessory)
         {
             var dp = accessory.Data.GetDefaultDrawProperties();
             dp.Color = accessory.Data.DefaultDangerColor;
@@ -4360,10 +4376,10 @@ namespace KarlinScriptNamespace
             dp.DestoryAt = 8000;
             dp.CentreResolvePattern = PositionResolvePatternEnum.PlayerFarestOrder;
             dp.CentreOrderIndex = 1;
-            dp.Name = "P6_神圣之翼远1";
+            dp.Name = "P6_Hallowed Wingsfar1";
             accessory.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Circle, dp);
             dp.CentreOrderIndex = 2;
-            dp.Name = "P6_神圣之翼远2";
+            dp.Name = "P6_Hallowed Wingsfar2";
             accessory.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Circle, dp);
 
             var dp2 = accessory.Data.GetDefaultDrawProperties();
@@ -4372,12 +4388,12 @@ namespace KarlinScriptNamespace
             dp2.Owner = id;
             dp2.DestoryAt = 8000;
             dp2.Offset = new(11, 0, 0);
-            dp2.Name = "P6_神圣之翼右";
+            dp2.Name = "P6_Hallowed Wingsright";
             accessory.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Rect, dp2);
 
         }
-        [ScriptMethod(name: "P6 第一次黑龙俯冲", eventType: EventTypeEnum.StartCasting)]
-        public void P6_第一次黑龙俯冲(Event @event, ScriptAccessory accessory)
+        [ScriptMethod(name: "P6 Nidhogg Cauterize 1", eventType: EventTypeEnum.StartCasting)]
+        public void P6_NidhoggCauterize1(Event @event, ScriptAccessory accessory)
         {
             if (parse != 6.2) return;
             if (!uint.TryParse(@event["ActionId"], out var actionId)) return;
@@ -4388,12 +4404,12 @@ namespace KarlinScriptNamespace
             dp.Scale = new(22, 80);
             dp.Owner = darkDragonId;
             dp.DestoryAt = 7500;
-            dp.Name = "P6_第一次黑龙俯冲";
+            dp.Name = "P6_NidhoggCauterize1";
             accessory.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Rect, dp);
 
         }
-        [ScriptMethod(name: "P6 燃烧之翼", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:27948"])]
-        public void P6_燃烧之翼(Event @event, ScriptAccessory accessory)
+        [ScriptMethod(name: "P6 Hot Wing", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:27948"])]
+        public void P6_HotWing(Event @event, ScriptAccessory accessory)
         {
             var dp = accessory.Data.GetDefaultDrawProperties();
             dp.Color = accessory.Data.DefaultDangerColor;
@@ -4403,12 +4419,12 @@ namespace KarlinScriptNamespace
             }
             dp.Scale = new(21, 50);
             dp.DestoryAt = 6500;
-            dp.Name = "P6 燃烧之翼";
+            dp.Name = "P6 Hot Wing";
             accessory.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Rect, dp);
 
         }
-        [ScriptMethod(name: "P6 燃烧之尾", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:27950"])]
-        public void P6_燃烧之尾(Event @event, ScriptAccessory accessory)
+        [ScriptMethod(name: "P6 Hot Tail", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:27950"])]
+        public void P6_HotTail(Event @event, ScriptAccessory accessory)
         {
             var dp = accessory.Data.GetDefaultDrawProperties();
             dp.Color = accessory.Data.DefaultDangerColor;
@@ -4418,12 +4434,12 @@ namespace KarlinScriptNamespace
             }
             dp.Scale = new(18, 50);
             dp.DestoryAt = 6500;
-            dp.Name = "P6 燃烧之尾";
+            dp.Name = "P6 Hot Tail";
             accessory.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Rect, dp);
 
         }
-        [ScriptMethod(name: "P6 火球范围", eventType: EventTypeEnum.AddCombatant, eventCondition: ["DataId:13238"])]
-        public void P6_火球范围(Event @event, ScriptAccessory accessory)
+        [ScriptMethod(name: "P6 Orb AoE", eventType: EventTypeEnum.AddCombatant, eventCondition: ["DataId:13238"])]
+        public void P6_OrbAoE(Event @event, ScriptAccessory accessory)
         {
             lock (lockObj)
             {
@@ -4433,7 +4449,7 @@ namespace KarlinScriptNamespace
                 //第一轮
                 if (p6FireBallCount == 3)
                 {
-                    dp.Name = "P6 火球范围1";
+                    dp.Name = "P6 orbAoE1";
                     dp.Scale = new(18, 44);
                     dp.Position = new Vector3(100, 0, 100);
                     dp.DestoryAt = 12000;
@@ -4444,7 +4460,7 @@ namespace KarlinScriptNamespace
                 //第二轮
                 if (p6FireBallCount == 6)
                 {
-                    dp.Name = "P6 火球范围2";
+                    dp.Name = "P6 orbAoE2";
                     dp.Scale = new(18, 70);
                     var ipos = JsonConvert.DeserializeObject<Vector3>(@event["SourcePosition"]);
                     var pos = new Vector3(100, 0, 100);
@@ -4461,7 +4477,7 @@ namespace KarlinScriptNamespace
                 }
                 if (p6FireBallCount == 9)
                 {
-                    dp.Name = "P6 火球范围3";
+                    dp.Name = "P6 orbAoE3";
                     dp.Scale = new(18, 70);
                     var ipos = JsonConvert.DeserializeObject<Vector3>(@event["SourcePosition"]);
                     var pos = new Vector3(100, 0, 100);
@@ -4478,8 +4494,8 @@ namespace KarlinScriptNamespace
                 }
             }
         }
-        [ScriptMethod(name: "P6 十字火白龙俯冲", eventType: EventTypeEnum.ActionEffect, eventCondition: ["ActionId:27973"])]
-        public void P6_十字火白龙俯冲(Event @event, ScriptAccessory accessory)
+        [ScriptMethod(name: "P6 Wroth Flames Hraesvelgr Cauterize", eventType: EventTypeEnum.ActionEffect, eventCondition: ["ActionId:27973"])]
+        public void P6_WrothFlamesHraesvelgrCauterize(Event @event, ScriptAccessory accessory)
         {
             var dp = accessory.Data.GetDefaultDrawProperties();
             dp.Color = accessory.Data.DefaultDangerColor;
@@ -4487,13 +4503,13 @@ namespace KarlinScriptNamespace
             dp.Scale = new(22, 80);
             dp.Delay = 1500;
             dp.DestoryAt = 11000- dp.Delay;
-            dp.Name = "P6 十字火白龙俯冲";
+            dp.Name = "P6 Wroth FlamesHraesvelgr Cauterize";
             accessory.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Rect, dp);
 
         }
         
-        [ScriptMethod(name: "P6 十字火起跑位置(ImGui)", eventType: EventTypeEnum.AddCombatant, eventCondition: ["DataId:13238"])]
-        public void P6_十字火起跑位置(Event @event, ScriptAccessory accessory)
+        [ScriptMethod(name: "P6 Wroth Flames Start Position (ImGui)", eventType: EventTypeEnum.AddCombatant, eventCondition: ["DataId:13238"])]
+        public void P6_WrothFlamesStartPosition(Event @event, ScriptAccessory accessory)
         {
             lock (lockObj)
             {
@@ -4501,7 +4517,7 @@ namespace KarlinScriptNamespace
                 p6FireBallCount2++;
                 if (p6FireBallCount2 == 6)
                 {
-                    dp.Name = "P6 十字火起跑位置";
+                    dp.Name = "P6 Wroth Flamesstart position";
                     dp.Scale = new(1.5f);
                     dp.ScaleMode |= ScaleMode.YByDistance;
                     dp.Color=accessory.Data.DefaultSafeColor;
@@ -4524,13 +4540,13 @@ namespace KarlinScriptNamespace
             }
         }
         // 二冰火站位：H1 固定站南边，其余 5 人看自己的冰火线分组，组内按 D1→D2→D3→D4→H2 的优先级顺次取点
-        private static readonly int[] p6二冰火优先级 = [4, 5, 6, 7, 3];
-        private static readonly Vector3 p6二冰火H1点 = new(100f, 0, 119.5f);
-        private static readonly Vector3[] p6二冰火冰点 = [new(85.66f, 0, 87.75f), new(91.37f, 0, 82.62f), new(100f, 0, 80.46f)];
-        private static readonly Vector3[] p6二冰火火点 = [new(113.01f, 0, 86.73f), new(106.48f, 0, 82.06f)];
+        private static readonly int[] p6Wyrmsbreath2Priority = [4, 5, 6, 7, 3];
+        private static readonly Vector3 p6Wyrmsbreath2H1Point = new(100f, 0, 119.5f);
+        private static readonly Vector3[] p6Wyrmsbreath2IcePoint = [new(85.66f, 0, 87.75f), new(91.37f, 0, 82.62f), new(100f, 0, 80.46f)];
+        private static readonly Vector3[] p6Wyrmsbreath2FirePoint = [new(113.01f, 0, 86.73f), new(106.48f, 0, 82.06f)];
 
-        [ScriptMethod(name: "P6 第二次冰火线ND站位(ImGui)", eventType: EventTypeEnum.StartCasting)]
-        public void P6_第二次冰火线ND站位(Event @event, ScriptAccessory accessory)
+        [ScriptMethod(name: "P6 Wyrmsbreath 2 - ND Positioning (ImGui)", eventType: EventTypeEnum.StartCasting)]
+        public void P6_Wyrmsbreath2NDPositioning(Event @event, ScriptAccessory accessory)
         {
             if (parse != 6.3) return;
             var aidStr = @event["ActionId"];
@@ -4538,15 +4554,15 @@ namespace KarlinScriptNamespace
             if (accessory.Data.PartyList.Count < 8) return;
 
             // 冰火线：2=冰(连圣龙)，1=火(连邪龙)。H1 不参与分点，所以火只需要 2 个点
-            var 冰组 = p6二冰火优先级.Where(i => p6tether2[i] == 2).ToList();
-            var 火组 = p6二冰火优先级.Where(i => p6tether2[i] == 1).ToList();
+            var iceGroup = p6Wyrmsbreath2Priority.Where(i => p6tether2[i] == 2).ToList();
+            var fireGroup = p6Wyrmsbreath2Priority.Where(i => p6tether2[i] == 1).ToList();
 
-            var 点位 = new Dictionary<int, Vector3> { [2] = p6二冰火H1点 };
-            for (var i = 0; i < 冰组.Count && i < p6二冰火冰点.Length; i++) 点位[冰组[i]] = p6二冰火冰点[i];
-            for (var i = 0; i < 火组.Count && i < p6二冰火火点.Length; i++) 点位[火组[i]] = p6二冰火火点[i];
+            var positions = new Dictionary<int, Vector3> { [2] = p6Wyrmsbreath2H1Point };
+            for (var i = 0; i < iceGroup.Count && i < p6Wyrmsbreath2IcePoint.Length; i++) positions[iceGroup[i]] = p6Wyrmsbreath2IcePoint[i];
+            for (var i = 0; i < fireGroup.Count && i < p6Wyrmsbreath2FirePoint.Length; i++) positions[fireGroup[i]] = p6Wyrmsbreath2FirePoint[i];
 
-            if (冰组.Count > p6二冰火冰点.Length || 火组.Count > p6二冰火火点.Length)
-                accessory.Log.Debug($"P6 二冰火冰火线人数异常：冰{冰组.Count}人/火{火组.Count}人，多出的人没有点位");
+            if (iceGroup.Count > p6Wyrmsbreath2IcePoint.Length || fireGroup.Count > p6Wyrmsbreath2FirePoint.Length)
+                accessory.Log.Debug($"P6 Wyrmsbreath 2Wyrmsbreathcountinvalid: ice{iceGroup.Count}players/fire{fireGroup.Count}players, extra players have no assigned position");
 
             var myIndex = accessory.GetMyIndex();
             // 正常模式只画自己，Debug 模式把 6 名非坦克的 ND 站位一起画出来
@@ -4554,12 +4570,12 @@ namespace KarlinScriptNamespace
             {
                 if (!Debugging && idIndex != myIndex) continue;
                 // 冰火线没收到或点位不够，宁可不画也不给错的指路
-                if (!点位.TryGetValue(idIndex, out var targetPos)) continue;
+                if (!positions.TryGetValue(idIndex, out var targetPos)) continue;
 
                 var dp = accessory.Data.GetDefaultDrawProperties();
-                dp.Name = $"P6 第二次冰火线ND站位{idIndex}";
+                dp.Name = $"P6 Wyrmsbreath 2NDpositioning{idIndex}";
                 dp.Color = accessory.Data.DefaultSafeColor;
-                dp.Owner = 指路起点(accessory, idIndex);
+                dp.Owner = GuidanceOwner(accessory, idIndex);
                 dp.Scale = new(1.5f);
                 dp.ScaleMode |= ScaleMode.YByDistance;
                 dp.DestoryAt = 7000;
@@ -4570,8 +4586,8 @@ namespace KarlinScriptNamespace
         }
 
 
-        [ScriptMethod(name: "P6 双龙冰火俯冲", eventType: EventTypeEnum.StatusAdd)]
-        public void P6_双龙冰火俯冲(Event @event, ScriptAccessory accessory)
+        [ScriptMethod(name: "P6 Cauterize", eventType: EventTypeEnum.StatusAdd)]
+        public void P6_Cauterize(Event @event, ScriptAccessory accessory)
         {
             if (parse != 6.3) return;
             var StatusIDStr = @event["StatusID"];
@@ -4584,24 +4600,24 @@ namespace KarlinScriptNamespace
             dp.DestoryAt = 12500-dp.Delay;
             if (StatusIDStr == "2898")
             {
-                dp.Name = "P6 双龙冰火俯冲 黑龙 火 危险";
+                dp.Name = "P6 Cauterize Nidhogg fire danger";
                 dp.Owner = darkDragonId;
                 dp.Color = accessory.Data.DefaultDangerColor;
                 accessory.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Rect, dp);
 
-                dp.Name = "P6 双龙冰火俯冲 白龙 火 安全";
+                dp.Name = "P6 Cauterize Hraesvelgr fire safe";
                 dp.Owner = whiteDragonId;
                 dp.Color = accessory.Data.DefaultSafeColor;
                 accessory.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Rect, dp);
             }
             else
             {
-                dp.Name = "P6 双龙冰火俯冲 黑龙 冰 安全";
+                dp.Name = "P6 Cauterize Nidhogg ice safe";
                 dp.Owner = darkDragonId;
                 dp.Color = accessory.Data.DefaultSafeColor;
                 accessory.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Rect, dp);
 
-                dp.Name = "P6 双龙冰火俯冲 白龙 冰 危险";
+                dp.Name = "P6 Cauterize Hraesvelgr ice danger";
                 dp.Owner = whiteDragonId;
                 dp.Color = accessory.Data.DefaultDangerColor;
                 accessory.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Rect, dp);
@@ -4610,8 +4626,8 @@ namespace KarlinScriptNamespace
 
         }
 
-        [ScriptMethod(name: "P6 双龙冰火俯冲 T黑龙", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:27966"])]
-        public void P6_双龙冰火俯冲_T黑龙(Event @event, ScriptAccessory accessory)
+        [ScriptMethod(name: "P6 Cauterize - Tank Nidhogg", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:27966"])]
+        public void P6_Cauterize_TNidhogg(Event @event, ScriptAccessory accessory)
         {
             if (parse != 6.3) return;
             var index= accessory.Data.PartyList.ToList().IndexOf(accessory.Data.Me);
@@ -4620,7 +4636,7 @@ namespace KarlinScriptNamespace
                 var dp = accessory.Data.GetDefaultDrawProperties();
                 dp.Scale = new(22, 56);
                 dp.DestoryAt = 5000;
-                dp.Name = "P6 双龙冰火俯冲 MT黑龙 危险";
+                dp.Name = "P6 Cauterize MTNidhogg danger";
                 dp.Owner = darkDragonId;
                 dp.Color = accessory.Data.DefaultDangerColor;
                 accessory.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Rect, dp);
@@ -4630,14 +4646,14 @@ namespace KarlinScriptNamespace
                 var dp = accessory.Data.GetDefaultDrawProperties();
                 dp.Scale = new(22, 56);
                 dp.DestoryAt = 5000;
-                dp.Name = "P6 双龙冰火俯冲 ST黑龙 安全";
+                dp.Name = "P6 Cauterize STNidhogg safe";
                 dp.Owner = darkDragonId;
                 dp.Color = accessory.Data.DefaultSafeColor;
                 accessory.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Rect, dp);
             }
         }
-        [ScriptMethod(name: "P6 双龙冰火俯冲 T白龙", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:27966"])]
-        public void P6_双龙冰火俯冲_T白龙(Event @event, ScriptAccessory accessory)
+        [ScriptMethod(name: "P6 Cauterize - Tank Hraesvelgr", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:27966"])]
+        public void P6_Cauterize_THraesvelgr(Event @event, ScriptAccessory accessory)
         {
             if (parse != 6.3) return;
             var index = accessory.Data.PartyList.ToList().IndexOf(accessory.Data.Me);
@@ -4646,7 +4662,7 @@ namespace KarlinScriptNamespace
                 var dp = accessory.Data.GetDefaultDrawProperties();
                 dp.Scale = new(22, 56);
                 dp.DestoryAt = 5000;
-                dp.Name = "P6 双龙冰火俯冲 MT白龙 安全";
+                dp.Name = "P6 Cauterize MTHraesvelgr safe";
                 dp.Owner = whiteDragonId;
                 dp.Color = accessory.Data.DefaultSafeColor;
                 accessory.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Rect, dp);
@@ -4656,15 +4672,15 @@ namespace KarlinScriptNamespace
                 var dp = accessory.Data.GetDefaultDrawProperties();
                 dp.Scale = new(22, 56);
                 dp.DestoryAt = 5000;
-                dp.Name = "P6 双龙冰火俯冲 ST白龙 危险";
+                dp.Name = "P6 Cauterize STHraesvelgr danger";
                 dp.Owner = whiteDragonId;
                 dp.Color = accessory.Data.DefaultDangerColor;
                 accessory.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Rect, dp);
             }
         }
 
-        [ScriptMethod(name: "P6 暗buff记录", eventType: EventTypeEnum.StatusAdd, eventCondition: ["StatusID:2758"], userControl: false)]
-        public void P6_暗buff记录(Event @event, ScriptAccessory accessory)
+        [ScriptMethod(name: "P6 Dark Buff Record", eventType: EventTypeEnum.StatusAdd, eventCondition: ["StatusID:2758"], userControl: false)]
+        public void P6_DarkBuffRecord(Event @event, ScriptAccessory accessory)
         {
             if (ParseObjectId(@event["TargetId"], out var id))
             {
@@ -4672,8 +4688,8 @@ namespace KarlinScriptNamespace
             }
             
         }
-        [ScriptMethod(name: "P6 光buff记录", eventType: EventTypeEnum.StatusAdd, eventCondition: ["StatusID:2759"], userControl: false)]
-        public void P6_光buff记录(Event @event, ScriptAccessory accessory)
+        [ScriptMethod(name: "P6 Light Buff Record", eventType: EventTypeEnum.StatusAdd, eventCondition: ["StatusID:2759"], userControl: false)]
+        public void P6_LightBuffRecord(Event @event, ScriptAccessory accessory)
         {
             if (ParseObjectId(@event["TargetId"], out var id))
             {
@@ -4681,8 +4697,8 @@ namespace KarlinScriptNamespace
             }
 
         }
-        [ScriptMethod(name: "P6 邪念之炎/同归于尽之炎", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:27974"])]
-        public void P6_邪念之炎(Event @event, ScriptAccessory accessory)
+        [ScriptMethod(name: "P6 Spreading Flames", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:27974"])]
+        public void P6_SpreadingFlames(Event @event, ScriptAccessory accessory)
         {
             Task.Delay(18000).ContinueWith(t =>
             {
@@ -4698,7 +4714,7 @@ namespace KarlinScriptNamespace
                         dp.Color = accessory.Data.DefaultDangerColor;
                         dp.Scale = new(5);
                         dp.DestoryAt = 5000;
-                        dp.Name = "P6 邪念之炎";
+                        dp.Name = "P6 Spreading Flames";
                         accessory.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Circle, dp);
                     }
                     if(p6lightDark[i] == 2)
@@ -4707,7 +4723,7 @@ namespace KarlinScriptNamespace
                         dp.Owner = plist[i];
                         dp.Scale = new(4);
                         dp.DestoryAt = 5000;
-                        dp.Name = "P6 同归于尽之炎";
+                        dp.Name = "P6 Entangled Flames";
                         // if (i==idIndex ||(p6lightDark.IndexOf(2)==i && p6lightDark.IndexOf(0)==idIndex)|| (p6lightDark.LastIndexOf(2) == i && p6lightDark.LastIndexOf(0) == idIndex))
                         // {
                         //     dp.Color = accessory.Data.DefaultSafeColor;
@@ -4743,8 +4759,8 @@ namespace KarlinScriptNamespace
             
 
         }
-        [ScriptMethod(name: "P6 邪念之炎/同归于尽之炎标记", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:27974"], userControl: false)]
-        public void P6_邪念之炎标记(Event @event, ScriptAccessory accessory)
+        [ScriptMethod(name: "P6 Spreading Flames Markers", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:27974"], userControl: false)]
+        public void P6_SpreadingFlamesMarkers(Event @event, ScriptAccessory accessory)
         {
             if (!p6Mark) return;
             accessory.Method.MarkClear();
@@ -4783,33 +4799,33 @@ namespace KarlinScriptNamespace
             });
         }
 
-        #region 冰火
+        #region Wyrmsbreath
 
-        [ScriptMethod(name: "P6 一冰火阶段记录", eventType: EventTypeEnum.AddCombatant, eventCondition: ["DataId:12613"], userControl: false)]
-        public void P6_一冰火阶段记录(Event @event, ScriptAccessory sa)
+        [ScriptMethod(name: "P6 Wyrmsbreath 1 - Phase Record", eventType: EventTypeEnum.AddCombatant, eventCondition: ["DataId:12613"], userControl: false)]
+        public void P6_Wyrmsbreath1PhaseRecord(Event @event, ScriptAccessory sa)
         {
             // 圣龙出现代表进入一冰火
             if (_dsrPhase != DsrPhase.Phase5HeavensDeath) return;
             _dsrPhase = DsrPhase.Phase6IceAndFire1;
             _p6DragonsGlowAction = [false, false];
             _recorded = new bool[20].ToList();
-            sa.Log.Debug($"当前阶段为：{_dsrPhase}");
+            sa.Log.Debug($"Current phase: {_dsrPhase}");
         }
 
-        [ScriptMethod(name: "P6 二冰火阶段记录", eventType: EventTypeEnum.ActionEffect, eventCondition: ["ActionId:regex:^(2794[79])$"], userControl: false)]
-        public void P6_二冰火阶段记录(Event @event, ScriptAccessory sa)
+        [ScriptMethod(name: "P6 Wyrmsbreath 2 - Phase Record", eventType: EventTypeEnum.ActionEffect, eventCondition: ["ActionId:regex:^(2794[79])$"], userControl: false)]
+        public void P6_Wyrmsbreath2PhaseRecord(Event @event, ScriptAccessory sa)
         {
             // 以辣翅辣尾作为二冰火的开始
             if (_dsrPhase != DsrPhase.Phase6NearOrFar2) return;
             _dsrPhase = DsrPhase.Phase6IceAndFire2;
             _p6DragonsGlowAction = [false, false];
             _recorded = new bool[20].ToList();
-            sa.Log.Debug($"当前阶段为：{_dsrPhase}");
+            sa.Log.Debug($"Current phase: {_dsrPhase}");
         }
 
 
-        [ScriptMethod(name: "P6 冰火吐息记录", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:regex:^(2795[4567])$"], userControl: false)]
-        public void P6_冰火吐息记录(Event @event, ScriptAccessory accessory)
+        [ScriptMethod(name: "P6 Wyrmsbreath Record", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:regex:^(2795[4567])$"], userControl: false)]
+        public void P6_WyrmsbreathRecord(Event @event, ScriptAccessory accessory)
         {
             const uint blackBuster = 27954;
             const uint whiteBuster = 27956;
@@ -4839,8 +4855,8 @@ namespace KarlinScriptNamespace
             }
         }
 
-        [ScriptMethod(name: "P6 冰火死刑双T处理", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:27960"])]
-        public void P6_冰火死刑双T处理(Event @event, ScriptAccessory accessory)
+        [ScriptMethod(name: "P6 Wyrmsbreath Dual Tankbuster Handling", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:27960"])]
+        public void P6_WyrmsbreathDualTankbusterHandling(Event @event, ScriptAccessory accessory)
         {
             if (_dsrPhase is not (DsrPhase.Phase6IceAndFire1 or DsrPhase.Phase6IceAndFire2))
                 return;
@@ -4859,13 +4875,13 @@ namespace KarlinScriptNamespace
                 // 场中分摊死刑，自己不是T不显示指路
                 if (!Debugging && myIndex > 1) return;
                 // 删除K佬脚本中双T的小啾啾。只匹配双T那两条(及无后缀的旧名)，否则 Debug 模式会把 ND 六人的指路一起删掉
-                accessory.Method.RemoveDraw("^P6 第二次冰火线ND站位[01]?$");
+                accessory.Method.RemoveDraw("^P6 Wyrmsbreath 2NDpositioning[01]?$");
 
                 // 正常模式只画自己，Debug 模式把双T的指路都画出来
                 for (var i = 0; i < 2; i++)
                 {
                     if (!Debugging && i != myIndex) continue;
-                    var dp = accessory.DrawGuidance(指路起点(accessory, i), _center, 0, 6000, $"冰火场中分摊指路{i}");
+                    var dp = accessory.DrawGuidance(GuidanceOwner(accessory, i), _center, 0, 6000, $"icefirearena centerstackguidance{i}");
                     accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
                 }
             }
@@ -4875,19 +4891,19 @@ namespace KarlinScriptNamespace
                 var busterIdx = _p6DragonsGlowAction.FindIndex(x => x == false);
 
                 var str = "";
-                str += $"黑龙喷:{_p6DragonsGlowAction[0]}, 白龙喷:{_p6DragonsGlowAction[1]}\n";
-                str += $"是{(busterIdx == 0 ? "黑龙" : "白龙")}的死刑。";
+                str += $"Nidhoggbreath:{_p6DragonsGlowAction[0]}, Hraesvelgrbreath:{_p6DragonsGlowAction[1]}\n";
+                str += $" is {(busterIdx == 0 ? "Nidhogg" : "Hraesvelgr")} of tankbuster.";
                 accessory.Log.Debug($"{str}");
 
                 var isMyBuster = myIndex == busterIdx;
-                var dp = accessory.DrawCircle(accessory.Data.PartyList[busterIdx], isMyBuster ? 2f : 15f, 0, 6000, $"冰火死刑");
+                var dp = accessory.DrawCircle(accessory.Data.PartyList[busterIdx], isMyBuster ? 2f : 15f, 0, 6000, $"Wyrmsbreath tankbuster");
                 dp.Color = isMyBuster ? ColorHelper.ColorRed.V4 : ColorHelper.ColorYellow.V4;
                 accessory.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Circle, dp);
 
                 // 场边分散，自己不是T不显示指路
                 if (!Debugging && myIndex > 1) return;
                 // 删除K佬脚本中双T的小啾啾。只匹配双T那两条(及无后缀的旧名)，否则 Debug 模式会把 ND 六人的指路一起删掉
-                accessory.Method.RemoveDraw("^P6 第二次冰火线ND站位[01]?$");
+                accessory.Method.RemoveDraw("^P6 Wyrmsbreath 2NDpositioning[01]?$");
                 var isIceAndFire2 = _dsrPhase == DsrPhase.Phase6IceAndFire2;
 
                 // 正常模式只画自己，Debug 模式把双T的死刑点都画出来
@@ -4896,10 +4912,10 @@ namespace KarlinScriptNamespace
                     if (!Debugging && i != myIndex) continue;
                     var busterPos = tankBusterPosition[isIceAndFire2 ? i + 2 : i];
 
-                    var dp0 = accessory.DrawGuidance(指路起点(accessory, i), busterPos, 0, 6000, $"冰火死刑位置指路{i}");
+                    var dp0 = accessory.DrawGuidance(GuidanceOwner(accessory, i), busterPos, 0, 6000, $"Wyrmsbreath tankbusterpositionguidance{i}");
                     accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp0);
 
-                    var dp1 = accessory.DrawStaticCircle(busterPos, PosColorPlayer.V4.WithW(1.5f), 0, 6000, $"冰火死刑点区域{i}", 1f);
+                    var dp1 = accessory.DrawStaticCircle(busterPos, PosColorPlayer.V4.WithW(1.5f), 0, 6000, $"Wyrmsbreath tankbusterpointarea{i}", 1f);
                     accessory.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Circle, dp1);
                 }
             }
@@ -4907,12 +4923,12 @@ namespace KarlinScriptNamespace
         }
 
 
-        #endregion 冰火
+        #endregion Wyrmsbreath
 
-        #region 远近
+        #region NearFar
 
-        [ScriptMethod(name: "P6 远近阶段记录", eventType: EventTypeEnum.ActionEffect, eventCondition: ["ActionId:27970"], userControl: false)]
-        public void P6_远近阶段记录(Event @event, ScriptAccessory accessory)
+        [ScriptMethod(name: "P6 Hallowed Wings Phase Record", eventType: EventTypeEnum.ActionEffect, eventCondition: ["ActionId:27970"], userControl: false)]
+        public void P6_HallowedWingsPhaseRecord(Event @event, ScriptAccessory accessory)
         {
             // 因为黑龙先飞，白龙后读条，所以用无尽轮回的ActionEffect做阶段节点
             if (_dsrPhase is DsrPhase.Phase6NearOrFar1 or DsrPhase.Phase6NearOrFar2)
@@ -4924,11 +4940,11 @@ namespace KarlinScriptNamespace
                 _ => DsrPhase.Phase6NearOrFar1,
             };
             _p6DragonsWingAction = [false, false, false];   // P6 双龙远近记录
-            accessory.Log.Debug($"当前阶段为：{_dsrPhase}");
+            accessory.Log.Debug($"Current phase: {_dsrPhase}");
         }
 
-        [ScriptMethod(name: "P6 远近翅膀记录", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:regex:^(279(39|4[023]))$"], userControl: false)]
-        public void P6_远近翅膀记录(Event @event, ScriptAccessory accessory)
+        [ScriptMethod(name: "P6 Hallowed Wings Record", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:regex:^(279(39|4[023]))$"], userControl: false)]
+        public void P6_HallowedWingsRecord(Event @event, ScriptAccessory accessory)
         {
             // LEFT左翼发光，玩家视角左侧安全。
             const uint leftFar = 27940;
@@ -4943,24 +4959,24 @@ namespace KarlinScriptNamespace
             // [远T/近F，左安全T/右安全F，前安全T/后安全F/内安全T/外安全F]
             _p6DragonsWingAction[0] = aid is leftFar or rightFar;
             _p6DragonsWingAction[1] = aid is leftFar or leftNear;
-            accessory.Log.Debug($"检测到{(_p6DragonsWingAction[0] ? "T远离" : "T靠近")}, {(_p6DragonsWingAction[1] ? "左" : "右")}安全");
+            accessory.Log.Debug($"Detected {(_p6DragonsWingAction[0] ? "TankFar" : "TankNear")}, {(_p6DragonsWingAction[1] ? "Left" : "Right")}safe");
             _nearOrFarWingsEvent.Set();
         }
 
 
-        [ScriptMethod(name: "P6 远近俯冲记录", eventType: EventTypeEnum.PlayActionTimeline, eventCondition: ["Id:7747", "SourceDataId:12612"], userControl: false)]
-        public void P6_远近俯冲记录(Event @event, ScriptAccessory accessory)
+        [ScriptMethod(name: "P6 Hallowed Wings Cauterize Record", eventType: EventTypeEnum.PlayActionTimeline, eventCondition: ["Id:7747", "SourceDataId:12612"], userControl: false)]
+        public void P6_HallowedWingsCauterizeRecord(Event @event, ScriptAccessory accessory)
         {
             if (_dsrPhase != DsrPhase.Phase6NearOrFar1) return;
             var spos = @event.SourcePosition();
             // [远T/近F，左安全T/右安全F，前安全T/后安全F/内安全T/外安全F]
             _p6DragonsWingAction[2] = spos.X < _center.X;
-            accessory.Log.Debug($"检测到{(_p6DragonsWingAction[2] ? "前安全" : "后安全")}");
+            accessory.Log.Debug($"Detected {(_p6DragonsWingAction[2] ? "FrontSafe" : "BackSafe")}");
             _nearOrFarCauterizeEvent.Set();
         }
 
-        [ScriptMethod(name: "P6 远近内外记录", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:regex:^(2794[79])$"], userControl: false)]
-        public void P6_远近内外记录(Event @event, ScriptAccessory accessory)
+        [ScriptMethod(name: "P6 Hallowed Wings Inside Outside Record", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:regex:^(2794[79])$"], userControl: false)]
+        public void P6_HallowedWingsInsideOutsideRecord(Event @event, ScriptAccessory accessory)
         {
             const uint insideSafe = 27947;
             // const uint outsideSafe = 27949;
@@ -4968,19 +4984,19 @@ namespace KarlinScriptNamespace
             var aid = @event.ActionId();
             // [远T/近F，左安全T/右安全F，前安全T/后安全F/内安全T/外安全F]
             _p6DragonsWingAction[2] = aid == insideSafe;
-            accessory.Log.Debug($"检测到{(_p6DragonsWingAction[2] ? "内安全" : "外安全")}");
+            accessory.Log.Debug($"Detected {(_p6DragonsWingAction[2] ? "InsideSafe" : "OutsideSafe")}");
             _nearOrFarInOutEvent.Set();
         }
 
-        [ScriptMethod(name: "P6 一远近指路", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:regex:^(279(39|4[023]))$"])]
-        public void P6_一远近指路(Event @event, ScriptAccessory accessory)
+        [ScriptMethod(name: "P6 Hallowed Wings 1 Guidance", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:regex:^(279(39|4[023]))$"])]
+        public void P6_HallowedWings1Guidance(Event @event, ScriptAccessory accessory)
         {
             if (_dsrPhase != DsrPhase.Phase6NearOrFar1) return;
             _nearOrFarCauterizeEvent.WaitOne();
             _nearOrFarWingsEvent.WaitOne();
-            Vector3[] nearOrFarSafePos = P6_取象限安全点(_p6DragonsWingAction);
-            var nearOrFarDirPosIdx = P6_取象限安全点序号(_p6DragonsWingAction);
-            accessory.Log.Debug($"MT去{nearOrFarDirPosIdx[0]}, ST去{nearOrFarDirPosIdx[1]}, 人群去{nearOrFarDirPosIdx[2]}");
+            Vector3[] nearOrFarSafePos = P6_GetQuadrantSafePoints(_p6DragonsWingAction);
+            var nearOrFarDirPosIdx = P6_GetQuadrantSafePointIndices(_p6DragonsWingAction);
+            accessory.Log.Debug($"MTgo {nearOrFarDirPosIdx[0]}, STgo {nearOrFarDirPosIdx[1]}, partygo {nearOrFarDirPosIdx[2]}");
 
             var myIndex = accessory.GetMyIndex();
             var myPartIdx = myIndex >= 2 ? 2 : myIndex;
@@ -4989,7 +5005,7 @@ namespace KarlinScriptNamespace
             {
                 var tempPos = nearOrFarSafePos[nearOrFarDirPosIdx[i]];
                 var color = i == myPartIdx ? PosColorPlayer.V4.WithW(1.5f) : PosColorNormal.V4;
-                var dp0 = accessory.DrawStaticCircle(tempPos, color, 0, 7500, $"一远近位置{i}", 1f);
+                var dp0 = accessory.DrawStaticCircle(tempPos, color, 0, 7500, $"onefarnearposition{i}", 1f);
                 accessory.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Circle, dp0);
             }
 
@@ -4998,7 +5014,7 @@ namespace KarlinScriptNamespace
             {
                 if (!Debugging && i != myIndex) continue;
                 var partIdx = i >= 2 ? 2 : i;
-                var dp = accessory.DrawGuidance(指路起点(accessory, i), nearOrFarSafePos[nearOrFarDirPosIdx[partIdx]], 0, 7500, $"一远近指路{i}");
+                var dp = accessory.DrawGuidance(GuidanceOwner(accessory, i), nearOrFarSafePos[nearOrFarDirPosIdx[partIdx]], 0, 7500, $"onefarnearguidance{i}");
                 accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
             }
 
@@ -5007,7 +5023,7 @@ namespace KarlinScriptNamespace
         }
 
 
-        private Vector3[] P6_取象限安全点(List<bool> wings)
+        private Vector3[] P6_GetQuadrantSafePoints(List<bool> wings)
         {
             // 第一象限内的四个端点
             // 象限内四个点Idx顺序为，以第一象限基准（面向白龙左上），从左上开始顺时针
@@ -5029,7 +5045,7 @@ namespace KarlinScriptNamespace
             return quarterSafePos;
         }
 
-        private static int[] P6_取象限安全点序号(List<bool> wings)
+        private static int[] P6_GetQuadrantSafePointIndices(List<bool> wings)
         {
             // return数组，代表MT、ST、人群的安全位置Index
 
@@ -5038,15 +5054,15 @@ namespace KarlinScriptNamespace
             return wings[0] ? [2, 3, 1] : [1, 0, 3];
         }
 
-        [ScriptMethod(name: "P6 二远近指路", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:regex:^(2794[79])$"])]
-        public void P6_二远近指路(Event @event, ScriptAccessory accessory)
+        [ScriptMethod(name: "P6 Hallowed Wings 2 Guidance", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:regex:^(2794[79])$"])]
+        public void P6_HallowedWings2Guidance(Event @event, ScriptAccessory accessory)
         {
             if (_dsrPhase != DsrPhase.Phase6NearOrFar2) return;
             _nearOrFarInOutEvent.WaitOne();
             _nearOrFarWingsEvent.WaitOne();
 
-            Vector3[] nearOrFarSafePos = P6_取直线安全点(_p6DragonsWingAction);
-            int[] nearOrFarDirPosIdx = P6_取直线安全点序号(_p6DragonsWingAction);
+            Vector3[] nearOrFarSafePos = P6_GetLineSafePoints(_p6DragonsWingAction);
+            int[] nearOrFarDirPosIdx = P6_GetLineSafePointIndices(_p6DragonsWingAction);
 
             var myIndex = accessory.GetMyIndex();
             var myPartIdx = myIndex >= 2 ? 2 : myIndex;
@@ -5055,7 +5071,7 @@ namespace KarlinScriptNamespace
             {
                 var color = i == myPartIdx ? PosColorPlayer.V4.WithW(1.5f) : PosColorNormal.V4;
                 var tempPos = nearOrFarSafePos[nearOrFarDirPosIdx[i]];
-                var dp0 = accessory.DrawStaticCircle(tempPos, color, 0, 7500, $"二远近位置{i}", 1f);
+                var dp0 = accessory.DrawStaticCircle(tempPos, color, 0, 7500, $"twofarnearposition{i}", 1f);
                 accessory.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Circle, dp0);
             }
 
@@ -5064,7 +5080,7 @@ namespace KarlinScriptNamespace
             {
                 if (!Debugging && i != myIndex) continue;
                 var partIdx = i >= 2 ? 2 : i;
-                var dp = accessory.DrawGuidance(指路起点(accessory, i), nearOrFarSafePos[nearOrFarDirPosIdx[partIdx]], 0, 7500, $"二远近指路{i}");
+                var dp = accessory.DrawGuidance(GuidanceOwner(accessory, i), nearOrFarSafePos[nearOrFarDirPosIdx[partIdx]], 0, 7500, $"twofarnearguidance{i}");
                 accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
             }
 
@@ -5073,7 +5089,7 @@ namespace KarlinScriptNamespace
         }
 
 
-        private static Vector3[] P6_取直线安全点(List<bool> wings)
+        private static Vector3[] P6_GetLineSafePoints(List<bool> wings)
         {
             // 直线近中远三点
             Vector3[] lineSafePos = new Vector3[3];
@@ -5094,7 +5110,7 @@ namespace KarlinScriptNamespace
             return lineSafePos;
         }
 
-        private static int[] P6_取直线安全点序号(List<bool> wings)
+        private static int[] P6_GetLineSafePointIndices(List<bool> wings)
         {
             // return数组，代表MT、ST、人群的安全位置Index
 
@@ -5103,23 +5119,23 @@ namespace KarlinScriptNamespace
             return wings[0] ? [1, 2, 0] : [1, 0, 2];
         }
 
-        #endregion 远近
+        #endregion NearFar
 
-        #region 十字火
+        #region WrothFlames
 
-        [ScriptMethod(name: "P6 十字火阶段记录", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:27973"], userControl: false)]
-        public void P6_十字火阶段记录(Event @event, ScriptAccessory accessory)
+        [ScriptMethod(name: "P6 Wroth Flames Phase Record", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:27973"], userControl: false)]
+        public void P6_WrothFlamesPhaseRecord(Event @event, ScriptAccessory accessory)
         {
             _dsrPhase = DsrPhase.Phase6Flame;
-            accessory.Log.Debug($"当前阶段为：{_dsrPhase}");
+            accessory.Log.Debug($"Current phase: {_dsrPhase}");
         }
 
-        [ScriptMethod(name: "P6 十字火分摊目标", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:27974"])]
-        public void P6_十字火分摊目标(Event @event, ScriptAccessory accessory)
+        [ScriptMethod(name: "P6 Wroth Flames Stack Target", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:27974"])]
+        public void P6_WrothFlamesStackTarget(Event @event, ScriptAccessory accessory)
         {
             if (_dsrPhase != DsrPhase.Phase6Flame) return;
             var tid = @event.TargetId();
-            var dp = accessory.DrawCircle(tid, 6, 0, 12500, $"死亡轮回目标");
+            var dp = accessory.DrawCircle(tid, 6, 0, 12500, $"Akh Morn's Edgetarget");
             dp.Color = accessory.Data.DefaultSafeColor;
             accessory.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Circle, dp);
         }
@@ -5161,16 +5177,16 @@ namespace KarlinScriptNamespace
             return (stacks, unmarked, spreads);
         }
 
-        #endregion 十字火
+        #endregion WrothFlames
 
-        #region 俯冲
+        #region Cauterize
 
-        [ScriptMethod(name: "P6 俯冲双T指路", eventType: EventTypeEnum.PlayActionTimeline, eventCondition: ["Id:7737", "SourceDataId:12613"])]
-        public void P6_俯冲双T指路(Event @event, ScriptAccessory accessory)
+        [ScriptMethod(name: "P6 Cauterize Dual Tank Guidance", eventType: EventTypeEnum.PlayActionTimeline, eventCondition: ["Id:7737", "SourceDataId:12613"])]
+        public void P6_CauterizeDualTankGuidance(Event @event, ScriptAccessory accessory)
         {
             if (_dsrPhase != DsrPhase.Phase6IceAndFire2) return;
             _dsrPhase = DsrPhase.Phase6Cauterize;
-            accessory.Log.Debug($"当前阶段为：{_dsrPhase}");
+            accessory.Log.Debug($"Current phase: {_dsrPhase}");
 
             Vector3[] cauterizePos = new Vector3[2];
             cauterizePos[0] = new Vector3(95f, 0, 79f);
@@ -5183,49 +5199,49 @@ namespace KarlinScriptNamespace
             for (var i = 0; i < 2; i++)
             {
                 if (!Debugging && i != myIndex) continue;
-                var dp = accessory.DrawGuidance(指路起点(accessory, i), cauterizePos[i], 0, 5000, $"俯冲T挡枪位置{i}");
+                var dp = accessory.DrawGuidance(GuidanceOwner(accessory, i), cauterizePos[i], 0, 5000, $"CauterizeTinterceptposition{i}");
                 accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
             }
         }
 
 
-        #endregion 俯冲
+        #endregion Cauterize
 
         #endregion
 
         #region P7
 
-        [ScriptMethod(name: "---- 《P7 龙威骑神托尔丹》 ----", eventType: EventTypeEnum.NpcYell, eventCondition: ["HelloayaWorld"],
+        [ScriptMethod(name: "---- [P7 Dragon-king Thordan] ----", eventType: EventTypeEnum.NpcYell, eventCondition: ["HelloayaWorld"],
             userControl: true)]
-        public void P7_分节线(Event @event, ScriptAccessory accessory)
+        public void P7_SectionDivider(Event @event, ScriptAccessory accessory)
         {
         }
 
-        [ScriptMethod(name: "P7 开场记录", eventType: EventTypeEnum.ActionEffect, eventCondition: ["ActionId:29752"], userControl: false)]
-        public void P7_开场记录(Event @event, ScriptAccessory accessory)
+        [ScriptMethod(name: "P7 Opening Record", eventType: EventTypeEnum.ActionEffect, eventCondition: ["ActionId:29752"], userControl: false)]
+        public void P7_OpeningRecord(Event @event, ScriptAccessory accessory)
         {
             parse = 7.0;
         }
-        [ScriptMethod(name: "P7 阶段累加地火", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:28059"], userControl: false)]
-        public void P7_阶段累加地火(Event @event, ScriptAccessory accessory)
+        [ScriptMethod(name: "P7 Phase Advance - Exaflare's Edge", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:28059"], userControl: false)]
+        public void P7_PhaseAdvanceExaflare(Event @event, ScriptAccessory accessory)
         {
             parse = Math.Round(parse + 0.1, 1);
         }
-        [ScriptMethod(name: "P7 阶段累加死亡轮回", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:28051"], userControl: false)]
-        public void P7_阶段累加死亡轮回(Event @event, ScriptAccessory accessory)
+        [ScriptMethod(name: "P7 Phase Advance - Akh Morn's Edge", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:28051"], userControl: false)]
+        public void P7_PhaseAdvanceAkhMornsEdge(Event @event, ScriptAccessory accessory)
         {
             parse = Math.Round(parse + 0.1, 1);
         }
-        [ScriptMethod(name: "P7 阶段累加陨石", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:28057"], userControl: false)]
-        public void P7_阶段累加陨石(Event @event, ScriptAccessory accessory)
+        [ScriptMethod(name: "P7 Phase Advance - Gigaflare's Edge", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:28057"], userControl: false)]
+        public void P7_PhaseAdvanceGigaflaresEdge(Event @event, ScriptAccessory accessory)
         {
             parse = Math.Round(parse + 0.1, 1);
         }
-        [ScriptMethod(name: "P7 钢铁", eventType: EventTypeEnum.StatusAdd, eventCondition: ["StatusID:2056", "StackCount:42"])]
-        public void P7_钢铁(Event @event, ScriptAccessory accessory)
+        [ScriptMethod(name: "P7 Flames of Ascalon", eventType: EventTypeEnum.StatusAdd, eventCondition: ["StatusID:2056", "StackCount:42"])]
+        public void P7_FlamesOfAscalon(Event @event, ScriptAccessory accessory)
         {
             var dp = accessory.Data.GetDefaultDrawProperties();
-            dp.Name = "P7 钢铁";
+            dp.Name = "P7 Flames of Ascalon";
             dp.Color = accessory.Data.DefaultDangerColor;
             dp.Scale = new(8);
             if (ParseObjectId(@event["TargetId"], out var id))
@@ -5242,11 +5258,11 @@ namespace KarlinScriptNamespace
             }
             accessory.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Circle, dp);
         }
-        [ScriptMethod(name: "P7 月环", eventType: EventTypeEnum.StatusAdd, eventCondition: ["StatusID:2056", "StackCount:43"])]
-        public void P7_月环(Event @event, ScriptAccessory accessory)
+        [ScriptMethod(name: "P7 Ice of Ascalon", eventType: EventTypeEnum.StatusAdd, eventCondition: ["StatusID:2056", "StackCount:43"])]
+        public void P7_IceOfAscalon(Event @event, ScriptAccessory accessory)
         {
             var dp = accessory.Data.GetDefaultDrawProperties();
-            dp.Name = "P7 月环";
+            dp.Name = "P7 Ice of Ascalon";
             dp.Color = accessory.Data.DefaultDangerColor;
             dp.Radian = float.Pi * 2;
             dp.Scale = new(50);
@@ -5264,8 +5280,8 @@ namespace KarlinScriptNamespace
             }
             accessory.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Donut, dp);
         }
-        [ScriptMethod(name: "P7 脑死地火点位", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:28059"])]
-        public void P7_脑死地火点位(Event @event, ScriptAccessory accessory)
+        [ScriptMethod(name: "P7 Fixed Exaflare Position", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:28059"])]
+        public void P7_FixedExaflarePosition(Event @event, ScriptAccessory accessory)
         {
             var cpos = JsonConvert.DeserializeObject<Vector3>(@event["SourcePosition"]);
             var r = float.Parse(@event["SourceRotation"]);
@@ -5274,7 +5290,7 @@ namespace KarlinScriptNamespace
             var pos2 = new Vector3(cpos.X + MathF.Sin(r) * -14, cpos.Y, cpos.Z + MathF.Cos(r) * -14);
 
             var dp = accessory.Data.GetDefaultDrawProperties();
-            dp.Name = "P7 脑死地火点位1";
+            dp.Name = "P7 fixed Exaflareposition1";
             dp.Color = accessory.Data.DefaultSafeColor;
             dp.Scale = new(1.5f);
             dp.ScaleMode |= ScaleMode.YByDistance;
@@ -5284,7 +5300,7 @@ namespace KarlinScriptNamespace
             accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
 
             dp = accessory.Data.GetDefaultDrawProperties();
-            dp.Name = "P7 脑死地火点位2";
+            dp.Name = "P7 fixed Exaflareposition2";
             dp.Color = accessory.Data.DefaultSafeColor;
             dp.Scale = new(1.5f);
             dp.ScaleMode |= ScaleMode.YByDistance;
@@ -5295,7 +5311,7 @@ namespace KarlinScriptNamespace
             accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
 
             dp = accessory.Data.GetDefaultDrawProperties();
-            dp.Name = "P7 脑死地火点位3";
+            dp.Name = "P7 fixed Exaflareposition3";
             dp.Color = accessory.Data.DefaultSafeColor;
             dp.Scale = new(1.5f);
             dp.ScaleMode |= ScaleMode.YByDistance;
@@ -5308,8 +5324,8 @@ namespace KarlinScriptNamespace
 
         }
 
-        [ScriptMethod(name: "P7 死亡轮回剑分摊处(Imgui)", eventType: EventTypeEnum.StartCasting)]
-        public void P7_死亡轮回剑分摊处(Event @event, ScriptAccessory accessory)
+        [ScriptMethod(name: "P7 Akh Morn's Edge - Stack Position (ImGui)", eventType: EventTypeEnum.StartCasting)]
+        public void P7_AkhMornsEdgeStackPosition(Event @event, ScriptAccessory accessory)
         {
             Task.Delay(50).ContinueWith(t =>
             {
@@ -5350,11 +5366,11 @@ namespace KarlinScriptNamespace
                     if (!isme) continue;
 
                     var dp = accessory.Data.GetDefaultDrawProperties();
-                    dp.Name = $"P7 死亡轮回剑分摊处{idIndex}";
+                    dp.Name = $"P7 Akh Morn's Edgestackposition{idIndex}";
                     dp.Color = accessory.Data.DefaultSafeColor;
                     dp.Scale = new(1.5f);
                     dp.ScaleMode |= ScaleMode.YByDistance;
-                    dp.Owner = 指路起点(accessory, idIndex);
+                    dp.Owner = GuidanceOwner(accessory, idIndex);
                     if (ParseObjectId(@event["SourceId"], out var sid))
                     {
                         dp.TargetObject = sid;
@@ -5363,7 +5379,7 @@ namespace KarlinScriptNamespace
                     accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
 
                     var dpArea = accessory.Data.GetDefaultDrawProperties();
-                    dpArea.Name = "P7 死亡轮回剑分摊范围";
+                    dpArea.Name = "P7 Akh Morn's EdgestackAoE";
                     dpArea.Color = accessory.Data.DefaultSafeColor;
                     dpArea.Scale = new(4);
                     if (ParseObjectId(@event["SourceId"], out var sid2))
@@ -5377,13 +5393,13 @@ namespace KarlinScriptNamespace
         }
 
 
-        [ScriptMethod(name: "P7 一号核爆", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:28058"])]
-        public void P7_一号核爆(Event @event, ScriptAccessory accessory)
+        [ScriptMethod(name: "P7 Gigaflare's Edge - 1", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:28058"])]
+        public void P7_GigaflaresEdge1(Event @event, ScriptAccessory accessory)
         {
             
 
             var dp = accessory.Data.GetDefaultDrawProperties();
-            dp.Name = "P7 一号核爆";
+            dp.Name = "P7 Gigaflare's Edge 1";
             dp.Color = accessory.Data.DefaultDangerColor;
             dp.Scale = new(21f);
             if (ParseObjectId(@event["SourceId"], out var sid))
@@ -5393,13 +5409,13 @@ namespace KarlinScriptNamespace
             dp.DestoryAt = 9000;
             accessory.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Circle, dp);
         }
-        [ScriptMethod(name: "P7 二号核爆", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:28114"])]
-        public void P7_二号核爆(Event @event, ScriptAccessory accessory)
+        [ScriptMethod(name: "P7 Gigaflare's Edge - 2", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:28114"])]
+        public void P7_GigaflaresEdge2(Event @event, ScriptAccessory accessory)
         {
 
 
             var dp = accessory.Data.GetDefaultDrawProperties();
-            dp.Name = "P7 二号核爆";
+            dp.Name = "P7 Gigaflare's Edge 2";
             dp.Color = accessory.Data.DefaultDangerColor;
             dp.Scale = new(21f);
             if (ParseObjectId(@event["SourceId"], out var sid))
@@ -5410,13 +5426,13 @@ namespace KarlinScriptNamespace
             dp.DestoryAt = 4000;
             accessory.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Circle, dp);
         }
-        [ScriptMethod(name: "P7 三号核爆", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:28115"])]
-        public void P7_三号核爆(Event @event, ScriptAccessory accessory)
+        [ScriptMethod(name: "P7 Gigaflare's Edge - 3", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:28115"])]
+        public void P7_GigaflaresEdge3(Event @event, ScriptAccessory accessory)
         {
 
 
             var dp = accessory.Data.GetDefaultDrawProperties();
-            dp.Name = "P7 二号核爆";
+            dp.Name = "P7 Gigaflare's Edge 2";
             dp.Color = accessory.Data.DefaultDangerColor;
             dp.Scale = new(21f);
             if (ParseObjectId(@event["SourceId"], out var sid))
@@ -5428,18 +5444,18 @@ namespace KarlinScriptNamespace
             accessory.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Circle, dp);
         }
 
-        [ScriptMethod(name: "P7 一号核爆位置收集", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:28058"],userControl:false)]
-        public void P7_一号核爆位置收集(Event @event, ScriptAccessory accessory)
+        [ScriptMethod(name: "P7 Gigaflare's Edge - 1 Position Collect", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:28058"],userControl:false)]
+        public void P7_GigaflaresEdge1PositionCollect(Event @event, ScriptAccessory accessory)
         {
             p7Stone1 = JsonConvert.DeserializeObject<Vector3>(@event["SourcePosition"]);
         }
-        [ScriptMethod(name: "P7 二号核爆位置收集", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:28114"], userControl: false)]
-        public void P7_二号核爆位置收集(Event @event, ScriptAccessory accessory)
+        [ScriptMethod(name: "P7 Gigaflare's Edge - 2 Position Collect", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:28114"], userControl: false)]
+        public void P7_GigaflaresEdge2PositionCollect(Event @event, ScriptAccessory accessory)
         {
             p7Stone2 = JsonConvert.DeserializeObject<Vector3>(@event["SourcePosition"]);
         }
-        [ScriptMethod(name: "P7 核爆1跑2(Imgui)", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:28114"])]
-        public void P7_核爆1跑2(Event @event, ScriptAccessory accessory)
+        [ScriptMethod(name: "P7 Gigaflare's Edge 1 to 2 (ImGui)", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:28114"])]
+        public void P7_Gigaflare1To2(Event @event, ScriptAccessory accessory)
         {
             Task.Delay(50).ContinueWith(t =>
             {
@@ -5451,7 +5467,7 @@ namespace KarlinScriptNamespace
                 var pos2 = stone2pos + dot2 * 21f;
 
                 var dp = accessory.Data.GetDefaultDrawProperties();
-                dp.Name = "P7 核爆跑1";
+                dp.Name = "P7 Gigaflare's Edgeto1";
                 dp.Color = accessory.Data.DefaultSafeColor;
                 dp.Owner = accessory.Data.Me;
                 dp.TargetPosition = pos1;
@@ -5461,7 +5477,7 @@ namespace KarlinScriptNamespace
                 accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
 
                 var dp2 = accessory.Data.GetDefaultDrawProperties();
-                dp2.Name = "P7 核爆1跑2";
+                dp2.Name = "P7 Gigaflare's Edge1to2";
                 dp2.Color = accessory.Data.DefaultSafeColor;
                 dp2.Position = pos1;
                 dp2.TargetPosition = pos2;
@@ -5471,7 +5487,7 @@ namespace KarlinScriptNamespace
                 accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp2);
 
                 var dp3 = accessory.Data.GetDefaultDrawProperties();
-                dp3.Name = "P7 核爆跑2";
+                dp3.Name = "P7 Gigaflare's Edgeto2";
                 dp3.Color = accessory.Data.DefaultSafeColor;
                 dp3.Owner = accessory.Data.Me;
                 dp3.TargetPosition = pos2;
@@ -5482,8 +5498,8 @@ namespace KarlinScriptNamespace
                 accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp3);
             });
         }
-        [ScriptMethod(name: "P7 核爆2跑3(Imgui)", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:28115"])]
-        public void P7_核爆2跑3(Event @event, ScriptAccessory accessory)
+        [ScriptMethod(name: "P7 Gigaflare's Edge 2 to 3 (ImGui)", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:28115"])]
+        public void P7_Gigaflare2To3(Event @event, ScriptAccessory accessory)
         {
             Task.Delay(50).ContinueWith(t =>
             {
@@ -5497,7 +5513,7 @@ namespace KarlinScriptNamespace
                 
 
                 var dp2 = accessory.Data.GetDefaultDrawProperties();
-                dp2.Name = "P7 核爆2跑3";
+                dp2.Name = "P7 Gigaflare's Edge2to3";
                 dp2.Color = accessory.Data.DefaultSafeColor;
                 dp2.Position = pos1;
                 dp2.TargetPosition = pos2;
@@ -5507,7 +5523,7 @@ namespace KarlinScriptNamespace
                 accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp2);
 
                 var dp3 = accessory.Data.GetDefaultDrawProperties();
-                dp3.Name = "P7 核爆跑3";
+                dp3.Name = "P7 Gigaflare's Edgeto3";
                 dp3.Color = accessory.Data.DefaultSafeColor;
                 dp3.Owner = accessory.Data.Me;
                 dp3.TargetPosition = pos2;
@@ -5519,38 +5535,38 @@ namespace KarlinScriptNamespace
             });
         }
 
-        #region 地火
+        #region Exaflare
 
-        [ScriptMethod(name: "P7 BossId记录与地火初始化", eventType: EventTypeEnum.PlayActionTimeline, eventCondition: ["SourceDataId:12616"], userControl: false)]
-        public void P7_BossId记录与地火初始化(Event @event, ScriptAccessory accessory)
+        [ScriptMethod(name: "P7 Boss ID Record and Exaflare Initialization", eventType: EventTypeEnum.PlayActionTimeline, eventCondition: ["SourceDataId:12616"], userControl: false)]
+        public void P7_BossIdRecordAndExaflareInit(Event @event, ScriptAccessory accessory)
         {
             var sid = @event.SourceId();
             _p7BossId = sid;
             List<int> scoreList = ExaflareStrategy switch
             {
                 // moveStep,isFront,isUniverse
-                ExaflareSpecStrategyEnum.绝不去前方_NeverFront => [2, 100, 50],
-                ExaflareSpecStrategyEnum.绝不跑无脑火_NeverUniverse => [2, 10, 100],
-                ExaflareSpecStrategyEnum.绝不多跑_LeastMovement => [20, 10, 50],
-                ExaflareSpecStrategyEnum.绝对前方_AlwaysFront => [2, -10, 50],
+                ExaflareSpecStrategyEnum.NeverFront => [2, 100, 50],
+                ExaflareSpecStrategyEnum.NeverUniverse => [2, 10, 100],
+                ExaflareSpecStrategyEnum.LeastMovement => [20, 10, 50],
+                ExaflareSpecStrategyEnum.AlwaysFront => [2, -10, 50],
                 _ => [-10, 100, 0],
             };
             _p7Exaflare = new DsrExaflare(scoreList);
         }
 
 
-        [ScriptMethod(name: "P7 钢铁月环剑记录", eventType: EventTypeEnum.StatusAdd, eventCondition: ["StatusID:2056", "Param:regex:^(29[89])$"], userControl: false)]
-        public void P7_钢铁月环剑记录(Event @event, ScriptAccessory accessory)
+        [ScriptMethod(name: "P7 Chariot/Dynamo Blade Record", eventType: EventTypeEnum.StatusAdd, eventCondition: ["StatusID:2056", "Param:regex:^(29[89])$"], userControl: false)]
+        public void P7_ChariotDynamoBladeRecord(Event @event, ScriptAccessory accessory)
         {
             var param = @event.Param();
-            accessory.Log.Debug($"钢铁月环剑：{param}（298钢铁，299月环）");
+            accessory.Log.Debug($"Chariot/Dynamo blade: {param}(298Chariot, 299Dynamo)");
             _p7Exaflare?.SetBladeType(param);
-            if (!P7_是否地火阶段()) return;
+            if (!P7_IsExaflarePhase()) return;
             _bladeEvent.Set();
         }
 
-        [ScriptMethod(name: "P7 地火范围绘制", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:28060"])]
-        public void P7_地火范围绘制(Event @event, ScriptAccessory accessory)
+        [ScriptMethod(name: "P7 Exaflare's Edge - AoE Draw", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:28060"])]
+        public void P7_ExaflareAoEDraw(Event @event, ScriptAccessory accessory)
         {
             // 面相为前、左、右的扩散
             var spos = @event.SourcePosition();
@@ -5566,8 +5582,8 @@ namespace KarlinScriptNamespace
             const int advWarnNum = 1;   // 预警向外延伸几个
             float[] flareRot = [0, -float.Pi / 2, float.Pi / 2];
 
-            Vector3[,] exaflarePos = P7_构建地火坐标矩阵(spos, dirNum, extNum, srot, flareRot, extendDistance);
-            P7_绘制地火场景(exaflarePos, ExaflareWarnDrawn, advWarnNum, castTime, intervalTime, accessory);
+            Vector3[,] exaflarePos = P7_BuildExaflarePositionMatrix(spos, dirNum, extNum, srot, flareRot, extendDistance);
+            P7_DrawExaflareScene(exaflarePos, ExaflareWarnDrawn, advWarnNum, castTime, intervalTime, accessory);
 
             if (_p7Exaflare == null) return;
             lock (_p7Exaflare)
@@ -5577,22 +5593,22 @@ namespace KarlinScriptNamespace
             }
         }
 
-        [ScriptMethod(name: "P7 地火特殊解法指路", eventType: EventTypeEnum.StatusAdd, eventCondition: ["StatusID:2056", "Param:regex:^(29[89])$"])]
-        public void P7_地火特殊解法指路(Event @event, ScriptAccessory accessory)
+        [ScriptMethod(name: "P7 Exaflare's Edge - Special Strategy Guidance", eventType: EventTypeEnum.StatusAdd, eventCondition: ["StatusID:2056", "Param:regex:^(29[89])$"])]
+        public void P7_ExaflareSpecialStrategyGuidance(Event @event, ScriptAccessory accessory)
         {
             // 记录完钢铁月环后可计算
             if (_p7Exaflare == null) return;
-            if (!P7_是否地火阶段()) return;
-            if (ExaflareStrategy == ExaflareSpecStrategyEnum.关闭_PleaseDontDoThat) return;
+            if (!P7_IsExaflarePhase()) return;
+            if (ExaflareStrategy == ExaflareSpecStrategyEnum.Disabled) return;
             if (!_p7Exaflare.ExaflareRecordComplete()) return;
             _bladeEvent.WaitOne();
             var guidePosList = _p7Exaflare.ExportExaflareSolution(accessory);
-            accessory.Log.Debug($"你选择的策略是{ExaflareStrategy}");
-            P7_绘制地火指路点(guidePosList, accessory);
+            accessory.Log.Debug($"Selected strategy: {ExaflareStrategy}");
+            P7_DrawExaflareGuidancePoints(guidePosList, accessory);
             _bladeEvent.Reset();
         }
 
-        private void P7_绘制地火指路点(List<Vector3> guidePosList, ScriptAccessory accessory)
+        private void P7_DrawExaflareGuidancePoints(List<Vector3> guidePosList, ScriptAccessory accessory)
         {
             const int intervalTime = 1900;
             const int castTime = 6900;
@@ -5603,10 +5619,10 @@ namespace KarlinScriptNamespace
                 var delay = i == 0 ? 0 : baseTime + (i - 1) * intervalTime;
                 var destroy = i == 0 ? baseTime : intervalTime;
 
-                var dp01 = accessory.DrawDirPos(guidePosList[i], delay, destroy, $"地火第{i}步-玩家-位置");
+                var dp01 = accessory.DrawDirPos(guidePosList[i], delay, destroy, $"Exaflare's Edge#{i}step-player-position");
                 accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp01);
                 if (i >= guidePosList.Count - 1) continue;
-                var dp12 = accessory.DrawDirPos2Pos(guidePosList[i], guidePosList[i + 1], delay, destroy, $"地火第{i}步-位置-位置");
+                var dp12 = accessory.DrawDirPos2Pos(guidePosList[i], guidePosList[i + 1], delay, destroy, $"Exaflare's Edge#{i}step-position-position");
                 dp12.Color = accessory.Data.DefaultDangerColor;
                 accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp12);
             }
@@ -5621,7 +5637,7 @@ namespace KarlinScriptNamespace
         /// <param name="castTime">初始地火技能施法时间</param>
         /// <param name="intervalTime">地火间隔时间</param>
         /// <param name="accessory"></param>
-        private void P7_绘制地火场景(Vector3[,] exaflarePos, bool warnDrawn, int advWarnNum, int castTime, int intervalTime, ScriptAccessory accessory)
+        private void P7_DrawExaflareScene(Vector3[,] exaflarePos, bool warnDrawn, int advWarnNum, int castTime, int intervalTime, ScriptAccessory accessory)
         {
             var dirNum = exaflarePos.GetLength(0);
             var extNum = exaflarePos.GetLength(1);
@@ -5635,16 +5651,16 @@ namespace KarlinScriptNamespace
                 if (ext == 0)
                 {
                     // 本体地火，对原地的地火(ext=0)，只画一个dir=0，不以任何角度向外延伸
-                    P7_绘制地火(exaflarePos[0, ext], delay, destroy, accessory);
-                    P7_绘制地火边缘(exaflarePos[0, ext], delay, destroy, accessory);
+                    P7_DrawExaflare(exaflarePos[0, ext], delay, destroy, accessory);
+                    P7_DrawExaflareEdge(exaflarePos[0, ext], delay, destroy, accessory);
                 }
                 else
                 {
                     // 对后续的地火(ext>0)，以对应角度向外延伸
                     for (var dir = 0; dir < dirNum; dir++)
                     {
-                        P7_绘制地火(exaflarePos[dir, ext], delay, destroy, accessory);
-                        P7_绘制地火边缘(exaflarePos[dir, ext], delay, destroy, accessory);
+                        P7_DrawExaflare(exaflarePos[dir, ext], delay, destroy, accessory);
+                        P7_DrawExaflareEdge(exaflarePos[dir, ext], delay, destroy, accessory);
                     }
                 }
 
@@ -5653,7 +5669,7 @@ namespace KarlinScriptNamespace
                 {
                     if (ext >= extNum - adv) continue;
                     for (var dir = 0; dir < dirNum; dir++)
-                        P7_绘制地火预警(exaflarePos[dir, ext + adv], adv, delay, destroy, intervalTime, accessory);
+                        P7_DrawExaflareWarning(exaflarePos[dir, ext + adv], adv, delay, destroy, intervalTime, accessory);
                 }
             }
         }
@@ -5667,7 +5683,7 @@ namespace KarlinScriptNamespace
         /// <param name="sourceRot">释放地火幻影旋转角度</param>
         /// <param name="flareRot">各方向旋转角度</param>
         /// <param name="extDistance">地火步进延伸距离</param>
-        private Vector3[,] P7_构建地火坐标矩阵(Vector3 sourcePos, int dirNum, int extNum, float sourceRot, float[] flareRot, float extDistance)
+        private Vector3[,] P7_BuildExaflarePositionMatrix(Vector3 sourcePos, int dirNum, int extNum, float sourceRot, float[] flareRot, float extDistance)
         {
             Vector3[,] exaflarePos = new Vector3[dirNum, extNum];
             if (flareRot.Length != dirNum) return exaflarePos;
@@ -5677,45 +5693,45 @@ namespace KarlinScriptNamespace
             return exaflarePos;
         }
 
-        private void P7_绘制地火(Vector3 spos, int delay, int destroy, ScriptAccessory accessory)
+        private void P7_DrawExaflare(Vector3 spos, int delay, int destroy, ScriptAccessory accessory)
         {
             const int scale = 6;
             var color = ExaflareBuiltInColor ? ColorHelper.ColorExaflare.V4 : ExaflareColor.V4.WithW(1f);
-            var dp = accessory.DrawStaticCircle(spos, color, delay, destroy, $"地火{spos}", scale);
+            var dp = accessory.DrawStaticCircle(spos, color, delay, destroy, $"Exaflare{spos}", scale);
             dp.ScaleMode |= ScaleMode.ByTime;
             accessory.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Circle, dp);
         }
 
-        private void P7_绘制地火边缘(Vector3 spos, int delay, int destroy, ScriptAccessory accessory)
+        private void P7_DrawExaflareEdge(Vector3 spos, int delay, int destroy, ScriptAccessory accessory)
         {
             const float scale = 6;
             // const float innerScale = scale - 0.05f;
             var color = ExaflareBuiltInColor ? ColorHelper.ColorExaflare.V4 : ExaflareColor.V4.WithW(1.5f);
-            var dp = accessory.DrawStaticDonut(spos, color, delay, destroy, $"地火边缘{spos}", scale);
+            var dp = accessory.DrawStaticDonut(spos, color, delay, destroy, $"Exaflare's Edgeedge{spos}", scale);
             // dp.Color = ColorHelper.colorDark.V4;
             accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Donut, dp);
         }
 
-        private void P7_绘制地火预警(Vector3 spos, int adv, int delay, int destroy, int interval, ScriptAccessory accessory)
+        private void P7_DrawExaflareWarning(Vector3 spos, int adv, int delay, int destroy, int interval, ScriptAccessory accessory)
         {
             const int scale = 6;
             var destroyItv = interval * (adv - 1);
             var color = ExaflareBuiltInColor ? ColorHelper.ColorExaflareWarn.V4.WithW(1f / adv) : ExaflareWarnColor.V4.WithW(1f / adv);
-            var dp = accessory.DrawStaticCircle(spos, color, delay, destroy + destroyItv, $"地火预警{spos}", scale);
+            var dp = accessory.DrawStaticCircle(spos, color, delay, destroy + destroyItv, $"Exaflare's Edgewarning{spos}", scale);
             accessory.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Circle, dp);
         }
 
-        private void P7_地火模拟(float[] srot, float bossRotRad, uint bladeType, ScriptAccessory accessory)
+        private void P7_ExaflareSimulate(float[] srot, float bossRotRad, uint bladeType, ScriptAccessory accessory)
         {
-            accessory.Log.Debug($"你选择的策略是{ExaflareStrategy}");
+            accessory.Log.Debug($"Selected strategy: {ExaflareStrategy}");
 
             List<int> scoreList = ExaflareStrategy switch
             {
                 // moveStep,isFront,isUniverse
-                ExaflareSpecStrategyEnum.绝不去前方_NeverFront => [2, 100, 50],
-                ExaflareSpecStrategyEnum.绝不跑无脑火_NeverUniverse => [2, 10, 100],
-                ExaflareSpecStrategyEnum.绝不多跑_LeastMovement => [20, 10, 50],
-                ExaflareSpecStrategyEnum.绝对前方_AlwaysFront => [2, -10, 50],
+                ExaflareSpecStrategyEnum.NeverFront => [2, 100, 50],
+                ExaflareSpecStrategyEnum.NeverUniverse => [2, 10, 100],
+                ExaflareSpecStrategyEnum.LeastMovement => [20, 10, 50],
+                ExaflareSpecStrategyEnum.AlwaysFront => [2, -10, 50],
                 _ => [-10, 100, 0],
             };
             _p7Exaflare = new DsrExaflare(scoreList);
@@ -5742,11 +5758,11 @@ namespace KarlinScriptNamespace
 
             for (int i = 0; i < 3; i++)
             {
-                Vector3[,] exaflarePos = P7_构建地火坐标矩阵(spos[i], dirNum, extNum, srot[i], flareRot, extendDistance);
+                Vector3[,] exaflarePos = P7_BuildExaflarePositionMatrix(spos[i], dirNum, extNum, srot[i], flareRot, extendDistance);
                 // 画地火箭头
-                var dp1 = accessory.DrawDirPos2Pos(spos[i], spos[i].ExtendPoint(srot[i].Game2Logic() + flareRot[0], 6), 0, castTime, $"箭头1", 5.9f);
-                var dp2 = accessory.DrawDirPos2Pos(spos[i], spos[i].ExtendPoint(srot[i].Game2Logic() + flareRot[1], 6), 0, castTime, $"箭头2", 5.9f);
-                var dp3 = accessory.DrawDirPos2Pos(spos[i], spos[i].ExtendPoint(srot[i].Game2Logic() + flareRot[2], 6), 0, castTime, $"箭头3", 5.9f);
+                var dp1 = accessory.DrawDirPos2Pos(spos[i], spos[i].ExtendPoint(srot[i].Game2Logic() + flareRot[0], 6), 0, castTime, $"arrow1", 5.9f);
+                var dp2 = accessory.DrawDirPos2Pos(spos[i], spos[i].ExtendPoint(srot[i].Game2Logic() + flareRot[1], 6), 0, castTime, $"arrow2", 5.9f);
+                var dp3 = accessory.DrawDirPos2Pos(spos[i], spos[i].ExtendPoint(srot[i].Game2Logic() + flareRot[2], 6), 0, castTime, $"arrow3", 5.9f);
                 dp1.Color = ColorHelper.ColorRed.V4;
                 dp2.Color = ColorHelper.ColorRed.V4;
                 dp3.Color = ColorHelper.ColorRed.V4;
@@ -5754,7 +5770,7 @@ namespace KarlinScriptNamespace
                 accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp2);
                 accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp3);
 
-                P7_绘制地火场景(exaflarePos, ExaflareWarnDrawn, advWarnNum, castTime, intervalTime, accessory);
+                P7_DrawExaflareScene(exaflarePos, ExaflareWarnDrawn, advWarnNum, castTime, intervalTime, accessory);
                 if (_p7Exaflare == null) return;
                 lock (_p7Exaflare)
                 {
@@ -5766,11 +5782,11 @@ namespace KarlinScriptNamespace
             switch (bladeType)
             {
                 case ChariotBlade:
-                    var dp1 = accessory.DrawStaticCircle(_center, accessory.Data.DefaultDangerColor.WithW(2f), 0, castTime, $"钢铁", 8f);
+                    var dp1 = accessory.DrawStaticCircle(_center, accessory.Data.DefaultDangerColor.WithW(2f), 0, castTime, $"Chariot", 8f);
                     accessory.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Circle, dp1);
                     break;
                 case ChariotBlade + 1:
-                    var dp2 = accessory.DrawStaticDonut(_center, accessory.Data.DefaultDangerColor.WithW(2f), 0, castTime, $"月环", 50f, 8f);
+                    var dp2 = accessory.DrawStaticDonut(_center, accessory.Data.DefaultDangerColor.WithW(2f), 0, castTime, $"Dynamo", 50f, 8f);
                     accessory.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Donut, dp2);
                     break;
             }
@@ -5778,14 +5794,14 @@ namespace KarlinScriptNamespace
             // 记录完钢铁月环后可计算
             if (_p7Exaflare == null) return;
             // if (!P7_是否地火阶段()) return;
-            if (ExaflareStrategy == ExaflareSpecStrategyEnum.关闭_PleaseDontDoThat) return;
+            if (ExaflareStrategy == ExaflareSpecStrategyEnum.Disabled) return;
             if (!_p7Exaflare.ExaflareRecordComplete()) return;
             var guidePosList = _p7Exaflare.ExportExaflareSolution(accessory);
-            P7_绘制地火指路点(guidePosList, accessory);
+            P7_DrawExaflareGuidancePoints(guidePosList, accessory);
         }
 
-        [ScriptMethod(name: "P7 忆罪宫地火模拟器", eventType: EventTypeEnum.Chat, eventCondition: ["Type:Echo", "Message:=Exaflare"], userControl: false)]
-        public void P7_忆罪宫地火模拟器(Event @event, ScriptAccessory accessory)
+        [ScriptMethod(name: "P7 Exaflare's Edge - Simulator", eventType: EventTypeEnum.Chat, eventCondition: ["Type:Echo", "Message:=Exaflare"], userControl: false)]
+        public void P7_ExaflareSimulator(Event @event, ScriptAccessory accessory)
         {
             // ---- DEBUG CODE ----
 
@@ -5793,7 +5809,7 @@ namespace KarlinScriptNamespace
             Random random = new Random();
             float bossRotLogicDeg = random.Next(0, 360);
             var bossRotLogicRad = bossRotLogicDeg.DegToRad();
-            accessory.Log.Debug($"随机到的Boss面向为{bossRotLogicRad.RadToDeg()}");
+            accessory.Log.Debug($"Randomized boss facing: {bossRotLogicRad.RadToDeg()}");
             float[] srot =
             [
                 (random.Next(0, 8) * float.Pi / 4 + bossRotLogicRad).Logic2Game(),
@@ -5801,19 +5817,19 @@ namespace KarlinScriptNamespace
                 (random.Next(0, 8) * float.Pi / 4 + bossRotLogicRad).Logic2Game()
             ];
             Vector3 bossFace = _center.ExtendPoint(bossRotLogicRad, 8f);
-            var dp = accessory.DrawDirPos2Pos(_center, bossFace, 0, 7000, $"面相", 7.9f);
+            var dp = accessory.DrawDirPos2Pos(_center, bossFace, 0, 7000, $"facing", 7.9f);
             dp.Color = ColorHelper.ColorDark.V4;
             accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
-            P7_地火模拟(srot, bossRotLogicRad.Logic2Game(), (uint)random.Next(0, 2) + ChariotBlade, accessory);
+            P7_ExaflareSimulate(srot, bossRotLogicRad.Logic2Game(), (uint)random.Next(0, 2) + ChariotBlade, accessory);
             // -- DEBUG CODE END --
         }
 
-        #endregion 地火
+        #endregion Exaflare
 
-        #region 接刀
+        #region TrinityHit
 
-        [ScriptMethod(name: "P7 阶段记录", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:regex:^(2805[179]|28206)$"], userControl: false)]
-        public void P7_阶段记录(Event @event, ScriptAccessory accessory)
+        [ScriptMethod(name: "P7 Phase Record", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:regex:^(2805[179]|28206)$"], userControl: false)]
+        public void P7_PhaseRecord(Event @event, ScriptAccessory accessory)
         {
             _dsrPhase = _dsrPhase switch
             {
@@ -5828,7 +5844,7 @@ namespace KarlinScriptNamespace
                 DsrPhase.Phase7Stack3 => DsrPhase.Phase7Enrage,
                 _ => DsrPhase.Phase7Exaflare1,
             };
-            accessory.Log.Debug($"当前阶段为：{_dsrPhase}");
+            accessory.Log.Debug($"Current phase: {_dsrPhase}");
 
             if (!_p7FirstEnmityOrder.Contains(true))
             {
@@ -5842,36 +5858,36 @@ namespace KarlinScriptNamespace
             {
                 _p7FirstEnmityOrder[0] = !_p7FirstEnmityOrder[0];
                 _p7FirstEnmityOrder[1] = !_p7FirstEnmityOrder[1];
-                accessory.Log.Debug($"MT为{(_p7FirstEnmityOrder[0] ? "一仇" : "二仇")}，ST为{(_p7FirstEnmityOrder[1] ? "一仇" : "二仇")}");
+                accessory.Log.Debug($"MT is {(_p7FirstEnmityOrder[0] ? "FirstEnmity" : "SecondEnmity")}, ST is {(_p7FirstEnmityOrder[1] ? "FirstEnmity" : "SecondEnmity")}");
             }
             _trinityEvent.Set();
 
-            if (!P7_是否分摊阶段()) return;
+            if (!P7_IsStackPhase()) return;
             List<int> scoreList = ExaflareStrategy switch
             {
                 // moveStep,isFront,isUniverse
-                ExaflareSpecStrategyEnum.绝不去前方_NeverFront => [2, 100, 50],
-                ExaflareSpecStrategyEnum.绝不跑无脑火_NeverUniverse => [2, 10, 100],
-                ExaflareSpecStrategyEnum.绝不多跑_LeastMovement => [20, 10, 50],
-                ExaflareSpecStrategyEnum.绝对前方_AlwaysFront => [2, -10, 50],
+                ExaflareSpecStrategyEnum.NeverFront => [2, 100, 50],
+                ExaflareSpecStrategyEnum.NeverUniverse => [2, 10, 100],
+                ExaflareSpecStrategyEnum.LeastMovement => [20, 10, 50],
+                ExaflareSpecStrategyEnum.AlwaysFront => [2, -10, 50],
                 _ => [-10, 100, 0],
             };
             _p7Exaflare = new DsrExaflare(scoreList);
 
         }
 
-        private bool P7_是否地火阶段()
+        private bool P7_IsExaflarePhase()
         {
             return _dsrPhase is DsrPhase.Phase7Exaflare1 or DsrPhase.Phase7Exaflare2 or DsrPhase.Phase7Exaflare3;
         }
 
-        private bool P7_是否分摊阶段()
+        private bool P7_IsStackPhase()
         {
             return _dsrPhase is DsrPhase.Phase7Stack1 or DsrPhase.Phase7Stack2 or DsrPhase.Phase7Stack3;
         }
 
-        [ScriptMethod(name: "P7 三剑一体接刀", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:regex:^(2805[179])$"])]
-        public void P7_三剑一体接刀(Event @event, ScriptAccessory accessory)
+        [ScriptMethod(name: "P7 Trinity Guidance", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:regex:^(2805[179])$"])]
+        public void P7_TrinityGuidance(Event @event, ScriptAccessory accessory)
         {
             _trinityEvent.WaitOne();
             var aid = @event.ActionId();
@@ -5896,16 +5912,16 @@ namespace KarlinScriptNamespace
                 _ => delay
             };
 
-            P7_绘制三剑一体仇恨(sid, delay - 4000, 4000, 1, accessory);
-            P7_绘制三剑一体仇恨(sid, delay - 4000, 4000, 2, accessory);
-            P7_绘制三剑一体仇恨(sid, delay, 4000, 1, accessory);
-            P7_绘制三剑一体仇恨(sid, delay, 4000, 2, accessory);
-            P7_绘制三剑一体近距(sid, delay - 4000, 4000, accessory);
-            P7_绘制三剑一体近距(sid, delay, 4000, accessory);
+            P7_DrawTrinityEnmity(sid, delay - 4000, 4000, 1, accessory);
+            P7_DrawTrinityEnmity(sid, delay - 4000, 4000, 2, accessory);
+            P7_DrawTrinityEnmity(sid, delay, 4000, 1, accessory);
+            P7_DrawTrinityEnmity(sid, delay, 4000, 2, accessory);
+            P7_DrawTrinityNear(sid, delay - 4000, 4000, accessory);
+            P7_DrawTrinityNear(sid, delay, 4000, accessory);
             _trinityEvent.Reset();
         }
 
-        private void P7_绘制三剑一体仇恨(uint sid, int delay, int destroy, uint aggroIdx, ScriptAccessory accessory)
+        private void P7_DrawTrinityEnmity(uint sid, int delay, int destroy, uint aggroIdx, ScriptAccessory accessory)
         {
             var myIndex = accessory.GetMyIndex();
             Vector4 color;
@@ -5926,16 +5942,16 @@ namespace KarlinScriptNamespace
                 }
             }
 
-            var dp = accessory.DrawOwnersEnmityOrder(sid, aggroIdx, 3f, 3f, delay, destroy, $"三剑一体仇恨{aggroIdx}", byTime: true);
+            var dp = accessory.DrawOwnersEnmityOrder(sid, aggroIdx, 3f, 3f, delay, destroy, $"Trinityenmity{aggroIdx}", byTime: true);
             dp.Color = color.WithW(2f);
             accessory.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Circle, dp);
         }
 
-        private void P7_绘制三剑一体近距(uint sid, int delay, int destroy, ScriptAccessory accessory)
+        private void P7_DrawTrinityNear(uint sid, int delay, int destroy, ScriptAccessory accessory)
         {
             var myIndex = accessory.GetMyIndex();
 
-            var dp = accessory.DrawTargetNearFarOrder(sid, 1, true, 3f, 3f, delay, destroy, $"三剑一体近距", byTime: true);
+            var dp = accessory.DrawTargetNearFarOrder(sid, 1, true, 3f, 3f, delay, destroy, $"Trinityneardistance", byTime: true);
             if (_p7TrinityDisordered)
                 dp.Color = accessory.Data.DefaultDangerColor;
             else
@@ -5943,8 +5959,8 @@ namespace KarlinScriptNamespace
             accessory.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Circle, dp);
         }
 
-        [ScriptMethod(name: "P7 三剑一体接刀记录", eventType: EventTypeEnum.ActionEffect, eventCondition: ["ActionId:28065"], userControl: false)]
-        public void P7_三剑一体接刀记录(Event @event, ScriptAccessory accessory)
+        [ScriptMethod(name: "P7 Trinity Hit Record", eventType: EventTypeEnum.ActionEffect, eventCondition: ["ActionId:28065"], userControl: false)]
+        public void P7_TrinityHitRecord(Event @event, ScriptAccessory accessory)
         {
             // 主视角为T，忽略脚下接刀
             var myIndex = accessory.GetMyIndex();
@@ -5954,8 +5970,8 @@ namespace KarlinScriptNamespace
             if (targetIdx != 1)
             {
                 if (_p7TrinityDisordered) return;
-                accessory.Log.Debug($"有人多接了一刀，失效");
-                accessory.Method.TextInfo($"有人多接了一刀，不再以安全色提示", 3000, true);
+                accessory.Log.Debug($"Someone took an extra Trinity hit; validation disabled");
+                accessory.Method.TextInfo($"Someone took an extra Trinity hit; safe-color highlighting disabled", 3000, true);
                 _p7TrinityDisordered = true;
                 return;
             }
@@ -5964,8 +5980,8 @@ namespace KarlinScriptNamespace
             var tidx = accessory.GetPlayerIdIndex(tid);
             if (_p7TrinityOrderIdx[_p7TrinityNum] != tidx && !_p7TrinityDisordered)
             {
-                accessory.Log.Debug($"接刀人错误，失效");
-                accessory.Method.TextInfo($"接刀人错误，不再以安全色提示", 3000, true);
+                accessory.Log.Debug($"Wrong Trinity target; validation disabled");
+                accessory.Method.TextInfo($"Wrong Trinity target; safe-color highlighting disabled", 3000, true);
                 _p7TrinityDisordered = true;
             }
 
@@ -5975,11 +5991,11 @@ namespace KarlinScriptNamespace
 
             var targetRecent = accessory.GetPlayerJobByIndex(tidx);
             var targetNext = accessory.GetPlayerJobByIndex(_p7TrinityOrderIdx[_p7TrinityNum]);
-            accessory.Log.Debug($"刚刚接刀的是{targetRecent}，下一个接刀人为{targetNext}");
+            accessory.Log.Debug($"Previous Trinity target: {targetRecent}, ; next Trinity target: {targetNext}");
         }
 
-        [ScriptMethod(name: "P7 三剑一体T刀记录", eventType: EventTypeEnum.ActionEffect, eventCondition: ["ActionId:regex:^(2806[34])$"], userControl: false)]
-        public void P7_三剑一体T刀记录(Event @event, ScriptAccessory accessory)
+        [ScriptMethod(name: "P7 Trinity Tank Hit Record", eventType: EventTypeEnum.ActionEffect, eventCondition: ["ActionId:regex:^(2806[34])$"], userControl: false)]
+        public void P7_TrinityTankHitRecord(Event @event, ScriptAccessory accessory)
         {
             var aid = @event.ActionId();
             var tid = @event.TargetId();
@@ -6000,12 +6016,12 @@ namespace KarlinScriptNamespace
 
             // 一仇效果，但目标是二仇 || 二仇效果，但目标是一仇
             if ((_p7FirstEnmityOrder[tidx] || aid != aggro1) && (!_p7FirstEnmityOrder[tidx] || aid != aggro2)) return;
-            accessory.Log.Debug($"接刀仇恨错误，失效");
-            accessory.Method.TextInfo($"接刀仇恨错误，不再以安全色提示", 3000, true);
+            accessory.Log.Debug($"Incorrect Trinity enmity; validation disabled");
+            accessory.Method.TextInfo($"Incorrect Trinity enmity; safe-color highlighting disabled", 3000, true);
             _p7TrinityTankDisordered = true;
         }
 
-        #endregion 接刀
+        #endregion TrinityHit
 
         #endregion
 
@@ -6218,7 +6234,7 @@ namespace KarlinScriptNamespace
             public void AddPriorities(List<int> priorities)
             {
                 if (Priorities.Count != priorities.Count)
-                    throw new ArgumentException("输入的列表与内部设置长度不同");
+                    throw new ArgumentException("Input list length does not match internal settings");
 
                 for (var i = 0; i < Priorities.Count; i++)
                     AddPriority(i, priorities[i]);
@@ -6230,7 +6246,7 @@ namespace KarlinScriptNamespace
             /// <returns></returns>
             public string ShowPriorities(bool showJob = true)
             {
-                var str = $"{Annotation} ({ActionCount}-th) 优先级字典：\n";
+                var str = $"{Annotation} ({ActionCount}-th) priority dictionary: \n";
                 if (Priorities.Count == 0)
                 {
                     str += $"PriorityDict Empty.\n";
@@ -6257,7 +6273,7 @@ namespace KarlinScriptNamespace
 
     }
 
-    #region Class 地火
+    #region Class Exaflare
 
     public class DsrExaflare(List<int> scoreList)
     {
@@ -6277,7 +6293,7 @@ namespace KarlinScriptNamespace
             Vector3 pos2;
             Vector3 pos3;
             int targetExaflareIdx;
-            var debugText = $"[a][一步火]: \n";
+            var debugText = $"[a][one-step Exaflare]: \n";
 
             if (!IsFrontPointedByExaflare(0))
                 targetExaflareIdx = 0;
@@ -6293,24 +6309,24 @@ namespace KarlinScriptNamespace
 
             if (moveStep == 0)
             {
-                debugText += $"[a]检测到{GetExaflareIdxStr(targetExaflareIdx)}地火未被指向，可作为安全点\n";
+                debugText += $"[a]Detected {GetExaflareIdxStr(targetExaflareIdx)}Exaflare's Edge is not targeted and can be used as a safe point\n";
                 pos3 = pos2;
             }
             else
             {
-                debugText += $"[a]检测到前方地火均被指向，走前方两步火，随便取左上作安全点\n";
+                debugText += $"[a]Detected frontExaflare's Edgeall are points to , use fronttwo-step Exaflare, choose upper-leftas safe point\n";
                 pos3 = ExaflarePosList[1].PointInOutside(BossPos, 12f);
             }
 
             // pos1 根据职能定义起跑点
             var myIndex = accessory.GetMyIndex();
             var pos1 = FindFirstSafePosAtFront(targetExaflareIdx, myIndex < 1);
-            debugText += $"[a]玩家序号为{myIndex}, 为{(myIndex < 1?"坦克":"人群")}视角，\n倾向于{(myIndex < 1?"前方":"后方")}就位\n";
+            debugText += $"[a]Player index: {myIndex},  is {(myIndex < 1?"Tank":"Party")} perspective, \n; prefer {(myIndex < 1?"Front":"Back")} positioning\n";
             moveStep++;
 
             accessory.Log.Debug(debugText);
 
-            return new ExaflareSolution([pos1, pos2, pos3], moveStep, true, isUniverse, "一步火", scoreList,
+            return new ExaflareSolution([pos1, pos2, pos3], moveStep, true, isUniverse, "one-step Exaflare", scoreList,
                 accessory);
         }
 
@@ -6327,7 +6343,7 @@ namespace KarlinScriptNamespace
             var pos2 = backExaflarePos;
             // pos3 二炸后，观察前面两枚
             Vector3 pos3;
-            var debugText = $"[b][两步火]: \n";
+            var debugText = $"[b][two-step Exaflare]: \n";
 
             // 前方两地火是否指向背后
             var idx0Point = IsBackPointedByExaflare(0);
@@ -6337,21 +6353,21 @@ namespace KarlinScriptNamespace
             {
                 // 都未指向背后，原地
                 pos3 = backExaflarePos;
-                debugText += $"[b]检测到前方地火前方地火都未指向背后，转为背后一步火\n";
+                debugText += $"[b]Detected frontExaflare's EdgefrontExaflare's Edgeall not points to behind, switch to behindone-step Exaflare\n";
             }
             else if (!idx0Point && idx2Point)
             {
                 // 右上未指向背后，去左侧
                 pos3 = backExaflarePos.RotatePoint(BossPos, 45f.DegToRad());
                 moveStep++;
-                debugText += $"[b]检测到右上地火未指向背后，去左后\n";
+                debugText += $"[b]Detected upper-rightExaflare's Edgenot points to behind, go leftback\n";
             }
             else if (idx0Point && !idx2Point)
             {
                 // 左上未指向背后，去右侧
                 pos3 = backExaflarePos.RotatePoint(BossPos, -45f.DegToRad());
                 moveStep++;
-                debugText += $"[b]检测到左上地火未指向背后，去右侧\n";
+                debugText += $"[b]Detected upper-leftExaflare's Edgenot points to behind, go rightside\n";
             }
             else
             {
@@ -6359,10 +6375,10 @@ namespace KarlinScriptNamespace
                 pos3 = FindUniversalSafePos();
                 isUniverse = true;
                 moveStep++;
-                debugText += $"[b]检测到地火全指向背后，转为无脑火\n";
+                debugText += $"[b]Detected Exaflare's Edgeall points to behind, switch to fixedfire\n";
             }
             accessory.Log.Debug(debugText);
-            return new ExaflareSolution([pos1, pos2, pos3], moveStep, false, isUniverse, "两步火", scoreList,
+            return new ExaflareSolution([pos1, pos2, pos3], moveStep, false, isUniverse, "two-step Exaflare", scoreList,
                 accessory);
         }
 
@@ -6426,7 +6442,7 @@ namespace KarlinScriptNamespace
             var dir = exaflareRelativeDir.Rad2Dirs(8);
             ExaflareDirList[idx] = dir;
             ExaflarePosList[idx] = exaflarePosV3;
-            accessory.Log.Debug($"添加{GetExaflareIdxStr(idx)}地火，坐标{exaflarePosV3}，面向{GetDirStr(dir)}");
+            accessory.Log.Debug($"Add {GetExaflareIdxStr(idx)}Exaflare, ; position {exaflarePosV3}, facing{GetDirStr(dir)}");
             RecordedExaflareNum++;
         }
 
@@ -6515,7 +6531,7 @@ namespace KarlinScriptNamespace
             AddExaflareSolution(BuildTwoStepSolution(accessory));
 
             ExaflareSolutionList = ExaflareSolutionList.OrderBy(solution => solution.Score).ToList();
-            accessory.Log.Debug($"两解法对比，优先级高的是{ExaflareSolutionList[0].Description}，为{ExaflareSolutionList[0].Score}分");
+            accessory.Log.Debug($"Solution comparison; higher-priority solution: {ExaflareSolutionList[0].Description},  is {ExaflareSolutionList[0].Score} points");
             return ExaflareSolutionList[0].ExaflareSolutionPosList;
         }
 
@@ -6552,10 +6568,10 @@ namespace KarlinScriptNamespace
         {
             return idx switch
             {
-                0 => "右上",
-                1 => "背后",
-                2 => "左上",
-                _ => "未知"
+                0 => "upper-right",
+                1 => "behind",
+                2 => "upper-left",
+                _ => "unknown"
             };
         }
 
@@ -6563,15 +6579,15 @@ namespace KarlinScriptNamespace
         {
             return idx switch
             {
-                0 => "正上",
-                1 => "右上",
-                2 => "正右",
-                3 => "右下",
-                4 => "正下",
-                5 => "左下",
-                6 => "正左",
-                7 => "左上",
-                _ => "未知"
+                0 => "north",
+                1 => "upper-right",
+                2 => "east",
+                3 => "lower-right",
+                4 => "south",
+                5 => "lower-left",
+                6 => "west",
+                7 => "upper-left",
+                _ => "unknown"
             };
         }
 
@@ -6625,7 +6641,7 @@ namespace KarlinScriptNamespace
                 var isUniverseScore = IsUniverse ? scoreList[isUniverseIdx] : 0;
                 var totalScore = baseScore + moveStepScore + isFrontScore + isUniverseScore;
                 accessory.Log.Debug(
-                    $"{description}的得分为：基础{baseScore} + 步数{moveStepScore} + 前方{isFrontScore} + 无脑{isUniverseScore} = {totalScore}");
+                    $"{description} of  score: base {baseScore} +  + steps {moveStepScore} + Front{isFrontScore} + fixed{isUniverseScore} = {totalScore}");
                 return totalScore;
             }
         }
@@ -6634,7 +6650,7 @@ namespace KarlinScriptNamespace
     #endregion
 
 
-    #region 函数集
+    #region Helpers
     public static class EventExtensions
     {
         private static bool ParseHexId(string? idStr, out uint id)
@@ -7049,7 +7065,7 @@ namespace KarlinScriptNamespace
                     dp.Position = spos;
                     break;
                 default:
-                    throw new ArgumentException("ownerObj的目标类型输入错误");
+                    throw new ArgumentException("Invalid ownerObj target type");
             }
 
             switch (targetObj)
@@ -7072,7 +7088,7 @@ namespace KarlinScriptNamespace
             {
                 uint uintTarget => accessory.DrawGuidance(accessory.Data.Me, uintTarget, delay, destroy, name, rotation, scale, isSafe),
                 Vector3 vectorTarget => accessory.DrawGuidance(accessory.Data.Me, vectorTarget, delay, destroy, name, rotation, scale, isSafe),
-                _ => throw new ArgumentException("targetObj 的类型必须是 uint 或 Vector3")
+                _ => throw new ArgumentException("targetObj type must be uint or Vector3")
             };
         }
 

@@ -25,5 +25,14 @@
     "TerritoryIds": [1122],
     "DownloadUrl": "https://raw.githubusercontent.com/Codaaaaaa/KodakkuScripts/main/Global/LPDU/TOP_Usami%20-%20LPDU.cs",
     "UpdateInfo": "This is a modified version of Usami/Karlin/Meva's script adapted for the LPDU strat."
+  },
+  {
+    "Name": "Dragonsong's Reprise (Ultimate) DSR - LPDU",
+    "Guid": "baadb811-5bd3-4e61-bb1f-f3eab163c52f",
+    "Version": "0.0.0.6",
+    "Author": "Karlin/Usami",
+    "TerritoryIds": [968, 1112],
+    "DownloadUrl": "https://raw.githubusercontent.com/Codaaaaaa/KodakkuScripts/main/Global/LPDU/DSR_Karlin%20-%20LPDU.cs",
+    "UpdateInfo": "Adapted from the scripts of Karlin / Usami."
   }
 ]
