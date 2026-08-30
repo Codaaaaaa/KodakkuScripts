@@ -86,6 +86,7 @@ namespace KarlinScriptNamespace
         List<int> p5sony = [];
         List<int> p5sony_sixuan = [];
         List<int> p6tether = [];
+        List<int> p6tether2 = [];
         List<int> p6lightDark = [];
 
         (int, int) p2Jump = (-1,-1);
@@ -226,6 +227,7 @@ namespace KarlinScriptNamespace
             p1sony = [0, 0, 0, 0, 0, 0, 0, 0];
             p3Tower = [0,0,0,0];
             p6tether = [0, 0, 0, 0, 0, 0, 0, 0];
+            p6tether2 = [0, 0, 0, 0, 0, 0, 0, 0];
             p6lightDark= [0, 0, 0, 0, 0, 0, 0, 0];
             p2BlueCircle = [];
             p2SafeDir = [true, true, true, true, true, true, true, true];
@@ -1455,48 +1457,145 @@ namespace KarlinScriptNamespace
         public void P2_二运第一轮塔位置(Event @event, ScriptAccessory accessory)
         {
             if (parse != 2.2) return;
+
             Task.Delay(100).ContinueWith(t =>
             {
-                List<int> towerMem = [-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1];
-                List<int> alternate = [];
-                HashSet<int> meteorPlayers = [p2StoneMem.Item1, p2StoneMem.Item2];
+                List<int> towerMem =
+                [
+                    -1, -1, -1, -1,
+                    -1, -1, -1, -1,
+                    -1, -1, -1, -1,
+                    -1, -1, -1, -1
+                ];
 
-                // 每组两人的优先级：
-                // 1. 如果本组有陨石，陨石强制高优先，另一人低优先。
-                // 2. 如果本组没有陨石，保持原 TN > DPS：p2StoneTeam 偶数位为 TN，奇数位为 DPS。
-                (int High, int Low)[] groupPriority = new (int High, int Low)[4];
+                List<int> alternate = [];
+
+                HashSet<int> meteorPlayers =
+                [
+                    p2StoneMem.Item1,
+                    p2StoneMem.Item2
+                ];
+
+                // ============================================================
+                // 判断这一轮陨石属于 TN 还是 DPS
+                //
+                // PartyList:
+                // 0 = MT
+                // 1 = ST
+                // 2 = H1
+                // 3 = H2
+                // 4 = D1
+                // 5 = D2
+                // 6 = D3
+                // 7 = D4
+                //
+                // 正常机制：
+                // 两个陨石要么都是 TN，要么都是 DPS。
+                // ============================================================
+
+                var meteorIsTN =
+                    p2StoneMem.Item1 is >= 0 and <= 3 &&
+                    p2StoneMem.Item2 is >= 0 and <= 3;
+
+                var meteorIsDPS =
+                    p2StoneMem.Item1 is >= 4 and <= 7 &&
+                    p2StoneMem.Item2 is >= 4 and <= 7;
+
+
+                // ============================================================
+                // 每组两人的 High / Low 优先级
+                //
+                // p2StoneTeam 每组结构始终为：
+                //
+                // [ TN, DPS ]
+                //
+                // 规则：
+                //
+                // 1. 本组有陨石：
+                //      陨石玩家强制 High
+                //
+                // 2. 本组没有陨石：
+                //
+                //      本轮 TN 陨石
+                //          TN  = High
+                //          DPS = Low
+                //
+                //      本轮 DPS 陨石
+                //          DPS = High
+                //          TN  = Low
+                //
+                // 3. 如果异常出现 TN + DPS 混合陨石：
+                //      fallback 为 TN > DPS
+                //
+                // 这样最终效果就是：
+                //
+                // TN 陨石局  -> 四组全部 TN lane High
+                // DPS 陨石局 -> 四组全部 DPS lane High
+                // ============================================================
+
+                (int High, int Low)[] groupPriority =
+                    new (int High, int Low)[4];
+
                 for (int i = 0; i < 4; i++)
                 {
-                    var first = p2StoneTeam[i * 2];
-                    var second = p2StoneTeam[i * 2 + 1];
-                    var firstMeteor = meteorPlayers.Contains(first);
-                    var secondMeteor = meteorPlayers.Contains(second);
+                    // 每组偶数位 = TN lane
+                    // 每组奇数位 = DPS lane
+                    var tn = p2StoneTeam[i * 2];
+                    var dps = p2StoneTeam[i * 2 + 1];
 
-                    if (firstMeteor && !secondMeteor)
+                    var tnMeteor = meteorPlayers.Contains(tn);
+                    var dpsMeteor = meteorPlayers.Contains(dps);
+
+                    // 本组 TN 是陨石
+                    if (tnMeteor && !dpsMeteor)
                     {
-                        groupPriority[i] = (first, second);
+                        groupPriority[i] = (tn, dps);
                     }
-                    else if (secondMeteor && !firstMeteor)
+
+                    // 本组 DPS 是陨石
+                    else if (dpsMeteor && !tnMeteor)
                     {
-                        groupPriority[i] = (second, first);
+                        groupPriority[i] = (dps, tn);
                     }
+
+                    // 本组没有陨石，并且本轮是 DPS 陨石
+                    else if (meteorIsDPS)
+                    {
+                        groupPriority[i] = (dps, tn);
+                    }
+
+                    // 本组没有陨石，并且本轮是 TN 陨石
+                    // 或异常情况下 fallback TN > DPS
                     else
                     {
-                        // 正常情况：本组无陨石，按 TN > DPS。
-                        // 如果极端情况下同组两人都是陨石，也用 TN > DPS 作为稳定 fallback。
-                        groupPriority[i] = (first, second);
+                        groupPriority[i] = (tn, dps);
                     }
                 }
 
-                // ===== 先分配两个陨石的外围塔 =====
+
+                // ============================================================
+                // 先分配两个陨石的外围塔
+                //
                 // 两个陨石优先踩严格 180° 对称的外围塔。
-                // 外围 12 塔每 30° 一个，因此对面塔 index = (index + 6) % 12。
-                // 如果有多组 180° 解，按 中 -> 左 -> 右 选择。
+                //
+                // 外围 12 塔每 30° 一个，
+                // 因此对面塔：
+                //
+                // opposite = (tower + 6) % 12
+                //
+                // 如果有多组可用解：
+                //
+                // 中 -> 左 -> 右
+                // ============================================================
+
                 List<(int Group, int Player)> meteorHigh = [];
+
                 for (int i = 0; i < 4; i++)
                 {
                     if (meteorPlayers.Contains(groupPriority[i].High))
+                    {
                         meteorHigh.Add((i, groupPriority[i].High));
+                    }
                 }
 
                 if (meteorHigh.Count == 2)
@@ -1504,83 +1603,143 @@ namespace KarlinScriptNamespace
                     var firstMeteor = meteorHigh[0];
                     var secondMeteor = meteorHigh[1];
 
-                    // 换组完成后正常应处于对面两组（N/S）。
+                    // 换组完成以后，
+                    // 两个陨石正常情况下应该处于互相对面的两组。
                     if ((firstMeteor.Group + 2) % 4 == secondMeteor.Group)
                     {
-                        int[] meteorOuterOrder = [1, 0, 2]; // 中 -> 左 -> 右
+                        // 中 -> 左 -> 右
+                        int[] meteorOuterOrder = [1, 0, 2];
+
                         foreach (var offset in meteorOuterOrder)
                         {
-                            var firstTower = firstMeteor.Group * 3 + offset;
-                            var oppositeTower = (firstTower + 6) % 12;
+                            var firstTower =
+                                firstMeteor.Group * 3 + offset;
 
-                            if (oppositeTower / 3 != secondMeteor.Group) continue;
-                            if (!p2Tower[firstTower] || !p2Tower[oppositeTower]) continue;
+                            var oppositeTower =
+                                (firstTower + 6) % 12;
 
-                            towerMem[firstTower] = firstMeteor.Player;
-                            towerMem[oppositeTower] = secondMeteor.Player;
+                            // 必须确实属于第二个陨石所在的组
+                            if (oppositeTower / 3 != secondMeteor.Group)
+                                continue;
+
+                            // 两边塔必须同时存在
+                            if (!p2Tower[firstTower] ||
+                                !p2Tower[oppositeTower])
+                                continue;
+
+                            towerMem[firstTower] =
+                                firstMeteor.Player;
+
+                            towerMem[oppositeTower] =
+                                secondMeteor.Player;
+
                             break;
                         }
                     }
                 }
 
-                // ===== 分配四组高优先 =====
-                // 陨石若已经通过 180° 规则分配则保持；其余高优先仍按 中 -> 左 -> 右 找外围塔。
+
+                // ============================================================
+                // 分配四组 High
+                //
+                // 已经通过陨石 180° 规则完成分配的玩家保持不动。
+                //
+                // 其他 High：
+                //
+                // 中 -> 左 -> 右
+                // ============================================================
+
                 int[] highOuterOrder = [1, 0, 2];
+
                 for (int i = 0; i < 4; i++)
                 {
                     var memIndex = groupPriority[i].High;
-                    if (towerMem.Contains(memIndex)) continue;
+
+                    // 已经分过塔就跳过
+                    if (towerMem.Contains(memIndex))
+                        continue;
 
                     foreach (var offset in highOuterOrder)
                     {
                         var towerIndex = i * 3 + offset;
-                        if (!p2Tower[towerIndex] || towerMem[towerIndex] != -1) continue;
+
+                        if (!p2Tower[towerIndex] ||
+                            towerMem[towerIndex] != -1)
+                            continue;
 
                         towerMem[towerIndex] = memIndex;
                         break;
                     }
                 }
 
-                // ===== 分配四组低优先 =====
-                // 先补本组剩余外围塔。保持原本“左 -> 右”的偏好；
-                // 如果陨石为了 180° 对称没有踩中塔，则允许低优先补中塔。
-                // 本组外围都没有空位时，再踩本组内塔；仍没有则进入统一补塔。
-                int[] lowOuterOrder = [0, 2, 1]; // 左 -> 右 -> 中(fallback)
+
+                // ============================================================
+                // 分配四组 Low
+                //
+                // 优先本组外围：
+                //
+                // 左 -> 右 -> 中
+                //
+                // 如果外围没有：
+                //
+                // -> 本组内塔
+                //
+                // 如果本组内塔也没有：
+                //
+                // -> 进入 alternate，最后补其他空的内塔
+                // ============================================================
+
+                int[] lowOuterOrder = [0, 2, 1];
+
                 for (int i = 0; i < 4; i++)
                 {
                     var memIndex = groupPriority[i].Low;
                     var assigned = false;
 
+                    // ---------- 本组外围塔 ----------
                     foreach (var offset in lowOuterOrder)
                     {
                         var towerIndex = i * 3 + offset;
-                        if (!p2Tower[towerIndex] || towerMem[towerIndex] != -1) continue;
+
+                        if (!p2Tower[towerIndex] ||
+                            towerMem[towerIndex] != -1)
+                            continue;
 
                         towerMem[towerIndex] = memIndex;
                         assigned = true;
                         break;
                     }
 
-                    if (assigned) continue;
+                    if (assigned)
+                        continue;
 
-                    // 本组内塔
+
+                    // ---------- 本组内塔 ----------
                     var innerTower = i + 12;
-                    if (p2Tower[innerTower] && towerMem[innerTower] == -1)
+
+                    if (p2Tower[innerTower] &&
+                        towerMem[innerTower] == -1)
                     {
                         towerMem[innerTower] = memIndex;
                         continue;
                     }
 
-                    // 补其他未分配内塔
+
+                    // ---------- 等待补其他内塔 ----------
                     alternate.Add(memIndex);
                 }
 
-                // 补塔
+
+                // ============================================================
+                // 补其他尚未分配的内塔
+                // ============================================================
+
                 foreach (var mem in alternate)
                 {
                     for (int i = 12; i < 16; i++)
                     {
-                        if (p2Tower[i] && towerMem[i] == -1)
+                        if (p2Tower[i] &&
+                            towerMem[i] == -1)
                         {
                             towerMem[i] = mem;
                             break;
@@ -1588,44 +1747,109 @@ namespace KarlinScriptNamespace
                     }
                 }
 
-                var myIndex = accessory.Data.PartyList.ToList().IndexOf(accessory.Data.Me);
+
+                // ============================================================
+                // 绘制玩家塔位置
+                // ============================================================
+
+                var myIndex =
+                    accessory.Data.PartyList
+                        .ToList()
+                        .IndexOf(accessory.Data.Me);
+
                 var npos = new Vector3(100, 0, 82);
                 var npos2 = new Vector3(100, 0, 94);
                 var cpos = new Vector3(100, 0, 100);
 
-                // 正常模式只画自己，Debug 模式把全队 8 人的塔位置一起画出来
-                for (var idIndex = 0; idIndex < accessory.Data.PartyList.Count; idIndex++)
+
+                // 正常模式只画自己
+                // Debug 模式把全队 8 人都画出来
+                for (
+                    var idIndex = 0;
+                    idIndex < accessory.Data.PartyList.Count;
+                    idIndex++
+                )
                 {
-                    if (!Debugging && idIndex != myIndex) continue;
-                    var tIndex = towerMem.IndexOf(idIndex);
-                    var dp = accessory.Data.GetDefaultDrawProperties();
+                    if (!Debugging && idIndex != myIndex)
+                        continue;
+
+                    var tIndex =
+                        towerMem.IndexOf(idIndex);
+
+                    var dp =
+                        accessory.Data.GetDefaultDrawProperties();
+
+
+                    // ---------- 外围塔 ----------
                     if (tIndex >= 0 && tIndex < 12)
                     {
-                        dp.Position = RotatePoint(npos, cpos, float.Pi / 6 * (tIndex - 1));
-                    }
-                    if (tIndex >= 12 && tIndex < 16)
-                    {
-                        dp.Position = RotatePoint(npos2, cpos, float.Pi / 2 * (tIndex - 12) + float.Pi / 4);
+                        dp.Position =
+                            RotatePoint(
+                                npos,
+                                cpos,
+                                float.Pi / 6 * (tIndex - 1)
+                            );
                     }
 
-                    dp.Name = $"P2 2运第一轮塔位置(ImGui){idIndex}";
+
+                    // ---------- 内塔 ----------
+                    if (tIndex >= 12 && tIndex < 16)
+                    {
+                        dp.Position =
+                            RotatePoint(
+                                npos2,
+                                cpos,
+                                float.Pi / 2 * (tIndex - 12)
+                                + float.Pi / 4
+                            );
+                    }
+
+
+                    // ---------- 塔位置圆圈 ----------
+                    dp.Name =
+                        $"P2 2运第一轮塔位置(ImGui){idIndex}";
+
                     dp.DestoryAt = 12000;
                     dp.Color = accessory.Data.DefaultSafeColor;
                     dp.Scale = new(3);
-                    accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Circle, dp);
 
-                    var dp2 = accessory.Data.GetDefaultDrawProperties();
-                    dp2.Name = $"P2 2运第一轮塔位置(ImGui){idIndex}";
-                    dp2.Color = accessory.Data.DefaultSafeColor;
-                    dp2.Owner = 指路起点(accessory, idIndex);
-                    dp2.TargetPosition = dp.Position;
+                    accessory.Method.SendDraw(
+                        DrawModeEnum.Imgui,
+                        DrawTypeEnum.Circle,
+                        dp
+                    );
+
+
+                    // ---------- 玩家 -> 塔 指路 ----------
+                    var dp2 =
+                        accessory.Data.GetDefaultDrawProperties();
+
+                    dp2.Name =
+                        $"P2 2运第一轮塔位置(ImGui){idIndex}";
+
+                    dp2.Color =
+                        accessory.Data.DefaultSafeColor;
+
+                    dp2.Owner =
+                        指路起点(accessory, idIndex);
+
+                    dp2.TargetPosition =
+                        dp.Position;
+
                     dp2.Scale = new(3f, 10);
-                    dp2.ScaleMode |= ScaleMode.YByDistance;
+
+                    dp2.ScaleMode |=
+                        ScaleMode.YByDistance;
+
                     dp2.Delay = 7500;
                     dp2.DestoryAt = 4500;
-                    accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp2);
-                }
 
+                    accessory.Method.SendDraw(
+                        DrawModeEnum.Imgui,
+                        DrawTypeEnum.Displacement,
+                        dp2
+                    );
+                }
             });
         }
         [ScriptMethod(name: "P2 二运第二轮塔位置(ImGui)", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:28650"])]
@@ -3769,15 +3993,28 @@ namespace KarlinScriptNamespace
             }
 
         }
-        [ScriptMethod(name: "P6 开场冰火线收集", eventType: EventTypeEnum.Tether, userControl: false)]
+        // 一冰火(6.1)存 p6tether、二冰火(6.3)存 p6tether2；连白龙(圣龙)=冰=2，连黑龙(邪龙)=火=1
+        [ScriptMethod(name: "P6 冰火线收集", eventType: EventTypeEnum.Tether, userControl: false)]
         public void P6_开场冰火线收集(Event @event, ScriptAccessory accessory)
         {
-            if (parse != 6.1) return;
-            
+            if (parse != 6.1 && parse != 6.3) return;
+
             if (!ParseObjectId(@event["SourceId"],out var sid)) return;
             if (!ParseObjectId(@event["TargetId"], out var tid)) return;
-            p6tether[accessory.Data.PartyList.ToList().IndexOf(sid)] = tid==whiteDragonId ? 2 : 1;
 
+            // 连线不保证方向，两端里在小队列表中的那个才是玩家
+            var partyList = accessory.Data.PartyList.ToList();
+            var playerIdx = partyList.IndexOf(sid);
+            var dragonId = tid;
+            if (playerIdx < 0)
+            {
+                playerIdx = partyList.IndexOf(tid);
+                dragonId = sid;
+            }
+            if (playerIdx < 0) return;
+
+            var tetherList = parse == 6.1 ? p6tether : p6tether2;
+            tetherList[playerIdx] = dragonId == whiteDragonId ? 2 : 1;
         }
         [ScriptMethod(name: "P6 第一次冰火线站位(Imgui)", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:27960"])]
         public void P6_第一次冰火线站位(Event @event, ScriptAccessory accessory)
@@ -4286,19 +4523,38 @@ namespace KarlinScriptNamespace
                 
             }
         }
+        // 二冰火站位：H1 固定站南边，其余 5 人看自己的冰火线分组，组内按 D1→D2→D3→D4→H2 的优先级顺次取点
+        private static readonly int[] p6二冰火优先级 = [4, 5, 6, 7, 3];
+        private static readonly Vector3 p6二冰火H1点 = new(100f, 0, 119.5f);
+        private static readonly Vector3[] p6二冰火冰点 = [new(85.66f, 0, 87.75f), new(91.37f, 0, 82.62f), new(100f, 0, 80.46f)];
+        private static readonly Vector3[] p6二冰火火点 = [new(113.01f, 0, 86.73f), new(106.48f, 0, 82.06f)];
+
         [ScriptMethod(name: "P6 第二次冰火线ND站位(ImGui)", eventType: EventTypeEnum.StartCasting)]
         public void P6_第二次冰火线ND站位(Event @event, ScriptAccessory accessory)
         {
             if (parse != 6.3) return;
             var aidStr = @event["ActionId"];
             if (aidStr != "27956" && aidStr != "27957") return;
+            if (accessory.Data.PartyList.Count < 8) return;
 
-            var myIndex = accessory.Data.PartyList.ToList().IndexOf(accessory.Data.Me);
+            // 冰火线：2=冰(连圣龙)，1=火(连邪龙)。H1 不参与分点，所以火只需要 2 个点
+            var 冰组 = p6二冰火优先级.Where(i => p6tether2[i] == 2).ToList();
+            var 火组 = p6二冰火优先级.Where(i => p6tether2[i] == 1).ToList();
+
+            var 点位 = new Dictionary<int, Vector3> { [2] = p6二冰火H1点 };
+            for (var i = 0; i < 冰组.Count && i < p6二冰火冰点.Length; i++) 点位[冰组[i]] = p6二冰火冰点[i];
+            for (var i = 0; i < 火组.Count && i < p6二冰火火点.Length; i++) 点位[火组[i]] = p6二冰火火点[i];
+
+            if (冰组.Count > p6二冰火冰点.Length || 火组.Count > p6二冰火火点.Length)
+                accessory.Log.Debug($"P6 二冰火冰火线人数异常：冰{冰组.Count}人/火{火组.Count}人，多出的人没有点位");
+
+            var myIndex = accessory.GetMyIndex();
             // 正常模式只画自己，Debug 模式把 6 名非坦克的 ND 站位一起画出来
-            for (var idIndex = 0; idIndex < accessory.Data.PartyList.Count; idIndex++)
+            for (var idIndex = 2; idIndex < accessory.Data.PartyList.Count; idIndex++)
             {
                 if (!Debugging && idIndex != myIndex) continue;
-                if (idIndex <= 1) continue;
+                // 冰火线没收到或点位不够，宁可不画也不给错的指路
+                if (!点位.TryGetValue(idIndex, out var targetPos)) continue;
 
                 var dp = accessory.Data.GetDefaultDrawProperties();
                 dp.Name = $"P6 第二次冰火线ND站位{idIndex}";
@@ -4307,13 +4563,7 @@ namespace KarlinScriptNamespace
                 dp.Scale = new(1.5f);
                 dp.ScaleMode |= ScaleMode.YByDistance;
                 dp.DestoryAt = 7000;
-
-                if (idIndex == 2) dp.TargetPosition = new(100, 0, 80.5f);
-                if (idIndex == 3) dp.TargetPosition = new(100, 0, 119.7f);
-                if (idIndex == 4) dp.TargetPosition = new(103.7f, 0, 89.2f);
-                if (idIndex == 5) dp.TargetPosition = new(97, 0, 110.2f);
-                if (idIndex == 6) dp.TargetPosition = new(107.2f, 0, 81.7f);
-                if (idIndex == 7) dp.TargetPosition = new(92.5f, 0, 118);
+                dp.TargetPosition = targetPos;
 
                 accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
             }
@@ -4458,7 +4708,25 @@ namespace KarlinScriptNamespace
                         dp.Scale = new(4);
                         dp.DestoryAt = 5000;
                         dp.Name = "P6 同归于尽之炎";
-                        if (i==idIndex ||(p6lightDark.IndexOf(2)==i && p6lightDark.IndexOf(0)==idIndex)|| (p6lightDark.LastIndexOf(2) == i && p6lightDark.LastIndexOf(0) == idIndex))
+                        // if (i==idIndex ||(p6lightDark.IndexOf(2)==i && p6lightDark.IndexOf(0)==idIndex)|| (p6lightDark.LastIndexOf(2) == i && p6lightDark.LastIndexOf(0) == idIndex))
+                        // {
+                        //     dp.Color = accessory.Data.DefaultSafeColor;
+                        // }
+                        // else
+                        // {
+                        //     dp.Color = accessory.Data.DefaultDangerColor;
+                        // }
+                        var (stacks, unmarked, _) = GetP6WrothGroups();
+
+                        bool safe =
+                            i == idIndex ||
+                            (stacks.Count >= 2 && unmarked.Count >= 2 &&
+                            (
+                                (i == stacks[0] && idIndex == unmarked[0]) ||
+                                (i == stacks[1] && idIndex == unmarked[1])
+                            ));
+
+                        if (safe)
                         {
                             dp.Color = accessory.Data.DefaultSafeColor;
                         }
@@ -4582,15 +4850,16 @@ namespace KarlinScriptNamespace
             var tankBusterPosition = new Vector3[4];
             tankBusterPosition[0] = new Vector3(84.5f, 0, 88f);
             tankBusterPosition[1] = tankBusterPosition[0].FoldPointHorizon(_center.X);
-            tankBusterPosition[2] = tankBusterPosition[0];
+            // 二冰火 MT 走西南(84.5, 112)，西北让给冰组
+            tankBusterPosition[2] = tankBusterPosition[0].FoldPointVertical(_center.Z);
             tankBusterPosition[3] = tankBusterPosition[1].FoldPointVertical(_center.Z);
 
             if (_p6DragonsGlowAction[0] && _p6DragonsGlowAction[1])
             {
                 // 场中分摊死刑，自己不是T不显示指路
                 if (!Debugging && myIndex > 1) return;
-                // 删除K佬脚本中双T的小啾啾
-                accessory.Method.RemoveDraw("P6 第二次冰火线ND站位.*");
+                // 删除K佬脚本中双T的小啾啾。只匹配双T那两条(及无后缀的旧名)，否则 Debug 模式会把 ND 六人的指路一起删掉
+                accessory.Method.RemoveDraw("^P6 第二次冰火线ND站位[01]?$");
 
                 // 正常模式只画自己，Debug 模式把双T的指路都画出来
                 for (var i = 0; i < 2; i++)
@@ -4617,8 +4886,8 @@ namespace KarlinScriptNamespace
 
                 // 场边分散，自己不是T不显示指路
                 if (!Debugging && myIndex > 1) return;
-                // 删除K佬脚本中双T的小啾啾
-                accessory.Method.RemoveDraw("P6 第二次冰火线ND站位.*");
+                // 删除K佬脚本中双T的小啾啾。只匹配双T那两条(及无后缀的旧名)，否则 Debug 模式会把 ND 六人的指路一起删掉
+                accessory.Method.RemoveDraw("^P6 第二次冰火线ND站位[01]?$");
                 var isIceAndFire2 = _dsrPhase == DsrPhase.Phase6IceAndFire2;
 
                 // 正常模式只画自己，Debug 模式把双T的死刑点都画出来
@@ -4853,6 +5122,43 @@ namespace KarlinScriptNamespace
             var dp = accessory.DrawCircle(tid, 6, 0, 12500, $"死亡轮回目标");
             dp.Color = accessory.Data.DefaultSafeColor;
             accessory.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Circle, dp);
+        }
+
+        private static int P6WrothPriority(int index)
+        {
+            return index switch
+            {
+                0 => 0, // MT - Tank
+                1 => 1, // ST - Tank
+                2 => 2, // H1 - Healer
+                3 => 3, // H2 - Healer
+                6 => 4, // D3 - Ranged
+                7 => 5, // D4 - Caster
+                4 => 6, // D1 - Melee
+                5 => 7, // D2 - Melee
+                _ => 99
+            };
+        }
+        private (List<int> stacks, List<int> unmarked, List<int> spreads) GetP6WrothGroups()
+        {
+            var indices = Enumerable.Range(0, p6lightDark.Count);
+
+            var stacks = indices
+                .Where(i => p6lightDark[i] == 2)
+                .OrderBy(P6WrothPriority)
+                .ToList();
+
+            var unmarked = indices
+                .Where(i => p6lightDark[i] == 0)
+                .OrderBy(P6WrothPriority)
+                .ToList();
+
+            var spreads = indices
+                .Where(i => p6lightDark[i] == 1)
+                .OrderBy(P6WrothPriority)
+                .ToList();
+
+            return (stacks, unmarked, spreads);
         }
 
         #endregion 十字火
