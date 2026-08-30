@@ -23,12 +23,12 @@ using KodakkuAssist.Module.Script.Type;
 namespace KarlinScriptNamespace
 {
     // 1112 为忆罪宫，仅用于 "/e =Exaflare" 地火模拟器（补丁部分）
-    [ScriptType(name:"Dragonsong's Reprise (Ultimate) DSR - LPDU", territorys: [968, 1112], guid: "e011dae9-1c89-435a-8e21-84f72bf3da8d", note: Note, version:"0.0.0.7", author: "Karlin/Usami")]
+    [ScriptType(name:"Dragonsong's Reprise (Ultimate) DSR - LPDU", territorys: [968, 1112], guid: "e011dae9-1c89-435a-8e21-84f72bf3da8d", note: Note, version:"0.0.0.8", author: "Karlin & Usami")]
     public class DragongSingDrawLpdu
     {
         private const string Note = 
         $"""
-        Adapted from the scripts of Karlin / Usami.
+        Adapted from the scripts of Karlin & Usami.
 
         -----------Important-----------
 
@@ -41,7 +41,7 @@ namespace KarlinScriptNamespace
 
         Accepted manual slots are:
 
-        MT / OT(ST) / H1 / H2 / M1(D1) / M2(D2) / R1(D3) / R2(D4)
+        MT  OT(ST)  H1  H2  M1(D1)  M2(D2)  R1(D3)  R2(D4)
 
         All 8 slots must appear exactly once.
         """;

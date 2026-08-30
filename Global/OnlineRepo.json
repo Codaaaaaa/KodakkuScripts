@@ -29,10 +29,10 @@
   {
     "Name": "Dragonsong's Reprise (Ultimate) DSR - LPDU",
     "Guid": "e011dae9-1c89-435a-8e21-84f72bf3da8d",
-    "Version": "0.0.0.7",
-    "Author": "Karlin/Usami",
+    "Version": "0.0.0.8",
+    "Author": "Karlin & Usami",
     "TerritoryIds": [968, 1112],
     "DownloadUrl": "https://raw.githubusercontent.com/Codaaaaaa/KodakkuScripts/main/Global/LPDU/DSR_Karlin%20-%20LPDU.cs",
-    "UpdateInfo": "Adapted from the scripts of Karlin / Usami."
+    "UpdateInfo": "Adapted from the scripts of Karlin & Usami."
   }
 ]
