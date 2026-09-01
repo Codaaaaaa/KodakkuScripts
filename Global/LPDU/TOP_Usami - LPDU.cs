@@ -55,11 +55,11 @@ public class TopReborn
     const string UpdateInfo =
         $"""
          {Version}
-         1. 适配 P5 二运在女人击退踩塔时标点的指挥逻辑，以解决 P5 二运后半不指路的问题。
+         P5 Delta fixed
          """;
 
     private const string Name = "The Omega Protocol (Ultimate) TOP - LPDU";
-    private const string Version = "0.0.0.24";
+    private const string Version = "0.0.0.25";
     private const string DebugVersion = "a";
 
     private const bool Debugging = false;
@@ -2379,22 +2379,21 @@ public class TopReborn
         _p5A.拳头记录.WaitOne(2000);
         try
         {
-            // 场内外在 P5A1_一运_记录拳头 里按头标与就位后的相对位置判定
+            // 场内外在 P5A1_一运_记录拳头 里按就位后的相对位置判定，两侧共用同一套标准
             var myIndex   = sa.GetMyIndex();
             var markerVal = _pd.Priorities[myIndex];
-            // 拳头阶段蟑螂侧远线组的点位与判定完全对调：判为场外的走场内点，判为场内的走场外点。
-            // 光头侧无标的短线组一律走场外点，不再按 _p5A.玩家场外 拆成一内一外。
-            // 以上只在本方法生效；激光手方位那边仍用 _p5A.玩家场外 的原值区分短线组四人。
-            var isOutside = markerVal == 0 || !_p5A.玩家场外;
+            var isFarLine = markerVal != 0;        // 蟑螂侧十字/三角及其搭档为远线组，光头侧无标为近线组
+            var isOutside = _p5A.玩家场外;
 
             // var myQuadrant = _p5A.玩家四分之一半场;
             var punchCountAtMyQuadrant = _p5A.拳头数量;
             var punchColorAtMyQuadrant = _p5A.拳头颜色;
 
-            // 1. 场内玩家，不交换，直接站象限点
-            if (!isOutside)
+            var pos = GetQuadrantPoint(isFarLine, isOutside, _p5A.光头位置, _p5A.玩家四分之一半场);
+
+            // 1. 场外玩家不换象限，同色异色都站自己那个点
+            if (isOutside)
             {
-                Vector3 pos = GetQuadrantPoint(true, _p5A.光头位置, _p5A.玩家四分之一半场);
                 sa.DrawGuidance(pos, 0, 5000, $"P5A1_一运_拳头");
                 return;
             }
@@ -2407,12 +2406,10 @@ public class TopReborn
                 return;
             }
 
-            // 3. 检测拳头是否同色，镜像换点
-            bool needSwap = punchColorAtMyQuadrant != 0;
-            Vector3 final = GetQuadrantPoint(false, _p5A.光头位置, _p5A.玩家四分之一半场);
-            if (needSwap)
-                final = MirrorAcrossBoss(final, _p5A.光头位置);
-            sa.DrawGuidance(final, 0, 5000, $"P5A1_一运_拳头");
+            // 3. 场内玩家：同色拳时关于 Boss 镜像到本半场的另一个象限（远近线同理）
+            if (punchColorAtMyQuadrant != 0)
+                pos = MirrorAcrossBoss(pos, _p5A.光头位置);
+            sa.DrawGuidance(pos, 0, 5000, $"P5A1_一运_拳头");
         }
         finally
         {
@@ -2420,15 +2417,22 @@ public class TopReborn
         }
         return;
 
-        Vector3 GetQuadrantPoint(bool isInside, int omegaDir, int myQuadrant)
+        Vector3 GetQuadrantPoint(bool isFarLine, bool isOutside, int omegaDir, int myQuadrant)
         {
-            // 所有坐标以第0象限（右下）为原型，后面统一做象限镜像
-            Vector3 raw = isInside ? new Vector3(102.7f, 0, 110f) : new Vector3(108.7f, 0, 110f);
+            // 所有坐标以第0象限（右下）为原型，后面统一做象限镜像。
+            // 横向：只有远线场外靠场中（102.7），其余三档都压在象限角（110）
+            Vector3 raw = isFarLine && isOutside
+                ? new Vector3(102.7f, 0, 110f)
+                : new Vector3(110f, 0, 110f);
 
-            // Boss 在奇数方向时整体顺时针旋转 -90°
+            // Boss 在奇数方向时整体绕象限角顺时针旋转 -90°，队列改排到 x = 110 那条边上
             if (omegaDir % 2 == 1)
-                raw = raw.RotateAndExtend(new Vector3(109.9f, 0, 110f), -90f.DegToRad());
-            
+                raw = raw.RotateAndExtend(new Vector3(110f, 0, 110f), -90f.DegToRad());
+
+            // 远线组不分内外，都沿外向轴（旋转后由 z+ 变为 x+）再平移 4 码贴近电网
+            if (isFarLine)
+                raw += omegaDir % 2 == 1 ? new Vector3(4f, 0, 0) : new Vector3(0, 0, 4f);
+
             raw = myQuadrant switch
             {
                 1 => raw.FoldPointVertical(Center.Z),
@@ -2887,7 +2891,7 @@ public class TopReborn
                 if (_p5A.玩家场外)
                 {
                     // 场外两人同样按刀向分：右刀维持逆时针侧取攻击 3，左刀两人对调。
-                    marker = isRightCleave == isCcwSide ? 3 : 4;
+                    marker = isRightCleave == isCcwSide ? 4 : 3;
                 }
                 else
                 {
