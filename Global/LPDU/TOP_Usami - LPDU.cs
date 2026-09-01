@@ -55,11 +55,11 @@ public class TopReborn
     const string UpdateInfo =
         $"""
          {Version}
-         P5 Delta fixed
+         P5 Delta fixed, translate all methods
          """;
 
     private const string Name = "The Omega Protocol (Ultimate) TOP - LPDU";
-    private const string Version = "0.0.0.25";
+    private const string Version = "0.0.0.26";
     private const string DebugVersion = "a";
 
     private const bool Debugging = false;
@@ -130,21 +130,21 @@ public class TopReborn
         }
     }
     
-    [ScriptMethod(name: "测试项：参数初始化", eventType: EventTypeEnum.NpcYell, eventCondition: ["HelloayaWorld:asdf"],
+    [ScriptMethod(name: "Debug: Initialize Parameters", eventType: EventTypeEnum.NpcYell, eventCondition: ["HelloayaWorld:asdf"],
         userControl: Debugging)]
     public void 参数初始化(Event ev, ScriptAccessory sa)
     {
         RefreshParams(sa);
     }
     
-    [ScriptMethod(name: "测试项：展示优先级表格", eventType: EventTypeEnum.NpcYell, eventCondition: ["HelloayaWorld:asdf"],
+    [ScriptMethod(name: "Debug: Show Priority Table", eventType: EventTypeEnum.NpcYell, eventCondition: ["HelloayaWorld:asdf"],
         userControl: Debugging)]
     public void 展示优先级表格(Event ev, ScriptAccessory sa)
     {
         sa.DebugMsg(_pd.ShowPriorities(), Debugging);
     }
     
-    [ScriptMethod(name: "测试项：临时测试", eventType: EventTypeEnum.NpcYell, eventCondition: ["HelloayaWorld:asdf"],
+    [ScriptMethod(name: "Debug: Temporary Test", eventType: EventTypeEnum.NpcYell, eventCondition: ["HelloayaWorld:asdf"],
         userControl: Debugging)]
     public void 临时测试(Event ev, ScriptAccessory sa)
     {
@@ -156,13 +156,13 @@ public class TopReborn
     
     #region P1A 循环程序
     
-    [ScriptMethod(name: "———————— 《P1A 循环程序》 ————————", eventType: EventTypeEnum.NpcYell, eventCondition: ["HelloayaWorld:asdf"],
+    [ScriptMethod(name: "———————— 《P1A Program Loop》 ————————", eventType: EventTypeEnum.NpcYell, eventCondition: ["HelloayaWorld:asdf"],
         userControl: true)]
     public void P1A_循环程序_分割线(Event ev, ScriptAccessory sa)
     {
     }
     
-    [ScriptMethod(name: "P1A_循环程序_分P", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:31491"], userControl: Debugging)]
+    [ScriptMethod(name: "P1A_Program Loop_Phase Setup", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:31491"], userControl: Debugging)]
     public void P1A_循环程序_分P(Event ev, ScriptAccessory sa)
     {
         _parse = 1.1;
@@ -173,7 +173,7 @@ public class TopReborn
         _pd.AddPriorities([3, 4, 7, 8, 1, 2, 5, 6]);    // 数值越低，代表优先级越高
     }
     
-    [ScriptMethod(name: "P1A_循环程序_Buff记录", eventType: EventTypeEnum.StatusAdd, eventCondition: ["StatusID:regex:^(3004|3005|3006|3451)$"], userControl: Debugging)]
+    [ScriptMethod(name: "P1A_Program Loop_Buff Tracking", eventType: EventTypeEnum.StatusAdd, eventCondition: ["StatusID:regex:^(3004|3005|3006|3451)$"], userControl: Debugging)]
     public void P1A_循环程序_Buff记录(Event ev, ScriptAccessory sa)
     {
         if (_parse != 1.1) return;
@@ -190,7 +190,7 @@ public class TopReborn
         _pd.AddPriority(idx, priVal);
     }
     
-    [ScriptMethod(name: "P1A_循环程序_塔收集", eventType: EventTypeEnum.ObjectChanged, eventCondition: ["Operate:Add", "DataId:2013245"], userControl: Debugging)]
+    [ScriptMethod(name: "P1A_Program Loop_Tower Collection", eventType: EventTypeEnum.ObjectChanged, eventCondition: ["Operate:Add", "DataId:2013245"], userControl: Debugging)]
     public void P1A_循环程序_塔收集(Event ev, ScriptAccessory sa)
     {
         if (_parse != 1.1) return;
@@ -213,7 +213,7 @@ public class TopReborn
         }
     }
     
-    [ScriptMethod(name: "P1A_循环程序_集合提醒", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:31491"], userControl: true)]
+    [ScriptMethod(name: "P1A_Program Loop_Stack Reminder", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:31491"], userControl: true)]
     public void P1A_循环程序_集合提醒(Event ev, ScriptAccessory sa)
     {
         if (_parse != 1.1) return;
@@ -221,7 +221,7 @@ public class TopReborn
         sa.Method.TTS("Stack behind boss");
     }
     
-    [ScriptMethod(name: "P1A_循环程序_开始站位提醒", eventType: EventTypeEnum.StatusAdd, eventCondition: ["StatusID:regex:^(3004|3005|3006|3451)$"])]
+    [ScriptMethod(name: "P1A_Program Loop_Initial Position Reminder", eventType: EventTypeEnum.StatusAdd, eventCondition: ["StatusID:regex:^(3004|3005|3006|3451)$"])]
     public void P1A_循环程序_开始站位提醒(Event ev, ScriptAccessory sa)
     {
         if (_parse != 1.1) return;
@@ -232,7 +232,7 @@ public class TopReborn
         sa.Method.TTS(isFirstTether ? "Move up, take tether" : "Stay back");
     }
 
-    [ScriptMethod(name: "P1A_循环程序_清理绘图", eventType: EventTypeEnum.ActionEffect, eventCondition: ["ActionId:regex:^(3149[67])$"], suppress: 100, userControl: Debugging)]
+    [ScriptMethod(name: "P1A_Program Loop_Clear Drawings", eventType: EventTypeEnum.ActionEffect, eventCondition: ["ActionId:regex:^(3149[67])$"], suppress: 100, userControl: Debugging)]
     public void P1A_循环程序_清理绘图(Event ev, ScriptAccessory sa)
     {
         if (_parse != 1.1) return;
@@ -249,7 +249,7 @@ public class TopReborn
         sa.Method.UnregistFrameworkUpdateAction(_p1.扫描接线Framework);
     }
     
-    [ScriptMethod(name: "P1A_循环程序_线塔处理位置", eventType: EventTypeEnum.ObjectChanged, eventCondition: ["Operate:Add", "DataId:2013245"], suppress: 500)]
+    [ScriptMethod(name: "P1A_Program Loop_Tether/Tower Positioning", eventType: EventTypeEnum.ObjectChanged, eventCondition: ["Operate:Add", "DataId:2013245"], suppress: 500)]
     public void P1A_循环程序_线塔处理位置(Event ev, ScriptAccessory sa)
     {
         if (_parse != 1.1) return;
@@ -320,7 +320,7 @@ public class TopReborn
         }
     }
 
-    [ScriptMethod(name: "P1A_循环程序_接线标记", eventType: EventTypeEnum.ActionEffect, eventCondition: ["ActionId:regex:^(31496)$", "TargetIndex:1"], suppress: 500)]
+    [ScriptMethod(name: "P1A_Program Loop_Tether Marker", eventType: EventTypeEnum.ActionEffect, eventCondition: ["ActionId:regex:^(31496)$", "TargetIndex:1"], suppress: 500)]
     public void P1A_循环程序_接线标记(Event ev, ScriptAccessory sa)
     {
         if (_parse != 1.1) return;
@@ -344,7 +344,7 @@ public class TopReborn
         // sa.DebugMsg($"玩家优先级升序序列为 {myPriority}，需接序列为 {targetPriority} {sa.GetPlayerJobByIndex(targetPartyIndex)} 的线", Debugging);
     }
     
-    [ScriptMethod(name: "P1A_循环程序_接线标记移除", eventType: EventTypeEnum.Tether, eventCondition: ["Id:0059"], userControl: Debugging)]
+    [ScriptMethod(name: "P1A_Program Loop_Remove Tether Marker", eventType: EventTypeEnum.Tether, eventCondition: ["Id:0059"], userControl: Debugging)]
     public void P1A_循环程序_接线标记移除(Event ev, ScriptAccessory sa)
     {
         if (_parse != 1.1) return;
@@ -352,7 +352,7 @@ public class TopReborn
         sa.Method.RemoveDraw($"P1_循环程序_R{_p1.线塔轮次}_接线标记");
     }
     
-    [ScriptMethod(name: "P1A_循环程序_接线玩家大圈绘图", eventType: EventTypeEnum.Tether, eventCondition: ["Id:0059"], userControl: true)]
+    [ScriptMethod(name: "P1A_Program Loop_Tether Player AoE", eventType: EventTypeEnum.Tether, eventCondition: ["Id:0059"], userControl: true)]
     public void P1A_循环程序_接线玩家大圈绘图(Event ev, ScriptAccessory sa)
     {
         if (_parse != 1.1) return;
@@ -413,13 +413,13 @@ public class TopReborn
 
     #region P1B 全能之主
 
-    [ScriptMethod(name: "———————— 《P1B 全能之主》 ————————", eventType: EventTypeEnum.NpcYell, eventCondition: ["HelloayaWorld:asdf"],
+    [ScriptMethod(name: "———————— 《P1B Pantokrator》 ————————", eventType: EventTypeEnum.NpcYell, eventCondition: ["HelloayaWorld:asdf"],
         userControl: true)]
     public void P1B_全能之主_分割线(Event ev, ScriptAccessory sa)
     {
     }
     
-    [ScriptMethod(name: "P1B_全能之主_分P", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:31499"], userControl: Debugging)]
+    [ScriptMethod(name: "P1B_Pantokrator_Phase Setup", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:31499"], userControl: Debugging)]
     public void P1B_全能之主_分P(Event ev, ScriptAccessory sa)
     {
         _parse = 1.2;
@@ -432,7 +432,7 @@ public class TopReborn
         _p1.全能之主轮次 = 1;
     }
     
-    [ScriptMethod(name: "P1B_全能之主_Buff记录", eventType: EventTypeEnum.StatusAdd, eventCondition: ["StatusID:regex:^(3004|3005|3006|3451)$"], userControl: Debugging)]
+    [ScriptMethod(name: "P1B_Pantokrator_Buff Tracking", eventType: EventTypeEnum.StatusAdd, eventCondition: ["StatusID:regex:^(3004|3005|3006|3451)$"], userControl: Debugging)]
     public void P1B_全能之主_Buff记录(Event ev, ScriptAccessory sa)
     {
         if (_parse != 1.2) return;
@@ -449,7 +449,7 @@ public class TopReborn
         _pd.AddPriority(idx, priVal); 
     }
     
-    [ScriptMethod(name: "P1B_全能之主_顺逆时针记录", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:regex:^(31501|32368)$"], userControl: Debugging)]
+    [ScriptMethod(name: "P1B_Pantokrator_Rotation Tracking", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:regex:^(31501|32368)$"], userControl: Debugging)]
     public void P1B_全能之主_顺逆时针记录(Event ev, ScriptAccessory sa)
     {
         if (_parse != 1.2) return;
@@ -480,7 +480,7 @@ public class TopReborn
         }
     }
     
-    [ScriptMethod(name: "P1B_全能之主_起跑线", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:regex:^(31501)$"], userControl: true)]
+    [ScriptMethod(name: "P1B_Pantokrator_Starting Line", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:regex:^(31501)$"], userControl: true)]
     public void P1B_全能之主_起跑线(Event ev, ScriptAccessory sa)
     {
         if (_parse != 1.2) return;
@@ -530,7 +530,7 @@ public class TopReborn
         _p1.全能之主顺逆时针判断完毕事件.Reset();
     }
     
-    [ScriptMethod(name: "P1B_全能之主_轮次增加", eventType: EventTypeEnum.ActionEffect, eventCondition: ["ActionId:31502"], userControl: Debugging, suppress: 500)]
+    [ScriptMethod(name: "P1B_Pantokrator_Advance Round", eventType: EventTypeEnum.ActionEffect, eventCondition: ["ActionId:31502"], userControl: Debugging, suppress: 500)]
     public void P1B_全能之主_轮次增加(Event ev, ScriptAccessory sa)
     {
         if (_parse != 1.2) return;
@@ -540,7 +540,7 @@ public class TopReborn
         sa.DebugMsg($"现在是 全能之主 第{_p1.全能之主轮次}轮", Debugging);
     }
     
-    [ScriptMethod(name: "P1B_全能之主_出去提示", eventType: EventTypeEnum.StatusAdd, eventCondition: ["StatusID:regex:^(349[567]|3424)$"])]
+    [ScriptMethod(name: "P1B_Pantokrator_Move Out Reminder", eventType: EventTypeEnum.StatusAdd, eventCondition: ["StatusID:regex:^(349[567]|3424)$"])]
     public void P1B_全能之主_出去提示(Event ev, ScriptAccessory sa)
     {
         if (_parse != 1.2) return;
@@ -560,7 +560,7 @@ public class TopReborn
         }
     }
     
-    [ScriptMethod(name: "P1B_全能之主_回头提示", eventType: EventTypeEnum.ActionEffect, eventCondition: ["ActionId:31502", "TargetIndex:1"])]
+    [ScriptMethod(name: "P1B_Pantokrator_Return Reminder", eventType: EventTypeEnum.ActionEffect, eventCondition: ["ActionId:31502", "TargetIndex:1"])]
     public void P1B_全能之主_回头提示(Event ev, ScriptAccessory sa)
     {
         if (_parse != 1.2) return;
@@ -569,7 +569,7 @@ public class TopReborn
         sa.Method.TTS("Head back");
     }
     
-    [ScriptMethod(name: "P1B_全能之主_点名直线", eventType: EventTypeEnum.TargetIcon, eventCondition: ["Id:0017"])]
+    [ScriptMethod(name: "P1B_Pantokrator_Targeted Line AoE", eventType: EventTypeEnum.TargetIcon, eventCondition: ["Id:0017"])]
     public void P1B_全能之主_点名直线(Event ev, ScriptAccessory sa)
     {
         if (_parse != 1.2) return;
@@ -578,7 +578,7 @@ public class TopReborn
         sa.DrawRect(_p1.BossId, ev.TargetId, 0, 5000, $"P1_全能之主_点名直线", 0, 6, 50, isMe);
     }
     
-    [ScriptMethod(name: "P1B_全能之主_后半指路", eventType: EventTypeEnum.TargetIcon, eventCondition: ["Id:0017"], suppress: 15000)]
+    [ScriptMethod(name: "P1B_Pantokrator_Second-half Guidance", eventType: EventTypeEnum.TargetIcon, eventCondition: ["Id:0017"], suppress: 15000)]
     public void P1B_全能之主_后半指路(Event ev, ScriptAccessory sa)
     {
         if (_parse != 1.2) return;
@@ -605,7 +605,7 @@ public class TopReborn
         }
     }
     
-    [ScriptMethod(name: "P1B_全能之主_最远顺劈范围", eventType: EventTypeEnum.TargetIcon, eventCondition: ["Id:0017"], suppress: 15000)]
+    [ScriptMethod(name: "P1B_Pantokrator_Farthest Cleave AoE", eventType: EventTypeEnum.TargetIcon, eventCondition: ["Id:0017"], suppress: 15000)]
     public void P1B_全能之主_最远顺劈范围(Event ev, ScriptAccessory sa)
     {
         if (_parse != 1.2) return;
@@ -710,7 +710,7 @@ public class TopReborn
         }
     }
 
-    [ScriptMethod(name: "P1B_全能之主_扩散波动炮计数", eventType: EventTypeEnum.ActionEffect, eventCondition: ["ActionId:31504"], suppress: 200, userControl: Debugging)]
+    [ScriptMethod(name: "P1B_Pantokrator_Diffuse Wave Cannon Kyrios Counter", eventType: EventTypeEnum.ActionEffect, eventCondition: ["ActionId:31504"], suppress: 200, userControl: Debugging)]
     public void P1B_全能之主_扩散波动炮计数(Event ev, ScriptAccessory sa)
     {
         if (_parse != 1.2) return;
@@ -727,13 +727,13 @@ public class TopReborn
 
     #region P2 欧米茄防火墙设置
 
-    [ScriptMethod(name: "———————— 《P2 欧米茄防火墙设置》 ————————", eventType: EventTypeEnum.NpcYell, eventCondition: ["HelloayaWorld:asdf"],
+    [ScriptMethod(name: "———————— 《P2 Omega Firewall》 ————————", eventType: EventTypeEnum.NpcYell, eventCondition: ["HelloayaWorld:asdf"],
         userControl: true)]
     public void P2_欧米茄防火墙设置_分割线(Event ev, ScriptAccessory sa)
     {
     }
     
-    [ScriptMethod(name: "P2A_防火墙_分P", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:31552"], userControl: Debugging)]
+    [ScriptMethod(name: "P2A_Firewall_Phase Setup", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:31552"], userControl: Debugging)]
     public void P2A_防火墙_分P(Event ev, ScriptAccessory sa)
     {
         _parse = 2;
@@ -743,7 +743,7 @@ public class TopReborn
         _p2.Register();
     }
     
-    [ScriptMethod(name: "P2A_防火墙_BossId记录", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:regex:^(3155[23])$"], userControl: Debugging)]
+    [ScriptMethod(name: "P2A_Firewall_Boss ID Tracking", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:regex:^(3155[23])$"], userControl: Debugging)]
     public void P2A_防火墙_BossId记录(Event ev, ScriptAccessory sa)
     {
         const uint FIREWALL_MALE = 31552;
@@ -762,7 +762,7 @@ public class TopReborn
         }
     }
     
-    [ScriptMethod(name: "*P2A_防火墙_屏蔽无效目标", eventType: EventTypeEnum.ActionEffect, eventCondition: ["ActionId:31552"], userControl: true)]
+    [ScriptMethod(name: "*P2A_Firewall_Disable Invalid Targets", eventType: EventTypeEnum.ActionEffect, eventCondition: ["ActionId:31552"], userControl: true)]
     public void P2A_防火墙_屏蔽无效目标(Event ev, ScriptAccessory sa)
     {
         if (_parse != 2) return;
@@ -810,7 +810,7 @@ public class TopReborn
         }
     }
 
-    [ScriptMethod(name: "P2A_防火墙_一运期间暂时关闭", eventType: EventTypeEnum.Targetable,
+    [ScriptMethod(name: "P2A_Firewall_Temporarily Disable During Party Synergy", eventType: EventTypeEnum.Targetable,
         eventCondition: ["Targetable:False", "DataId:regex:^(1571[23])$"], userControl: Debugging, suppress: 1000)]
     public void P2A_防火墙_一运期间暂时关闭(Event ev, ScriptAccessory sa)
     {
@@ -819,7 +819,7 @@ public class TopReborn
         _p2.使能防火墙 = false;
     }
     
-    [ScriptMethod(name: "P2A_防火墙_男女人性别交换", eventType: EventTypeEnum.ActionEffect,
+    [ScriptMethod(name: "P2A_Firewall_Swap Omega-M/F IDs", eventType: EventTypeEnum.ActionEffect,
         eventCondition: ["ActionId:regex:^(3151[78])$"], userControl: Debugging, suppress: 1000)]
     public void P2A_防火墙_男女人性别交换(Event ev, ScriptAccessory sa)
     {
@@ -828,7 +828,7 @@ public class TopReborn
         (_p2.BossIdFemale, _p2.BossIdMale) = (_p2.BossIdMale, _p2.BossIdFemale);
     }
     
-    [ScriptMethod(name: "*P2A_防火墙_一运后再次开启", eventType: EventTypeEnum.Targetable,
+    [ScriptMethod(name: "*P2A_Firewall_Re-enable After Party Synergy", eventType: EventTypeEnum.Targetable,
         eventCondition: ["Targetable:True", "DataId:regex:^(1571[23])$"], userControl: Debugging)]
     public void P2A_防火墙_一运后再次开启(Event ev, ScriptAccessory sa)
     {
@@ -844,7 +844,7 @@ public class TopReborn
         }
     }
 
-    [ScriptMethod(name: "P2A_防火墙_二运前关闭防火墙判断", eventType: EventTypeEnum.StatusRemove,
+    [ScriptMethod(name: "P2A_Firewall_Disable Firewall Logic Before Limitless Synergy", eventType: EventTypeEnum.StatusRemove,
         eventCondition: ["StatusID:regex:^(3500|3499)$"], userControl: Debugging, suppress: 1000)]
     public void P2A_防火墙_二运前关闭防火墙判断(Event ev, ScriptAccessory sa)
     {
@@ -855,7 +855,7 @@ public class TopReborn
         sa.SetTargetable(sa.GetById(_p2.BossIdFemale), true);
     }
     
-    [ScriptMethod(name: "*P2A_防火墙_无敌设置不可选中", eventType: EventTypeEnum.StatusAdd, eventCondition: ["StatusID:regex:^(671)$"], userControl: true)]
+    [ScriptMethod(name: "*P2A_Firewall_Make Invulnerable Target Untargetable", eventType: EventTypeEnum.StatusAdd, eventCondition: ["StatusID:regex:^(671)$"], userControl: true)]
     public void P2_防火墙_无敌设置不可选中(Event ev, ScriptAccessory sa)
     {
         if (_parse != 2.2) return;
@@ -863,7 +863,7 @@ public class TopReborn
         sa.SetTargetable(sa.GetById(ev.TargetId), false);
     }
     
-    [ScriptMethod(name: "P2A_防火墙_无敌移除", eventType: EventTypeEnum.StatusRemove, eventCondition: ["StatusID:regex:^(671)$"], userControl: Debugging)]
+    [ScriptMethod(name: "P2A_Firewall_Restore Targetability", eventType: EventTypeEnum.StatusRemove, eventCondition: ["StatusID:regex:^(671)$"], userControl: Debugging)]
     public void P2_防火墙_无敌移除(Event ev, ScriptAccessory sa)
     {
         if (_parse != 2.2) return;
@@ -874,13 +874,13 @@ public class TopReborn
 
     #region P2A 协作程序
 
-    [ScriptMethod(name: "———————— 《P2A 协作程序》 ————————", eventType: EventTypeEnum.NpcYell, eventCondition: ["HelloayaWorld:asdf"],
+    [ScriptMethod(name: "———————— 《P2A Party Synergy》 ————————", eventType: EventTypeEnum.NpcYell, eventCondition: ["HelloayaWorld:asdf"],
         userControl: true)]
     public void P2A_协作程序_分割线(Event ev, ScriptAccessory sa)
     {
     }
     
-    [ScriptMethod(name: "P2A_协作程序_分P", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:31550"], userControl: Debugging)]
+    [ScriptMethod(name: "P2A_Party Synergy_Phase Setup", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:31550"], userControl: Debugging)]
     public void P2A_协作程序_分P(Event ev, ScriptAccessory sa)
     {
         _parse = 2.1;
@@ -892,7 +892,7 @@ public class TopReborn
         _pd.AddPriorities([1, 8, 2, 7, 3, 6, 4, 5]);
     }
     
-    [ScriptMethod(name: "P2A_协作程序_远近记录", eventType: EventTypeEnum.StatusAdd, eventCondition: ["StatusID:regex:^(3427|3428)$"], userControl: Debugging, suppress: 10000)]
+    [ScriptMethod(name: "P2A_Party Synergy_Glitch Type Tracking", eventType: EventTypeEnum.StatusAdd, eventCondition: ["StatusID:regex:^(3427|3428)$"], userControl: Debugging, suppress: 10000)]
     public void P2_协作程序_远近记录(Event ev, ScriptAccessory sa)
     {
         if (_parse != 2.1) return;
@@ -901,7 +901,7 @@ public class TopReborn
         sa.DebugMsg($"记录下协作程序是 {(_p2.协作程序是远线 ? "远" : "近")} 线", Debugging);
     }
     
-    [ScriptMethod(name: "P2A_协作程序_索尼记录", eventType: EventTypeEnum.TargetIcon, eventCondition: ["Id:regex:^(01A[0123])$"], userControl: Debugging)]
+    [ScriptMethod(name: "P2A_Party Synergy_PlayStation Marker Tracking", eventType: EventTypeEnum.TargetIcon, eventCondition: ["Id:regex:^(01A[0123])$"], userControl: Debugging)]
     public void P2_协作程序_索尼记录(Event ev, ScriptAccessory sa)
     {
         if (_parse != 2.1) return;
@@ -935,7 +935,7 @@ public class TopReborn
 
     }
     
-    [ScriptMethod(name: "P2A_协作程序_男女人攻击范围", eventType: EventTypeEnum.PlayActionTimeline, eventCondition: ["Id:7747", "SourceDataId:regex:^(1571[45])$"])]
+    [ScriptMethod(name: "P2A_Party Synergy_Omega-M/F AoEs", eventType: EventTypeEnum.PlayActionTimeline, eventCondition: ["Id:7747", "SourceDataId:regex:^(1571[45])$"])]
     public void P2_协作程序_男女人攻击范围(Event ev, ScriptAccessory sa)
     {
         if (_parse != 2.1) return;
@@ -973,7 +973,7 @@ public class TopReborn
         }
     }
 
-    [ScriptMethod(name: "P2A_协作程序_男女人攻击范围删除", eventType: EventTypeEnum.ActionEffect, eventCondition: ["ActionId:regex:^(3152[56])$"], userControl: Debugging, suppress: 10000)]
+    [ScriptMethod(name: "P2A_Party Synergy_Remove Omega-M/F AoEs", eventType: EventTypeEnum.ActionEffect, eventCondition: ["ActionId:regex:^(3152[56])$"], userControl: Debugging, suppress: 10000)]
     public void P2_协作程序_男女人攻击范围删除(Event ev, ScriptAccessory sa)
     {
         if (_parse != 2.1) return;
@@ -982,7 +982,7 @@ public class TopReborn
         _p2.眼睛激光准备绘图.Set();
     }
 
-    [ScriptMethod(name: "P2A_协作程序_眼睛激光范围", eventType: EventTypeEnum.EnvControl, eventCondition: ["Flag:2"])]
+    [ScriptMethod(name: "P2A_Party Synergy_Optical Laser AoE", eventType: EventTypeEnum.EnvControl, eventCondition: ["Flag:2"])]
     public void P2_协作程序_眼睛激光范围(Event ev, ScriptAccessory sa)
     {
         if (_parse != 2.1) return;
@@ -993,7 +993,7 @@ public class TopReborn
         _p2.眼睛激光准备绘图.Reset();
     }
     
-    [ScriptMethod(name: "P2A_协作程序_眼睛激光与索尼指路删除", eventType: EventTypeEnum.ActionEffect, eventCondition: ["ActionId:31521"], userControl: Debugging)]
+    [ScriptMethod(name: "P2A_Party Synergy_Remove Optical Laser and PlayStation Guidance", eventType: EventTypeEnum.ActionEffect, eventCondition: ["ActionId:31521"], userControl: Debugging)]
     public void P2_协作程序_眼睛激光与索尼指路删除(Event ev, ScriptAccessory sa)
     {
         if (_parse != 2.1) return;
@@ -1001,7 +1001,7 @@ public class TopReborn
         sa.Method.RemoveDraw($"P2_协作程序_索尼站位");
     }
 
-    [ScriptMethod(name: "P2A_协作程序_眼睛激光方位记录", eventType: EventTypeEnum.EnvControl, eventCondition: ["Flag:2"], userControl: Debugging)]
+    [ScriptMethod(name: "P2A_Party Synergy_Optical Laser Direction Tracking", eventType: EventTypeEnum.EnvControl, eventCondition: ["Flag:2"], userControl: Debugging)]
     public void P2_协作程序_眼睛激光方位记录(Event ev, ScriptAccessory sa)
     {
         if (_parse != 2.1) return;
@@ -1012,7 +1012,7 @@ public class TopReborn
         _p2.眼睛激光方位记录.Set();
     }
     
-    [ScriptMethod(name: "P2A_协作程序_索尼站位", eventType: EventTypeEnum.ActionEffect, eventCondition: ["ActionId:regex:^(3152[56])$"],
+    [ScriptMethod(name: "P2A_Party Synergy_PlayStation Positions", eventType: EventTypeEnum.ActionEffect, eventCondition: ["ActionId:regex:^(3152[56])$"],
         userControl: true, suppress: 10000)]
     public void P2_协作程序_索尼站位(Event ev, ScriptAccessory sa)
     {
@@ -1039,7 +1039,7 @@ public class TopReborn
         _p2.眼睛激光方位记录.Reset();
     }
 
-    [ScriptMethod(name: "P2A_协作程序_男人钢铁位置记录", eventType: EventTypeEnum.ActionEffect, eventCondition: ["ActionId:31516"], userControl: Debugging)]
+    [ScriptMethod(name: "P2A_Party Synergy_Omega-M Chariot Position Tracking", eventType: EventTypeEnum.ActionEffect, eventCondition: ["ActionId:31516"], userControl: Debugging)]
     public void P2_协作程序_男人钢铁位置记录(Event ev, ScriptAccessory sa)
     {
         if (_parse != 2.1) return;
@@ -1048,7 +1048,7 @@ public class TopReborn
         _p2.男人钢铁方位记录.Set();
     }
     
-    [ScriptMethod(name: "P2A_协作程序_分摊记录", eventType: EventTypeEnum.TargetIcon, eventCondition: ["Id:0064"], userControl: Debugging)]
+    [ScriptMethod(name: "P2A_Party Synergy_Stack Marker Tracking", eventType: EventTypeEnum.TargetIcon, eventCondition: ["Id:0064"], userControl: Debugging)]
     public void P2_协作程序_分摊站位(Event ev, ScriptAccessory sa)
     {
         if (_parse != 2.1) return;
@@ -1075,7 +1075,7 @@ public class TopReborn
         }
     }
     
-    [ScriptMethod(name: "P2A_协作程序_分摊指路", eventType: EventTypeEnum.ActionEffect, eventCondition: ["ActionId:31521"], userControl: true)]
+    [ScriptMethod(name: "P2A_Party Synergy_Stack Guidance", eventType: EventTypeEnum.ActionEffect, eventCondition: ["ActionId:31521"], userControl: true)]
     public void P2_协作程序_分摊指路(Event ev, ScriptAccessory sa)
     {
         if (_parse != 2.1) return;
@@ -1160,7 +1160,7 @@ public class TopReborn
         }
     }
 
-    [ScriptMethod(name: "P2A_协作程序_女人场中击退记录", eventType: EventTypeEnum.ActionEffect, eventCondition: ["ActionId:31534"],
+    [ScriptMethod(name: "P2A_Party Synergy_Omega-F Center Knockback Tracking", eventType: EventTypeEnum.ActionEffect, eventCondition: ["ActionId:31534"],
         userControl: Debugging, suppress: 10000)]
     public void P2_协作程序_女人击退记录(Event ev, ScriptAccessory sa)
     {
@@ -1168,7 +1168,7 @@ public class TopReborn
         _p2.女人击退记录.Set();
     }
     
-    [ScriptMethod(name: "P2A_协作程序_男人分摊钢铁记录", eventType: EventTypeEnum.ActionEffect, eventCondition: ["ActionId:31526"],
+    [ScriptMethod(name: "P2A_Party Synergy_Omega-M Stack/Chariot Tracking", eventType: EventTypeEnum.ActionEffect, eventCondition: ["ActionId:31526"],
         userControl: Debugging, suppress: 10000)]
     public void P2_协作程序_男人分摊钢铁记录(Event ev, ScriptAccessory sa)
     {
@@ -1180,33 +1180,33 @@ public class TopReborn
 
     #region P2B 刀光剑舞
 
-    [ScriptMethod(name: "———————— 《P2B 刀光剑舞》 ————————", eventType: EventTypeEnum.NpcYell, eventCondition: ["HelloayaWorld:asdf"],
+    [ScriptMethod(name: "———————— 《P2B Limitless Synergy》 ————————", eventType: EventTypeEnum.NpcYell, eventCondition: ["HelloayaWorld:asdf"],
         userControl: true)]
     public void P2B_刀光剑舞_分割线(Event ev, ScriptAccessory sa)
     {
     }
     
-    [ScriptMethod(name: "P2B_刀光剑舞_分P", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:31544"], userControl: Debugging)]
+    [ScriptMethod(name: "P2B_Limitless Synergy_Phase Setup", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:31544"], userControl: Debugging)]
     public void P2_刀光剑舞_分P(Event @event, ScriptAccessory accessory)
     {
         _parse = 2.2;
     }
     
-    [ScriptMethod(name: "P2B_刀光剑舞_射手天箭", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:31539"], userControl: true)]
+    [ScriptMethod(name: "P2B_Limitless Synergy_Optimized Sagittarius Arrow", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:31539"], userControl: true)]
     public void P2_刀光剑舞_射手天剑(Event ev, ScriptAccessory sa)
     {
         if (_parse != 2.2) return;
         sa.DrawRect(ev.SourceId, 1000, 7000, $"P2_刀光剑舞_射手天剑", 0, 10, 42);
     }
     
-    [ScriptMethod(name: "P2B_刀光剑舞_射手天箭删除", eventType: EventTypeEnum.ActionEffect, eventCondition: ["ActionId:31539"], userControl: Debugging)]
+    [ScriptMethod(name: "P2B_Limitless Synergy_Remove Optimized Sagittarius Arrow", eventType: EventTypeEnum.ActionEffect, eventCondition: ["ActionId:31539"], userControl: Debugging)]
     public void P2_刀光剑舞_射手天箭删除(Event ev, ScriptAccessory sa)
     {
         if (_parse != 2.2) return;
         sa.Method.RemoveDraw($"P2_刀光剑舞_射手天箭");
     }
     
-    [ScriptMethod(name: "P2B_刀光剑舞_接线顺劈", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:regex:^(3154[01])$"], userControl: true)]
+    [ScriptMethod(name: "P2B_Limitless Synergy_Optimized Bladedance", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:regex:^(3154[01])$"], userControl: true)]
     public void P2_刀光剑舞_接线顺劈(Event ev, ScriptAccessory sa)
     {
         if (_parse != 2.2) return;
@@ -1216,14 +1216,14 @@ public class TopReborn
         sa.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Fan, dp);
     }
     
-    [ScriptMethod(name: "P2B_刀光剑舞_接线顺劈删除", eventType: EventTypeEnum.ActionEffect, eventCondition: ["ActionId:regex:^(3154[01])$"], userControl: Debugging, suppress: 10000)]
+    [ScriptMethod(name: "P2B_Limitless Synergy_Remove Optimized Bladedance", eventType: EventTypeEnum.ActionEffect, eventCondition: ["ActionId:regex:^(3154[01])$"], userControl: Debugging, suppress: 10000)]
     public void P2_刀光剑舞_接线顺劈删除(Event ev, ScriptAccessory sa)
     {
         if (_parse != 2.2) return;
         sa.Method.RemoveDraw($"P2_刀光剑舞_接线顺劈");
     }
     
-    [ScriptMethod(name: "P2B_刀光剑舞_盾连击指路方向提示", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:31527"], userControl: true)]
+    [ScriptMethod(name: "P2B_Limitless Synergy_Shield Combo Direction Guidance", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:31527"], userControl: true)]
     public void P2_刀光剑舞_盾连击指路方向提示(Event ev, ScriptAccessory sa)
     {
         if (_parse != 2.2) return;
@@ -1242,14 +1242,14 @@ public class TopReborn
             sa.DrawGuidance(Center, 0, 10000, $"P2_刀光剑舞_盾连击指路方向提示");
     }
     
-    [ScriptMethod(name: "P2B_刀光剑舞_盾连击指路方向删除", eventType: EventTypeEnum.ActionEffect, eventCondition: ["ActionId:31527"], userControl: Debugging)]
+    [ScriptMethod(name: "P2B_Limitless Synergy_Remove Shield Combo Direction Guidance", eventType: EventTypeEnum.ActionEffect, eventCondition: ["ActionId:31527"], userControl: Debugging)]
     public void P2_刀光剑舞_盾连击指路方向删除(Event ev, ScriptAccessory sa)
     {
         if (_parse != 2.2) return;
         sa.Method.RemoveDraw($"P2_刀光剑舞_盾连击.*");
     }
     
-    [ScriptMethod(name: "P2B_刀光剑舞_盾连击后分摊", eventType: EventTypeEnum.ActionEffect, eventCondition: ["ActionId:31528", "TargetIndex:1"], userControl: true)]
+    [ScriptMethod(name: "P2B_Limitless Synergy_Post-Shield Stack", eventType: EventTypeEnum.ActionEffect, eventCondition: ["ActionId:31528", "TargetIndex:1"], userControl: true)]
     public void P2_刀光剑舞_盾连击后分摊(Event ev, ScriptAccessory sa)
     {
         if (_parse != 2.2) return;
@@ -1263,7 +1263,7 @@ public class TopReborn
         sa.Method.TTS(targetIsMe ? "Get out!" : "Stack up");
     }
     
-    [ScriptMethod(name: "P2B_刀光剑舞_盾连击后分摊删除", eventType: EventTypeEnum.ActionEffect, eventCondition: ["ActionId:31529", "TargetIndex:1"], userControl: Debugging)]
+    [ScriptMethod(name: "P2B_Limitless Synergy_Remove Post-Shield Stack", eventType: EventTypeEnum.ActionEffect, eventCondition: ["ActionId:31529", "TargetIndex:1"], userControl: Debugging)]
     public void P2_刀光剑舞_盾连击后分摊删除(Event ev, ScriptAccessory sa)
     {
         if (_parse != 2.2) return;
@@ -1274,14 +1274,14 @@ public class TopReborn
 
     #region P2C 转场
 
-    [ScriptMethod(name: "P2C_转场_分P", eventType: EventTypeEnum.ActionEffect, eventCondition: ["ActionId:31507"], userControl: Debugging)]
+    [ScriptMethod(name: "P2C_Transition_Phase Setup", eventType: EventTypeEnum.ActionEffect, eventCondition: ["ActionId:31507"], userControl: Debugging)]
     public void P2C_转场_分P(Event ev, ScriptAccessory sa)
     {
         _parse = 2.5;
         _pd.Init(sa, "P2.5转场");
     }
     
-    [ScriptMethod(name: "P2C_转场_记录头标", eventType: EventTypeEnum.Marker, eventCondition: ["Operate:Add", "Id:regex:^(0[1234679]|10)$"],
+    [ScriptMethod(name: "P2C_Transition_Marker Tracking", eventType: EventTypeEnum.Marker, eventCondition: ["Operate:Add", "Id:regex:^(0[1234679]|10)$"],
         userControl: Debugging)]
     public void P2C_转场_记录头标(Event ev, ScriptAccessory sa)
     {
@@ -1315,7 +1315,7 @@ public class TopReborn
         }
     }
     
-    [ScriptMethod(name: "P2C_转场_初始位置指路", eventType: EventTypeEnum.StatusAdd, eventCondition: ["StatusID:regex:^(3426)$"],
+    [ScriptMethod(name: "P2C_Transition_Initial Position Guidance", eventType: EventTypeEnum.StatusAdd, eventCondition: ["StatusID:regex:^(3426)$"],
         userControl: true, suppress: 10000)]
     public void P2C_转场_初始位置(Event ev, ScriptAccessory sa)
     {
@@ -1354,7 +1354,7 @@ public class TopReborn
         _p2.转场头标记录.Reset();
     }
     
-    [ScriptMethod(name: "P2C_转场_地震", eventType: EventTypeEnum.ActionEffect, eventCondition: ["ActionId:regex:^(3156[789]|31570)$", "TargetIndex:1"],
+    [ScriptMethod(name: "P2C_Transition_Wave Repeater", eventType: EventTypeEnum.ActionEffect, eventCondition: ["ActionId:regex:^(3156[789]|31570)$", "TargetIndex:1"],
         userControl: true)]
     public void P2C_转场_地震(Event ev, ScriptAccessory sa)
     {
@@ -1381,7 +1381,7 @@ public class TopReborn
         sa.Method.RemoveDraw($"P2C_转场_初始位置指路");
     }
 
-    [ScriptMethod(name: "P2C_转场_手臂位置记录", eventType: EventTypeEnum.PlayActionTimeline,
+    [ScriptMethod(name: "P2C_Transition_Arm Unit Position Tracking", eventType: EventTypeEnum.PlayActionTimeline,
         eventCondition: ["Id:regex:^(774[78])$", "SourceDataId:regex:^(1571[89])$"], userControl: Debugging, suppress: 10000)]
     public void P2C_转场_手臂位置记录(Event ev, ScriptAccessory sa)
     {
@@ -1390,7 +1390,7 @@ public class TopReborn
         _p2.转场手臂先正三角 = region % 2 == 1;
     }
     
-    [ScriptMethod(name: "P2C_转场_分摊分散指路", eventType: EventTypeEnum.StartCasting,
+    [ScriptMethod(name: "P2C_Transition_Stack/Spread Guidance", eventType: EventTypeEnum.StartCasting,
         eventCondition: ["ActionId:regex:^(31566)$"], userControl: true, suppress: 10000)]
     public void P2C_转场_分摊分散指路(Event ev, ScriptAccessory sa)
     {
@@ -1421,7 +1421,7 @@ public class TopReborn
         sa.DrawGuidance(movementPos, 2000, 2000, $"P2C_转场_分摊分散指路2");
     }
     
-    [ScriptMethod(name: "*P2C_转场_屏蔽场地月环与手臂钢铁释放后特效", eventType: EventTypeEnum.ActionEffect,
+    [ScriptMethod(name: "*P2C_Transition_Hide Arena Donut and Arm Chariot VFX", eventType: EventTypeEnum.ActionEffect,
         eventCondition: ["ActionId:regex:^(3156[689]|31570)$", "TargetIndex:1"], userControl: true)]
     public void P2C_转场_屏蔽特效(Event ev, ScriptAccessory sa)
     {
@@ -1434,13 +1434,13 @@ public class TopReborn
 
     #region P3A 你好世界
 
-    [ScriptMethod(name: "———————— 《P3A 你好世界》 ————————", eventType: EventTypeEnum.NpcYell, eventCondition: ["HelloayaWorld:asdf"],
+    [ScriptMethod(name: "———————— 《P3A Hello, World》 ————————", eventType: EventTypeEnum.NpcYell, eventCondition: ["HelloayaWorld:asdf"],
         userControl: true)]
     public void P3A_你好世界_分割线(Event ev, ScriptAccessory sa)
     {
     }
     
-    [ScriptMethod(name: "P3A_你好世界_初始八方", eventType: EventTypeEnum.Targetable, eventCondition: ["DataId:15717"], userControl: true)]
+    [ScriptMethod(name: "P3A_Hello, World_Initial Clock Positions", eventType: EventTypeEnum.Targetable, eventCondition: ["DataId:15717"], userControl: true)]
     public void P3A_你好世界_初始八方(Event ev, ScriptAccessory sa)
     {
         if (_parse != 2.5) return;
@@ -1449,7 +1449,7 @@ public class TopReborn
             5000, $"P3A_你好世界_初始八方");
     }
     
-    [ScriptMethod(name: "P3A_你好世界_分P", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:31573"], userControl: Debugging)]
+    [ScriptMethod(name: "P3A_Hello, World_Phase Setup", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:31573"], userControl: Debugging)]
     public void P3A_你好世界_分P(Event ev, ScriptAccessory sa)
     {
         _parse = 3;
@@ -1462,14 +1462,14 @@ public class TopReborn
         ResetSupportUnitVisibility(sa);
     }
     
-    [ScriptMethod(name: "P3A_你好世界_初始八方删除", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:31573"], userControl: Debugging)]
+    [ScriptMethod(name: "P3A_Hello, World_Remove Initial Clock Positions", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:31573"], userControl: Debugging)]
     public void P3A_你好世界_初始八方删除(Event ev, ScriptAccessory sa)
     {
         if (_parse != 3) return;
         sa.Method.RemoveDraw($"P3A_你好世界_初始八方");
     }
     
-    [ScriptMethod(name: "P3A_你好世界_Buff记录", eventType: EventTypeEnum.StatusAdd, eventCondition: ["StatusID:regex:^(343[6789]|3527)$"],
+    [ScriptMethod(name: "P3A_Hello, World_Buff Tracking", eventType: EventTypeEnum.StatusAdd, eventCondition: ["StatusID:regex:^(343[6789]|3527)$"],
         userControl: Debugging)]
     public void P3A_你好世界_Buff记录(Event ev, ScriptAccessory sa)
     {
@@ -1501,7 +1501,7 @@ public class TopReborn
         }
     }
     
-    [ScriptMethod(name: "P3A_你好世界_轮数增加", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:regex:^(31599)$"],
+    [ScriptMethod(name: "P3A_Hello, World_Advance Round", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:regex:^(31599)$"],
         userControl: Debugging)]
     public void P3A_你好世界_轮数增加(Event ev, ScriptAccessory sa)
     {
@@ -1514,7 +1514,7 @@ public class TopReborn
         _p3.你好世界轮数记录.Set();
     }
     
-    [ScriptMethod(name: "P3A_你好世界_红蓝塔方位记录", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:regex:^(3158[34])$"],
+    [ScriptMethod(name: "P3A_Hello, World_Red/Blue Tower Position Tracking", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:regex:^(3158[34])$"],
         userControl: Debugging)]
     public void P3A_你好世界_红蓝塔方位记录(Event ev, ScriptAccessory sa)
     {
@@ -1542,7 +1542,7 @@ public class TopReborn
         }
     }
     
-    [ScriptMethod(name: "P3A_你好世界_初始目的地标注", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:regex:^(31599)$"],
+    [ScriptMethod(name: "P3A_Hello, World_Initial Destination Markers", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:regex:^(31599)$"],
         userControl: true)]
     public void P3A_你好世界_初始目的地标注(Event ev, ScriptAccessory sa)
     {
@@ -1632,7 +1632,7 @@ public class TopReborn
         }
     }
 
-    [ScriptMethod(name: "P3A_你好世界_大圈与近线传毒标注", eventType: EventTypeEnum.ActionEffect, eventCondition: ["ActionId:regex:^(3158[34])$", "TargetIndex:1"],
+    [ScriptMethod(name: "P3A_Hello, World_Defamation/Mid Tether Handoff Markers", eventType: EventTypeEnum.ActionEffect, eventCondition: ["ActionId:regex:^(3158[34])$", "TargetIndex:1"],
         userControl: true, suppress: 500)]
     public void P3A_你好世界_大圈与近线传毒标注(Event ev, ScriptAccessory sa)
     {
@@ -1698,7 +1698,7 @@ public class TopReborn
         }
     }
     
-    [ScriptMethod(name: "P3A_你好世界_轮数记录状态重置", eventType: EventTypeEnum.ActionEffect, eventCondition: ["ActionId:regex:^(3158[34])$", "TargetIndex:1"],
+    [ScriptMethod(name: "P3A_Hello, World_Reset Round Tracking State", eventType: EventTypeEnum.ActionEffect, eventCondition: ["ActionId:regex:^(3158[34])$", "TargetIndex:1"],
         userControl: Debugging, suppress: 500)]
     public void P3A_你好世界_轮数记录状态重置(Event ev, ScriptAccessory sa)
     {
@@ -1707,7 +1707,7 @@ public class TopReborn
         _p3.你好世界轮数记录.Reset();
     }
     
-    [ScriptMethod(name: "P3A_你好世界_大圈与近线传毒标注删除", eventType: EventTypeEnum.StatusAdd, eventCondition: ["StatusID:regex:^(3526|3429)$"], userControl: Debugging)]
+    [ScriptMethod(name: "P3A_Hello, World_Remove Defamation/Mid Tether Handoff Markers", eventType: EventTypeEnum.StatusAdd, eventCondition: ["StatusID:regex:^(3526|3429)$"], userControl: Debugging)]
     public void P3A_你好世界_大圈与近线传毒标注删除(Event ev, ScriptAccessory sa)
     {
         if (_parse != 3) return;
@@ -1721,14 +1721,14 @@ public class TopReborn
         sa.Method.RemoveDraw($"P3A_你好世界_大圈标注_R{_p3.你好世界轮数}.*");
     }
     
-    [ScriptMethod(name: "P3A_你好世界_小钢铁", eventType: EventTypeEnum.StatusAdd, eventCondition: ["StatusID:regex:^(3435|3528)$"], userControl: true)]
+    [ScriptMethod(name: "P3A_Hello, World_Small Chariot", eventType: EventTypeEnum.StatusAdd, eventCondition: ["StatusID:regex:^(3435|3528)$"], userControl: true)]
     public void P3A_你好世界_小钢铁(Event ev, ScriptAccessory sa)
     {
         if (_parse != 3) return;
         sa.DrawCircle(ev.TargetId, 2500, 10000, $"P3A_你好世界_小钢铁_{ev.TargetId}", 5f);
     }
     
-    [ScriptMethod(name: "P3A_你好世界_小钢铁删除", eventType: EventTypeEnum.StatusRemove, eventCondition: ["StatusID:regex:^(3435|3528)$"], userControl: Debugging)]
+    [ScriptMethod(name: "P3A_Hello, World_Remove Small Chariot", eventType: EventTypeEnum.StatusRemove, eventCondition: ["StatusID:regex:^(3435|3528)$"], userControl: Debugging)]
     public void P3A_你好世界_小钢铁删除(Event ev, ScriptAccessory sa)
     {
         if (_parse != 3) return;
@@ -1739,7 +1739,7 @@ public class TopReborn
 
     #region P3B 小电视
 
-    [ScriptMethod(name: "P3B_小电视_分P", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:31588"], userControl: Debugging)]
+    [ScriptMethod(name: "P3B_Oversampled Wave Cannon_Phase Setup", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:31588"], userControl: Debugging)]
     public void P3B_转场_分P(Event ev, ScriptAccessory sa)
     {
         // 使用严重错误读条提前进入小电视
@@ -1748,7 +1748,7 @@ public class TopReborn
         _pd.AddPriorities([3, 4, 1, 2, 5, 6, 7, 8]);
     }
     
-    [ScriptMethod(name: "P3B_小电视_记录头标", eventType: EventTypeEnum.Marker, eventCondition: ["Operate:Add", "Id:regex:^(0[12345678])$"],
+    [ScriptMethod(name: "P3B_Oversampled Wave Cannon_Marker Tracking", eventType: EventTypeEnum.Marker, eventCondition: ["Operate:Add", "Id:regex:^(0[12345678])$"],
         userControl: Debugging)]
     public void P3B_小电视_记录头标(Event ev, ScriptAccessory sa)
     {
@@ -1782,7 +1782,7 @@ public class TopReborn
         }
     }
 
-    [ScriptMethod(name: "P3B_小电视_光头扫描方向记录", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:regex:^(3159[56])$"],
+    [ScriptMethod(name: "P3B_Oversampled Wave Cannon_Oversampled Wave Cannon Direction Tracking", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:regex:^(3159[56])$"],
         userControl: Debugging)]
     public void P3B_小电视_光头扫描方向记录(Event ev, ScriptAccessory sa)
     {
@@ -1792,7 +1792,7 @@ public class TopReborn
         _p3.光头扫描方向记录.Set();
     }
     
-    [ScriptMethod(name: "P3B_小电视_钢铁范围", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:regex:^(3159[56])$"],
+    [ScriptMethod(name: "P3B_Oversampled Wave Cannon_Chariot AoE", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:regex:^(3159[56])$"],
         userControl: true)]
     public void P3B_小电视_钢铁范围(Event ev, ScriptAccessory sa)
     {
@@ -1801,7 +1801,7 @@ public class TopReborn
             sa.DrawCircle(member, 4000, 6000, $"P3B_小电视_钢铁范围", 7f);
     }
     
-    [ScriptMethod(name: "P3B_小电视_指路", eventType: EventTypeEnum.StatusAdd, eventCondition: ["StatusID:regex:^(345[23])$"],
+    [ScriptMethod(name: "P3B_Oversampled Wave Cannon_Guidance", eventType: EventTypeEnum.StatusAdd, eventCondition: ["StatusID:regex:^(345[23])$"],
         userControl: true, suppress: 1000)]
     public void P3B_小电视_指路(Event ev, ScriptAccessory sa)
     {
@@ -1834,7 +1834,7 @@ public class TopReborn
         sa.DrawGuidance(myPos, 0, 10000, $"P3B_小电视_指路");
     }
 
-    [ScriptMethod(name: "P3B_小电视_面向计算", eventType: EventTypeEnum.StatusAdd, eventCondition: ["StatusID:regex:^(345[23])$"], userControl: Debugging)]
+    [ScriptMethod(name: "P3B_Oversampled Wave Cannon_Facing Calculation", eventType: EventTypeEnum.StatusAdd, eventCondition: ["StatusID:regex:^(345[23])$"], userControl: Debugging)]
     public void P3B_小电视_面向计算(Event ev, ScriptAccessory sa)
     {
         if (_parse != 3.1) return;
@@ -1862,7 +1862,7 @@ public class TopReborn
         _p3.小电视玩家面向记录.Set();
     }
     
-    [ScriptMethod(name: "P3B_小电视_面向箭头辅助绘图", eventType: EventTypeEnum.StatusAdd, eventCondition: ["StatusID:regex:^(345[23])$"], userControl: true)]
+    [ScriptMethod(name: "P3B_Oversampled Wave Cannon_Facing Arrow Assist", eventType: EventTypeEnum.StatusAdd, eventCondition: ["StatusID:regex:^(345[23])$"], userControl: true)]
     public void P3B_小电视_面向箭头辅助(Event ev, ScriptAccessory sa)
     {
         if (_parse != 3.1) return;
@@ -1883,7 +1883,7 @@ public class TopReborn
         }
     }
     
-    [ScriptMethod(name: "*P3B_小电视_自动面向辅助", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:regex:^(3159[56])$"], userControl: true)]
+    [ScriptMethod(name: "*P3B_Oversampled Wave Cannon_Auto-face Assist", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:regex:^(3159[56])$"], userControl: true)]
     public void P3B_小电视_自动面向辅助(Event ev, ScriptAccessory sa)
     {
         if (_parse != 3.1) return;
@@ -1918,7 +1918,7 @@ public class TopReborn
         }
     }
     
-    [ScriptMethod(name: "P3B_小电视_处理结束", eventType: EventTypeEnum.ActionEffect, eventCondition: ["ActionId:regex:^(3159[56])$"],
+    [ScriptMethod(name: "P3B_Oversampled Wave Cannon_Mechanic End", eventType: EventTypeEnum.ActionEffect, eventCondition: ["ActionId:regex:^(3159[56])$"],
         userControl: Debugging)]
     public void P3B_小电视_处理结束(Event ev, ScriptAccessory sa)
     {
@@ -1934,13 +1934,13 @@ public class TopReborn
 
     #region P4 蓝屏
 
-    [ScriptMethod(name: "———————— 《P4 蓝屏》 ————————", eventType: EventTypeEnum.NpcYell, eventCondition: ["HelloayaWorld:asdf"],
+    [ScriptMethod(name: "———————— 《P4 Blue Screen》 ————————", eventType: EventTypeEnum.NpcYell, eventCondition: ["HelloayaWorld:asdf"],
         userControl: true)]
     public void P4_蓝屏_分割线(Event ev, ScriptAccessory sa)
     {
     }
     
-    [ScriptMethod(name: "P4_蓝屏_分P", eventType: EventTypeEnum.ActionEffect, eventCondition: ["ActionId:regex:^(31559)$"],
+    [ScriptMethod(name: "P4_Blue Screen_Phase Setup", eventType: EventTypeEnum.ActionEffect, eventCondition: ["ActionId:regex:^(31559)$"],
         userControl: Debugging)]
     public void P4_蓝屏_分P(Event ev, ScriptAccessory sa)
     {
@@ -1951,7 +1951,7 @@ public class TopReborn
         _p4.BossId = ev.SourceId;
     }
     
-    [ScriptMethod(name: "P4_蓝屏_每轮波动炮初始化", eventType: EventTypeEnum.ActionEffect, eventCondition: ["ActionId:regex:^(3161[05])$"], userControl: Debugging, suppress: 1000)]
+    [ScriptMethod(name: "P4_Blue Screen_Initialize Wave Cannon Round", eventType: EventTypeEnum.ActionEffect, eventCondition: ["ActionId:regex:^(3161[05])$"], userControl: Debugging, suppress: 1000)]
     public void P4_蓝屏_每轮波动炮初始化(Event ev, ScriptAccessory sa)
     {
         if (_parse != 4) return;
@@ -1964,7 +1964,7 @@ public class TopReborn
         _p4.波动炮初始化记录.Set();
     }
     
-    [ScriptMethod(name: "P4_蓝屏_波动炮八方指路", eventType: EventTypeEnum.ActionEffect, eventCondition: ["ActionId:regex:^(3161[05])$"],
+    [ScriptMethod(name: "P4_Blue Screen_Wave Cannon Clock Guidance", eventType: EventTypeEnum.ActionEffect, eventCondition: ["ActionId:regex:^(3161[05])$"],
         userControl: true, suppress: 1000)]
     public void P4_蓝屏_波动炮八方指路(Event ev, ScriptAccessory sa)
     {
@@ -1991,7 +1991,7 @@ public class TopReborn
         }
     }
     
-    [ScriptMethod(name: "*P4_蓝屏_波动炮八方指路移除", eventType: EventTypeEnum.ActionEffect, eventCondition: ["ActionId:31614"], userControl: Debugging)]
+    [ScriptMethod(name: "*P4_Blue Screen_Remove Wave Cannon Clock Guidance", eventType: EventTypeEnum.ActionEffect, eventCondition: ["ActionId:31614"], userControl: Debugging)]
     public void P4_蓝屏_波动炮八方指路移除(Event ev, ScriptAccessory sa)
     {
         if (_parse != 4) return;
@@ -1999,7 +1999,7 @@ public class TopReborn
         _p4.波动炮初始化记录.Reset();
     }
     
-    [ScriptMethod(name: "P4_蓝屏_地震", eventType: EventTypeEnum.ActionEffect, eventCondition: ["ActionId:regex:^(3156[789]|31570)$", "TargetIndex:1"],
+    [ScriptMethod(name: "P4_Blue Screen_Wave Repeater", eventType: EventTypeEnum.ActionEffect, eventCondition: ["ActionId:regex:^(3156[789]|31570)$", "TargetIndex:1"],
         userControl: true)]
     public void P4_蓝屏_地震(Event ev, ScriptAccessory sa)
     {
@@ -2023,7 +2023,7 @@ public class TopReborn
         sa.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Donut, dp);
     }
     
-    [ScriptMethod(name: "P4_蓝屏_波动炮分摊目标记录", eventType: EventTypeEnum.ActionEffect, eventCondition: ["ActionId:regex:^(22393)$"], userControl: Debugging)]
+    [ScriptMethod(name: "P4_Blue Screen_Wave Cannon Stack Target Tracking", eventType: EventTypeEnum.ActionEffect, eventCondition: ["ActionId:regex:^(22393)$"], userControl: Debugging)]
     public void P4_蓝屏_波动炮分摊目标记录(Event ev, ScriptAccessory sa)
     {
         if (_parse != 4) return;
@@ -2031,7 +2031,7 @@ public class TopReborn
             _pd.AddPriority(sa.GetPlayerIdIndex((uint)ev.TargetId), 10);
     }
     
-    [ScriptMethod(name: "P4_蓝屏_分摊绘图", eventType: EventTypeEnum.ActionEffect, eventCondition: ["ActionId:31614"], userControl: true, suppress: 1000)]
+    [ScriptMethod(name: "P4_Blue Screen_Stack AoE Visualization", eventType: EventTypeEnum.ActionEffect, eventCondition: ["ActionId:31614"], userControl: true, suppress: 1000)]
     public void P4_蓝屏_分摊绘图(Event ev, ScriptAccessory sa)
     {
         if (_parse != 4) return;
@@ -2046,7 +2046,7 @@ public class TopReborn
         }
     }
     
-    [ScriptMethod(name: "P4_蓝屏_分摊指路", eventType: EventTypeEnum.ActionEffect, eventCondition: ["ActionId:31614"], userControl: true, suppress: 1000)]
+    [ScriptMethod(name: "P4_Blue Screen_Stack Guidance", eventType: EventTypeEnum.ActionEffect, eventCondition: ["ActionId:31614"], userControl: true, suppress: 1000)]
     public void P4_蓝屏_分摊指路(Event ev, ScriptAccessory sa)
     {
         if (_parse != 4) return;
@@ -2062,21 +2062,21 @@ public class TopReborn
         sa.DrawGuidance(myPos, 0, 10000, $"P4_蓝屏_R{_p4.蓝屏波动炮轮数}_分摊指路");
     }
 
-    [ScriptMethod(name: "P4_蓝屏_第二段波动炮", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:31616"], userControl: true)]
+    [ScriptMethod(name: "P4_Blue Screen_Second Wave Cannon", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:31616"], userControl: true)]
     public void P4_蓝屏_第二段波动炮(Event ev, ScriptAccessory sa)
     {
         if (_parse != 4) return;
         sa.DrawRect(ev.SourceId, 0, 10000, $"P4_蓝屏_第二段波动炮", 0, 6, 50);
     }
     
-    [ScriptMethod(name: "P4_蓝屏_第二段波动炮移除", eventType: EventTypeEnum.ActionEffect, eventCondition: ["ActionId:31616"], userControl: Debugging, suppress: 1000)]
+    [ScriptMethod(name: "P4_Blue Screen_Remove Second Wave Cannon", eventType: EventTypeEnum.ActionEffect, eventCondition: ["ActionId:31616"], userControl: Debugging, suppress: 1000)]
     public void P4_蓝屏_第二段波动炮移除(Event ev, ScriptAccessory sa)
     {
         if (_parse != 4) return;
         sa.Method.RemoveDraw($"P4_蓝屏_第二段波动炮");
     }
     
-    [ScriptMethod(name: "*P4_蓝屏_屏蔽场地月环特效", eventType: EventTypeEnum.ActionEffect,
+    [ScriptMethod(name: "*P4_Blue Screen_Hide Arena Donut VFX", eventType: EventTypeEnum.ActionEffect,
         eventCondition: ["ActionId:regex:^(3156[689]|31570)$", "TargetIndex:1"], userControl: true)]
     public void P4_蓝屏_屏蔽特效(Event ev, ScriptAccessory sa)
     {
@@ -2085,7 +2085,7 @@ public class TopReborn
         sa.WriteVisible(sa.GetById((uint)ev.SourceId), false);
     }
     
-    [ScriptMethod(name: "*P4_蓝屏_屏蔽第一段波动炮特效", eventType: EventTypeEnum.ActionEffect, eventCondition: ["ActionId:31614"], userControl: true)]
+    [ScriptMethod(name: "*P4_Blue Screen_Hide First Wave Cannon VFX", eventType: EventTypeEnum.ActionEffect, eventCondition: ["ActionId:31614"], userControl: true)]
     public void P4_蓝屏_屏蔽第一段波动炮特效(Event ev, ScriptAccessory sa)
     {
         if (_parse != 4) return;
@@ -2093,7 +2093,7 @@ public class TopReborn
         sa.WriteVisible(sa.GetById(ev.SourceId), false);
     }
     
-    [ScriptMethod(name: "*P4_蓝屏_屏蔽第二段波动炮特效", eventType: EventTypeEnum.ActionEffect, eventCondition: ["ActionId:31616"], userControl: true)]
+    [ScriptMethod(name: "*P4_Blue Screen_Hide Second Wave Cannon VFX", eventType: EventTypeEnum.ActionEffect, eventCondition: ["ActionId:31616"], userControl: true)]
     public void P4_蓝屏_屏蔽第二段波动炮特效(Event ev, ScriptAccessory sa)
     {
         if (_parse != 4) return;
@@ -2101,7 +2101,7 @@ public class TopReborn
         sa.WriteVisible(sa.GetById(ev.SourceId), false);
     }
     
-    [ScriptMethod(name: "*P4_蓝屏_屏蔽分摊波动炮特效", eventType: EventTypeEnum.ActionEffect, eventCondition: ["ActionId:31615"], userControl: true)]
+    [ScriptMethod(name: "*P4_Blue Screen_Hide Wave Cannon Stack VFX", eventType: EventTypeEnum.ActionEffect, eventCondition: ["ActionId:31615"], userControl: true)]
     public void P4_蓝屏_屏蔽分摊波动炮特效(Event ev, ScriptAccessory sa)
     {
         if (_parse != 4) return;
@@ -2113,20 +2113,20 @@ public class TopReborn
 
     #region P5A 一运一传
     
-    [ScriptMethod(name: "———————— 《P5A1 一运》 ————————", eventType: EventTypeEnum.NpcYell, eventCondition: ["HelloayaWorld:asdf"],
+    [ScriptMethod(name: "———————— 《P5A1 Run: ****mi* (Delta Version)》 ————————", eventType: EventTypeEnum.NpcYell, eventCondition: ["HelloayaWorld:asdf"],
         userControl: true)]
     public void P5_一运_分割线(Event ev, ScriptAccessory sa)
     {
     }
     
-    [ScriptMethod(name: "P5_开场_分P", eventType: EventTypeEnum.ActionEffect, eventCondition: ["ActionId:31621"],
+    [ScriptMethod(name: "P5_Opening_Phase Setup", eventType: EventTypeEnum.ActionEffect, eventCondition: ["ActionId:31621"],
         userControl: Debugging)]
     public void P5_开场_分P(Event ev, ScriptAccessory sa)
     {
         _parse = 5.0;
     }
 
-    [ScriptMethod(name: "P5A1_一运_分P", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:31624"],
+    [ScriptMethod(name: "P5A1_Delta_Phase Setup", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:31624"],
         userControl: Debugging)]
     public void P5A1_一运_分P(Event ev, ScriptAccessory sa)
     {
@@ -2142,7 +2142,7 @@ public class TopReborn
         sa.DebugMsg($"当前阶段为：{_parse}", Debugging);
     }
     
-    [ScriptMethod(name: "P5A1_一运_眼睛激光", eventType: EventTypeEnum.EnvControl, eventCondition: ["DirectorId:800375AC", "Id:00020001"])]
+    [ScriptMethod(name: "P5A1_Delta_Optical Laser", eventType: EventTypeEnum.EnvControl, eventCondition: ["DirectorId:800375AC", "Id:00020001"])]
     public void P5A1_一运_眼睛激光(Event ev, ScriptAccessory sa)
     {
         if (_parse != 5.1) return;
@@ -2152,14 +2152,14 @@ public class TopReborn
         sa.DrawRect(eyePos, Center, 7500, 12500, "P5A1_一运_眼睛激光", 0, 16, 40);
     }
     
-    [ScriptMethod(name: "P5A1_一运_眼睛激光删除", eventType: EventTypeEnum.ActionEffect, eventCondition: ["ActionId:31521"], userControl: Debugging)]
+    [ScriptMethod(name: "P5A1_Delta_Remove Optical Laser", eventType: EventTypeEnum.ActionEffect, eventCondition: ["ActionId:31521"], userControl: Debugging)]
     public void P5A1_一运_眼睛激光删除(Event ev, ScriptAccessory sa)
     {
         if (_parse != 5.1) return;
         sa.Method.RemoveDraw($"P5A1_一运_眼睛激光");
     }
     
-    [ScriptMethod(name: "P5A1_一运_远线记录", eventType: EventTypeEnum.Tether, eventCondition: ["Id:00C9"], userControl: Debugging)]
+    [ScriptMethod(name: "P5A1_Delta_Remote Glitch Tracking", eventType: EventTypeEnum.Tether, eventCondition: ["Id:00C9"], userControl: Debugging)]
     public void P5A1_一运_远线记录(Event ev, ScriptAccessory sa)
     {
         if (_parse != 5.1) return;
@@ -2180,7 +2180,7 @@ public class TopReborn
         }
     }
     
-    [ScriptMethod(name: "P5A1_一运_记录头标", eventType: EventTypeEnum.Marker, eventCondition: ["Operate:Add", "Id:regex:^(1[34])$"],
+    [ScriptMethod(name: "P5A1_Delta_Marker Tracking", eventType: EventTypeEnum.Marker, eventCondition: ["Operate:Add", "Id:regex:^(1[34])$"],
         userControl: Debugging)]
     public void P5A1_一运_记录头标(Event ev, ScriptAccessory sa)
     {
@@ -2208,7 +2208,7 @@ public class TopReborn
         }
     }
     
-    [ScriptMethod(name: "P5A1_一运_定位光头", eventType: EventTypeEnum.PlayActionTimeline, eventCondition: ["SourceDataId:14669", "Id:7747"],
+    [ScriptMethod(name: "P5A1_Delta_Locate Reconfigured Omega", eventType: EventTypeEnum.PlayActionTimeline, eventCondition: ["SourceDataId:14669", "Id:7747"],
         userControl: Debugging)]
     public void P5A1_一运_定位光头(Event ev, ScriptAccessory sa)
     {
@@ -2221,7 +2221,7 @@ public class TopReborn
         _p5A.光头蟑螂定位.Set();
     } 
     
-    [ScriptMethod(name: "P5A1_一运_初始位置指路", eventType: EventTypeEnum.PlayActionTimeline, eventCondition: ["SourceDataId:14669", "Id:7747"],
+    [ScriptMethod(name: "P5A1_Delta_Initial Position Guidance", eventType: EventTypeEnum.PlayActionTimeline, eventCondition: ["SourceDataId:14669", "Id:7747"],
         userControl: true)]
     public void P5A1_一运_初始位置指路(Event ev, ScriptAccessory sa)
     {
@@ -2289,7 +2289,7 @@ public class TopReborn
         }
     }
     
-    [ScriptMethod(name: "P5A1_一运_记录拳头", eventType: EventTypeEnum.AddCombatant, eventCondition: ["DataId:regex:^(157(09|10))$"], userControl: Debugging)]
+    [ScriptMethod(name: "P5A1_Delta_Rocket Punch Tracking", eventType: EventTypeEnum.AddCombatant, eventCondition: ["DataId:regex:^(157(09|10))$"], userControl: Debugging)]
     public void P5A1_一运_记录拳头(Event ev, ScriptAccessory sa)
     {
         if (_parse != 5.1) return;
@@ -2371,7 +2371,7 @@ public class TopReborn
         }
     }
     
-    [ScriptMethod(name: "P5A1_一运_拳头待命指路", eventType: EventTypeEnum.AddCombatant, eventCondition: ["DataId:regex:^(157(09|10))$"],
+    [ScriptMethod(name: "P5A1_Delta_Rocket Punch Waiting Guidance", eventType: EventTypeEnum.AddCombatant, eventCondition: ["DataId:regex:^(157(09|10))$"],
         userControl: true, suppress: 10000)]
     public void P5A1_一运_拳头待命指路(Event ev, ScriptAccessory sa)
     {
@@ -2452,7 +2452,7 @@ public class TopReborn
         }
     }
     
-    [ScriptMethod(name: "P5A1_一运_激光手旋转引导位置", eventType: EventTypeEnum.TargetIcon, eventCondition: ["Id:regex:^(009[CD])$"], userControl: true)]
+    [ScriptMethod(name: "P5A1_Delta_Arm Unit Rotation Bait Position", eventType: EventTypeEnum.TargetIcon, eventCondition: ["Id:regex:^(009[CD])$"], userControl: true)]
     public void P5A1_一运_激光手旋转引导位置(Event ev, ScriptAccessory sa)
     {
         if (_parse != 5.1) return;
@@ -2475,7 +2475,7 @@ public class TopReborn
         }
     }
     
-    [ScriptMethod(name: "P5A1_一运_玩家引导激光手指路", eventType: EventTypeEnum.ActionEffect, eventCondition: ["ActionId:31587"], userControl: true)]
+    [ScriptMethod(name: "P5A1_Delta_Arm Unit Bait Guidance", eventType: EventTypeEnum.ActionEffect, eventCondition: ["ActionId:31587"], userControl: true)]
     public void P5A1_一运_玩家引导激光手指路(Event ev, ScriptAccessory sa)
     {
         if (_parse != 5.1) return;
@@ -2540,7 +2540,7 @@ public class TopReborn
             posTarget.GetRadian(posCenter).GetDiffRad(posReference.GetRadian(posCenter)) > 0;
     }
     
-    [ScriptMethod(name: "P5A1_一运_玩家引导激光手指路刷新", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:31482"],
+    [ScriptMethod(name: "P5A1_Delta_Refresh Arm Unit Bait Guidance", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:31482"],
         userControl: Debugging, suppress: 10000)]
     public void P5A1_一运_玩家引导激光手指路刷新(Event ev, ScriptAccessory sa)
     {
@@ -2560,7 +2560,7 @@ public class TopReborn
         sa.DrawGuidance(armUnitPos, 0, 4000, $"P5A1_一运_引导拳头");
     }
     
-    [ScriptMethod(name: "P5A1_一运_转转手引导指路删除", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:31600"],
+    [ScriptMethod(name: "P5A1_Delta_Remove Rotating Arm Guidance", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:31600"],
         userControl: Debugging, suppress: 10000)]
     public void P5A1_一运_转转手引导指路删除(Event ev, ScriptAccessory sa)
     {
@@ -2577,7 +2577,7 @@ public class TopReborn
     /// 拳头阶段的预站位判定（比同象限两人到场心的距离）可能与实际引导的手不符，
     /// 这里按实际站位反推场内外与左右侧并覆盖记录，供转转手后待命指路与一传指路使用。
     /// </summary>
-    [ScriptMethod(name: "P5A1_一运_激光手引导校正", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:31600"],
+    [ScriptMethod(name: "P5A1_Delta_Arm Unit Bait Correction", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:31600"],
         userControl: Debugging, suppress: 10000)]
     public void P5A1_一运_激光手引导校正(Event ev, ScriptAccessory sa)
     {
@@ -2627,7 +2627,7 @@ public class TopReborn
         }
     }
 
-    [ScriptMethod(name: "P5A1_一运_玩家场中盾引导指路", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:31482"],
+    [ScriptMethod(name: "P5A1_Delta_Center Shield Bait Guidance", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:31482"],
         userControl: true, suppress: 10000)]
     public void P5A1_一运_玩家场中盾引导指路(Event ev, ScriptAccessory sa)
     {
@@ -2642,7 +2642,7 @@ public class TopReborn
         sa.DrawGuidance(centerBiasPos, 0, 3000, $"P5A1_一运_场中盾连击引导");
     }
     
-    [ScriptMethod(name: "P5A1_一运_转转手引导后近线待命指路", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:31600"],
+    [ScriptMethod(name: "P5A1_Delta_Mid Glitch Waiting Guidance After Arm Bait", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:31600"],
         userControl: true, suppress: 10000)]
     public void P5A1_一运_转转手引导后近线待命指路(Event ev, ScriptAccessory sa)
     {
@@ -2669,7 +2669,7 @@ public class TopReborn
         sa.DrawGuidance(standByPos, 0, 6000, $"P5A1_一运_转转手引导后近线待命指路");
     }
     
-    [ScriptMethod(name: "P5A1_一运_光头左右扫描记录", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:regex:^(3163[89])$"],
+    [ScriptMethod(name: "P5A1_Delta_Oversampled Wave Cannon Side Tracking", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:regex:^(3163[89])$"],
         userControl: Debugging)]
     public void P5A1_一运_光头左右扫描记录(Event ev, ScriptAccessory sa)
     {
@@ -2678,7 +2678,7 @@ public class TopReborn
         _p5A.光头左右扫描 = ev.ActionId == OMEGA_RIGHT_CANNON ? 1 : 2;
     }
     
-    [ScriptMethod(name: "P5A1_一运_玩家小电视Buff记录", eventType: EventTypeEnum.StatusAdd, eventCondition: ["StatusID:regex:^(345[23])$"],
+    [ScriptMethod(name: "P5A1_Delta_Player Monitor Buff Tracking", eventType: EventTypeEnum.StatusAdd, eventCondition: ["StatusID:regex:^(345[23])$"],
         userControl: Debugging)]
     public void P5A1_一运_玩家小电视Buff记录(Event ev, ScriptAccessory sa)
     {
@@ -2689,7 +2689,7 @@ public class TopReborn
         _p5A.玩家左右扫描 = ev.StatusId == PLAYER_RIGHT_CANNON ? 1 : 2; // 右刀1，左刀2
     }
         
-    [ScriptMethod(name: "P5A1_一运_盾连击目标记录", eventType: EventTypeEnum.ActionEffect, eventCondition: ["ActionId:31528", "TargetIndex:1"],
+    [ScriptMethod(name: "P5A1_Delta_Beyond Defense Target Tracking", eventType: EventTypeEnum.ActionEffect, eventCondition: ["ActionId:31528", "TargetIndex:1"],
         userControl: Debugging)]
     public void P5A1_一运_盾连击目标记录(Event ev, ScriptAccessory sa)
     {
@@ -2700,7 +2700,7 @@ public class TopReborn
         _p5A.盾连击记录.Set();
     }
     
-    [ScriptMethod(name: "P5A1_一运_分摊与小电视指路", eventType: EventTypeEnum.ActionEffect, eventCondition: ["ActionId:31528"],
+    [ScriptMethod(name: "P5A1_Delta_Stack and Monitor Guidance", eventType: EventTypeEnum.ActionEffect, eventCondition: ["ActionId:31528"],
         userControl: true)]
     public void P5A1_一运_分摊与小电视指路(Event ev, ScriptAccessory sa)
     {
@@ -2771,7 +2771,7 @@ public class TopReborn
         }
     }
 
-    [ScriptMethod(name: "*P5A1_一运_小电视自动面向辅助", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:regex:^(3163[89])$"], userControl: true)]
+    [ScriptMethod(name: "*P5A1_Delta_Monitor Auto-face Assist", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:regex:^(3163[89])$"], userControl: true)]
     public void P5A1_一运_小电视自动面向辅助(Event ev, ScriptAccessory sa)
     {
         if (_parse != 5.1) return;
@@ -2806,14 +2806,14 @@ public class TopReborn
         }
     }
 
-    [ScriptMethod(name: "P5A1_一运_小电视自动面向辅助关闭", eventType: EventTypeEnum.ActionEffect, eventCondition: ["ActionId:regex:^(3163[89])$"], userControl: Debugging)]
+    [ScriptMethod(name: "P5A1_Delta_Disable Monitor Auto-face Assist", eventType: EventTypeEnum.ActionEffect, eventCondition: ["ActionId:regex:^(3163[89])$"], userControl: Debugging)]
     public void P5A1_一运_小电视自动面向辅助关闭(Event ev, ScriptAccessory sa)
     {
         if (_parse != 5.1) return;
         sa.Method.UnregistFrameworkUpdateAction(_p5A.小电视面向辅助Framework);
     }
     
-    [ScriptMethod(name: "P5A1_一运_绘图删除准备一传", eventType: EventTypeEnum.ActionEffect, eventCondition: ["ActionId:regex:^(31529)$"],
+    [ScriptMethod(name: "P5A1_Delta_Clear Drawings for First Pass", eventType: EventTypeEnum.ActionEffect, eventCondition: ["ActionId:regex:^(31529)$"],
         userControl: Debugging)]
     public void P5A1_一运_绘图删除准备一传(Event ev, ScriptAccessory sa)
     {
@@ -2828,13 +2828,13 @@ public class TopReborn
         sa.DebugMsg($"一传：经矫正，{_pd.ShowPriorities()}", Debugging);
     }
     
-    [ScriptMethod(name: "———————— 《P5A2 一传》 ————————", eventType: EventTypeEnum.NpcYell, eventCondition: ["HelloayaWorld:asdf"],
+    [ScriptMethod(name: "———————— 《P5A2 Delta - First Pass》 ————————", eventType: EventTypeEnum.NpcYell, eventCondition: ["HelloayaWorld:asdf"],
         userControl: true)]
     public void P5A2_一传_分割线(Event ev, ScriptAccessory sa)
     {
     }
     
-    [ScriptMethod(name: "P5A2_一传_蟑螂左右刀记录", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:regex:^(3163[67])$"],
+    [ScriptMethod(name: "P5A2_Delta First Pass_Beetle Omega Swivel Cannon Tracking", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:regex:^(3163[67])$"],
         userControl: Debugging)]
     public void P5A2_一传_蟑螂左右刀记录(Event ev, ScriptAccessory sa)
     {
@@ -2844,7 +2844,7 @@ public class TopReborn
         _p5A.蟑螂左右刀记录.Set();
     }
         
-    [ScriptMethod(name: "P5A2_一传_蟑螂左右刀", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:regex:^(3163[67])$"],
+    [ScriptMethod(name: "P5A2_Delta First Pass_Beetle Omega Swivel Cannon", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:regex:^(3163[67])$"],
         userControl: true)]
     public void P5A2_一传_蟑螂左右刀(Event ev, ScriptAccessory sa)
     {
@@ -2854,7 +2854,7 @@ public class TopReborn
         sa.DrawFan(ev.SourceId, 0, 10000, $"P5A2_一传_蟑螂左右刀", 210f.DegToRad(), rot, 90, 0);
     }
     
-    [ScriptMethod(name: "P5A2_一传_指路", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:regex:^(3163[67])$"],
+    [ScriptMethod(name: "P5A2_Delta First Pass_Guidance", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:regex:^(3163[67])$"],
     userControl: true)]
     public void P5A25_一传_指路(Event ev, ScriptAccessory sa)
     {
@@ -2924,7 +2924,7 @@ public class TopReborn
         }
     }
     
-    [ScriptMethod(name: "P5A2_一传_指路移除", eventType: EventTypeEnum.ActionEffect, eventCondition: ["ActionId:regex:^(3163[67])$"],
+    [ScriptMethod(name: "P5A2_Delta First Pass_Remove Guidance", eventType: EventTypeEnum.ActionEffect, eventCondition: ["ActionId:regex:^(3163[67])$"],
         userControl: Debugging)]
     public void P5A2_一传_指路移除(Event ev, ScriptAccessory sa)
     {
@@ -2936,13 +2936,13 @@ public class TopReborn
 
     #region P5B 二运二传
 
-    [ScriptMethod(name: "———————— 《P5B1 二运》 ————————", eventType: EventTypeEnum.NpcYell, eventCondition: ["HelloayaWorld:asdf"],
+    [ScriptMethod(name: "———————— 《P5B1 Run: ****mi* (Sigma Version)》 ————————", eventType: EventTypeEnum.NpcYell, eventCondition: ["HelloayaWorld:asdf"],
         userControl: true)]
     public void P5B1_二运_分割线(Event ev, ScriptAccessory sa)
     {
     }
     
-    [ScriptMethod(name: "P5B1_二运_分P", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:32788"],
+    [ScriptMethod(name: "P5B1_Sigma_Phase Setup", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:32788"],
         userControl: Debugging)]
     public void P5B1_二运_分P(Event ev, ScriptAccessory sa)
     {
@@ -2958,7 +2958,7 @@ public class TopReborn
         sa.DebugMsg($"当前阶段为：{_parse}", Debugging);
     }
     
-    [ScriptMethod(name: "P5B1_二运_获取男人位置", eventType: EventTypeEnum.PlayActionTimeline, eventCondition: ["Id:7747", "SourceDataId:15720"], userControl: Debugging)]
+    [ScriptMethod(name: "P5B1_Sigma_Omega-M Position Tracking", eventType: EventTypeEnum.PlayActionTimeline, eventCondition: ["Id:7747", "SourceDataId:15720"], userControl: Debugging)]
     public void P5B1_二运_获取男人位置(Event ev, ScriptAccessory sa)
     {
         if (_parse != 5.2) return;
@@ -2967,7 +2967,7 @@ public class TopReborn
         sa.DebugMsg($"P5B1_二运_获取男人位置：{region} / 16", Debugging);
     }
     
-    [ScriptMethod(name: "P5B1_二运_获取远近线", eventType: EventTypeEnum.StatusAdd, eventCondition: ["StatusID:regex:^(342[78])$"], userControl: Debugging, suppress: 1000)]
+    [ScriptMethod(name: "P5B1_Sigma_Glitch Type Tracking", eventType: EventTypeEnum.StatusAdd, eventCondition: ["StatusID:regex:^(342[78])$"], userControl: Debugging, suppress: 1000)]
     public void P5B1_二运_获取远近线(Event ev, ScriptAccessory sa)
     {
         if (_parse != 5.2) return;
@@ -2976,7 +2976,7 @@ public class TopReborn
         sa.DebugMsg($"记录下协作程序是 {(_p5B.协作程序是远线 ? "远" : "近")} 线", Debugging);
     }
     
-    [ScriptMethod(name: "P5B1_二运_索尼记录", eventType: EventTypeEnum.TargetIcon, eventCondition: ["Id:regex:^(01A[0123])$"],
+    [ScriptMethod(name: "P5B1_Sigma_PlayStation Marker Tracking", eventType: EventTypeEnum.TargetIcon, eventCondition: ["Id:regex:^(01A[0123])$"],
         userControl: Debugging)]
     public void P5B1_二运_索尼记录(Event ev, ScriptAccessory sa)
     {
@@ -3000,7 +3000,7 @@ public class TopReborn
         }
     }
 
-    [ScriptMethod(name: "P5B1_二运_波动炮点名记录", eventType: EventTypeEnum.TargetIcon, eventCondition: ["Id:00F4"],
+    [ScriptMethod(name: "P5B1_Sigma_Wave Cannon Target Tracking", eventType: EventTypeEnum.TargetIcon, eventCondition: ["Id:00F4"],
         userControl: Debugging)]
     public async void P5B1_二运_波动炮点名记录(Event ev, ScriptAccessory sa)
     {
@@ -3051,7 +3051,7 @@ public class TopReborn
         _ => $"未知({槽})"
     };
 
-    [ScriptMethod(name: "P5B1_二运_获取八方头标", eventType: EventTypeEnum.Marker, eventCondition: ["Operate:Add", "Id:regex:^(0[1234678]|11|12)$"],
+    [ScriptMethod(name: "P5B1_Sigma_Clock Marker Tracking", eventType: EventTypeEnum.Marker, eventCondition: ["Operate:Add", "Id:regex:^(0[1234678]|11|12)$"],
         userControl: Debugging)]
     public void P5B1_二运_获取八方头标(Event ev, ScriptAccessory sa)
     {
@@ -3219,7 +3219,7 @@ public class TopReborn
         }
     }
 
-    [ScriptMethod(name: "P5B1_二运_八方波动炮站位", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:regex:^(31603)$"],
+    [ScriptMethod(name: "P5B1_Sigma_Wave Cannon Clock Positions", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:regex:^(31603)$"],
         userControl: true)]
     public void P5B1_二运_八方波动炮站位(Event ev, ScriptAccessory sa)
     {
@@ -3251,7 +3251,7 @@ public class TopReborn
         sa.DrawGuidance(myPos, 0, 10000, $"P5B1_二运_八方波动炮站位");
     }
 
-    [ScriptMethod(name: "P5B1_二运_八方波动炮结束", eventType: EventTypeEnum.ActionEffect, eventCondition: ["ActionId:regex:^(31603)$"],
+    [ScriptMethod(name: "P5B1_Sigma_Wave Cannon Clock End", eventType: EventTypeEnum.ActionEffect, eventCondition: ["ActionId:regex:^(31603)$"],
         userControl: Debugging)]
     public void P5B1_二运_八方波动炮结束(Event ev, ScriptAccessory sa)
     {
@@ -3261,7 +3261,7 @@ public class TopReborn
         _parse = 5.21;
     }
 
-    [ScriptMethod(name: "P5B1_二运_塔收集", eventType: EventTypeEnum.ObjectChanged, eventCondition: ["Operate:Add", "DataId:regex:^(201324[56])$"],
+    [ScriptMethod(name: "P5B1_Sigma_Tower Collection", eventType: EventTypeEnum.ObjectChanged, eventCondition: ["Operate:Add", "DataId:regex:^(201324[56])$"],
         userControl: Debugging)]
     public void P5B1_二运_塔收集(Event ev, ScriptAccessory sa)
     {
@@ -3279,7 +3279,7 @@ public class TopReborn
         }
     }
     
-    [ScriptMethod(name: "P5B1_二运_踩塔击退点", eventType: EventTypeEnum.ObjectChanged, eventCondition: ["DataId:regex:^(201324[56])$"],
+    [ScriptMethod(name: "P5B1_Sigma_Tower Knockback Position", eventType: EventTypeEnum.ObjectChanged, eventCondition: ["DataId:regex:^(201324[56])$"],
         userControl: true, suppress: 1000)]
     public void P5B1_二运_踩塔击退点(Event ev, ScriptAccessory sa)
     {
@@ -3309,7 +3309,7 @@ public class TopReborn
         sa.DebugMsg($"当前阶段为：{_parse}", Debugging);
     }
     
-    [ScriptMethod(name: "P5B1_二运_踩塔位置提示", eventType: EventTypeEnum.ActionEffect, eventCondition: ["ActionId:regex:^(31534)$"],
+    [ScriptMethod(name: "P5B1_Sigma_Tower Position Reminder", eventType: EventTypeEnum.ActionEffect, eventCondition: ["ActionId:regex:^(31534)$"],
         userControl: true, suppress: 1000)]
     public void P5B1_二运_踩塔位置提示(Event ev, ScriptAccessory sa)
     {
@@ -3318,7 +3318,7 @@ public class TopReborn
         sa.Method.TextInfo(text, 3000);
     }
     
-    [ScriptMethod(name: "P5B1_二运_踩塔击退后删除绘图", eventType: EventTypeEnum.ActionEffect, eventCondition: ["ActionId:regex:^(31534)$"],
+    [ScriptMethod(name: "P5B1_Sigma_Clear Drawings After Tower Knockback", eventType: EventTypeEnum.ActionEffect, eventCondition: ["ActionId:regex:^(31534)$"],
         userControl: Debugging)]
     public void P5B1_二运_踩塔击退后删除绘图(Event ev, ScriptAccessory sa)
     {
@@ -3327,7 +3327,7 @@ public class TopReborn
         _p5B.塔方位记录完毕.Reset();
     }
     
-    [ScriptMethod(name: "P5B1_二运_塔消失转阶段（废弃）", eventType: EventTypeEnum.ObjectChanged, eventCondition: ["Operate:Remove", "DataId:regex:^(201324[56])$"],
+    [ScriptMethod(name: "P5B1_Sigma_Tower Despawn Phase Transition (Deprecated)", eventType: EventTypeEnum.ObjectChanged, eventCondition: ["Operate:Remove", "DataId:regex:^(201324[56])$"],
         userControl: Debugging, suppress: 1000)]
     public void P5B1_二运_塔消失转阶段(Event ev, ScriptAccessory sa)
     {
@@ -3338,13 +3338,13 @@ public class TopReborn
         // sa.DebugMsg($"当前阶段为：{_parse}", Debugging);
     }
     
-    [ScriptMethod(name: "———————— 《P5B2 二传》 ————————", eventType: EventTypeEnum.NpcYell, eventCondition: ["HelloayaWorld:asdf"],
+    [ScriptMethod(name: "———————— 《P5B2 Sigma - Second Pass》 ————————", eventType: EventTypeEnum.NpcYell, eventCondition: ["HelloayaWorld:asdf"],
         userControl: true)]
     public void P5B2_二传_分割线(Event ev, ScriptAccessory sa)
     {
     }
     
-    [ScriptMethod(name: "P5B2_二传_获取转圈头标", eventType: EventTypeEnum.Marker, eventCondition: ["Operate:Add", "Id:regex:^(0[123467]|1[34])$"],
+    [ScriptMethod(name: "P5B2_Sigma Second Pass_Rotation Marker Tracking", eventType: EventTypeEnum.Marker, eventCondition: ["Operate:Add", "Id:regex:^(0[123467]|1[34])$"],
         userControl: Debugging)]
     public void P5B2_二传_获取转圈头标(Event ev, ScriptAccessory sa)
     {
@@ -3378,7 +3378,7 @@ public class TopReborn
         }
     }
     
-    [ScriptMethod(name: "P5B2_二传_获取女人位置与技能", eventType: EventTypeEnum.PlayActionTimeline, eventCondition: ["Id:7747", "SourceDataId:15720"], userControl: Debugging)]
+    [ScriptMethod(name: "P5B2_Sigma Second Pass_Omega-F Position/Attack Tracking", eventType: EventTypeEnum.PlayActionTimeline, eventCondition: ["Id:7747", "SourceDataId:15720"], userControl: Debugging)]
     public void P5B2_二传_获取女人位置与技能(Event ev, ScriptAccessory sa)
     {
         if (_parse != 5.25) return;
@@ -3398,7 +3398,7 @@ public class TopReborn
         _p5B.女人技能记录完毕.Set();
     }
     
-    [ScriptMethod(name: "P5B2_二传_获取圆环旋转方向", eventType: EventTypeEnum.TargetIcon, eventCondition: ["Id:regex:^(009[CD])$"], userControl: Debugging)]
+    [ScriptMethod(name: "P5B2_Sigma Second Pass_Ring Rotation Tracking", eventType: EventTypeEnum.TargetIcon, eventCondition: ["Id:regex:^(009[CD])$"], userControl: Debugging)]
     public void P5B2_二传_获取圆环旋转方向(Event ev, ScriptAccessory sa)
     {
         if (_parse != 5.25) return;
@@ -3408,7 +3408,7 @@ public class TopReborn
         _p5B.圆环方向记录完毕.Set();
     }
     
-    [ScriptMethod(name: "P5B2_二传_圆环直线与起跑位置", eventType: EventTypeEnum.TargetIcon, eventCondition: ["Id:regex:^(009[CD])$"], userControl: true)]
+    [ScriptMethod(name: "P5B2_Sigma Second Pass_Ring Line and Starting Position", eventType: EventTypeEnum.TargetIcon, eventCondition: ["Id:regex:^(009[CD])$"], userControl: true)]
     public void P5B2_二传_圆环直线与起跑位置(Event ev, ScriptAccessory sa)
     {
         if (_parse != 5.25) return;
@@ -3429,14 +3429,14 @@ public class TopReborn
         sa.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Straight, dp);
     }
     
-    [ScriptMethod(name: "P5B2_二传_获得圆环Id", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:regex:^(31631)$"], userControl: Debugging)]
+    [ScriptMethod(name: "P5B2_Sigma Second Pass_Ring ID Tracking", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:regex:^(31631)$"], userControl: Debugging)]
     public void P5B2_二传_获得圆环Id(Event ev, ScriptAccessory sa)
     {
         if (_parse != 5.25) return;
         _p5B.圆环Id = ev.SourceId;
     }
     
-    [ScriptMethod(name: "P5B2_二传_圆环释放第一条", eventType: EventTypeEnum.ActionEffect, eventCondition: ["ActionId:regex:^(31631)$", "TargetIndex:1"], userControl: Debugging)]
+    [ScriptMethod(name: "P5B2_Sigma Second Pass_First Ring Line Resolution", eventType: EventTypeEnum.ActionEffect, eventCondition: ["ActionId:regex:^(31631)$", "TargetIndex:1"], userControl: Debugging)]
     public void P5B2_二传_圆环释放第一条(Event ev, ScriptAccessory sa)
     {
         if (_parse != 5.25) return;
@@ -3449,7 +3449,7 @@ public class TopReborn
         sa.Method.RemoveDraw($"P5B2_二传_圆环直线与起跑位置_起跑位置");
     }
     
-    [ScriptMethod(name: "P5B2_二传_圆环攻击绘图", eventType: EventTypeEnum.ActionEffect,
+    [ScriptMethod(name: "P5B2_Sigma Second Pass_Ring AoE Visualization", eventType: EventTypeEnum.ActionEffect,
         eventCondition: ["ActionId:regex:^(31631)$", "TargetIndex:1"], userControl: true)]
     public void P5B2_二传_圆环攻击绘图(Event ev, ScriptAccessory sa)
     {
@@ -3465,7 +3465,7 @@ public class TopReborn
     }
     
         
-    [ScriptMethod(name: "P5B2_二传_圆环攻击绘图删除", eventType: EventTypeEnum.ActionEffect,
+    [ScriptMethod(name: "P5B2_Sigma Second Pass_Remove Ring AoE Visualization", eventType: EventTypeEnum.ActionEffect,
         eventCondition: ["ActionId:regex:^(31632)$", "TargetIndex:1"], userControl: Debugging)]
     public void P5B2_二传_圆环攻击绘图删除(Event ev, ScriptAccessory sa)
     {
@@ -3474,7 +3474,7 @@ public class TopReborn
         _p5B.圆环攻击次数++;
     }
     
-    [ScriptMethod(name: "P5B2_二传_女人攻击范围绘图", eventType: EventTypeEnum.ActionEffect, eventCondition: ["ActionId:regex:^(31631)$", "TargetIndex:1"], userControl: true)]
+    [ScriptMethod(name: "P5B2_Sigma Second Pass_Omega-F AoE Visualization", eventType: EventTypeEnum.ActionEffect, eventCondition: ["ActionId:regex:^(31631)$", "TargetIndex:1"], userControl: true)]
     public void P5B2_二传_女人攻击范围绘图(Event ev, ScriptAccessory sa)
     {
         if (_parse != 5.25) return;
@@ -3495,7 +3495,7 @@ public class TopReborn
         }
     }
     
-    [ScriptMethod(name: "P5B2_二传_穿入或停留提示", eventType: EventTypeEnum.ActionEffect, eventCondition: ["ActionId:regex:^(31631)$", "TargetIndex:1"], userControl: true)]
+    [ScriptMethod(name: "P5B2_Sigma Second Pass_Move In / Stay Reminder", eventType: EventTypeEnum.ActionEffect, eventCondition: ["ActionId:regex:^(31631)$", "TargetIndex:1"], userControl: true)]
     public void P5B2_二传_穿入或停留提示(Event ev, ScriptAccessory sa)
     {
         if (_parse != 5.25) return;
@@ -3503,7 +3503,7 @@ public class TopReborn
         sa.Method.TextInfo(text, 1500, true);
     }
     
-    [ScriptMethod(name: "*P5B2_二传_女人十字暂时移除大圆环", eventType: EventTypeEnum.ActionEffect, eventCondition: ["ActionId:regex:^(31631)$", "TargetIndex:1"], userControl: true)]
+    [ScriptMethod(name: "*P5B2_Sigma Second Pass_Temporarily Hide Large Ring for Omega-F Cross", eventType: EventTypeEnum.ActionEffect, eventCondition: ["ActionId:regex:^(31631)$", "TargetIndex:1"], userControl: true)]
     public void P5B2_二传_女人十字暂时移除大圆环(Event ev, ScriptAccessory sa)
     {
         if (_parse != 5.25) return;
@@ -3513,7 +3513,7 @@ public class TopReborn
         sa.WriteVisible(sa.GetById(_p5B.圆环Id), false);
     }
     
-    [ScriptMethod(name: "P5B2_二传_女人释放技能", eventType: EventTypeEnum.ActionEffect,
+    [ScriptMethod(name: "P5B2_Sigma Second Pass_Omega-F Attack Resolution", eventType: EventTypeEnum.ActionEffect,
         eventCondition: ["ActionId:regex:^(3153[123])$", "TargetIndex:1"], userControl: Debugging, suppress: 1000)]
     public void P5B2_二传_女人释放技能(Event ev, ScriptAccessory sa)
     {
@@ -3526,7 +3526,7 @@ public class TopReborn
         sa.WriteVisible(sa.GetById(_p5B.圆环Id), true);
     }
     
-    [ScriptMethod(name: "P5B2_二传_指路", eventType: EventTypeEnum.ActionEffect,
+    [ScriptMethod(name: "P5B2_Sigma Second Pass_Guidance", eventType: EventTypeEnum.ActionEffect,
         eventCondition: ["ActionId:regex:^(3153[123])$", "TargetIndex:1"], userControl: true, suppress: 1000)]
     public void P5B2_二传_指路(Event ev, ScriptAccessory sa)
     {
@@ -3557,7 +3557,7 @@ public class TopReborn
         sa.DrawGuidance(safePos, 0, 10000, $"P5B2_二传_指路");
     }
     
-    [ScriptMethod(name: "P5A2_二传_处理结束", eventType: EventTypeEnum.ActionEffect, eventCondition: ["ActionId:regex:^(31625|33040)$"],
+    [ScriptMethod(name: "P5A2_Second Pass_Mechanic End", eventType: EventTypeEnum.ActionEffect, eventCondition: ["ActionId:regex:^(31625|33040)$"],
         userControl: Debugging)]
     public void P5A2_二传_处理结束(Event ev, ScriptAccessory sa)
     {
@@ -3570,13 +3570,13 @@ public class TopReborn
     
     #region P5C 三运三传
 
-    [ScriptMethod(name: "———————— 《P5C1 三运》 ————————", eventType: EventTypeEnum.NpcYell, eventCondition: ["HelloayaWorld:asdf"],
+    [ScriptMethod(name: "———————— 《P5C1 Run: ****mi* (Omega Version)》 ————————", eventType: EventTypeEnum.NpcYell, eventCondition: ["HelloayaWorld:asdf"],
         userControl: true)]
     public void P5C1_三运_分割线(Event ev, ScriptAccessory sa)
     {
     }
     
-    [ScriptMethod(name: "P5C1_三运_分P", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:32789"],
+    [ScriptMethod(name: "P5C1_Omega_Phase Setup", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:32789"],
         userControl: Debugging)]
     public void P5C1_三运_分P(Event ev, ScriptAccessory sa)
     {
@@ -3592,7 +3592,7 @@ public class TopReborn
         sa.DebugMsg($"当前阶段为：{_parse}", Debugging);
     }
 
-    [ScriptMethod(name: "P5C1_三运_获取男女组合技", eventType: EventTypeEnum.PlayActionTimeline,
+    [ScriptMethod(name: "P5C1_Omega_Omega-M/F Combo Tracking", eventType: EventTypeEnum.PlayActionTimeline,
         eventCondition: ["Id:7747", "SourceDataId:regex:^(15721|15722)$"], userControl: Debugging)]
     public void P5C1_三运_获取男女组合技(Event ev, ScriptAccessory sa)
     {
@@ -3618,7 +3618,7 @@ public class TopReborn
         }
     }
     
-    [ScriptMethod(name: "P5C1_三运_获取光头组合技和安全点", eventType: EventTypeEnum.StartCasting,
+    [ScriptMethod(name: "P5C1_Omega_Reconfigured Omega Combo and Safe Spot Tracking", eventType: EventTypeEnum.StartCasting,
         eventCondition: ["ActionId:regex:^(3164[34])$"], userControl: Debugging)]
     public void P5C1_三运_获取光头组合技和安全点(Event ev, ScriptAccessory sa)
     {
@@ -3644,7 +3644,7 @@ public class TopReborn
         }
     }
 
-    [ScriptMethod(name: "*P5C1_三运_出现的男女人与光头缩小", eventType: EventTypeEnum.PlayActionTimeline,
+    [ScriptMethod(name: "*P5C1_Omega_Shrink Spawned Omega-M/F and Reconfigured Omega", eventType: EventTypeEnum.PlayActionTimeline,
         eventCondition: ["Id:7747", "SourceDataId:regex:^(15721|15722|14669)$"], userControl: true)]
     public void P5C1_三运_出现的男女人与光头缩小(Event ev, ScriptAccessory sa)
     {
@@ -3654,7 +3654,7 @@ public class TopReborn
         sa.ScaleModify(obj, 0.4f);
     }
 
-    [ScriptMethod(name: "P5C1_三运_组合技攻击范围绘图", eventType: EventTypeEnum.StartCasting,
+    [ScriptMethod(name: "P5C1_Omega_Combo AoE Visualization", eventType: EventTypeEnum.StartCasting,
         eventCondition: ["ActionId:regex:^(3164[34])$"], userControl: true)]
     public void P5C1_三运_组合技攻击范围绘图(Event ev, ScriptAccessory sa)
     {
@@ -3719,7 +3719,7 @@ public class TopReborn
         }
     }
 
-    [ScriptMethod(name: "P5C1_三运_安全点指路", eventType: EventTypeEnum.StartCasting,
+    [ScriptMethod(name: "P5C1_Omega_Safe Spot Guidance", eventType: EventTypeEnum.StartCasting,
         eventCondition: ["ActionId:regex:^(3164[34])$"], userControl: true)]
     public void P5C1_三运_安全点指路(Event ev, ScriptAccessory sa)
     {
@@ -3767,7 +3767,7 @@ public class TopReborn
         }
     }
 
-    [ScriptMethod(name: "P5C1_三运_第一段组合技结束", eventType: EventTypeEnum.ActionEffect,
+    [ScriptMethod(name: "P5C1_Omega_First Combo End", eventType: EventTypeEnum.ActionEffect,
         eventCondition: ["ActionId:regex:^(3152[56])$"], userControl: Debugging)]
     public void P5C1_三运_第一段组合技结束(Event ev, ScriptAccessory sa)
     {
@@ -3775,7 +3775,7 @@ public class TopReborn
         _p5C.第一段组合技结束.Set();
     }
     
-    [ScriptMethod(name: "P5C1_三运_前半运动会组合技结束", eventType: EventTypeEnum.ActionEffect,
+    [ScriptMethod(name: "P5C1_Omega_First Half Combo End", eventType: EventTypeEnum.ActionEffect,
         eventCondition: ["ActionId:regex:^(3160[78])$"], userControl: Debugging)]
     public void P5C1_三运_前半运动会组合技结束(Event ev, ScriptAccessory sa)
     {
@@ -3787,13 +3787,13 @@ public class TopReborn
         sa.DebugMsg($"当前阶段为：{_parse}", Debugging);
     }
 
-    [ScriptMethod(name: "———————— 《P5C2 三传》 ————————", eventType: EventTypeEnum.NpcYell, eventCondition: ["HelloayaWorld:asdf"],
+    [ScriptMethod(name: "———————— 《P5C2 Omega - Third Pass》 ————————", eventType: EventTypeEnum.NpcYell, eventCondition: ["HelloayaWorld:asdf"],
         userControl: true)]
     public void P5C2_三传_分割线(Event ev, ScriptAccessory sa)
     {
     }
     
-    [ScriptMethod(name: "P5C2_三传_分P", eventType: EventTypeEnum.NpcYell, eventCondition: ["HelloayaWorld:asdf"],
+    [ScriptMethod(name: "P5C2_Omega Third Pass_Phase Setup", eventType: EventTypeEnum.NpcYell, eventCondition: ["HelloayaWorld:asdf"],
         userControl: Debugging)]
     public void P5B2_三传_分P(Event ev, ScriptAccessory sa)
     {
@@ -3801,7 +3801,7 @@ public class TopReborn
         sa.DebugMsg($"当前阶段为：{_parse}", Debugging);
     }
     
-    [ScriptMethod(name: "P5C2_三传_获取三传头标", eventType: EventTypeEnum.Marker, eventCondition: ["Operate:Add", "Id:regex:^(0[123467]|1[34])$"],
+    [ScriptMethod(name: "P5C2_Omega Third Pass_Third Pass Marker Tracking", eventType: EventTypeEnum.Marker, eventCondition: ["Operate:Add", "Id:regex:^(0[123467]|1[34])$"],
         userControl: Debugging)]
     public void P5C2_三传_获取三传头标(Event ev, ScriptAccessory sa)
     {
@@ -3835,7 +3835,7 @@ public class TopReborn
         }
     }
 
-    [ScriptMethod(name: "P5C2_三传_光头扫描范围", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:regex:^(3163[89])$"],
+    [ScriptMethod(name: "P5C2_Omega Third Pass_Reconfigured Omega Monitor AoE", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:regex:^(3163[89])$"],
         userControl: true)]
     public void P5C2_三传_光头扫描范围(Event ev, ScriptAccessory sa)
     {
@@ -3848,7 +3848,7 @@ public class TopReborn
         sa.DrawFan(Center, 0, 10000, $"P5C2_三传_光头扫描范围", float.Pi, rotation, 40, 0, isSafe);
     }
 
-    [ScriptMethod(name: "P5C2_三传_指路", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:regex:^(3163[89])$"],
+    [ScriptMethod(name: "P5C2_Omega Third Pass_Guidance", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:regex:^(3163[89])$"],
         userControl: true)]
     public void P5C2_三传_指路(Event ev, ScriptAccessory sa)
     {
@@ -3877,7 +3877,7 @@ public class TopReborn
         sa.DrawGuidance(safePos, 0, 10000, $"P5C2_三传_指路");
     }
     
-    [ScriptMethod(name: "P5C2_三传_欧米茄扫描结束三传结束", eventType: EventTypeEnum.ActionEffect, eventCondition: ["ActionId:regex:^(3163[89])$"],
+    [ScriptMethod(name: "P5C2_Omega Third Pass_Reconfigured Omega Monitor End / Third Pass End", eventType: EventTypeEnum.ActionEffect, eventCondition: ["ActionId:regex:^(3163[89])$"],
         userControl: Debugging)]
     public void P5C3_三传_欧米茄扫描结束三传结束(Event ev, ScriptAccessory sa)
     {
@@ -3889,13 +3889,13 @@ public class TopReborn
         sa.DebugMsg($"当前阶段为：{_parse}", Debugging);
     }
     
-    [ScriptMethod(name: "———————— 《P5C3 四传》 ————————", eventType: EventTypeEnum.NpcYell, eventCondition: ["HelloayaWorld:asdf"],
+    [ScriptMethod(name: "———————— 《P5C3 Omega - Fourth Pass》 ————————", eventType: EventTypeEnum.NpcYell, eventCondition: ["HelloayaWorld:asdf"],
         userControl: true)]
     public void P5C3_四传_分割线(Event ev, ScriptAccessory sa)
     {
     }
     
-    [ScriptMethod(name: "P5C3_四传_获取四传头标", eventType: EventTypeEnum.Marker, eventCondition: ["Operate:Add", "Id:regex:^(0[123467]|1[34])$"],
+    [ScriptMethod(name: "P5C3_Omega Fourth Pass_Fourth Pass Marker Tracking", eventType: EventTypeEnum.Marker, eventCondition: ["Operate:Add", "Id:regex:^(0[123467]|1[34])$"],
         userControl: Debugging)]
     public void P5C3_四传_获取四传头标(Event ev, ScriptAccessory sa)
     {
@@ -3984,7 +3984,7 @@ public class TopReborn
         sa.DebugMsg($"{_pd.ShowPriorities()}", Debugging);
     }
 
-    [ScriptMethod(name: "P5C3_四传_蟑螂方位记录", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:32374"], userControl: Debugging)]
+    [ScriptMethod(name: "P5C3_Omega Fourth Pass_Beetle Omega Position Tracking", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:32374"], userControl: Debugging)]
     public void P5C3_四传_蟑螂方位记录(Event ev, ScriptAccessory sa)
     {
         if (_parse != 5.38) return;
@@ -3996,7 +3996,7 @@ public class TopReborn
         P5C3_四传_等待头标(sa);   // 标点都在读条前打完，放在这里兜底，指路/接线被关掉也不影响
     }
 
-    [ScriptMethod(name: "P5C3_四传_指路", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:32374"], userControl: true)]
+    [ScriptMethod(name: "P5C3_Omega Fourth Pass_Guidance", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:32374"], userControl: true)]
     public void P5C3_四传_指路(Event ev, ScriptAccessory sa)
     {
         if (_parse != 5.38) return;
@@ -4035,7 +4035,7 @@ public class TopReborn
         };
     }
 
-    [ScriptMethod(name: "P5C3_四传_结束", eventType: EventTypeEnum.ActionEffect, eventCondition: ["ActionId:32374"],
+    [ScriptMethod(name: "P5C3_Omega Fourth Pass_End", eventType: EventTypeEnum.ActionEffect, eventCondition: ["ActionId:32374"],
         userControl: Debugging)]
     public void P5C3_四传_结束(Event ev, ScriptAccessory sa)
     {
@@ -4048,7 +4048,7 @@ public class TopReborn
         sa.Method.RemoveDraw($"P5.*");
     }
 
-    [ScriptMethod(name: "P5C3_四传_接线范围", eventType: EventTypeEnum.Tether, eventCondition: ["Id:0059"],
+    [ScriptMethod(name: "P5C3_Omega Fourth Pass_Tether AoE", eventType: EventTypeEnum.Tether, eventCondition: ["Id:0059"],
         userControl: true)]
     public void P5C3_四传_接线范围(Event ev, ScriptAccessory sa)
     {
@@ -4103,13 +4103,13 @@ public class TopReborn
 
     #region P6 宇宙记忆
     
-    [ScriptMethod(name: "———————— 《P6 宇宙记忆》 ————————", eventType: EventTypeEnum.NpcYell, eventCondition: ["HelloayaWorld:asdf"],
+    [ScriptMethod(name: "———————— 《P6 Cosmo Memory》 ————————", eventType: EventTypeEnum.NpcYell, eventCondition: ["HelloayaWorld:asdf"],
         userControl: true)]
     public void P6_普通攻击_分割线(Event ev, ScriptAccessory sa)
     {
     }
     
-    [ScriptMethod(name: "P6_宇宙记忆_分P", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:31649"],
+    [ScriptMethod(name: "P6_Cosmo Memory_Phase Setup", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:31649"],
         userControl: Debugging)]
     public void P6_宇宙记忆_分P(Event ev, ScriptAccessory sa)
     {
@@ -4121,7 +4121,7 @@ public class TopReborn
         sa.DebugMsg($"当前阶段为：{_parse}", Debugging);
     }
     
-    [ScriptMethod(name: "P6_普通攻击绘图", eventType: EventTypeEnum.ActionEffect, eventCondition: ["ActionId:31649", "TargetIndex:1"],
+    [ScriptMethod(name: "P6_Auto-attack Visualization", eventType: EventTypeEnum.ActionEffect, eventCondition: ["ActionId:31649", "TargetIndex:1"],
         userControl: true)]
     public void P6_普通攻击绘图(Event ev, ScriptAccessory sa)
     {
@@ -4218,7 +4218,7 @@ public class TopReborn
         }
     }
     
-    [ScriptMethod(name: "P6_宇宙龙炎_绘图", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:31654"],
+    [ScriptMethod(name: "P6_Cosmo Dive_Visualization", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:31654"],
         userControl: true)]
     public void P6_宇宙龙炎_绘图(Event ev, ScriptAccessory sa)
     {
@@ -4242,7 +4242,7 @@ public class TopReborn
         sa.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Donut, dp3);
     }
     
-    [ScriptMethod(name: "P6_宇宙龙炎_绘图删除", eventType: EventTypeEnum.ActionEffect, eventCondition: ["ActionId:31655"],
+    [ScriptMethod(name: "P6_Cosmo Dive_Remove Visualization", eventType: EventTypeEnum.ActionEffect, eventCondition: ["ActionId:31655"],
         userControl: Debugging, suppress: 500)]
     public void P6A_宇宙龙炎_绘图删除(Event ev, ScriptAccessory sa)
     {
@@ -4264,7 +4264,7 @@ public class TopReborn
         _p6.宇宙龙炎绘图开启.Reset();
     }
 
-    [ScriptMethod(name: "P6_波动炮_分摊位置绘图", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:31657"],
+    [ScriptMethod(name: "P6_Wave Cannon_Stack Position Visualization", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:31657"],
         userControl: true)]
     public void P6_波动炮_分摊位置绘图(Event ev, ScriptAccessory sa)
     {
@@ -4275,7 +4275,7 @@ public class TopReborn
         sa.DrawGuidance(stackPos, 0, 10000, $"P6_波动炮_分摊位置绘图");
     }
     
-    [ScriptMethod(name: "P6_波动炮_八方攻击计数", eventType: EventTypeEnum.ActionEffect, eventCondition: ["ActionId:31659"],
+    [ScriptMethod(name: "P6_Wave Cannon_Clock AoE Counter", eventType: EventTypeEnum.ActionEffect, eventCondition: ["ActionId:31659"],
         userControl: Debugging, suppress: 500)]
     public void P6_波动炮_八方攻击计数(Event ev, ScriptAccessory sa)
     {
@@ -4287,7 +4287,7 @@ public class TopReborn
         _p6.波动炮分摊绘图开启.Set();
     }
     
-    [ScriptMethod(name: "P6_波动炮_分摊绘图删除", eventType: EventTypeEnum.ActionEffect, eventCondition: ["ActionId:31658"],
+    [ScriptMethod(name: "P6_Wave Cannon_Remove Stack Visualization", eventType: EventTypeEnum.ActionEffect, eventCondition: ["ActionId:31658"],
         userControl: Debugging, suppress: 500)]
     public void P6_波动炮_分摊绘图删除(Event ev, ScriptAccessory sa)
     {
@@ -4312,7 +4312,7 @@ public class TopReborn
     
     #region P6A 宇宙天箭
 
-    [ScriptMethod(name: "———————— 《P6A 宇宙天箭》 ————————", eventType: EventTypeEnum.NpcYell, eventCondition: ["HelloayaWorld:asdf"],
+    [ScriptMethod(name: "———————— 《P6A Cosmo Arrow》 ————————", eventType: EventTypeEnum.NpcYell, eventCondition: ["HelloayaWorld:asdf"],
         userControl: true)]
     public void P6A_宇宙天箭_分割线(Event ev, ScriptAccessory sa)
     {
@@ -4355,7 +4355,7 @@ public class TopReborn
     private static Vector3 二运天箭末段站位(int idx)
         => 天箭指路点(天箭指路图案[二运天箭指路分配[idx].图案组][^1], 二运天箭指路分配[idx].旋转);
 
-    [ScriptMethod(name: "P6A_宇宙天箭_分P", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:31650"],
+    [ScriptMethod(name: "P6A_Cosmo Arrow_Phase Setup", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:31650"],
         userControl: Debugging)]
     public void P6A_宇宙天箭_分P(Event ev, ScriptAccessory sa)
     {
@@ -4366,7 +4366,7 @@ public class TopReborn
         _p6.宇宙天箭读条开始.Set();
     }
     
-    [ScriptMethod(name: "P6A_宇宙天箭_类型判断", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:31651"],
+    [ScriptMethod(name: "P6A_Cosmo Arrow_Pattern Detection", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:31651"],
         userControl: Debugging, suppress: 1000)]
     public void P6A_宇宙天箭_类型判断(Event ev, ScriptAccessory sa)
     {
@@ -4381,7 +4381,7 @@ public class TopReborn
         sa.DebugMsg($"P6A_宇宙天箭_类型判断：阶段 {_parse} 的宇宙天箭，类型为 {(_p6.宇宙天箭是内天箭 ? "内" : "外")} 天箭", Debugging);
     }
     
-    [ScriptMethod(name: "P6A_宇宙天箭_读条完毕", eventType: EventTypeEnum.ActionEffect, eventCondition: ["ActionId:31650"],
+    [ScriptMethod(name: "P6A_Cosmo Arrow_Cast Complete", eventType: EventTypeEnum.ActionEffect, eventCondition: ["ActionId:31650"],
         userControl: Debugging)]
     public void P6A_宇宙天箭_读条完毕(Event ev, ScriptAccessory sa)
     {
@@ -4389,7 +4389,7 @@ public class TopReborn
         _p6.宇宙天箭读条开始.Reset();
     }
     
-    [ScriptMethod(name: "*P6A_宇宙天箭_屏蔽特效", eventType: EventTypeEnum.ActionEffect,
+    [ScriptMethod(name: "*P6A_Cosmo Arrow_Hide VFX", eventType: EventTypeEnum.ActionEffect,
         eventCondition: ["ActionId:regex:^(3165[12])$", "TargetIndex:1"], userControl: true)]
     public void P6A_宇宙天箭_屏蔽特效(Event ev, ScriptAccessory sa)
     {
@@ -4399,7 +4399,7 @@ public class TopReborn
         sa.WriteVisible(sa.GetById(ev.SourceId), false);
     }
     
-    [ScriptMethod(name: "P6A_宇宙天箭_判定次数增加", eventType: EventTypeEnum.ActionEffect, eventCondition: ["ActionId:regex:^(3165[12])$"],
+    [ScriptMethod(name: "P6A_Cosmo Arrow_Advance Pattern Step", eventType: EventTypeEnum.ActionEffect, eventCondition: ["ActionId:regex:^(3165[12])$"],
         userControl: Debugging, suppress: 500)]
     public void P6A_宇宙天箭_判定次数增加(Event ev, ScriptAccessory sa)
     {
@@ -4420,7 +4420,7 @@ public class TopReborn
         }
     }
     
-    [ScriptMethod(name: "P6A_宇宙天箭_绘图", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:31650"],
+    [ScriptMethod(name: "P6A_Cosmo Arrow_Visualization", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:31650"],
         userControl: true)]
     public void P6A_宇宙天箭_绘图(Event ev, ScriptAccessory sa)
     {
@@ -4464,7 +4464,7 @@ public class TopReborn
         }
     }
     
-    [ScriptMethod(name: "P6A_宇宙天箭_指路", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:31650"],
+    [ScriptMethod(name: "P6A_Cosmo Arrow_Guidance", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:31650"],
         userControl: true)]
     public void P6A_宇宙天箭_指路(Event ev, ScriptAccessory sa)
     {
@@ -4523,13 +4523,13 @@ public class TopReborn
 
     #region P6B 解限波动炮
 
-    [ScriptMethod(name: "———————— 《P6B 解限波动炮》 ————————", eventType: EventTypeEnum.NpcYell, eventCondition: ["HelloayaWorld:asdf"],
+    [ScriptMethod(name: "———————— 《P6B Unlimited Wave Cannon》 ————————", eventType: EventTypeEnum.NpcYell, eventCondition: ["HelloayaWorld:asdf"],
         userControl: true)]
     public void P6B_解限波动炮_分割线(Event ev, ScriptAccessory sa)
     {
     }
     
-    [ScriptMethod(name: "P6B_解限波动炮_分P", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:31660"],
+    [ScriptMethod(name: "P6B_Unlimited Wave Cannon_Phase Setup", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:31660"],
         userControl: Debugging)]
     public void P6B_解限波动炮_分P(Event ev, ScriptAccessory sa)
     {
@@ -4538,7 +4538,7 @@ public class TopReborn
         _p6.ResetAutoAttack(sa, false);
     }
     
-    [ScriptMethod(name: "P6B_解限波动炮_指路场中", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:31660"],
+    [ScriptMethod(name: "P6B_Unlimited Wave Cannon_Center Guidance", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:31660"],
         userControl: true)]
     public void P6B_解限波动炮_指路场中(Event ev, ScriptAccessory sa)
     {
@@ -4546,7 +4546,7 @@ public class TopReborn
         sa.DrawGuidance(Center, 0, 10000, $"P6A_解限波动炮_指路场中");
     }
     
-    [ScriptMethod(name: "P6B_解限波动炮_计算跑动方向", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:31661"],
+    [ScriptMethod(name: "P6B_Unlimited Wave Cannon_Calculate Rotation Direction", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:31661"],
         userControl: Debugging)]
     public void P6B_解限波动炮_计算跑动方向(Event ev, ScriptAccessory sa)
     {
@@ -4565,7 +4565,7 @@ public class TopReborn
         }
     }
     
-    [ScriptMethod(name: "P6B_解限波动炮_跑动方向绘图", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:31660"],
+    [ScriptMethod(name: "P6B_Unlimited Wave Cannon_Rotation Path Visualization", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:31660"],
         userControl: true)]
     public void P6B_解限波动炮_跑动方向绘图(Event ev, ScriptAccessory sa)
     {
@@ -4632,7 +4632,7 @@ public class TopReborn
         }
     }
 
-    [ScriptMethod(name: "P6B_解限波动炮_脚底黄圈", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:31663"],
+    [ScriptMethod(name: "P6B_Unlimited Wave Cannon_Ground AoE Baits", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:31663"],
         userControl: Debugging, suppress: 500)]
     public void P6B_解限波动炮_脚底黄圈(Event ev, ScriptAccessory sa)
     {
@@ -4665,13 +4665,13 @@ public class TopReborn
 
     #region P6C 宇宙流星
 
-    [ScriptMethod(name: "———————— 《P6C 宇宙流星》 ————————", eventType: EventTypeEnum.NpcYell, eventCondition: ["HelloayaWorld:asdf"],
+    [ScriptMethod(name: "———————— 《P6C Cosmo Meteor》 ————————", eventType: EventTypeEnum.NpcYell, eventCondition: ["HelloayaWorld:asdf"],
         userControl: true)]
     public void P6C_宇宙流星_分割线(Event ev, ScriptAccessory sa)
     {
     }
     
-    [ScriptMethod(name: "P6C_宇宙流星_分P", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:31664"],
+    [ScriptMethod(name: "P6C_Cosmo Meteor_Phase Setup", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:31664"],
         userControl: Debugging)]
     public void P6C_宇宙流星_分P(Event ev, ScriptAccessory sa)
     {
@@ -4680,7 +4680,7 @@ public class TopReborn
         sa.DebugMsg($"当前阶段为：{_parse}", Debugging);
     }
     
-    [ScriptMethod(name: "P6C_宇宙流星_指路场中与后续八方", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:31664"],
+    [ScriptMethod(name: "P6C_Cosmo Meteor_Center and Clock Guidance", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:31664"],
         userControl: true)]
     public void P6C_宇宙流星_指路场中与后续八方(Event ev, ScriptAccessory sa)
     {
@@ -4692,7 +4692,7 @@ public class TopReborn
         sa.DrawGuidance(Center, pos, 0, 20000, $"P6C_宇宙流星_指路场中与后续八方", isSafe: false);
     }
 
-    [ScriptMethod(name: "P6C_宇宙流星_删除场中指路", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:31666"],
+    [ScriptMethod(name: "P6C_Cosmo Meteor_Remove Center Guidance", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:31666"],
         userControl: Debugging, suppress: 500)]
     public void P6C_宇宙流星_删除场中指路(Event ev, ScriptAccessory sa)
     {
@@ -4700,7 +4700,7 @@ public class TopReborn
         sa.Method.RemoveDraw($"P6C_宇宙流星_指路场中与后续八方");
     }
 
-    [ScriptMethod(name: "P6C_宇宙流星_八方指路", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:31666"],
+    [ScriptMethod(name: "P6C_Cosmo Meteor_Clock Guidance", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:31666"],
         userControl: true, suppress: 500)]
     public void P6C_宇宙流星_八方指路(Event ev, ScriptAccessory sa)
     {
@@ -4722,7 +4722,7 @@ public class TopReborn
         }
     }
     
-    [ScriptMethod(name: "P6C_宇宙流星_删除八方指路与指引线", eventType: EventTypeEnum.ActionEffect, eventCondition: ["ActionId:32699"],
+    [ScriptMethod(name: "P6C_Cosmo Meteor_Remove Clock Guidance and Lines", eventType: EventTypeEnum.ActionEffect, eventCondition: ["ActionId:32699"],
         userControl: Debugging, suppress: 500)]
     public void P6C_宇宙流星_删除八方指路与指引线(Event ev, ScriptAccessory sa)
     {
@@ -4731,7 +4731,7 @@ public class TopReborn
         sa.Method.RemoveDraw($"P6C_宇宙流星_指引线.*");
     }
     
-    [ScriptMethod(name: "P6C_宇宙流星_陨石目标收集", eventType: EventTypeEnum.TargetIcon, eventCondition: ["Id:015A"],
+    [ScriptMethod(name: "P6C_Cosmo Meteor_Meteor Target Tracking", eventType: EventTypeEnum.TargetIcon, eventCondition: ["Id:015A"],
         userControl: Debugging)]
     public void P6C_宇宙流星_陨石目标收集(Event ev, ScriptAccessory sa)
     {
@@ -4744,7 +4744,7 @@ public class TopReborn
         }
     }
 
-    [ScriptMethod(name: "P6C_宇宙流星_陨石目标连线", eventType: EventTypeEnum.TargetIcon, eventCondition: ["Id:015A"],
+    [ScriptMethod(name: "P6C_Cosmo Meteor_Meteor Target Lines", eventType: EventTypeEnum.TargetIcon, eventCondition: ["Id:015A"],
         userControl: Debugging, suppress: 500)]
     public void P6C_宇宙流星_陨石目标连线(Event ev, ScriptAccessory sa)
     {
@@ -4771,7 +4771,7 @@ public class TopReborn
         sa.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Line, dp3);
     }
 
-    [ScriptMethod(name: "P6C_宇宙流星_陨石指路", eventType: EventTypeEnum.TargetIcon, eventCondition: ["Id:015A"],
+    [ScriptMethod(name: "P6C_Cosmo Meteor_Meteor Guidance", eventType: EventTypeEnum.TargetIcon, eventCondition: ["Id:015A"],
         userControl: Debugging, suppress: 500)]
     public void P6C_宇宙流星_陨石指路(Event ev, ScriptAccessory sa)
     {
@@ -4801,7 +4801,7 @@ public class TopReborn
         }
     }
 
-    [ScriptMethod(name: "P6C_宇宙流星_删除宇宙流星绘图", eventType: EventTypeEnum.ActionEffect, eventCondition: ["ActionId:31668"],
+    [ScriptMethod(name: "P6C_Cosmo Meteor_Remove Cosmo Meteor Drawings", eventType: EventTypeEnum.ActionEffect, eventCondition: ["ActionId:31668"],
         userControl: Debugging, suppress: 500)]
     public void P6C_宇宙流星_删除宇宙流星绘图(Event ev, ScriptAccessory sa)
     {
@@ -4812,7 +4812,7 @@ public class TopReborn
         sa.Method.RemoveDraw(".*");
     }
     
-    [ScriptMethod(name: "P6C_宇宙流星_机制结束后", eventType: EventTypeEnum.ActionEffect, eventCondition: ["ActionId:31668"],
+    [ScriptMethod(name: "P6C_Cosmo Meteor_After Mechanic", eventType: EventTypeEnum.ActionEffect, eventCondition: ["ActionId:31668"],
         userControl: true, suppress: 500)]
     public void P6C_宇宙流星_机制结束后(Event ev, ScriptAccessory sa)
     {
