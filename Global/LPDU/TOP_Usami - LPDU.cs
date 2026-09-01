@@ -2882,15 +2882,16 @@ public class TopReborn
             {
                 // 象限 == 光头位置 即光头的逆时针侧，在基准坐标系（蟑螂右刀、蟑螂在 C）里就是偏左的那一侧
                 bool isCcwSide = _p5A.玩家四分之一半场 == _p5A.光头位置;
+                // 右刀安全侧在左（基准系 X < 100，即逆时针侧），左刀镜像后安全侧在右（顺时针侧）。
+                bool isRightCleave = _p5A.蟑螂左右刀 == BEETLE_RIGHT_CLEAVE_RECORD;
                 if (_p5A.玩家场外)
                 {
-                    marker = isCcwSide ? 3 : 4;    // 场外两人沿用原来的固定分配
+                    // 场外两人同样按刀向分：右刀维持逆时针侧取攻击 3，左刀两人对调。
+                    marker = isRightCleave == isCcwSide ? 3 : 4;
                 }
                 else
                 {
-                    // 场内两人改按“谁更靠蟑螂刀的安全侧”分配：更靠安全侧的那个横移得更远（攻击 2），另一人去安全侧靠中（攻击 1）。
-                    // 右刀安全侧在左（基准系 X < 100，即逆时针侧），左刀镜像后安全侧在右（顺时针侧）。
-                    bool isRightCleave = _p5A.蟑螂左右刀 == BEETLE_RIGHT_CLEAVE_RECORD;
+                    // 场内两人按“谁更靠蟑螂刀的安全侧”分配：更靠安全侧的那个横移得更远（攻击 2），另一人去安全侧靠中（攻击 1）。
                     marker = isRightCleave == isCcwSide ? 2 : 1;
                 }
                 sa.DebugMsg($"P5A2_一传_指路：无标玩家还原为攻击{marker}位", Debugging);
