@@ -23,7 +23,7 @@ using KodakkuAssist.Module.Script.Type;
 namespace KarlinScriptNamespace
 {
     // 1112 为忆罪宫，仅用于 "/e =Exaflare" 地火模拟器（补丁部分）
-    [ScriptType(name:"Dragonsong's Reprise (Ultimate) DSR - LPDU", territorys: [968, 1112], guid: "e011dae9-1c89-435a-8e21-84f72bf3da8d", note: Note, version:"0.0.0.8", author: "Karlin & Usami")]
+    [ScriptType(name:"Dragonsong's Reprise (Ultimate) DSR - LPDU", territorys: [968, 1112], guid: "e011dae9-1c89-435a-8e21-84f72bf3da8d", note: Note, version:"0.0.0.9", author: "Karlin & Usami")]
     public class DragongSingDrawLpdu
     {
         private const string Note = 
@@ -61,6 +61,11 @@ namespace KarlinScriptNamespace
                      "Accepted slot names: MT, OT (or ST), H1, H2, melee D1/D2, ranged R1/R2 (or D3/D4). \n" +
                      "All 8 slots must appear exactly once, otherwise MT OT H1 H2 D1 D2 R1 R2 is used.")]
         public string P5DeathPriorityManual { get; set; } = "MTOTH1H2M1M2R1R2";
+
+        [UserSetting("P5.2 - echo the auto-derived priority order to the /echo channel. \n" +
+                     "Only used when P5DeathPriorityAuto is checked. The line is printed in the same format as \n" +
+                     "P5DeathPriorityManual, so it can be copied straight into that setting to lock the order in.")]
+        public bool P5DeathPriorityEcho { get; set; } = true;
 
         // [UserSetting("P6 分散分摊标记")]
         public bool p6Mark {  get; set; }=false;
@@ -1877,6 +1882,14 @@ namespace KarlinScriptNamespace
             var npos = new Vector3(100, 0, 82);
             var cpos = new Vector3(100, 0, 100);
 
+            // 本轮陨石是 TN 还是 DPS（两个陨石正常情况下同职能）
+            var meteorIsDPS =
+                p2StoneMem.Item1 is >= 4 and <= 7 &&
+                p2StoneMem.Item2 is >= 4 and <= 7;
+
+            // p2StoneTeam 每组结构为 [TN, DPS]，所以偶数位 = TN lane，奇数位 = DPS lane
+            var meteorLane = meteorIsDPS ? 1 : 0;
+
             // 正常模式只画自己，Debug 模式把全队 8 人的第二轮塔位置一起画出来
             for (var index = 0; index < accessory.Data.PartyList.Count; index++)
             {
@@ -1884,9 +1897,20 @@ namespace KarlinScriptNamespace
                 var posIndex = p2StoneTeam.IndexOf(index);
                 if (index == p2StoneMem.Item1) posIndex = p2StoneTeam.IndexOf(p2StoneMem.Item2);
                 if (index == p2StoneMem.Item2) posIndex = p2StoneTeam.IndexOf(p2StoneMem.Item1);
+                if (posIndex < 0) continue;
+
+                // 0=N, 1=E, 2=S, 3=W
+                var group = posIndex / 2;
+
+                // 0=TN lane, 1=DPS lane
+                var lane = posIndex % 2;
+
+                // 被点陨石的那一职能组踩正塔（group * 2）
+                // 没被点陨石的职能组踩斜塔（group * 2 + 1）
+                var dirIndex = group * 2 + (lane == meteorLane ? 0 : 1);
 
                 var dp = accessory.Data.GetDefaultDrawProperties();
-                dp.TargetPosition = RotatePoint(npos, cpos, float.Pi / 4 * posIndex);
+                dp.TargetPosition = RotatePoint(npos, cpos, float.Pi / 4 * dirIndex);
                 dp.Name = $"P2 Sanctity of the Wardtower round 2position(ImGui){index}";
                 dp.DestoryAt = 11000;
                 dp.Color = accessory.Data.DefaultSafeColor;
@@ -3629,6 +3653,9 @@ namespace KarlinScriptNamespace
             ["R1"] = 6, ["R2"] = 7,
         };
 
+        // 回显用的位置名，和 P5DeathPriorityManual 的默认值同一套写法，粘回设置里能直接解析
+        private static readonly string[] p5PriorityManualNames = ["MT", "OT", "H1", "H2", "M1", "M2", "R1", "R2"];
+
         /// <summary>
         /// 锁定 P5 二运的处理优先级：勾了自动就按第 4 个死宣落地瞬间的预站位排，
         /// 否则解析手填顺序；两者都取不到时退回 MT ST H1 H2 D1 D2 D3 D4。
@@ -3640,6 +3667,13 @@ namespace KarlinScriptNamespace
             p5PriorityReady = true;
             accessory.Log.Debug($"P5 Death of the Heavenspriority({(P5DeathPriorityAuto ? "Auto" : "Manual")}{(order == null ? "-ReadFailed, UseDefault" : "")}): " +
                                 string.Join(" > ", p5Priority.Select(i => _role[i])));
+
+            // 自动排出来的顺序回显到默语，玩家可以直接复制粘贴进 P5DeathPriorityManual 固化下来
+            if (P5DeathPriorityAuto && P5DeathPriorityEcho)
+            {
+                var text = string.Concat(p5Priority.Select(i => p5PriorityManualNames[i]));
+                accessory.Method.SendChat($"/e P5.2 priority{(order == null ? " (auto read failed, default used)" : "")}: \"{text}\"");
+            }
         }
 
         /// <summary>
