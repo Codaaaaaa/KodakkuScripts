@@ -23,7 +23,7 @@ using KodakkuAssist.Module.Script.Type;
 namespace KarlinScriptNamespace
 {
     // 1112 为忆罪宫，仅用于 "/e =Exaflare" 地火模拟器（补丁部分）
-    [ScriptType(name:"Dragonsong's Reprise (Ultimate) DSR - LPDU", territorys: [968, 1112], guid: "e011dae9-1c89-435a-8e21-84f72bf3da8d", note: Note, version:"0.0.0.9", author: "Karlin & Usami")]
+    [ScriptType(name:"Dragonsong's Reprise (Ultimate) DSR - LPDU", territorys: [968, 1112], guid: "e011dae9-1c89-435a-8e21-84f72bf3da8d", note: Note, version:"0.0.0.10", author: "Karlin & Usami")]
     public class DragongSingDrawLpdu
     {
         private const string Note = 
@@ -189,6 +189,12 @@ namespace KarlinScriptNamespace
         private bool _p3DfgEnable = false;                                  // P3 指路使能
         private static PriorityDict _dfg = new PriorityDict();              // P3 机制记录
         private List<Vector3> _p3TowerAppearPos = [];                       // P3 塔生成位置
+        private List<bool> _p3GroupRecorded = new bool[8].ToList();         // P3 麻将组是否已记录（按人）
+        private List<bool> _p3ArrowRecorded = new bool[8].ToList();         // P3 箭头是否已记录（按人）
+        private List<bool> _p3TowerPlaced = new bool[8].ToList();           // P3 是否已放过塔（按人）
+        private int _p3GnashRound = 0;                                      // P3 钢铁月环读条轮次，第一轮为 1，第二轮为 2
+        private int _p3TowerRoundInProgress = -1;                           // P3 当前正在收集塔坐标的轮次
+        private static readonly int[] P3RoundTowerNum = [3, 2, 3];          // P3 各轮塔数，即一麻 3 人、二麻 2 人、三麻 3 人
         private int _p4MirageDiveNum = 0;                                   // P4 幻象冲次数
         private List<bool> _p4BuffChangeDrawn = new bool[8].ToList();       // P4 红蓝Buff置换指路是否已画（按人）
         private List<bool> _p4PrepareToCenter = new bool[8].ToList();       // P4 幻象冲准备回中（按人）
@@ -2366,6 +2372,11 @@ namespace KarlinScriptNamespace
             // 如此安排，个位可随时变，十位改变后，个位无力干涉
             _dfg.Init(sa, "Dive from Grace");
             _p3TowerAppearPos = [];
+            _p3GroupRecorded = new bool[8].ToList();
+            _p3ArrowRecorded = new bool[8].ToList();
+            _p3TowerPlaced = new bool[8].ToList();
+            _p3GnashRound = 0;
+            _p3TowerRoundInProgress = -1;
             sa.Log.Debug($"Current phase: {_dsrPhase}");
         }
 
@@ -2378,6 +2389,11 @@ namespace KarlinScriptNamespace
             var stid = ev.StatusId;
             var tid = ev.TargetId;
             var tidx = sa.GetPlayerIdIndex(tid);
+            if (tidx is < 0 or > 7)
+            {
+                sa.Log.Error($"P3 sequence record: player index {tidx} out of range");
+                return;
+            }
 
             var lmVal = stid switch
             {
@@ -2388,6 +2404,11 @@ namespace KarlinScriptNamespace
             };
             lock (_dfg)
             {
+                // 同一个人可能收到两条 StatusAdd（客户端预测的同步包 + 服务器真包），
+                // 重复累加会把百位翻倍（三麻 200 变 400），整组顺序全乱，这里按人去重
+                if (_p3GroupRecorded[tidx]) return;
+                _p3GroupRecorded[tidx] = true;
+
                 // 前三位一麻，中二位二麻，后三位三麻
                 _dfg.AddPriority(tidx, lmVal);
                 sa.Log.Debug($"player {sa.GetPlayerJobByIndex(tidx)}  is  {lmVal/100+1}  DFG.");
@@ -2405,6 +2426,14 @@ namespace KarlinScriptNamespace
                 var stid = ev.StatusId;
                 var tid = ev.TargetId;
                 var tidx = sa.GetPlayerIdIndex(tid);
+                if (tidx is < 0 or > 7)
+                {
+                    sa.Log.Error($"P3 arrow record: player index {tidx} out of range");
+                    return;
+                }
+                // 同上，按人去重。箭头重复记一次会让十位错乱，且旧版本还会连带把计数顶偏一格
+                if (_p3ArrowRecorded[tidx]) return;
+                _p3ArrowRecorded[tidx] = true;
 
                 var dirVal = stid switch
                 {
@@ -2415,7 +2444,6 @@ namespace KarlinScriptNamespace
                 };
 
                 _dfg.AddPriority(tidx, dirVal);
-                _dfg.AddActionCount();
                 sa.Log.Debug($"player {sa.GetPlayerJobByIndex(tidx)}  is  {dirVal switch
                 {
                     0 => "DarkSpineshatterDive",
@@ -2423,7 +2451,8 @@ namespace KarlinScriptNamespace
                     _ => "DarkElusiveJump"
                 }}.");
 
-                if (_dfg.ActionCount != 8) return;
+                // 八人的箭头都记全了才刷新左中右
+                if (_p3ArrowRecorded.Any(recorded => !recorded)) return;
 
                 // 此刻八人都在预站位上，三组一起按 X 排序刷新左中右。
                 // 只刷新自己那组的话，其余两组的个位恒为 0，FindPriorityIndexOfKey 只能按队列序号破平，
@@ -2530,7 +2559,9 @@ namespace KarlinScriptNamespace
         {
             if (_dsrPhase != DsrPhase.Phase3Nidhogg) return;
             if (!_p3DfgEnable) return;
-            _dfg.AddActionCount(10);
+            // 钢铁月环共读条两次：第一次是放塔轮，第二次是分摊轮。
+            // 26386(钢铁月环) 与 26387(月环钢铁) 的先后是随机的，只能按出现次数分轮，不能按 ActionId 分。
+            _p3GnashRound++;
 
             var myIndex = sa.GetMyIndex();
             // 正常模式只画自己，Debug 模式把全队 8 人的麻将流程一起画出来
@@ -2556,7 +2587,7 @@ namespace KarlinScriptNamespace
             const int inOutCastSecond = 3100;
             const int towerExistTime = 6800;
 
-            if (_dfg.ActionCount == 18) // 正常情况下，第一轮钢铁月环读条时，该值为18。期间五次放塔点名，第二轮钢铁月环读条时，该值为33。
+            if (_p3GnashRound == 1)
             {
                 switch (myDfgIdx)
                 {
@@ -2586,7 +2617,7 @@ namespace KarlinScriptNamespace
                         break;
                 }
             }
-            else if (_dfg.ActionCount == 33)
+            else if (_p3GnashRound == 2)
             {
                 switch (myDfgIdx)
                 {
@@ -2616,7 +2647,7 @@ namespace KarlinScriptNamespace
             }
             else
             {
-                sa.Log.Error($"P3_DiveFromGraceTowerAndStack error, _dfg.ActionCount = {_dfg.ActionCount}");
+                sa.Log.Error($"P3_DiveFromGraceTowerAndStack error, _p3GnashRound = {_p3GnashRound}");
             }
         }
 
@@ -2630,24 +2661,50 @@ namespace KarlinScriptNamespace
             if (!_p3DfgEnable) return;
             lock (_dfg)
             {
-                _dfg.AddActionCount();
                 var tid = ev.TargetId;
                 var aid = ev.ActionId;
                 var sid = ev.SourceId;
+
+                // 放塔者所属的麻将组就是本轮轮次：一麻放第 0 轮塔，二麻第 1 轮，三麻第 2 轮。
+                // 直接从事件目标反查，比全局累加计数稳：多一条或少一条事件都不会让轮次整体错位。
+                var tidx = sa.GetPlayerIdIndex(tid);
+                if (tidx is < 0 or > 7)
+                {
+                    sa.Log.Error($"P3 soak guidance: player index {tidx} out of range");
+                    return;
+                }
+                // 整个机制里每人只放一枚塔，按人去重。
+                // 否则一条重复事件会把同一枚塔算两次，把本轮真正的第三枚塔挤出去
+                if (_p3TowerPlaced[tidx]) return;
+                _p3TowerPlaced[tidx] = true;
+
+                var towerRound = _dfg.Priorities[tidx] / 100;
+                if (towerRound is < 0 or > 2)
+                {
+                    sa.Log.Error($"P3 soak guidance: invalid tower round {towerRound}, priority = {_dfg.Priorities[tidx]}");
+                    return;
+                }
+
+                // 轮次一变就丢掉上一轮没被消费掉的残留塔，避免旧塔混进新一轮的左中右排序
+                if (towerRound != _p3TowerRoundInProgress)
+                {
+                    _p3TowerAppearPos = [];
+                    _p3TowerRoundInProgress = towerRound;
+                }
+
                 // 后面生成塔位置的sid已经不是原来的sid了，需要在这里找到他经偏置后的位置
                 var tpos = P3_GetTowerSpawnPosition(sa, sid, aid);
-                _p3TowerAppearPos.Add(tpos);
+                if (tpos is null)
+                {
+                    sa.Log.Error($"P3 soak guidance: source {sid:X} not found, tower position unknown");
+                    return;
+                }
+                _p3TowerAppearPos.Add(tpos.Value);
 
-                var towerRound = _dfg.ActionCount switch
+                // 本轮塔数即该组人数，收齐才排序绘制，否则会按不完整的塔堆算左中右
+                if (_p3TowerAppearPos.Count < P3RoundTowerNum[towerRound])
                 {
-                    21 => 0,
-                    23 => 1,
-                    36 => 2,
-                    _ => -1
-                };
-                if (towerRound == -1)
-                {
-                    sa.Log.Debug($"_dfg.ActionCount == {_dfg.ActionCount}, not reached value, exit");
+                    sa.Log.Debug($"P3 round {towerRound} tower {_p3TowerAppearPos.Count}/{P3RoundTowerNum[towerRound]}, waiting");
                     return;
                 }
 
@@ -2763,13 +2820,15 @@ namespace KarlinScriptNamespace
         };
 
 
-        private Vector3 P3_GetTowerSpawnPosition(ScriptAccessory sa, ulong sid, uint type)
+        private Vector3? P3_GetTowerSpawnPosition(ScriptAccessory sa, ulong sid, uint type)
         {
             // const uint inPlace = 26382;
             // const uint front = 26383;
             // const uint behind = 26384;
 
             var chara = sa.GetById(sid);
+            // 取不到分身就返回空，让调用方跳过这一枚塔，而不是在事件线程里抛空引用
+            if (chara is null) return null;
             var srot = chara.Rotation;
             var spos = chara.Position;
 
