@@ -202,6 +202,7 @@ namespace KarlinScriptNamespace
         private bool _p7TrinityDisordered = false;                          // P7 接刀顺序是否出错
         private bool _p7TrinityTankDisordered = false;                      // P7 坦克接刀仇恨是否出错
         private int _p7TrinityNum = 0;                                      // P7 接刀次数
+        private uint _p7BladeType = 0;                                      // P7 当前钢铁(298)/月环(299)剑
         private DsrExaflare? _p7Exaflare = null;                            // P7 地火Class
         private uint _p7BossId = 0;                                         // P7 boss Id
 
@@ -278,6 +279,11 @@ namespace KarlinScriptNamespace
             _recorded = new bool[20].ToList();
             _p7BossId = 0;
             _pureOfHeartBaitShown = false;
+            _p7FirstEnmityOrder = [false, false];
+            _p7TrinityDisordered = false;
+            _p7TrinityTankDisordered = false;
+            _p7TrinityNum = 0;
+            _p7BladeType = 0;
 
             _thordanCastAtEdgeEvent = new ManualResetEvent(false);
             _thrustEvent = new ManualResetEvent(false);
@@ -5317,6 +5323,9 @@ namespace KarlinScriptNamespace
         [ScriptMethod(name: "P7 Fixed Exaflare Position", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:28059"])]
         public void P7_FixedExaflarePosition(Event @event, ScriptAccessory accessory)
         {
+            // 智能解算指路已开启时不画固定站位，否则两套地火指路会同屏叠加
+            if (ExaflareStrategy != ExaflareSpecStrategyEnum.Disabled) return;
+
             var cpos = JsonConvert.DeserializeObject<Vector3>(@event["SourcePosition"]);
             var r = float.Parse(@event["SourceRotation"]);
 
@@ -5488,17 +5497,41 @@ namespace KarlinScriptNamespace
         {
             p7Stone2 = JsonConvert.DeserializeObject<Vector3>(@event["SourcePosition"]);
         }
+        /// <summary>
+        /// 十亿核爆剑单步安全点。三颗石头都刷在离场中 14 码的环上、爆炸半径 21，
+        /// 所以安全点取石头正对面、离场中 radius 码处（离石头 14+radius 码）。
+        /// radius 由本段的钢铁/月环剑决定：钢铁(298)要站 BOSS 8 码外，月环(299)要站 8 码内。
+        /// 场中坐标沿用原脚本写死的 (100, 100)，不走 _center（模拟器会改它）。
+        /// </summary>
+        private Vector3 P7_GigaflareSafePos(Vector3 stonePos)
+        {
+            const float aoeRadius = 21f;
+            const uint dynamoBlade = ChariotBlade + 1;
+            var cpos = new Vector3(100, 0, 100);
+
+            // 贴着爆炸边缘的最小半径，也是没收到剑时的退路（等同原来的贴边算法）
+            var edgeRadius = aoeRadius - Vector3.Distance(stonePos, cpos);
+            var radius = _p7BladeType switch
+            {
+                ChariotBlade => 8.5f,   // 钢铁，往外站一点
+                dynamoBlade => 7.5f,    // 月环，往里站一点
+                _ => edgeRadius,
+            };
+
+            return cpos + Vector3.Normalize(cpos - stonePos) * MathF.Max(radius, edgeRadius);
+        }
+
         [ScriptMethod(name: "P7 Gigaflare's Edge 1 to 2 (ImGui)", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:28114"])]
         public void P7_Gigaflare1To2(Event @event, ScriptAccessory accessory)
         {
-            Task.Delay(50).ContinueWith(t =>
+            // 钢铁/月环剑的状态要读条后约 0.93s 才挂到BOSS身上，等它到位再算安全点。
+            // 下面的时长都是按"读条起点起算的绝对时刻"倒推的，所以要把等掉的时间减回去
+            const int bladeWait = 1500;
+            Task.Delay(bladeWait).ContinueWith(t =>
             {
-                var cpos = new Vector3(100, 0, 100);
-                var dot1 = Vector3.Normalize(cpos - p7Stone1);
-                var pos1 = p7Stone1 + dot1 * 21f;
                 var stone2pos = JsonConvert.DeserializeObject<Vector3>(@event["SourcePosition"]);
-                var dot2 = Vector3.Normalize(cpos - p7Stone2);
-                var pos2 = stone2pos + dot2 * 21f;
+                var pos1 = P7_GigaflareSafePos(p7Stone1);
+                var pos2 = P7_GigaflareSafePos(stone2pos);
 
                 var dp = accessory.Data.GetDefaultDrawProperties();
                 dp.Name = "P7 Gigaflare's Edgeto1";
@@ -5507,7 +5540,7 @@ namespace KarlinScriptNamespace
                 dp.TargetPosition = pos1;
                 dp.Scale = new(1.5f);
                 dp.ScaleMode |= ScaleMode.YByDistance;
-                dp.DestoryAt = 9000;
+                dp.DestoryAt = 9000 - bladeWait;
                 accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
 
                 var dp2 = accessory.Data.GetDefaultDrawProperties();
@@ -5517,7 +5550,7 @@ namespace KarlinScriptNamespace
                 dp2.TargetPosition = pos2;
                 dp2.Scale = new(1.5f);
                 dp2.ScaleMode |= ScaleMode.YByDistance;
-                dp2.DestoryAt = 9000;
+                dp2.DestoryAt = 9000 - bladeWait;
                 accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp2);
 
                 var dp3 = accessory.Data.GetDefaultDrawProperties();
@@ -5527,7 +5560,7 @@ namespace KarlinScriptNamespace
                 dp3.TargetPosition = pos2;
                 dp3.Scale = new(1.5f);
                 dp3.ScaleMode |= ScaleMode.YByDistance;
-                dp3.Delay = 9000;
+                dp3.Delay = 9000 - bladeWait;
                 dp3.DestoryAt = 4000;
                 accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp3);
             });
@@ -5535,16 +5568,12 @@ namespace KarlinScriptNamespace
         [ScriptMethod(name: "P7 Gigaflare's Edge 2 to 3 (ImGui)", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:28115"])]
         public void P7_Gigaflare2To3(Event @event, ScriptAccessory accessory)
         {
-            Task.Delay(50).ContinueWith(t =>
+            const int bladeWait = 1500;
+            Task.Delay(bladeWait).ContinueWith(t =>
             {
-                var cpos = new Vector3(100, 0, 100);
-                var dot1 = Vector3.Normalize(cpos - p7Stone2);
-                var pos1 = p7Stone2 + dot1 * 21f;
                 var stone3pos = JsonConvert.DeserializeObject<Vector3>(@event["SourcePosition"]);
-                var dot2 = Vector3.Normalize(cpos - stone3pos);
-                var pos2 = stone3pos + dot2 * 21f;
-
-                
+                var pos1 = P7_GigaflareSafePos(p7Stone2);
+                var pos2 = P7_GigaflareSafePos(stone3pos);
 
                 var dp2 = accessory.Data.GetDefaultDrawProperties();
                 dp2.Name = "P7 Gigaflare's Edge2to3";
@@ -5553,7 +5582,7 @@ namespace KarlinScriptNamespace
                 dp2.TargetPosition = pos2;
                 dp2.Scale = new(1.5f);
                 dp2.ScaleMode |= ScaleMode.YByDistance;
-                dp2.DestoryAt = 13000;
+                dp2.DestoryAt = 13000 - bladeWait;
                 accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp2);
 
                 var dp3 = accessory.Data.GetDefaultDrawProperties();
@@ -5563,7 +5592,7 @@ namespace KarlinScriptNamespace
                 dp3.TargetPosition = pos2;
                 dp3.Scale = new(1.5f);
                 dp3.ScaleMode |= ScaleMode.YByDistance;
-                dp3.Delay = 13000;
+                dp3.Delay = 13000 - bladeWait;
                 dp3.DestoryAt = 4000;
                 accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp3);
             });
@@ -5594,6 +5623,7 @@ namespace KarlinScriptNamespace
         {
             var param = @event.Param();
             accessory.Log.Debug($"Chariot/Dynamo blade: {param}(298Chariot, 299Dynamo)");
+            _p7BladeType = param;
             _p7Exaflare?.SetBladeType(param);
             if (!P7_IsExaflarePhase()) return;
             _bladeEvent.Set();
@@ -5946,16 +5976,19 @@ namespace KarlinScriptNamespace
                 _ => delay
             };
 
-            P7_DrawTrinityEnmity(sid, delay - 4000, 4000, 1, accessory);
-            P7_DrawTrinityEnmity(sid, delay - 4000, 4000, 2, accessory);
-            P7_DrawTrinityEnmity(sid, delay, 4000, 1, accessory);
-            P7_DrawTrinityEnmity(sid, delay, 4000, 2, accessory);
-            P7_DrawTrinityNear(sid, delay - 4000, 4000, accessory);
-            P7_DrawTrinityNear(sid, delay, 4000, accessory);
+            // 一个大招周期内有两次三剑一体，间隔 4s。两轮必须用不同的绘图名，
+            // 否则同名互相覆盖会把第一轮直接抹掉，只剩第二轮能显示
+            for (var round = 0; round < 2; round++)
+            {
+                var roundDelay = delay + (round - 1) * 4000;
+                P7_DrawTrinityEnmity(sid, aid, round, roundDelay, 4000, 1, accessory);
+                P7_DrawTrinityEnmity(sid, aid, round, roundDelay, 4000, 2, accessory);
+                P7_DrawTrinityNear(sid, aid, round, roundDelay, 4000, accessory);
+            }
             _trinityEvent.Reset();
         }
 
-        private void P7_DrawTrinityEnmity(uint sid, int delay, int destroy, uint aggroIdx, ScriptAccessory accessory)
+        private void P7_DrawTrinityEnmity(uint sid, uint aid, int round, int delay, int destroy, uint aggroIdx, ScriptAccessory accessory)
         {
             var myIndex = accessory.GetMyIndex();
             Vector4 color;
@@ -5976,36 +6009,40 @@ namespace KarlinScriptNamespace
                 }
             }
 
-            var dp = accessory.DrawOwnersEnmityOrder(sid, aggroIdx, 3f, 3f, delay, destroy, $"Trinityenmity{aggroIdx}", byTime: true);
+            var dp = accessory.DrawOwnersEnmityOrder(sid, aggroIdx, 3f, 3f, delay, destroy, $"Trinityenmity{aid}-{round}-{aggroIdx}", byTime: true);
             dp.Color = color.WithW(2f);
             accessory.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Circle, dp);
         }
 
-        private void P7_DrawTrinityNear(uint sid, int delay, int destroy, ScriptAccessory accessory)
+        private void P7_DrawTrinityNear(uint sid, uint aid, int round, int delay, int destroy, ScriptAccessory accessory)
         {
             var myIndex = accessory.GetMyIndex();
+            // 两轮是先后两次接刀，顺序要各自往后推一位，否则第二轮会highlight和第一轮同一个人
+            var orderIdx = _p7TrinityOrderIdx[(_p7TrinityNum + round) % _p7TrinityOrderIdx.Count];
 
-            var dp = accessory.DrawTargetNearFarOrder(sid, 1, true, 3f, 3f, delay, destroy, $"Trinityneardistance", byTime: true);
+            var dp = accessory.DrawTargetNearFarOrder(sid, 1, true, 3f, 3f, delay, destroy, $"Trinityneardistance{aid}-{round}", byTime: true);
             if (_p7TrinityDisordered)
                 dp.Color = accessory.Data.DefaultDangerColor;
             else
-                dp.Color = myIndex == _p7TrinityOrderIdx[_p7TrinityNum] ? accessory.Data.DefaultSafeColor : accessory.Data.DefaultDangerColor;
+                dp.Color = myIndex == orderIdx ? accessory.Data.DefaultSafeColor : accessory.Data.DefaultDangerColor;
             accessory.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Circle, dp);
         }
 
         [ScriptMethod(name: "P7 Trinity Hit Record", eventType: EventTypeEnum.ActionEffect, eventCondition: ["ActionId:28065"], userControl: false)]
         public void P7_TrinityHitRecord(Event @event, ScriptAccessory accessory)
         {
-            // 主视角为T，忽略脚下接刀
+            // 计数与顺序校验对所有职能都要走，否则主视角为T时 _p7TrinityNum 永远卡在 0，
+            // 接刀顺序高亮和乱序检测整把失效。只有脚下接刀的文字提示对T无意义，单独屏蔽
             var myIndex = accessory.GetMyIndex();
-            if (myIndex < 2) return;
+            var isTank = myIndex < 2;
 
             var targetIdx = @event.TargetIndex();
             if (targetIdx != 1)
             {
                 if (_p7TrinityDisordered) return;
                 accessory.Log.Debug($"Someone took an extra Trinity hit; validation disabled");
-                accessory.Method.TextInfo($"Someone took an extra Trinity hit; safe-color highlighting disabled", 3000, true);
+                if (!isTank)
+                    accessory.Method.TextInfo($"Someone took an extra Trinity hit; safe-color highlighting disabled", 3000, true);
                 _p7TrinityDisordered = true;
                 return;
             }
@@ -6015,7 +6052,8 @@ namespace KarlinScriptNamespace
             if (_p7TrinityOrderIdx[_p7TrinityNum] != tidx && !_p7TrinityDisordered)
             {
                 accessory.Log.Debug($"Wrong Trinity target; validation disabled");
-                accessory.Method.TextInfo($"Wrong Trinity target; safe-color highlighting disabled", 3000, true);
+                if (!isTank)
+                    accessory.Method.TextInfo($"Wrong Trinity target; safe-color highlighting disabled", 3000, true);
                 _p7TrinityDisordered = true;
             }
 
