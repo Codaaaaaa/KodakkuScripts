@@ -23,7 +23,7 @@ namespace Codaaaaaa.TheForkedTowerMagic;
     guid: "45819e25-cb2d-4d84-a508-f110dc6a381a",
     name: "魔之塔画图",
     territorys: [1346],
-    version: "0.0.1.10",
+    version: "0.0.1.11",
     author: "Codaaaaaa",
     note: "写完喽，还有电的可以在频道里圈我\n\n感谢铁虎老大的帮助\n感谢Yatel老大和洋葱炒米老大的arr")]
 public class TheForkedTowerMagic
@@ -874,7 +874,7 @@ public class TheForkedTowerMagic
         sa.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Circle, dp);
     }
 
-    // 47685 冰焰交错：2s，SourcePosition上以SourceRotation为正面，前后左右各35长11宽的rect十字
+    // 47685 冰焰交错：2s，SourcePosition上以SourceRotation为正面，前后左右各35长10宽的rect十字
     [ScriptMethod(name: "超魔BOSS1 - 冰焰交错", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:47685"])]
     public void 冰焰交错(Event evt, ScriptAccessory sa)
     {
@@ -882,7 +882,7 @@ public class TheForkedTowerMagic
         List<(float Rot, string Tag)> dirs = [(0f, "前"), (MathF.PI / 2, "左"), (MathF.PI, "后"), (-MathF.PI / 2, "右")];
         foreach (var (rot, tag) in dirs)
         {
-            var dp = sa.FastDp($"冰焰交错-{tag}", evt.SourcePosition(), 2000, new Vector2(11f, 35f));
+            var dp = sa.FastDp($"冰焰交错-{tag}", evt.SourcePosition(), 2000, new Vector2(10f, 35f));
             dp.Rotation = evt.SourceRotation() + rot;
             // dp.ScaleMode = ScaleMode.ByTime;
             sa.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Rect, dp);
@@ -2636,7 +2636,7 @@ public class TheForkedTowerMagic
                 if (isDonut)
                 {
                     var dp = sa.FastDp($"预言月环-{oid:X8}", phantom.Position, remain, new Vector2(15f));
-                    dp.InnerScale = new Vector2(5f);
+                    dp.InnerScale = new Vector2(4f);
                     dp.Radian = float.Pi * 2;
                     sa.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Donut, dp);
                 }
