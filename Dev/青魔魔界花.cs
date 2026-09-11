@@ -18,8 +18,8 @@ namespace Codaaaaaa.BlueMage;
 [ScriptType(
     guid: "76fb14c3-1185-4580-b020-1f9a25e6f978",
     name: "青魔魔界花整合",
-    territorys: [245, 358, 196, 452, 532, 587, 698],
-    version: "0.0.0.9",
+    territorys: [245, 358, 196, 452, 532, 587, 698, 755],
+    version: "0.0.0.10",
     author: "Codaaaaaa",
     note: "攻略参考二二二二乱 A12S为拉一起复仇\n\n副本说明:\nT5:1T1N6D注意T青需要在MT位，其他随意，但每个人的kdy排序需相同\nT9:同上\nT13:同上\nA4S:1T1N6D，按照kdy排序1T青2N青345为拉小怪D青678为打腿组D青\nA8S:1T2N5D，按照kdy排序1T2N3盾N456D一组月78D二组月\nA12S:1T1N6D\n\nT青笔记：\nT5：-2s开怪\nT9: -2s预读小侦测开场，即刻白风稳仇+醒梦\nT13: 拉南 -2s预读小侦测开怪，即刻白风稳仇+醒梦\nA4S: 龙之力开场，MT全程远离人群\nA8S: 随意\nA12S: -5s龙之力 -2s魔法锤")]
 public class BlueMage
@@ -31,9 +31,20 @@ public class BlueMage
     [UserSetting("通用")] public static bool 指挥模式 { get; set; } = false;
     [UserSetting("通用")] public static bool 接受排序同步 { get; set; } = true;
     [UserSetting("T13")] public static bool 奶自动防御指示MT { get; set; } = true;
+    [UserSetting("O8S")] public static bool 技能特效屏蔽 { get; set; } = true;
 
      [UserSetting("测试")] public static bool Debug输出 { get; set; } = false;
     // 304 喷火
+    #endregion
+
+    #region 调试
+    // 打开后所有指路都按全队 8 人绘制（自己那份照常），用于单人/录像验证解法。
+    // 必须是 const：ScriptMethod 的 userControl: Debugging 是特性参数，只吃编译期常量。
+    private const bool Debugging = false;
+
+    /// <summary>指路箭头的起点 Owner：正常取 PartyList[idx]，越界回退到自己。</summary>
+    private static uint GuidanceOwner(ScriptAccessory sa, int idx)
+        => idx >= 0 && idx < sa.Data.PartyList.Count ? sa.Data.PartyList[idx] : sa.Data.Me;
     #endregion
 
     #region 常量
@@ -45,6 +56,7 @@ public class BlueMage
     private const uint A8STerritory = 532;
     private const uint A12STerritory = 587;
     private const uint O4STerritory = 698;
+    private const uint O8STerritory = 755;
 
     private const uint TankStatus = 2124;
     private const uint DpsStatus = 2125;
@@ -237,6 +249,7 @@ public class BlueMage
         _o4s暴风次数 = 0;
         _o4s摇动目标 = 0;
         _o4s摇动时刻 = DateTime.MinValue;
+        O8S重置(sa);
         RefreshRole(sa);
     }
 
@@ -2519,7 +2532,6 @@ public class BlueMage
         dp.Scale = new Vector2(60f);        // 外半径 60
         dp.InnerScale = new Vector2(8f);    // 内半径 8
         dp.Radian = 2f * MathF.PI;
-        dp.ScaleMode = ScaleMode.ByTime;
         dp.DestoryAt = 6000;
         sa.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Donut, dp);
     }
@@ -3750,6 +3762,927 @@ public class BlueMage
         Dbg(sa, $"无之失控9249：{sid:X} 起点 {p0:F1} rot {rot:F2}");
     }
     #endregion
+
+    #region O8S
+    [ScriptMethod(
+        name: "-------O8S-------",
+        eventType: EventTypeEnum.StartCasting,
+        eventCondition: ["ActionId:regex:^(xx|xx)$"])]
+    public void o8s_start(Event evt, ScriptAccessory sa){}
+
+    // ---------------- 常量 ----------------
+    // 1487「真实的小丑」= 不反转；1486「虚伪的小丑」=「让自身发动的爆炎、冰封、暴雷范围和性质反转」
+    private const uint O8S真实的小丑 = 1487;
+    private const uint O8S虚伪的小丑 = 1486;
+
+    // 魔法储存：爆炎/冰封/暴雷。储存完成与真伪 buff 消失是同一帧，所以真伪必须在读条那一刻先记下来
+    private const uint O8S储存爆炎 = 1483;
+    private const uint O8S储存冰封 = 1484;
+    private const uint O8S储存暴雷 = 1485;
+
+    private const uint 凯夫卡DataId = 8528;
+
+    // Boss 自读条（真假共用同一个 ActionId，只能靠 buff 区分）：爆炎 4.2s / 冰封 5s / 暴雷 5s
+    private const uint O8S爆炎读条 = 10446;
+    private const uint O8S冰封读条 = 10439;
+    private const uint O8S暴雷读条 = 10442;
+    private const uint O8S魔法放出 = 10450;
+
+    // TargetIcon 的十六进制 Id 就是 VfxEvent LockOn 的十进制：0080=128 分摊、007F=127 分散
+    private const string O8S分摊头标 = "0080";
+    private const string O8S分散头标 = "007F";
+    private const float O8S分摊半径 = 6f;    // 10448 / 11059
+    private const float O8S分散半径 = 5f;    // 10447 / 11058
+    private const int O8S头标收集窗口 = 400;  // 头标比读条早约 90ms，先收一批再统一判真伪
+    private const int O8S爆炎绘图时长 = 4700; // 头标到伤害落地实测约 5.1s
+    private const int O8S放出关联窗口 = 4000;
+
+    // 冰封/暴雷：带原生预兆的那一发在「真实」时才是真会打的，在「虚伪」时只是骗人的假象；
+    // 没有原生预兆的那一发反过来——只有「虚伪」时才会冒出来，而且它才是真伤害。
+    // 依据：16:48:16 虚伪冰封 = 10437(月环预兆，没打中) + 10438(无预兆圆，真伤)，
+    //       16:48:39 放出同一发 = 11051(月环预兆，空) + 11052(无预兆圆，命中玩家)；
+    //       三次真实暴雷都只放了带预兆的 10445，没有无预兆的 10444。
+    private static readonly uint[] O8S冰封带预兆 = [10437, 10440, 10441, 11051, 11053, 11054];
+    private static readonly uint[] O8S冰封月环 = [10437, 10441, 11051, 11054];   // ct=10 外径 40
+    private static readonly uint[] O8S暴雷带预兆 = [10443, 10445, 11055, 11057];
+    private const float O8S冰封月环外径 = 40f;
+    private const float O8S冰封月环内径 = 10f;  // 与钢铁圈 r10 互补，站进 10m 内才安全
+    private const float O8S冰封钢铁半径 = 10f;  // 10438/10440/11052/11053 EffectRange
+    private static readonly Vector2 O8S暴雷矩形 = new(10f, 40f);   // 40 长 10 宽，从场边贯穿全场
+
+    // 虚伪时要摘掉的假预兆：169 圆 / 170 月环 / 171 矩形
+    private static readonly uint[] O8S冰封预兆Id = [169, 170];
+    private static readonly uint[] O8S暴雷预兆Id = [171];
+
+    private const uint O8S超驱动 = 10472;      // 4s 读条点名坦克
+    private const uint O8S众神之像 = 10455;    // 5s 读条，召唤众神之像
+    private const uint O8S无情的神气 = 10458;  // 场中 6m 圆
+    private const uint O8S波动炮 = 10460;      // 100 长 6 宽直线
+    private static readonly Vector2 O8S波动炮矩形 = new(6f, 100f);
+    private const uint O8S跳蹦蹦传送 = 10452;
+    private const uint O8S冲击波 = 10459;      // 10s 读条大击退
+    private const uint O8S疼飕飕暴风 = 10454;  // 5s 读条全场击退
+    private const uint 沉稳咏唱 = 7559;
+
+    // 场地：40×40，中心 (0,0,0)，半场就是 20 宽 40 长
+    private const float O8S场地半径 = 20f;
+
+    // 众神之像第二次之后的 8 人固定站位，index 0-7 = MT/ST/H1/H2/D1/D2/D3/D4
+    private static readonly Vector3[] O8S像2站位 =
+    [
+        new(-0.47f, 0f, -17.78f), new(10.12f, 0f, -8.61f), new(14.63f, 0f, 1.93f), new(12.96f, 0f, 13.65f),
+        new(3.18f, 0f, 18.56f), new(-4.49f, 0f, 14.03f), new(-13.80f, 0f, 6.14f), new(-11.40f, 0f, -5.37f),
+    ];
+
+    // ---------------- 状态 ----------------
+    private readonly object _o8s锁 = new();
+
+    private readonly Dictionary<uint, string> _o8s本批头标 = new();   // 被点名者 EntityId → 头标 Id
+    private readonly List<nint> _o8s头标特效 = new();                 // 对应的原生 LockOn handle
+    private bool _o8s头标收集中;
+
+    private readonly List<(long Tick, uint Id, nint Handle)> _o8s预兆特效 = new();
+    private readonly HashSet<nint> _o8s已摘特效 = new();
+
+    private bool _o8s最近爆炎为假, _o8s最近冰封为假, _o8s最近暴雷为假;
+    private bool _o8s储存爆炎为假, _o8s储存冰封为假, _o8s储存暴雷为假;
+    private bool _o8s有储存爆炎;
+    private long _o8s魔法放出时刻;
+    private long _o8s冰封播报时刻, _o8s暴雷播报时刻;
+
+    private int _o8s众神次数;      // 第 1 次是波动炮流程，第 2 次起是石弹+半场流程
+    private int _o8s无情次数;      // 本次众神之像内第几次 10458
+    private bool _o8s波动弹连线窗口;
+
+    private readonly List<Vector3> _o8s传送落点 = new();
+    private bool _o8s传送收集中;
+
+    private readonly List<(long Tick, Vector3 Pos)> _o8s新增物件 = new();
+
+    private string? _o8sHp监控Guid;
+    private bool _o8sHp已播报;
+
+    private void O8S重置(ScriptAccessory sa)
+    {
+        StopO8SHpWatch(sa);
+        lock (_o8s锁)
+        {
+            _o8s本批头标.Clear();
+            _o8s头标特效.Clear();
+            _o8s头标收集中 = false;
+            _o8s预兆特效.Clear();
+            _o8s已摘特效.Clear();
+            _o8s最近爆炎为假 = _o8s最近冰封为假 = _o8s最近暴雷为假 = false;
+            _o8s储存爆炎为假 = _o8s储存冰封为假 = _o8s储存暴雷为假 = false;
+            _o8s有储存爆炎 = false;
+            _o8s魔法放出时刻 = 0;
+            _o8s冰封播报时刻 = _o8s暴雷播报时刻 = 0;
+            _o8s众神次数 = 0;
+            _o8s无情次数 = 0;
+            _o8s波动弹连线窗口 = false;
+            _o8s传送落点.Clear();
+            _o8s传送收集中 = false;
+            _o8s新增物件.Clear();
+        }
+    }
+
+    [ScriptMethod(
+        name: "O8S - 战斗结束重置",
+        eventType: EventTypeEnum.CombatChanged,
+        eventCondition: ["InCombat:False"],
+        userControl: false)]
+    public void O8S战斗结束重置(Event evt, ScriptAccessory sa)
+    {
+        if (!InMap(O8STerritory)) return;
+        sa.Method.RemoveDraw("^O8S.*");
+        O8S重置(sa);
+    }
+
+    // ---------------- 真伪判定 ----------------
+    // 场上任意一只凯夫卡身上的小丑 buff：1=真实，0=虚伪，-1=当前没有。
+    // buff 是同一帧打在 16 只凯夫卡身上的，StatusAdd 事件顺序不可靠，所以直接查对象状态表。
+    private static int O8S读取小丑真伪(ScriptAccessory sa)
+    {
+        foreach (var obj in sa.Data.Objects)
+        {
+            if (obj is not IBattleChara bc) continue;
+            if (bc.HasStatus(O8S虚伪的小丑)) return 0;
+            if (bc.HasStatus(O8S真实的小丑)) return 1;
+        }
+        return -1;
+    }
+
+    // 10446/10439/10442 读条这一刻凯夫卡身上一定挂着 1486 或 1487（比读条早约 90ms 打上）
+    [ScriptMethod(
+        name: "O8S - 小丑真伪记录",
+        eventType: EventTypeEnum.StartCasting,
+        eventCondition: ["ActionId:regex:^(10446|10439|10442)$"],
+        userControl: false)]
+    public void O8S小丑真伪记录(Event evt, ScriptAccessory sa)
+    {
+        if (!InMap(O8STerritory)) return;
+        var 真伪 = O8S读取小丑真伪(sa);
+        if (真伪 < 0)
+        {
+            Dbg(sa, $"O8S {evt.ActionId()} 读条时没读到小丑 buff，沿用上一次");
+            return;
+        }
+
+        var 为假 = 真伪 == 0;
+        lock (_o8s锁)
+        {
+            switch (evt.ActionId())
+            {
+                case O8S爆炎读条: _o8s最近爆炎为假 = 为假; break;
+                case O8S冰封读条: _o8s最近冰封为假 = 为假; break;
+                case O8S暴雷读条: _o8s最近暴雷为假 = 为假; break;
+            }
+        }
+        Dbg(sa, $"O8S {evt.ActionId()} 读条：{(为假 ? "虚伪的小丑" : "真实的小丑")}");
+    }
+
+    // 1483/1484/1485 魔法储存：xx —— 储存完成，把读条那一刻的真伪存住给魔法放出用
+    [ScriptMethod(
+        name: "O8S - 储存真伪记录",
+        eventType: EventTypeEnum.StatusAdd,
+        eventCondition: ["StatusID:regex:^(1483|1484|1485)$"],
+        userControl: false)]
+    public void O8S储存真伪记录(Event evt, ScriptAccessory sa)
+    {
+        if (!InMap(O8STerritory)) return;
+        if (!uint.TryParse(evt["StatusID"], out var sid)) return;
+
+        lock (_o8s锁)
+        {
+            switch (sid)
+            {
+                case O8S储存爆炎: _o8s储存爆炎为假 = _o8s最近爆炎为假; _o8s有储存爆炎 = true; break;
+                case O8S储存冰封: _o8s储存冰封为假 = _o8s最近冰封为假; break;
+                case O8S储存暴雷: _o8s储存暴雷为假 = _o8s最近暴雷为假; break;
+            }
+        }
+    }
+
+    [ScriptMethod(
+        name: "O8S - 魔法放出记录",
+        eventType: EventTypeEnum.ActionEffect,
+        eventCondition: ["ActionId:10450"],
+        userControl: false)]
+    public void O8S魔法放出记录(Event evt, ScriptAccessory sa)
+    {
+        if (!InMap(O8STerritory)) return;
+        lock (_o8s锁) _o8s魔法放出时刻 = Environment.TickCount64;
+    }
+
+    // ---------------- 原生特效屏蔽 ----------------
+    // LockOn 127/128 = 分散/分摊头标；判定为虚伪时整批摘掉，免得玩家照着假头标站位
+    [ScriptMethod(
+        name: "O8S - 记录头标特效",
+        eventType: EventTypeEnum.VfxEvent,
+        eventCondition: ["Id:regex:^(127|128)$"],
+        userControl: false)]
+    public void O8S记录头标特效(Event evt, ScriptAccessory sa)
+    {
+        if (!InMap(O8STerritory)) return;
+        if (!string.Equals(evt["Type"], "LockOn", StringComparison.Ordinal)) return;
+        if (!O8S解析Handle(evt["Handle"], out var handle)) return;
+
+        lock (_o8s锁)
+        {
+            if (!_o8s头标特效.Contains(handle)) _o8s头标特效.Add(handle);
+        }
+    }
+
+    // Omen 169 圆 / 170 月环 / 171 矩形：虚伪时这些都是假的，记下 handle 等判定完再摘
+    [ScriptMethod(
+        name: "O8S - 记录预兆特效",
+        eventType: EventTypeEnum.VfxEvent,
+        eventCondition: ["Id:regex:^(169|170|171)$"],
+        userControl: false)]
+    public void O8S记录预兆特效(Event evt, ScriptAccessory sa)
+    {
+        if (!InMap(O8STerritory)) return;
+        if (!string.Equals(evt["Type"], "Omen", StringComparison.Ordinal)) return;
+        if (!uint.TryParse(evt["Id"], out var id)) return;
+        if (!O8S解析Handle(evt["Handle"], out var handle)) return;
+
+        var now = Environment.TickCount64;
+        lock (_o8s锁)
+        {
+            _o8s预兆特效.RemoveAll(x => now - x.Tick > 15000);
+            _o8s预兆特效.Add((now, id, handle));
+        }
+    }
+
+    // 预兆事件和 StartCasting 同一毫秒到达且顺序不定，延迟一点再摘，保证这一批都收全了
+    private async void O8S屏蔽预兆(ScriptAccessory sa, uint[] ids)
+    {
+        if (!技能特效屏蔽) return;
+        await Task.Delay(400);
+
+        List<nint> 待摘 = [];
+        var now = Environment.TickCount64;
+        lock (_o8s锁)
+        {
+            foreach (var (tick, id, handle) in _o8s预兆特效)
+            {
+                if (now - tick > 1200) continue;
+                if (!ids.Contains(id)) continue;
+                if (!_o8s已摘特效.Add(handle)) continue;
+                待摘.Add(handle);
+            }
+        }
+
+        foreach (var handle in 待摘)
+            sa.Method.VfxMethod.RemoveVfx(handle, VfxType.Omen);
+        if (待摘.Count > 0) Dbg(sa, $"O8S 屏蔽假预兆 {待摘.Count} 个");
+    }
+
+    private static bool O8S解析Handle(string? raw, out nint value)
+    {
+        value = 0;
+        if (string.IsNullOrWhiteSpace(raw)) return false;
+        var s = raw.Trim();
+        if (s.StartsWith("0x", StringComparison.OrdinalIgnoreCase)) s = s[2..];
+        return nint.TryParse(s, System.Globalization.NumberStyles.HexNumber, null, out value);
+    }
+
+    // ---------------- 呼啦啦爆炎（分摊 / 分散）----------------
+    // 0080 分摊 / 007F 分散的头标比读条早几百毫秒，先收一批再统一判真伪
+    [ScriptMethod(
+        name: "O8S - 呼啦啦爆炎分摊分散",
+        eventType: EventTypeEnum.TargetIcon,
+        eventCondition: ["Id:regex:^(0080|007F)$"])]
+    public void O8S爆炎分摊分散(Event evt, ScriptAccessory sa)
+    {
+        if (!InMap(O8STerritory)) return;
+        var tid = evt.TargetId();
+        if (tid == 0) return;
+
+        var 本批首个 = false;
+        lock (_o8s锁)
+        {
+            _o8s本批头标[tid] = evt["Id"] ?? "";
+            if (!_o8s头标收集中)
+            {
+                _o8s头标收集中 = true;
+                本批首个 = true;
+            }
+        }
+
+        if (本批首个) _ = O8S解析并绘制爆炎(sa);
+    }
+
+    private async Task O8S解析并绘制爆炎(ScriptAccessory sa)
+    {
+        // 等头标收齐，顺便等 10446 读条把 buff 带进来
+        await Task.Delay(O8S头标收集窗口);
+
+        Dictionary<uint, string> 头标;
+        List<nint> 特效;
+        bool 有储存, 储存为假;
+        long 放出时刻;
+        lock (_o8s锁)
+        {
+            头标 = new Dictionary<uint, string>(_o8s本批头标);
+            特效 = [.. _o8s头标特效];
+            有储存 = _o8s有储存爆炎;
+            储存为假 = _o8s储存爆炎为假;
+            放出时刻 = _o8s魔法放出时刻;
+            _o8s本批头标.Clear();
+            _o8s头标特效.Clear();
+            _o8s头标收集中 = false;
+        }
+
+        if (头标.Count == 0) return;
+
+        // 魔法放出的爆炎没有自己的 buff（这时场上挂的可能已经是下一个技能的小丑 buff），
+        // 所以先认「刚放出且手上有存货」这个更强的信号；存货用掉即清，不会挡到之后的读条。
+        bool 为假;
+        var 真伪 = O8S读取小丑真伪(sa);
+        if (有储存 && Environment.TickCount64 - 放出时刻 <= O8S放出关联窗口)
+        {
+            为假 = 储存为假;
+            lock (_o8s锁) _o8s有储存爆炎 = false;
+        }
+        else if (真伪 >= 0)
+        {
+            为假 = 真伪 == 0;
+            lock (_o8s锁) _o8s最近爆炎为假 = 为假;
+        }
+        else
+        {
+            Dbg(sa, $"O8S 头标 {string.Join(",", 头标.Values.Distinct())} 不是爆炎，跳过");
+            return;
+        }
+
+        var 显示为分摊 = 头标.Values.Any(id => string.Equals(id, O8S分摊头标, StringComparison.Ordinal));
+        var 实际分摊 = 为假 ? !显示为分摊 : 显示为分摊;
+        Dbg(sa, $"O8S 爆炎：头标{(显示为分摊 ? "分摊" : "分散")} + {(为假 ? "虚伪" : "真实")} → 实际{(实际分摊 ? "分摊" : "分散")}（点名 {头标.Count} 人）");
+
+        if (为假 && 技能特效屏蔽)
+        {
+            List<nint> 待摘 = [];
+            lock (_o8s锁)
+                foreach (var handle in 特效)
+                    if (_o8s已摘特效.Add(handle)) 待摘.Add(handle);
+            foreach (var handle in 待摘)
+                sa.Method.VfxMethod.RemoveVfx(handle, VfxType.LockOn);
+        }
+
+        sa.Method.RemoveDraw("^O8S爆炎.*");
+
+        if (实际分摊)
+        {
+            // 真分摊：安全色圈跟着被点名的人；由虚伪分散反转来的分摊没有点名目标，画自己身上当集合圈
+            if (显示为分摊)
+            {
+                var i = 0;
+                foreach (var tid in 头标.Keys)
+                    O8S画圈(sa, $"O8S爆炎分摊-{i++}", tid, O8S分摊半径, true, O8S爆炎绘图时长);
+            }
+            else
+            {
+                O8S画圈(sa, "O8S爆炎分摊-0", sa.Data.Me, O8S分摊半径, true, O8S爆炎绘图时长);
+            }
+        }
+        else
+        {
+            // 分散：每人一个 5m 危险圈，互相不能重叠
+            var party = sa.Data.PartyList;
+            for (var i = 0; i < party.Count; i++)
+                O8S画圈(sa, $"O8S爆炎分散-{i}", party[i], O8S分散半径, false, O8S爆炎绘图时长);
+        }
+
+        O8S播报(sa, 实际分摊 ? "分摊" : "分散", 为假, O8S爆炎绘图时长);
+    }
+
+    // TTS 只念"要做什么"，真伪放横幅——TTS 念"假分摊"很容易被听成"这不是分摊"
+    private void O8S播报(ScriptAccessory sa, string 动作, bool 为假, int duration)
+    {
+        if (启用TTS) sa.Method.TTS(动作);
+        // if (启用横幅) sa.Method.TextInfo($"{(为假 ? "虚伪" : "真实")}·{动作}", duration, true);
+    }
+
+    private static void O8S画圈(ScriptAccessory sa, string name, ulong owner, float radius, bool safe, int duration)
+    {
+        if (owner == 0) return;
+        var dp = sa.Data.GetDefaultDrawProperties();
+        dp.Name = name;
+        dp.Owner = owner;
+        dp.Scale = new Vector2(radius);
+        dp.Color = safe ? sa.Data.DefaultSafeColor : sa.Data.DefaultDangerColor;
+        dp.DestoryAt = duration;
+        sa.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Circle, dp);
+    }
+
+    // ---------------- 滴溜溜冰封 / 劈啪啪暴雷 ----------------
+    // 11xxx 是魔法放出的（当时没有 buff 可读），10xxx 是当场读条
+    private bool O8S本发为假(ScriptAccessory sa, uint actionId, bool 储存为假, bool 最近为假)
+    {
+        if (actionId >= 11000) return 储存为假;
+        var 真伪 = O8S读取小丑真伪(sa);
+        return 真伪 >= 0 ? 真伪 == 0 : 最近为假;
+    }
+
+    private static int O8S读条时长(Event evt, int 默认值)
+        => int.TryParse(evt["DurationMilliseconds"], out var d) && d > 0 ? d : 默认值;
+
+    [ScriptMethod(
+        name: "O8S - 滴溜溜冰封",
+        eventType: EventTypeEnum.StartCasting,
+        eventCondition: ["ActionId:regex:^(10437|10438|10440|10441|11051|11052|11053|11054)$"])]
+    public void O8S冰封(Event evt, ScriptAccessory sa)
+    {
+        if (!InMap(O8STerritory)) return;
+        var aid = evt.ActionId();
+
+        bool 为假, 最近, 储存;
+        lock (_o8s锁) { 最近 = _o8s最近冰封为假; 储存 = _o8s储存冰封为假; }
+        为假 = O8S本发为假(sa, aid, 储存, 最近);
+
+        var 带预兆 = O8S冰封带预兆.Contains(aid);
+        if (为假 == 带预兆)   // 真实时只有带预兆的会打，虚伪时只有无预兆的会打
+        {
+            if (为假) O8S屏蔽预兆(sa, O8S冰封预兆Id);
+            return;
+        }
+
+        var 月环 = O8S冰封月环.Contains(aid);
+        var pos = evt.SourcePosition();
+        var dur = O8S读条时长(evt, 5000);
+
+        var dp = sa.Data.GetDefaultDrawProperties();
+        dp.Name = $"O8S冰封-{aid}";
+        dp.Color = sa.Data.DefaultDangerColor;
+        dp.Owner = 0;
+        dp.Position = pos;
+        dp.DestoryAt = dur;
+        dp.ScaleMode = ScaleMode.None;
+
+        if (月环)
+        {
+            dp.Scale = new Vector2(O8S冰封月环外径);
+            dp.InnerScale = new Vector2(O8S冰封月环内径);
+            dp.Radian = 2f * MathF.PI;
+            sa.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Donut, dp);
+        }
+        else
+        {
+            dp.Scale = new Vector2(O8S冰封钢铁半径);
+            sa.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Circle, dp);
+        }
+
+        var now = Environment.TickCount64;
+        lock (_o8s锁)
+        {
+            if (now - _o8s冰封播报时刻 < 2000) return;
+            _o8s冰封播报时刻 = now;
+        }
+        O8S播报(sa, 月环 ? "进内圈" : "出十米", 为假, Math.Min(dur, 4000));
+        Dbg(sa, $"O8S 冰封 {aid}：{(为假 ? "虚伪" : "真实")} → {(月环 ? "月环 进内圈" : "钢铁 出10m")} @ {pos:F1}");
+    }
+
+    [ScriptMethod(
+        name: "O8S - 劈啪啪暴雷",
+        eventType: EventTypeEnum.StartCasting,
+        eventCondition: ["ActionId:regex:^(10443|10444|10445|11055|11056|11057)$"])]
+    public void O8S暴雷(Event evt, ScriptAccessory sa)
+    {
+        if (!InMap(O8STerritory)) return;
+        var aid = evt.ActionId();
+
+        bool 最近, 储存;
+        lock (_o8s锁) { 最近 = _o8s最近暴雷为假; 储存 = _o8s储存暴雷为假; }
+        var 为假 = O8S本发为假(sa, aid, 储存, 最近);
+
+        var 带预兆 = O8S暴雷带预兆.Contains(aid);
+        if (为假 == 带预兆)
+        {
+            if (为假) O8S屏蔽预兆(sa, O8S暴雷预兆Id);
+            return;
+        }
+
+        var pos = evt.SourcePosition();
+        var dur = O8S读条时长(evt, 5000);
+
+        var dp = sa.Data.GetDefaultDrawProperties();
+        dp.Name = $"O8S暴雷-{evt.SourceId():X}";
+        dp.Color = sa.Data.DefaultDangerColor;
+        dp.Owner = 0;
+        dp.Position = pos;
+        dp.Rotation = evt.SourceRotation();
+        dp.FixRotation = true;
+        dp.Scale = O8S暴雷矩形;
+        dp.ScaleMode = ScaleMode.None;
+        dp.DestoryAt = dur;
+        sa.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Rect, dp);
+
+        var now = Environment.TickCount64;
+        lock (_o8s锁)
+        {
+            if (now - _o8s暴雷播报时刻 < 2000) return;
+            _o8s暴雷播报时刻 = now;
+        }
+        O8S播报(sa, "躲雷", 为假, Math.Min(dur, 4000));
+        Dbg(sa, $"O8S 暴雷 {aid}：{(为假 ? "虚伪" : "真实")} @ {pos:F1} rot {dp.Rotation:F2}");
+    }
+
+    // ---------------- 单体 / 全体伤害提示 ----------------
+    // 10472 超驱动：4s 读条点坦克，提醒 MT 超硬化
+    [ScriptMethod(
+        name: "O8S - 超驱动提醒MT超硬化",
+        eventType: EventTypeEnum.StartCasting,
+        eventCondition: ["ActionId:10472"])]
+    public void O8S超驱动提醒(Event evt, ScriptAccessory sa)
+    {
+        if (!InMap(O8STerritory)) return;
+        if (!Debugging && sa.MyIndex() != 0) return;
+        sa.Method.TextInfo("超硬化", 4000, true);
+        Dbg(sa, "O8S 10472 超驱动：提示 MT 超硬化");
+    }
+
+    // 10471 扑腾腾究极 / 10456 制裁之光：全场无差别 AOE
+    [ScriptMethod(
+        name: "O8S - 全体AOE播报",
+        eventType: EventTypeEnum.StartCasting,
+        eventCondition: ["ActionId:regex:^(10471|10456)$"])]
+    public void O8S全体AOE(Event evt, ScriptAccessory sa)
+    {
+        if (!InMap(O8STerritory)) return;
+        if (启用TTS) sa.Method.TTS("AOE");
+        Dbg(sa, $"O8S {evt.ActionId()}：全体 AOE");
+    }
+
+    // 10454 疼飕飕暴风：5s 读条全场击退，读条过半按沉稳
+    [ScriptMethod(
+        name: "O8S - 疼飕飕暴风防击退",
+        eventType: EventTypeEnum.StartCasting,
+        eventCondition: ["ActionId:10454"])]
+    public void O8S疼飕飕暴风防击退(Event evt, ScriptAccessory sa)
+    {
+        if (!InMap(O8STerritory)) return;
+        var dur = O8S读条时长(evt, 5000);
+        sa.Method.TextInfo("开启防击退", 3000, true);
+        ScheduleAutoCast(sa, 沉稳咏唱, HardenActionType, sa.Data.Me, "防击退沉稳", dur / 2.0, announce: false);
+        Dbg(sa, $"O8S 10454：读条 {dur}ms，{dur / 2}ms 后按沉稳");
+    }
+
+    // 10459 冲击波：10s 读条的大击退，只给一个按施法者朝向的击退指示
+    [ScriptMethod(
+        name: "O8S - 冲击波击退方向",
+        eventType: EventTypeEnum.StartCasting,
+        eventCondition: ["ActionId:10459"])]
+    public void O8S冲击波击退(Event evt, ScriptAccessory sa)
+    {
+        if (!InMap(O8STerritory)) return;
+        var dp = sa.Data.GetDefaultDrawProperties();
+        dp.Name = "O8S冲击波击退";
+        dp.Owner = sa.Data.Me;
+        dp.Color = new Vector4(1f, 1f, 0f, 1f);
+        dp.Scale = new Vector2(1f, 20f);
+        dp.Rotation = evt.SourceRotation();
+        dp.FixRotation = true;
+        dp.ScaleMode = ScaleMode.None;
+        dp.DestoryAt = O8S读条时长(evt, 10000);
+        sa.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Displacement, dp);
+        Dbg(sa, $"O8S 10459 冲击波：击退方向 rot {dp.Rotation:F2}");
+    }
+
+    // ---------------- 众神之像 ----------------
+    // 第 1 次是「场中集合 → 波动炮分散」，第 2 次起是「八方站位 → 石弹 → 半场攻击」
+    [ScriptMethod(
+        name: "O8S - 众神之像读条",
+        eventType: EventTypeEnum.StartCasting,
+        eventCondition: ["ActionId:10455"],
+        userControl: false)]
+    public void O8S众神之像读条(Event evt, ScriptAccessory sa)
+    {
+        if (!InMap(O8STerritory)) return;
+
+        int 次数;
+        lock (_o8s锁)
+        {
+            _o8s众神次数++;
+            次数 = _o8s众神次数;
+            _o8s无情次数 = 0;
+            _o8s波动弹连线窗口 = 次数 == 1;
+        }
+        Dbg(sa, $"O8S 众神之像 第 {次数} 次");
+        if (次数 != 1) return;
+
+        // 第一次：全员先去场中集合，等第一发无情的神气读条再散开
+        var dur = O8S读条时长(evt, 5000) + 3000;
+        var party = sa.Data.PartyList;
+        var myIndex = sa.MyIndex();
+        for (var i = 0; i < party.Count; i++)
+        {
+            if (!Debugging && i != myIndex) continue;
+            var dp = sa.WaypointDp(Vector3.Zero, (uint)dur, 0, $"O8S像1集合-{i}", sa.Data.DefaultSafeColor);
+            dp.Owner = GuidanceOwner(sa, i);
+            sa.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
+        }
+        sa.Method.TextInfo("场中集合然后分散", dur, true);
+    }
+
+    // 10458 无情的神气：第 1 发收集合指路、开始画波动炮直线；第 2 发收掉直线
+    [ScriptMethod(
+        name: "O8S - 无情的神气与波动炮",
+        eventType: EventTypeEnum.StartCasting,
+        eventCondition: ["ActionId:10458"],
+        userControl: false)]
+    public void O8S无情的神气与波动炮(Event evt, ScriptAccessory sa)
+    {
+        if (!InMap(O8STerritory)) return;
+
+        int 次数;
+        lock (_o8s锁)
+        {
+            _o8s无情次数++;
+            次数 = _o8s无情次数;
+        }
+
+        if (次数 == 1)
+        {
+            sa.Method.RemoveDraw("^O8S像1集合-.*");
+            O8S画波动炮(sa, evt.SourceId(), evt.SourcePosition().Y);
+            return;
+        }
+
+        if (次数 == 2) sa.Method.RemoveDraw("^O8S波动炮-.*");
+    }
+
+    // 波动炮：从场中那尊像出发、朝每个人各一条 100 长 6 宽的直线，彼此别重叠
+    private void O8S画波动炮(ScriptAccessory sa, uint 源Id, float 源高度)
+    {
+        if (源Id == 0) return;
+        var party = sa.Data.PartyList;
+        for (var i = 0; i < party.Count; i++)
+        {
+            var dp = sa.Data.GetDefaultDrawProperties();
+            dp.Name = $"O8S波动炮-{i}";
+            dp.Color = sa.Data.DefaultDangerColor;
+            dp.Owner = 源Id;
+            dp.TargetObject = party[i];
+            dp.Offset = new Vector3(0f, -源高度, 0f);   // 像站在高台上，Owner 的 y 比玩家高一大截，压回地面
+            dp.Scale = O8S波动炮矩形;
+            dp.ScaleMode = ScaleMode.None;
+            dp.DestoryAt = 8000;
+            sa.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Rect, dp);
+        }
+        Dbg(sa, $"O8S 波动炮：从 {源Id:X} 朝 {party.Count} 人各画一条 {O8S波动炮矩形.Y}×{O8S波动炮矩形.X}");
+    }
+
+    // Channeling 45 = 波动弹连线，被连的人 4.7s 后吃击退，提前按沉稳
+    [ScriptMethod(
+        name: "O8S - 波动弹连线自动沉稳",
+        eventType: EventTypeEnum.VfxEvent,
+        eventCondition: ["Id:45"])]
+    public void O8S波动弹连线(Event evt, ScriptAccessory sa)
+    {
+        if (!InMap(O8STerritory)) return;
+        if (!string.Equals(evt["Type"], "Channeling", StringComparison.Ordinal)) return;
+
+        bool 窗口内;
+        lock (_o8s锁) 窗口内 = _o8s波动弹连线窗口;
+        if (!窗口内) return;                       // 第二次众神之像的石弹连线也是 45，不要误按
+        if (evt.TargetId() != sa.Data.Me) return;
+
+        sa.Method.TextInfo("被连线 沉稳", 3000, true);
+        ScheduleAutoCast(sa, 沉稳咏唱, HardenActionType, sa.Data.Me, "波动弹沉稳", 2500, announce: false);
+        Dbg(sa, "O8S Channeling 45：自己被连线，排程沉稳");
+    }
+
+    // 第二次起：读条结束后按 index 去八方站位，直到自己吃到岩石弹/重力弹
+    [ScriptMethod(
+        name: "O8S - 众神之像八方指路",
+        eventType: EventTypeEnum.ActionEffect,
+        eventCondition: ["ActionId:10455"],
+        userControl: false)]
+    public void O8S众神之像八方指路(Event evt, ScriptAccessory sa)
+    {
+        if (!InMap(O8STerritory)) return;
+        int 次数;
+        lock (_o8s锁) 次数 = _o8s众神次数;
+        if (次数 < 2) return;
+        O8S画八方站位(sa);
+    }
+
+    private void O8S画八方站位(ScriptAccessory sa)
+    {
+        if (sa.Data.PartyList.Count < 8) return;
+        sa.Method.RemoveDraw("^O8S像2站位-.*");
+
+        var myIndex = sa.MyIndex();
+        for (var i = 0; i < 8; i++)
+        {
+            if (!Debugging && i != myIndex) continue;
+            var dp = sa.WaypointDp(O8S像2站位[i], 12000, 0, $"O8S像2站位-{i}", sa.Data.DefaultSafeColor);
+            dp.Owner = GuidanceOwner(sa, i);
+            sa.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
+        }
+        Dbg(sa, "O8S 众神之像：八方站位指路");
+    }
+
+    // 岩石弹 10466 / 重力弹 10464 打到自己 = 这一轮站位结束，收指路
+    [ScriptMethod(
+        name: "O8S - 石弹落地收指路",
+        eventType: EventTypeEnum.ActionEffect,
+        eventCondition: ["ActionId:regex:^(10466|10464)$"],
+        userControl: false)]
+    public void O8S石弹落地(Event evt, ScriptAccessory sa)
+    {
+        if (!InMap(O8STerritory)) return;
+        if (evt.TargetId() != sa.Data.Me) return;
+        sa.Method.RemoveDraw("^O8S像2站位-.*");
+        Dbg(sa, $"O8S {evt.ActionId()} 打到自己：收八方指路");
+    }
+
+    // ---------------- 扑杀的神气 / 重力波：半场攻击 ----------------
+    // 读条同时在众神之像身侧冒一个光球（西紫 / 东黄），球在哪边就打哪边半场
+    [ScriptMethod(
+        name: "O8S - 物件生成记录",
+        eventType: EventTypeEnum.ObjectChanged,
+        eventCondition: ["Operate:Add"],
+        userControl: false)]
+    public void O8S物件生成记录(Event evt, ScriptAccessory sa)
+    {
+        if (!InMap(O8STerritory)) return;
+        Vector3 pos;
+        try { pos = evt.SourcePosition(); }
+        catch { return; }
+
+        var now = Environment.TickCount64;
+        lock (_o8s锁)
+        {
+            _o8s新增物件.RemoveAll(x => now - x.Tick > 10000);
+            _o8s新增物件.Add((now, pos));
+        }
+    }
+
+    [ScriptMethod(
+        name: "O8S - 半场攻击",
+        eventType: EventTypeEnum.StartCasting,
+        eventCondition: ["ActionId:regex:^(10463|10462)$"])]
+    public async void O8S半场攻击(Event evt, ScriptAccessory sa)
+    {
+        if (!InMap(O8STerritory)) return;
+        var dur = O8S读条时长(evt, 5000);
+
+        // 光球可能比读条晚一点冒出来，等一下再认边
+        await Task.Delay(700);
+
+        float? x = null;
+        var now = Environment.TickCount64;
+        lock (_o8s锁)
+        {
+            foreach (var (tick, pos) in _o8s新增物件)
+            {
+                if (now - tick > 2000) continue;
+                // 光球贴在像身上（场地北边很远），横向偏移约 ±16；岩石弹发射口在 |x|≈26，排除掉
+                if (pos.Z > -30f) continue;
+                if (MathF.Abs(pos.X) is < 8f or > 20f) continue;
+                x = pos.X;
+            }
+        }
+
+        if (x is null)
+        {
+            Dbg(sa, "O8S 半场攻击：没找到指示光球，跳过绘制");
+            return;
+        }
+
+        var 东 = x > 0;
+        var dp = sa.Data.GetDefaultDrawProperties();
+        dp.Name = "O8S半场";
+        dp.Color = sa.Data.DefaultDangerColor;
+        dp.Owner = 0;
+        dp.Position = new Vector3(东 ? O8S场地半径 / 2f : -O8S场地半径 / 2f, 0f, -O8S场地半径);
+        dp.Rotation = 0f;                                            // 0 = 朝 +Z，矩形从北边贯到南边
+        dp.FixRotation = true;
+        dp.Scale = new Vector2(O8S场地半径, O8S场地半径 * 2f);        // 20 宽 40 长 = 半个场
+        dp.ScaleMode = ScaleMode.None;
+        dp.DestoryAt = Math.Max(dur - 700, 1000);
+        sa.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Rect, dp);
+
+        Announce(sa, 东 ? "去西边" : "去东边", Math.Max(dur - 700, 1000));
+        Dbg(sa, $"O8S 半场攻击：光球 x={x:F1} → 打{(东 ? "东" : "西")}半场");
+    }
+
+    // 半场结算完立刻重新指八方站位，等下一轮石弹
+    [ScriptMethod(
+        name: "O8S - 半场结束重新指路",
+        eventType: EventTypeEnum.ActionEffect,
+        eventCondition: ["ActionId:regex:^(10463|10462)$"],
+        userControl: false)]
+    public void O8S半场结束(Event evt, ScriptAccessory sa)
+    {
+        if (!InMap(O8STerritory)) return;
+        sa.Method.RemoveDraw("^O8S半场$");
+        O8S画八方站位(sa);
+    }
+
+    // ---------------- 跳蹦蹦传送 → 恶狠狠毁荡 ----------------
+    // 10452 同时起两处，落在场边的那处之后会朝场中甩一发 120° 大扇形（10453 恶狠狠毁荡，无读条）。
+    // ActionEffect 的 EffectPosition 不可用，取读条事件里施法者自己的位置（10452 的 Omen 175 就是以它为心的 6m 圆）。
+    [ScriptMethod(
+        name: "O8S - 跳蹦蹦传送扇形预警",
+        eventType: EventTypeEnum.StartCasting,
+        eventCondition: ["ActionId:10452"])]
+    public void O8S传送扇形预警(Event evt, ScriptAccessory sa)
+    {
+        if (!InMap(O8STerritory)) return;
+
+        var 本批首个 = false;
+        lock (_o8s锁)
+        {
+            _o8s传送落点.Add(evt.SourcePosition());
+            if (!_o8s传送收集中)
+            {
+                _o8s传送收集中 = true;
+                本批首个 = true;
+            }
+        }
+        if (本批首个) _ = O8S画毁荡扇形(sa);
+    }
+
+    private async Task O8S画毁荡扇形(ScriptAccessory sa)
+    {
+        await Task.Delay(250);
+
+        List<Vector3> 落点;
+        lock (_o8s锁)
+        {
+            落点 = [.. _o8s传送落点];
+            _o8s传送落点.Clear();
+            _o8s传送收集中 = false;
+        }
+        if (落点.Count == 0) return;
+
+        // 取离场中最远的那个 = 场边那个
+        var 边 = 落点.OrderByDescending(p => p.X * p.X + p.Z * p.Z).First();
+
+        var dp = sa.Data.GetDefaultDrawProperties();
+        dp.Name = "O8S毁荡扇形";
+        dp.Color = sa.Data.DefaultDangerColor;
+        dp.Owner = 0;
+        dp.Position = 边;
+        dp.Rotation = MathF.Atan2(-边.X, -边.Z);      // 面朝场中 (0,0,0)
+        dp.FixRotation = true;
+        dp.Radian = 2f * MathF.PI / 3f;                // 120°
+        dp.Scale = new Vector2(100f);
+        dp.ScaleMode = ScaleMode.None;
+        dp.DestoryAt = 7200;   // 读条 4s + 落地后约 3.2s 才甩出毁荡
+        sa.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Fan, dp);
+
+        Dbg(sa, $"O8S 跳蹦蹦传送：落点 {落点.Count} 个，场边 {边:F1}，画 120° 扇形");
+    }
+
+    // ---------------- 血量播报 ----------------
+    [ScriptMethod(
+        name: "O8S - 进战开启血量监控",
+        eventType: EventTypeEnum.CombatChanged,
+        eventCondition: ["InCombat:True"],
+        userControl: false)]
+    public void O8S进战(Event evt, ScriptAccessory sa)
+    {
+        if (!InMap(O8STerritory)) return;
+        O8S重置(sa);
+        StartO8SHpWatch(sa);
+    }
+
+    // 凯夫卡血量跌破 64% 播报一次扎针
+    private void StartO8SHpWatch(ScriptAccessory sa)
+    {
+        StopO8SHpWatch(sa);
+        ulong bossId = 0;
+        _o8sHp监控Guid = sa.Method.RegistFrameworkUpdateAction(() =>
+        {
+            if (_o8sHp监控Guid == null || _o8sHp已播报) return;
+
+            if (bossId == 0)
+            {
+                foreach (var obj in sa.Data.Objects)
+                    if (obj is IBattleChara bc && bc.DataId == 凯夫卡DataId && bc.MaxHp > 0) { bossId = bc.GameObjectId; break; }
+                if (bossId == 0) return;
+            }
+
+            if (sa.Data.Objects.SearchById(bossId) is not IBattleChara boss || boss.MaxHp == 0) return;
+            if (boss.CurrentHp / (double)boss.MaxHp > 0.64) return;
+            _o8sHp已播报 = true;
+            Announce(sa, "扎针", 5000);
+            Dbg(sa, "O8S 凯夫卡血量 <64%：播报扎针");
+        }, true, false);
+    }
+
+    private void StopO8SHpWatch(ScriptAccessory sa)
+    {
+        _o8sHp已播报 = false;
+        if (_o8sHp监控Guid == null) return;
+        sa.Method.UnregistFrameworkUpdateAction(_o8sHp监控Guid);
+        _o8sHp监控Guid = null;
+    }
+    #endregion
 }
 
 #region Helpers
@@ -3765,10 +4698,13 @@ public static class EventExtensions
     public static uint SourceId(this Event evt) => ParseHexId(evt["SourceId"], out var id) ? id : 0;
     public static uint TargetId(this Event evt) => ParseHexId(evt["TargetId"], out var id) ? id : 0;
     public static Vector3 SourcePosition(this Event evt) => JsonConvert.DeserializeObject<Vector3>(evt["SourcePosition"]);
+    public static Vector3 EffectPosition(this Event evt) => JsonConvert.DeserializeObject<Vector3>(evt["EffectPosition"]);
 }
 
 public static class ScriptAccessoryExtensions
 {
+    public static int MyIndex(this ScriptAccessory sa) => sa.Data.PartyList.IndexOf(sa.Data.Me);
+
     public static DrawPropertiesEdit WaypointDp(this ScriptAccessory sa, Vector3 target, uint duration, uint delay = 0, string name = "Waypoint", Vector4? color = null)
     {
         var dp = sa.Data.GetDefaultDrawProperties();
