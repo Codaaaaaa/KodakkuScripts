@@ -55,11 +55,11 @@ public class TopReborn
     const string UpdateInfo =
         $"""
          {Version}
-         P5 Delta fixed, translate all methods
+         P3 fixed
          """;
 
     private const string Name = "The Omega Protocol (Ultimate) TOP - LPDU";
-    private const string Version = "0.0.0.26";
+    private const string Version = "0.0.0.27";
     private const string DebugVersion = "a";
 
     private const bool Debugging = false;
@@ -1757,6 +1757,7 @@ public class TopReborn
         
         lock (_pd)
         {
+            if (_p3.小电视头标记录.WaitOne(0)) return;    // 已记录完毕或已走兜底，忽略迟到的标点
             var mark = ev.Id0();
             var tidx = sa.GetPlayerIdIndex((uint)ev.TargetId);
             var targetJob = sa.GetPlayerJobByIndex(tidx);
@@ -1779,6 +1780,33 @@ public class TopReborn
             sa.DebugMsg($"P3B_小电视_记录头标：头标记录完毕", Debugging);
             sa.DebugMsg($"{_pd.ShowPriorities()}", Debugging);
             _p3.小电视头标记录.Set();   // 头标记录
+        }
+    }
+
+    /// <summary>
+    /// 等小电视八个头标记录完毕，不齐则走 HTD 兜底。指路与面向计算共用，谁先超时谁兜底。
+    /// 标点是逐个落下的，快慢看标点人的插件和延迟：欧服 1 倍速实测首标在 Buff 后 +0.94s、第 8 个 +2.86s。
+    /// 所以 2.5s 内一个标都没有才当作不标点；已经开始标了就等到 Buff 后 5s（波动炮 Buff 后约 10s 生效）。
+    /// </summary>
+    private static void P3B_小电视_等待头标(ScriptAccessory sa)
+    {
+        if (_p3.小电视头标记录.WaitOne(2500)) return;
+        if (_pd.ActionCount > 0 && _p3.小电视头标记录.WaitOne(2500)) return;
+        lock (_pd)
+        {
+            if (_p3.小电视头标记录.WaitOne(0)) return;
+            sa.DebugMsg($"P3B_小电视_等待头标：只收到 {_pd.ActionCount} 个标点，启用HTD优先级排列", Debugging);
+            for (var i = 0; i < sa.Data.PartyList.Count; i++)
+            {
+                // 个位是 HTD 职能值，十位以上是标点值。兜底必须丢掉半套标点：
+                // 否则还没被标的人只剩个位数排到第一，已被标的人全体错后一格
+                _pd.Priorities[i] %= 10;
+                var obj = sa.GetById(sa.Data.PartyList[i]);
+                if (obj is null) continue;
+                if (!((IBattleChara)obj).HasStatusAny([3452, 3453])) continue;
+                _pd.AddPriority(i, 100);
+            }
+            _p3.小电视头标记录.Set();
         }
     }
 
@@ -1806,18 +1834,7 @@ public class TopReborn
     public void P3B_小电视_指路(Event ev, ScriptAccessory sa)
     {
         if (_parse != 3.1) return;
-        var hasMarker = _p3.小电视头标记录.WaitOne(2500);
-        if (!hasMarker)
-        {
-            sa.DebugMsg($"未在一定时间内检测到头标，启用HTD优先级排列", Debugging);
-            for (int i = 0; i < sa.Data.PartyList.Count; i++)
-            {
-                var obj = sa.GetById(sa.Data.PartyList[i]);
-                if (obj is null) continue;
-                if (!((IBattleChara)obj).HasStatusAny([3452, 3453])) continue;
-                _pd.AddPriority(i, 100);
-            }
-        }
+        P3B_小电视_等待头标(sa);
         _p3.光头扫描方向记录.WaitOne();
         
         // 打右左安全，攻1-5，锁1-3
@@ -1842,7 +1859,7 @@ public class TopReborn
         const uint PLAYER_CANNON_RIGHT = 3452;
         
         _p3.光头扫描方向记录.WaitOne();
-        _p3.小电视头标记录.WaitOne(3000);
+        P3B_小电视_等待头标(sa);
 
         int myBindRank = _pd.FindPriorityIndexOfKey(sa.GetMyIndex()) - 5;
         if (myBindRank < 0) return;
