@@ -7,5 +7,14 @@
     "TerritoryIds": [245, 358, 196, 452, 532, 587, 698, 755],
     "DownloadUrl": "https://raw.githubusercontent.com/Codaaaaaa/KodakkuScripts/main/Dev/青魔魔界花.cs",
     "UpdateInfo": "0.0.0.3\nA8S 配件s更换(5692)由「看boss手」改为读配件位图自动判分支，提前 5.2s 画出单炮/双炮/单钻/双钻各自的图\n\n0.0.0.2还在本地测试,lockon修复"
+  },
+  {
+    "Name": "VFX槽位探针",
+    "Guid": "3f7c1a92-6d4b-4f18-9c20-8a5e11d7b6e3",
+    "Version": "0.0.0.2",
+    "Author": "Codaaaaaa",
+    "TerritoryIds": [],
+    "DownloadUrl": "https://raw.githubusercontent.com/Codaaaaaa/KodakkuScripts/main/Dev/VfxSlotProbe.cs",
+    "UpdateInfo": ""
   }
 ]
