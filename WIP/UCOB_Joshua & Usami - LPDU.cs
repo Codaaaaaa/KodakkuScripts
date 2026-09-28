@@ -301,6 +301,9 @@ public class UcobReborn
         sa.DrawCircle(ev.TargetId, 0, 10000, $"GEN_{_upm.当前阶段}_液体地狱随机火圈范围", 5f, color);
     }
     
+    // 远敏 BRD/MCH/DNC + 法系 BLM/SMN/RDM/PCT 的 ClassJob RowId
+    private static readonly uint[] 远程DpsJobIds = [23, 31, 38, 25, 27, 35, 42];
+
     private async void 液体地狱引导范围绘图(ScriptAccessory sa, bool phaseKeep)
     {
         if (_upm.当前阶段 < 1999)
@@ -318,7 +321,9 @@ public class UcobReborn
         var color = new Vector4(0.3f, 0.3f, 1, 4f);
         sa.DrawDonut(_upm.P1.双塔尼亚_ObjId, 0, 20000, $"GEN_{_upm.当前阶段}_液体地狱引导范围", 16.5f, 15f, color);
 
-        var biasRole = _upm.当前阶段 == 4000 ? 6 : 3;
+        // 小队顺序里第一个远程 DPS 去引导，没有远程则回退 D3
+        var biasRole = Enumerable.Range(0, sa.Data.PartyList.Count).FirstOrDefault(i =>
+            sa.GetById(sa.Data.PartyList[i]) is IBattleChara bc && 远程DpsJobIds.Contains(bc.ClassJob.RowId), 6);
         var ttsStr = sa.GetMyIndex() != biasRole ? "环内躲避" : "环外引导";
         sa.TextInfo($"{ttsStr} 液体地狱", destroyMs: 1500);
         sa.TTS(ttsStr);
