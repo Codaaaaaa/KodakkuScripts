@@ -45,7 +45,7 @@ public class UcobReborn
     private const string Version = "0.0.0.4";
     private const string DebugVersion = "g";
     private int _runId = 0;
-    public const bool Debugging = false;
+    public const bool Debugging = true;
     
     public static readonly Vector3 Center = Vector3.Zero;
     
@@ -136,6 +136,74 @@ public class UcobReborn
     }
     
     #endregion 测试项
+
+    #region 场地标记排序
+
+    // 场地标记下标 0..7 = A B C D 1 2 3 4，对应站该点的职能位
+    private static readonly int[] 标记对应职能位 = [0, 2, 4, 6, 1, 3, 5, 7];
+    private static readonly string[] 职能名 = ["MT", "ST", "H1", "H2", "D1", "D2", "D3", "D4"];
+
+    // /e 排序：全队站到各自场地标记上，按“全局最近优先”一人一点重排 PartyList
+    [ScriptMethod(name: "场地标记排序(/e 排序)", eventType: EventTypeEnum.Chat,
+        eventCondition: ["Type:Echo", "Message:regex:^\\s*排序\\s*$"])]
+    public unsafe void 场地标记排序(Event ev, ScriptAccessory sa)
+    {
+        var party = sa.Data.PartyList;
+        if (party.Count < 8) { sa.Method.SendChat("/e [排序] 小队不足 8 人"); return; }
+
+        var mc = FFXIVClientStructs.FFXIV.Client.Game.UI.MarkingController.Instance();
+        var marks = new List<(int Mark, Vector3 Pos)>();
+        for (int i = 0; i < 8; i++)
+            if (mc->FieldMarkers[i].Active) marks.Add((i, mc->FieldMarkers[i].Position));
+        if (marks.Count < 8) { sa.Method.SendChat($"/e [排序] 场地标记只有 {marks.Count} 个，需要 8 个"); return; }
+
+        var players = new List<(uint Id, Vector3 Pos)>();
+        foreach (var id in party)
+        {
+            var obj = sa.Data.Objects.SearchByEntityId(id);
+            if (obj == null) { sa.Method.SendChat("/e [排序] 有队友读不到位置"); return; }
+            players.Add((id, obj.Position));
+        }
+
+        // 所有 (标记, 玩家) 配对按水平距离升序，依次取两边都没被占用的
+        var order = new uint[8];
+        var usedMark = new HashSet<int>();
+        var usedPlayer = new HashSet<uint>();
+        var pairs = from m in marks from p in players
+                    orderby Vector2.Distance(new(m.Pos.X, m.Pos.Z), new(p.Pos.X, p.Pos.Z))
+                    select (m.Mark, p.Id);
+        foreach (var (mark, id) in pairs)
+        {
+            if (usedMark.Contains(mark) || usedPlayer.Contains(id)) continue;
+            usedMark.Add(mark);
+            usedPlayer.Add(id);
+            order[标记对应职能位[mark]] = id;
+        }
+
+        if (!写入小队排序([.. order], out var err)) { sa.Method.SendChat($"/e [排序] 写入失败：{err}"); return; }
+        for (int i = 0; i < 8; i++)
+            sa.Method.SendChat($"/e [排序] {职能名[i]}: {sa.Data.Objects.SearchByEntityId(order[i])?.Name}");
+    }
+
+    // MemberList 是 internal static、setter 私有；反射换引用，拿不到时原地重排活 List（同 青魔魔界花.cs）
+    private static bool 写入小队排序(List<uint> order, out string err)
+    {
+        err = "";
+        try
+        {
+            var flags = System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic;
+            var t = typeof(InternalData).Assembly.GetType("KodakkuAssist.Data.PartyList.PartyList");
+            var setter = t?.GetProperty("MemberList", flags)?.GetSetMethod(true);
+            if (setter != null) { setter.Invoke(null, [order]); return true; }
+            var live = InternalData.Party.PartyList;
+            live.Clear();
+            live.AddRange(order);
+            return true;
+        }
+        catch (Exception ex) { err = ex.Message; return false; }
+    }
+
+    #endregion 场地标记排序
 
     #region 通用 双塔尼亚
 
@@ -301,8 +369,8 @@ public class UcobReborn
         sa.DrawCircle(ev.TargetId, 0, 10000, $"GEN_{_upm.当前阶段}_液体地狱随机火圈范围", 5f, color);
     }
     
-    // 远敏 BRD/MCH/DNC + 法系 BLM/SMN/RDM/PCT 的 ClassJob RowId
-    private static readonly uint[] 远程DpsJobIds = [23, 31, 38, 25, 27, 35, 42];
+    // 物理远程 BRD/MCH/DNC 的 ClassJob RowId
+    private static readonly uint[] 物理远程JobIds = [23, 31, 38];
 
     private async void 液体地狱引导范围绘图(ScriptAccessory sa, bool phaseKeep)
     {
@@ -321,9 +389,9 @@ public class UcobReborn
         var color = new Vector4(0.3f, 0.3f, 1, 4f);
         sa.DrawDonut(_upm.P1.双塔尼亚_ObjId, 0, 20000, $"GEN_{_upm.当前阶段}_液体地狱引导范围", 16.5f, 15f, color);
 
-        // 小队顺序里第一个远程 DPS 去引导，没有远程则回退 D3
+        // 小队顺序里第一个物理远程去引导，没有则回退 D3
         var biasRole = Enumerable.Range(0, sa.Data.PartyList.Count).FirstOrDefault(i =>
-            sa.GetById(sa.Data.PartyList[i]) is IBattleChara bc && 远程DpsJobIds.Contains(bc.ClassJob.RowId), 6);
+            sa.GetById(sa.Data.PartyList[i]) is IBattleChara bc && 物理远程JobIds.Contains(bc.ClassJob.RowId), 6);
         var ttsStr = sa.GetMyIndex() != biasRole ? "环内躲避" : "环外引导";
         sa.TextInfo($"{ttsStr} 液体地狱", destroyMs: 1500);
         sa.TTS(ttsStr);
@@ -688,7 +756,14 @@ public class UcobReborn
                 () => _upm.当前阶段 == 2000,
             ])) return;
 
-        sa.DrawGuidance(new Vector3(0, 0, -9.37f), 0, 10000, $"P2A_{_upm.当前阶段}_指向击退位置", sa.Data.DefaultSafeColor);
+        // 按职业分：T 去北 (0,0,-7.87)，其他人去南 (0,0,8.7)
+        for (int i = 0; i < sa.Data.PartyList.Count; i++)
+        {
+            if (!Debugging && sa.GetMyIndex() != i) continue;
+            var isTank = sa.GetById(sa.Data.PartyList[i]) is IBattleChara bc && bc.IsTank();
+            sa.DrawGuidance(sa.Data.PartyList[i], new Vector3(0, 0, isTank ? -7.87f : 8.7f), 0, 10000,
+                $"P2A_{_upm.当前阶段}_指向击退位置{i}", sa.Data.DefaultSafeColor);
+        }
         sa.DrawKnockBack(Center, 0, 10000, $"P2_击退范围", 1f, 10f, sa.Data.DefaultDangerColor.WithW(1.5f));
     }
     
@@ -720,17 +795,18 @@ public class UcobReborn
     public void P2A_开场陨石流指路(Event ev, ScriptAccessory sa)
     {
         if (_upm.当前阶段 != 2000) return;
+        // region 每格 22.5°，从南逆时针：0 下 2 右下 4 右 6 右上 8 上 10 左上 12 左 14 左下
         List<(int region, bool inside)> tPosList =
         [
-            (6, false), (8, true), (8, false), (10, false),
-            (4, true), (12, true), (4, false), (12, false)
+            (10, false), (8, true), (12, true), (6, true),
+            (14, true), (4, true), (0, true), (2, true)
         ];
 
         for (int i = 0; i < sa.Data.PartyList.Count; i++)
         {
             if (!Debugging && sa.GetMyIndex() != i) continue;
             var tPos = new Vector3(0, 0, 20).RotateAndExtend(Center, 22.5f.DegToRad() * tPosList[i].region,
-                tPosList[i].inside ? -15 : 0);
+                tPosList[i].inside ? -13 : 0);  // 内圈半径 7：45° 相邻间距 5.4 > 陨石流 4m
             sa.DrawGuidance(sa.Data.PartyList[i], tPos, 0, 10000, $"P2A_{_upm.当前阶段}_陨石流指路{i}", sa.Data.DefaultSafeColor);
         }
     }
@@ -1311,7 +1387,7 @@ public class UcobReborn
                 () => _upm.当前阶段 == 2020,
             ])) return;
 
-        sa.DrawGuidance(new Vector3(0, 0, -9.37f), 0, 10000, $"P2D_{_upm.当前阶段}_指向击退位置", sa.Data.DefaultSafeColor);
+        sa.DrawGuidance(new Vector3(-7.45f, 0, -4.19f), 0, 10000, $"P2D_{_upm.当前阶段}_指向击退位置", sa.Data.DefaultSafeColor);
         sa.DrawKnockBack(Center, 0, 10000, $"P2D_{_upm.当前阶段}_击退范围", 1f, 10f, sa.Data.DefaultDangerColor.WithW(1.5f));
     }
 
@@ -2087,7 +2163,7 @@ public class UcobReborn
         _upm.P3.灾厄对应拘束器[2] = peopleIdx;
         _upm.P3.灾厄对应拘束器[0] = (peopleIdx + 1) % 3;
         _upm.P3.灾厄对应拘束器[1] = (peopleIdx + 2) % 3;
-        sa.DebugMsg($"MT {_upm.P3.灾厄对应拘束器[0]}, ST {_upm.P3.灾厄对应拘束器[1]}, 人群 {_upm.P3.灾厄对应拘束器[2]}");
+        sa.DebugMsg($"双T就近 {_upm.P3.灾厄对应拘束器[0]}/{_upm.P3.灾厄对应拘束器[1]}, 人群 {_upm.P3.灾厄对应拘束器[2]}");
     }
     
     [ScriptMethod(name: "P3C_进拘束器指路", 
@@ -2098,15 +2174,25 @@ public class UcobReborn
         if (_upm.当前阶段 != 3300) return;
         _upm.P3.灾厄台词计数++;
         
-        if (ev.ActionId == 9916)
+        if (ev.ActionId == 9916 && sa.Data.PartyList.Count >= 2)
         {
-            for (int i = 0; i < sa.Data.PartyList.Count; i++)
+            // 双T 去人群外的两个拘束器，按两人到两点的距离差就近分配（逐帧刷新）
+            var pos0 = _upm.拘束器坐标[_upm.P3.灾厄对应拘束器[0]];
+            var pos1 = _upm.拘束器坐标[_upm.P3.灾厄对应拘束器[1]];
+            for (int i = 0; i < 2; i++)
             {
-                if (i >= 2) continue;
                 if (!Debugging && sa.GetMyIndex() != i) continue;
-                var bhIdx = _upm.P3.灾厄对应拘束器[i];
-                sa.DrawGuidance(sa.Data.PartyList[i], _upm.拘束器坐标[bhIdx], 0, 10000, $"P3C_{_upm.当前阶段}_进拘束器指路{i}",
-                    sa.Data.DefaultSafeColor);
+                var draw = sa.DrawGuidance(sa.Data.PartyList[i], pos0, 0, 10000, $"P3C_{_upm.当前阶段}_进拘束器指路{i}",
+                    sa.Data.DefaultSafeColor, draw: false);
+                var i1 = i;
+                sa.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, draw, dp =>
+                {
+                    if (sa.GetById(sa.Data.PartyList[0]) is not { } mt || sa.GetById(sa.Data.PartyList[1]) is not { } st) return;
+                    var mtDelta = Vector3.Distance(mt.Position, pos0) - Vector3.Distance(mt.Position, pos1);
+                    var stDelta = Vector3.Distance(st.Position, pos0) - Vector3.Distance(st.Position, pos1);
+                    // 两人用同一个不等式的两面，平局也不会撞同一个点
+                    dp.TargetPosition = (i1 == 0 ? mtDelta <= stDelta : mtDelta > stDelta) ? pos0 : pos1;
+                });
             }
         }
         if (_upm.P3.灾厄台词计数 == 2)
@@ -3735,10 +3821,13 @@ internal static class UcobP3Extension
     
     public static int 求解天地旋风方位(this UcobParamsP3 p3)
     {
-        // MT, H1 固定去基准方位逆时针 90 度（即，基准方位+2）
-        // D2, D4 固定去基准方位顺时针 90 度（即，基准方位-2）
-        // ST, H2 固定去奈尔方位
-        // D1, D3 固定去奈尔方位对面（即，奈尔方位+4）
+        // 奈尔不在中间：
+        //   MT, H1 去基准方位逆时针 90 度（即，基准方位+2）
+        //   D2, D4 去基准方位顺时针 90 度（即，基准方位-2）
+        //   ST, H2 去奈尔方位
+        //   D1, D3 去奈尔方位对面（即，奈尔方位+4）
+        // 奈尔在中间（奈尔方位 == 基准方位）：
+        //   MT, ST 去基准方位；H1, D1 去基准方位+2；H2, D2 去基准方位-2；D3, D4 去基准方位+4
 
         p3.天地旋风方位 = [-1, -1, -1, -1, -1, -1, -1, -1];
         int[] bossDirections = [p3.巴哈方位, p3.奈尔方位, p3.双塔方位];
@@ -3764,11 +3853,17 @@ internal static class UcobP3Extension
         var 基准逆 = (baseDirection + 2) % 8;
         var 基准顺 = (baseDirection + 6) % 8;
         var 奈尔对面 = (p3.奈尔方位 + 4) % 8;
-        p3.天地旋风方位 =
-        [
-            基准逆, p3.奈尔方位, 基准逆, p3.奈尔方位,
-            奈尔对面, 基准顺, 奈尔对面, 基准顺
-        ];
+        p3.天地旋风方位 = p3.奈尔方位 == baseDirection
+            ?
+            [
+                p3.奈尔方位, p3.奈尔方位, 基准逆, 基准顺,
+                基准逆, 基准顺, 奈尔对面, 奈尔对面
+            ]
+            :
+            [
+                基准逆, p3.奈尔方位, 基准逆, p3.奈尔方位,
+                奈尔对面, 基准顺, 奈尔对面, 基准顺
+            ];
         return 0;
     }
 
