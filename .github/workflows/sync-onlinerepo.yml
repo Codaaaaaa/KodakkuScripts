@@ -1,0 +1,32 @@
+name: Sync OnlineRepo
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "Scripts/**/*.cs"
+      - "Dev/**/*.cs"
+      - "Global/**/*.cs"
+      - ".github/**"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency: sync-onlinerepo
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: main
+      - run: |
+          log=$(python3 .github/scripts/sync_onlinerepo.py)
+          echo "$log"
+          git diff --quiet && exit 0
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -am "Sync OnlineRepo.json" -m "$log"
+          git push origin HEAD:main
