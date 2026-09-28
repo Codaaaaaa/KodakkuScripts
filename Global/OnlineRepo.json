@@ -15,7 +15,7 @@
     "Author": "Cyf5119",
     "TerritoryIds": [887],
     "DownloadUrl": "https://raw.githubusercontent.com/Codaaaaaa/KodakkuScripts/main/Global/LPDU/TEA_Cyf5119%20-%20LPDU.cs",
-    "UpdateInfo": "This is a modified version of Cyf5119's script adapted for the LPDU strat."
+    "UpdateInfo": "有问题来DC反馈。\n更新水雷指路，默认三雷ST"
   },
   {
     "Name": "The Omega Protocol (Ultimate) TOP - LPDU",
@@ -24,7 +24,7 @@
     "Author": "Usami",
     "TerritoryIds": [1122],
     "DownloadUrl": "https://raw.githubusercontent.com/Codaaaaaa/KodakkuScripts/main/Global/LPDU/TOP_Usami%20-%20LPDU.cs",
-    "UpdateInfo": "This is a modified version of Usami/Karlin/Meva's script adapted for the LPDU strat."
+    "UpdateInfo": "0.0.0.27\nP3 fixed"
   },
   {
     "Name": "Dragonsong's Reprise (Ultimate) DSR - LPDU",
