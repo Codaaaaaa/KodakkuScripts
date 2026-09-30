@@ -160,15 +160,18 @@ public class UcobReborn
     // /e sort: everyone stands on their own waymark, then PartyList is rebuilt one player per mark, globally nearest pair first
     [ScriptMethod(name: "Sort Party by Waymarks (/e sort)", eventType: EventTypeEnum.Chat,
         eventCondition: ["Type:Echo", "Message:regex:^\\s*sort\\s*$"])]
-    public unsafe void SortPartyByWaymarks(Event ev, ScriptAccessory sa)
+    public async void SortPartyByWaymarks(Event ev, ScriptAccessory sa)
     {
         var party = sa.Data.PartyList;
         if (party.Count < 8) { sa.Method.SendChat("/e [Sort] Party has fewer than 8 members"); return; }
 
-        var mc = FFXIVClientStructs.FFXIV.Client.Game.UI.MarkingController.Instance();
         var marks = new List<(int Mark, Vector3 Pos)>();
-        for (int i = 0; i < 8; i++)
-            if (mc->FieldMarkers[i].Active) marks.Add((i, mc->FieldMarkers[i].Position));
+        unsafe
+        {
+            var mc = FFXIVClientStructs.FFXIV.Client.Game.UI.MarkingController.Instance();
+            for (int i = 0; i < 8; i++)
+                if (mc->FieldMarkers[i].Active) marks.Add((i, mc->FieldMarkers[i].Position));
+        }
         if (marks.Count < 8) { sa.Method.SendChat($"/e [Sort] Only {marks.Count} waymarks placed, 8 required"); return; }
 
         var players = new List<(uint Id, Vector3 Pos)>();
@@ -195,8 +198,13 @@ public class UcobReborn
         }
 
         if (!WritePartyOrder([.. order], out var err)) { sa.Method.SendChat($"/e [Sort] Failed to write the party order: {err}"); return; }
-        for (int i = 0; i < 8; i++)
-            sa.Method.SendChat($"/e [Sort] {LpduNames[i]}({RoleNames[i]}): {sa.Data.Objects.SearchByEntityId(order[i])?.Name}");
+        // SendChat queues every line as its own framework task, and Dalamud runs same-tick tasks in
+        // ConcurrentDictionary order, so back-to-back lines come out shuffled: give each line its own tick
+        foreach (var role in WaymarkToRole) // A B C D 1 2 3 4 = L1-L4 R1-R4
+        {
+            sa.Method.SendChat($"/e [Sort] {LpduNames[role]}({RoleNames[role]}): {sa.Data.Objects.SearchByEntityId(order[role])?.Name}");
+            await Task.Delay(100);
+        }
     }
 
     // MemberList is internal static with a private setter: swap the reference via reflection, or reorder the live List in place if that fails (same trick as the BLU script)

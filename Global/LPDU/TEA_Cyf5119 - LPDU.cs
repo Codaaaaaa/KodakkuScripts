@@ -17,7 +17,7 @@ namespace Cyf5119Script.Shadowbringers.TheEpicOfAlexander;
 [ScriptType(guid: "6259c636-cb4c-4052-ab2a-30642b58b043", name: "The Epic of Alexander (Ultimate) TEA - LPDU", territorys: [887], version: "0.0.2.10", author: "Cyf5119", note: Note, updateInfo: UpdateInfo)]
 public class TheEpicOfAlexander
 {
-    private const string Note = "有问题来DC反馈。\n画图基于设置的小队职能进行绘制，请确保设置准确无误。\n/e KASCLEAR 清理残余画图";
+    private const string Note = "This is a modified version of Cyf5119's script adapted for the LPDU strat.";
     private const string UpdateInfo = "有问题来DC反馈。\n更新水雷指路，默认三雷ST";
     
     #region 用户设置
