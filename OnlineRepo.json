@@ -6,6 +6,7 @@
     "Author": "Codaaaaaa",
     "TerritoryIds": [1308],
     "DownloadUrl": "https://raw.githubusercontent.com/Codaaaaaa/KodakkuScripts/main/Scripts/DoomTrainScripts.cs",
+    "Note": "画图+指路+TTS。做个测试，使用前请务必调整小队顺序",
     "UpdateInfo": "0.0.0.9\n颜色修复\np2小世界加了中间四人的分摊时的同组连线以及最大近战距离\n分摊特效透明度降低\n\n0.0.0.8\n修复最后一块平台雷光环不绘画的问题\n增加TTS开关\n异世界双T死刑画图时间略微延长"
   },
   {
@@ -15,6 +16,7 @@
     "Author": "Codaaaaaa",
     "TerritoryIds": [1323],
     "DownloadUrl": "https://raw.githubusercontent.com/Codaaaaaa/KodakkuScripts/main/Scripts/M10S.cs",
+    "Note": "大部分的机制都做了指路，使用之前请务必调整可达鸭内位置和选择打法。由于版本初拿不到arr用来测试，有较大概率会被电...如果电了可以在频道反馈。感谢灵视佬提供的arr\n目前支持\nP2 第一轮打法\n * 水波\n * 镜像水波\n\nP2 第二三轮打法\n * 近战优化\n * 美野\n\n进水牢方式\n * 坦克\n * 近战\n * 治疗\n\n水牢打法\n * 无脑\n * MMW\n",
     "UpdateInfo": "0.0.1.0\n修复了p5一个奇妙的先后判定导致指路错误的问题\n精确了近优的火组点位，增加了水组的近优指路精确点\n\n0.0.0.8\n一个神秘的三远程指路错误\np5指路加了开关，美野指路点位更紧凑了一点\n\n0.0.0.5\n火四连跳近远d指路修复\np2水组分摊分散应该修复\n修复无脑火点不准确的问题\n修复美野水组会点名火四连跳的问题\n修复浪花转体水组分摊不绘制的问题\n\n0.0.0.1\n如果电了可以在频道反馈。感谢灵视佬提供的arr"
   },
   {
@@ -24,6 +26,7 @@
     "Author": "Codaaaaaa",
     "TerritoryIds": [1325],
     "DownloadUrl": "https://raw.githubusercontent.com/Codaaaaaa/KodakkuScripts/main/Scripts/M11S.cs",
+    "Note": "设置里面改打法，但目前支持的不是很多有很大概率被电。\n- 该脚本只对RyougiMio佬的画图更新前做指路补充，需要配合使用。\n- 谢谢灵视佬和7dsa1wd1s佬提供的arr",
     "UpdateInfo": "0.0.1.3\n扔地板砸人指路\n六连风圈高亮\n\n0.0.0.9\n星轨链的近战指路，默认boss前后刀是正点的情况。在星轨链指路前会有检测，如果boss拉的面向很歪就会停止指路\n陨石狂奔已支持 22十 和 22X的指路以及44AC，请自行在用户设置里选择打法，默认22X按照mmw文档里粘鼠板正点顺时针45度\n\n0.0.0.7\n更新了六连后的风圈引导指路，陨石狂奔拉线指路，陨石狂奔远程组火圈指路\n\n0.0.0.5\n闲人指路优化\n\n0.0.0.4\n修了王者陨石没有跑完就团灭会炸游戏的妙妙问题\n\n0.0.0.3\n设置里面改打法，但目前支持的不是很多有很大概率被电。该脚本只对RyougiMio佬的画图更新前做指路补充，需要配合使用\n谢谢灵视佬和7dsa1wd1s佬提供的arr"
   },
   {
@@ -33,6 +36,7 @@
     "Author": "Codaaaaaa",
     "TerritoryIds": [1279],
     "DownloadUrl": "https://raw.githubusercontent.com/Codaaaaaa/KodakkuScripts/main/Scripts/G18.cs",
+    "Note": "剧透",
     "UpdateInfo": "0.0.0.3\n不知道为什么更新过后全部乱了...尝试修复了一下\n\n0.0.0.1\n神秘剧透小脚本"
   },
   {
@@ -42,6 +46,7 @@
     "Author": "Codaaaaaa",
     "TerritoryIds": [1317],
     "DownloadUrl": "https://raw.githubusercontent.com/Codaaaaaa/KodakkuScripts/main/Scripts/MerchantsTale.cs",
+    "Note": "目前只完成了剑术大师，老一老三可以用Ryou佬的画图\n感谢Tou_uTou佬和Angelways佬的arr\n攻略使用的是mmw: https://mmw-ffxiv.feishu.cn/wiki/KvdJwQqfziIab3kPBAAcbCYvn5r",
     "UpdateInfo": "0.0.0.4\n修复P3四方凶兆3第四轮连线东西凶兆安全区相反的问题\n\n0.0.0.3\n优化了一下天界交叉斩麻将1和麻将2画图结束的时机, 修复了P4陨石指路两个点的问题\n\n0.0.0.2\n修复了P2四方凶兆可能会出错的问题，P3四方凶兆3第四轮连线+弱点刀时序问题导致安全点错误的问题，P4落石运动会拉线指路错误，以及其他一些小问题\n\n0.0.0.1目前只完成了剑术大师的基本所有机制的指路画图tts，其他boss得等arr\n感谢Tou_uTou佬的arr"
   },
   {
@@ -51,6 +56,7 @@
     "Author": "Codaaaaaa",
     "TerritoryIds": [1362],
     "DownloadUrl": "https://raw.githubusercontent.com/Codaaaaaa/KodakkuScripts/main/Scripts/Enuo.cs",
+    "Note": "mmw文档+NOCCHH",
     "UpdateInfo": "0.0.0.6\n尝试修复了一下国际服SourcePosition格式不同导致爆炸的问题\n\n0.0.0.5\n加了P2小怪背对的安全范围以及有效范围\n\n0.0.0.4\n1. 延迟了一下单黑球的判定时间\n2. P2拉扇形修改了一下引导位置\n3. P1撞黑球加了易伤提示\n4.P1撞黑球引导直接连接球而不是固定点位\n5. 扩散波动加了指路\n6.我电\n\n0.0.0.1\n mmw文档+nocchh\n谢谢两位亲友提供的arr"
   },
   {
@@ -60,6 +66,7 @@
     "Author": "Codaaaaaa",
     "TerritoryIds": [1363],
     "DownloadUrl": "https://raw.githubusercontent.com/Codaaaaaa/KodakkuScripts/main/Scripts/Kefka.cs",
+    "Note": "自用拼好挂。请支持K佬&灵视佬",
     "UpdateInfo": "0.0.0.1\n作为灵视佬和K佬画图的一个小补充，等佬们明天更新完应该就删了，爱信等。\n谢谢两位亲友提供的arr"
   },
   {
@@ -69,6 +76,7 @@
     "Author": "Codaaaaaa",
     "TerritoryIds": [1346],
     "DownloadUrl": "https://raw.githubusercontent.com/Codaaaaaa/KodakkuScripts/main/Scripts/TheForkedTowerMagic.cs",
+    "Note": "写完喽，还有电的可以在频道里圈我\n\n感谢铁虎老大的帮助\n感谢Yatel老大和洋葱炒米老大的arr",
     "UpdateInfo": "0.0.1.11\n修复一些范围错误\n\n0.0.1.9\n把一些钟灵tts挪到默语了，太吵了，删除textinfo\n\n0.0.1.7\n加了个扫雷和钟灵功能 电死你们\n\n0.0.1.2\n修了好多\n\n0.0.1.0\n写完喽\n\n0.0.0.8\n更新超魔Boss3\n\n0.0.0.7\n更新超魔Boss2\n\n0.0.0.5\n修了老二的月环钢铁"
   }
 ]

@@ -6,6 +6,7 @@
     "Author": "Codaaaaaa",
     "TerritoryIds": [245, 358, 196, 452, 532, 587, 698, 755],
     "DownloadUrl": "https://raw.githubusercontent.com/Codaaaaaa/KodakkuScripts/main/Dev/青魔魔界花.cs",
+    "Note": "攻略参考二二二二乱 A12S为拉一起复仇\n\n副本说明:\nT5:1T1N6D注意T青需要在MT位，其他随意，但每个人的kdy排序需相同\nT9:同上\nT13:同上\nA4S:1T1N6D，按照kdy排序1T青2N青345为拉小怪D青678为打腿组D青\nA8S:1T2N5D，按照kdy排序1T2N3盾N456D一组月78D二组月\nA12S:1T1N6D\n\nT青笔记：\nT5：-2s开怪\nT9: -2s预读小侦测开场，即刻白风稳仇+醒梦\nT13: 拉南 -2s预读小侦测开怪，即刻白风稳仇+醒梦\nA4S: 龙之力开场，MT全程远离人群\nA8S: 随意\nA12S: -5s龙之力 -2s魔法锤",
     "UpdateInfo": "0.0.0.3\nA8S 配件s更换(5692)由「看boss手」改为读配件位图自动判分支，提前 5.2s 画出单炮/双炮/单钻/双钻各自的图\n\n0.0.0.2还在本地测试,lockon修复"
   },
   {
@@ -15,6 +16,7 @@
     "Author": "Codaaaaaa",
     "TerritoryIds": [],
     "DownloadUrl": "https://raw.githubusercontent.com/Codaaaaaa/KodakkuScripts/main/Dev/VfxSlotProbe.cs",
+    "Note": "/e vfx 汇总占用\n/e vfxlist 列出插件每一个绘图\n/e vfxnative 列出非插件的原生特效",
     "UpdateInfo": ""
   }
 ]
