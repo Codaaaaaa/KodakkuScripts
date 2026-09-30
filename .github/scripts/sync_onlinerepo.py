@@ -15,6 +15,7 @@ from urllib.parse import quote, unquote
 
 RAW = "https://raw.githubusercontent.com/Codaaaaaa/KodakkuScripts/main/"
 REPOS = {"Scripts": "OnlineRepo.json", "Dev": "Dev/OnlineRepo.json", "Global": "Global/OnlineRepo.json"}
+KEYS = ["Name", "Guid", "Version", "Author", "TerritoryIds", "DownloadUrl", "Note", "UpdateInfo"]
 
 WS = r"(?:\s|//[^\n]*|/\*[\s\S]*?\*/)*"  # 空白和注释
 ATOM = re.compile(WS + r'''(?:
@@ -119,7 +120,8 @@ def main():
                 if not get:
                     continue
                 want = {"Name": get("name"), "Guid": get("guid"), "Version": get("version"), "Author": get("author", ""),
-                        "TerritoryIds": get("territorys", []), "DownloadUrl": RAW + quote(path), "UpdateInfo": get("updateInfo")}
+                        "TerritoryIds": get("territorys", []), "DownloadUrl": RAW + quote(path),
+                        "Note": get("note"), "UpdateInfo": get("updateInfo")}
             except ValueError as ex:
                 sys.exit(f"::error::{path}: {ex}")
             guid = want["Guid"]
@@ -129,23 +131,26 @@ def main():
                 sys.exit(f"::error::GUID 重复: {path} 和 {seen[guid]}")
             seen[guid] = path
             mine.add(guid)
+            for k in ("Note", "UpdateInfo"):
+                if want[k] is None:
+                    del want[k]  # 脚本没写，保留 json 里手写的
             e = by_guid.get(guid)
             if e is None:
-                want["UpdateInfo"] = want["UpdateInfo"] or ""
+                want.setdefault("UpdateInfo", "")
                 repo.append(want)
                 print(f"{path}: 新增 v{want['Version']}")
                 continue
             if unquote(e.get("DownloadUrl", "")) == RAW + path:
                 del want["DownloadUrl"]  # 同一个文件，只是 URL 编码写法不同
-            if want["UpdateInfo"] is None:
-                del want["UpdateInfo"]  # 脚本没写 updateInfo，保留 json 里手写的
             for k, v in want.items():
                 if e.get(k) != v:
-                    print(f"{path}: {k}" + ("" if k == "UpdateInfo" else f" {e.get(k)} → {v}"))
+                    print(f"{path}: {k}" + ("" if k in ("Note", "UpdateInfo") else f" {e.get(k)} → {v}"))
                     e[k] = v
         for g, e in by_guid.items():
             if g not in mine:
                 print(f"::warning::{repo_path}: {e['Name']} 找不到对应脚本", file=sys.stderr)
+        # 新补的 Note 会排到 UpdateInfo 后面，按固定顺序重排
+        repo = [dict(sorted(e.items(), key=lambda kv: KEYS.index(kv[0]) if kv[0] in KEYS else len(KEYS))) for e in repo]
         # 保持原来的格式：TerritoryIds 写一行
         new = re.sub(r"\[\n[\d,\s]*\]", lambda m: "[" + ", ".join(re.findall(r"\d+", m[0])) + "]",
                      json.dumps(repo, indent=2, ensure_ascii=False)) + "\n"
