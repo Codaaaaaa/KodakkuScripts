@@ -371,6 +371,8 @@ public class UcobReborn
     
     // 物理远程 BRD/MCH/DNC 的 ClassJob RowId
     private static readonly uint[] 物理远程JobIds = [23, 31, 38];
+    // 近战 MNK/DRG/NIN/SAM/RPR/VPR 的 ClassJob RowId
+    private static readonly uint[] 近战JobIds = [20, 22, 30, 34, 39, 41];
 
     private async void 液体地狱引导范围绘图(ScriptAccessory sa, bool phaseKeep)
     {
@@ -2939,22 +2941,22 @@ public class UcobReborn
     {
     }
 
-    [ScriptMethod(name: "P4_拉怪位置显示",
-        eventType: EventTypeEnum.Targetable, eventCondition: ["DataId:8161", "Targetable:True"],
-        userControl: Debugging)]
-    public void P4_拉怪位置显示(Event ev, ScriptAccessory sa)
-    {
-        if (_upm.当前阶段 != 4000) return;
-        for (int i = 0; i < 2; i++)
-        {
-            if (!Debugging && sa.GetMyIndex() != i) continue;
-            sa.DrawGuidance(sa.Data.PartyList[i], _upm.拉怪位置, 0, 5000,
-                $"P4_{_upm.当前阶段}_拉怪位置", sa.Data.DefaultSafeColor);
-        }
+    // [ScriptMethod(name: "P4_拉怪位置显示",
+    //     eventType: EventTypeEnum.Targetable, eventCondition: ["DataId:8161", "Targetable:True"],
+    //     userControl: Debugging)]
+    // public void P4_拉怪位置显示(Event ev, ScriptAccessory sa)
+    // {
+    //     if (_upm.当前阶段 != 4000) return;
+    //     for (int i = 0; i < 2; i++)
+    //     {
+    //         if (!Debugging && sa.GetMyIndex() != i) continue;
+    //         sa.DrawGuidance(sa.Data.PartyList[i], _upm.拉怪位置, 0, 5000,
+    //             $"P4_{_upm.当前阶段}_拉怪位置", sa.Data.DefaultSafeColor);
+    //     }
 
-        var color = new Vector4(1f, 0.5f, 0.5f, 0.75f);
-        sa.DrawCircle(_upm.拉怪位置, 0, 140000, $"P4_{_upm.当前阶段}_拉怪位置", 1f, color);
-    }
+    //     var color = new Vector4(1f, 0.5f, 0.5f, 0.75f);
+    //     sa.DrawCircle(_upm.拉怪位置, 0, 140000, $"P4_{_upm.当前阶段}_拉怪位置", 1f, color);
+    // }
     
     [ScriptMethod(name: "P4_双Boss中心显示",
         eventType: EventTypeEnum.Targetable, eventCondition: ["DataId:8161", "Targetable:True"],
@@ -3016,7 +3018,7 @@ public class UcobReborn
                 执行台词连续技绘图(sa, NaelQuoteSkills.钢铁, 0, 5000, color);
                 执行台词连续技绘图(sa, NaelQuoteSkills.分摊, 5000, 3000, sa.Data.DefaultSafeColor);
                 执行台词连续技绘图(sa, NaelQuoteSkills.凶鸟冲, 8000, 3000, color);
-                执行分散方向绘图(sa, 8000, 8000);
+                // 执行分散方向绘图(sa, 8000, 8000);
                 sa.TextInfo("钢铁 -> 分摊 -> 分散", destroyMs: 5000, isWarning: true);
                 sa.TTS("钢铁、分摊，然后分散");
                 break;
@@ -3025,7 +3027,7 @@ public class UcobReborn
                 执行台词连续技绘图(sa, NaelQuoteSkills.钢铁, 0, 5000, color);
                 执行台词连续技绘图(sa, NaelQuoteSkills.凶鸟冲, 5000, 3000, color);
                 执行台词连续技绘图(sa, NaelQuoteSkills.分摊, 8000, 3000, sa.Data.DefaultSafeColor);
-                执行分散方向绘图(sa, 11000, 5000);
+                // 执行分散方向绘图(sa, 11000, 5000);
                 sa.TextInfo("钢铁 -> 分散 -> 分摊", destroyMs: 5000, isWarning: true);
                 sa.TTS("钢铁、分散，然后分摊");
                 break;
@@ -3034,7 +3036,7 @@ public class UcobReborn
                 执行台词连续技绘图(sa, NaelQuoteSkills.月环, 0, 5000, color);
                 执行台词连续技绘图(sa, NaelQuoteSkills.凶鸟冲, 5000, 3000, color);
                 执行台词连续技绘图(sa, NaelQuoteSkills.分摊, 8000, 3000, sa.Data.DefaultSafeColor);
-                执行分散方向绘图(sa, 11000, 5000);
+                // 执行分散方向绘图(sa, 11000, 5000);
                 sa.TextInfo("月环 -> 分散 -> 分摊", destroyMs: 5000, isWarning: true);
                 sa.TTS("月环、分散，然后分摊");
                 break;
@@ -3043,7 +3045,7 @@ public class UcobReborn
                 执行台词连续技绘图(sa, NaelQuoteSkills.月环, 0, 5000, color);
                 执行台词连续技绘图(sa, NaelQuoteSkills.钢铁, 5000, 3000, color);
                 执行台词连续技绘图(sa, NaelQuoteSkills.凶鸟冲, 8000, 3000, color);
-                执行分散方向绘图(sa, 8000, 8000);
+                // 执行分散方向绘图(sa, 8000, 8000);
                 sa.TextInfo("月环 -> 钢铁 -> 分散", destroyMs: 5000, isWarning: true);
                 sa.TTS("月环、钢铁，然后分散");
                 break;
@@ -3079,7 +3081,11 @@ public class UcobReborn
             ])) return;
 
         var keys = _pd.SelectLargePriorityIndices(3).Select(x => x.Key).ToArray();
-        _upm.P4.求解黑球撞球序列(keys);
+        // 点名到齐这一刻的坐标定死分配，TTS 按分到的拘束器播报，中途不能换人
+        var 玩家坐标 = sa.Data.PartyList.Select(id => sa.GetById(id)?.Position).ToArray();
+        var 是近战 = sa.Data.PartyList.Select(id =>
+            sa.GetById(id) is IBattleChara bc && 近战JobIds.Contains(bc.ClassJob.RowId)).ToArray();
+        _upm.P4.求解黑球撞球序列(keys, 是近战, 玩家坐标, _upm.拘束器坐标);
     }
 
     [ScriptMethod(name: "P4_黑球指路与TTS",
@@ -3102,7 +3108,7 @@ public class UcobReborn
 
             var tPos = _upm.拘束器坐标[i];
             sa.DrawGuidance(sa.Data.PartyList[playerIndex], tPos, 0, 5500, 
-                $"P4_{_upm.当前阶段}_黑球指路", sa.Data.DefaultSafeColor);
+                $"P4_{_upm.当前阶段}_黑球指路{playerIndex}", sa.Data.DefaultSafeColor);
 
             var ttsStr = i == 2 ? "旋风后撞球" : "撞球后旋风";
             sa.DebugMsg($"{sa.GetPlayerJobByIndex(playerIndex)} 撞 {i + 1}: {ttsStr}", order: i);
@@ -3976,31 +3982,32 @@ internal class UcobParamsP4
 
 internal static class UcobP4Extension
 {
-    public static int 求解黑球撞球序列(this UcobParamsP4 p4, int[] targetPlayerKeys)
+    public static int 求解黑球撞球序列(this UcobParamsP4 p4, int[] 点名玩家, bool[] 是近战,
+        Vector3?[] 玩家坐标, List<Vector3> 拘束器坐标)
     {
+        // 近战优先进离 boss 近的 0/1 号拘束器（拉怪位置就在 0/1 之间），满足这点的分法里取总距离最小
+        // 近战优先 = 远端 2 号尽量不给近战，给了就罚 1000，压过任何距离差
         p4.黑球撞球序列 = [-1, -1, -1];
-        if (targetPlayerKeys is not { Length: 3 } ||
-            targetPlayerKeys.Any(player => player is < 4 or > 7) ||
-            targetPlayerKeys.Distinct().Count() != targetPlayerKeys.Length)
-            return -1;
+        if (拘束器坐标.Count != 3) return -1;
 
-        foreach (var player in targetPlayerKeys.Where(player => player != 7))
-            p4.黑球撞球序列[player - 4] = player;
-
-        if (targetPlayerKeys.Contains(7))
+        // 取不到对象的玩家视作极远，放哪都一样
+        float 距离(int p, int i) => 玩家坐标[p] is { } pos ? Vector3.Distance(pos, 拘束器坐标[i]) : 999f;
+        int[] best = [-1, -1, -1];
+        var bestCost = float.MaxValue;
+        foreach (var a in 点名玩家)
+        foreach (var b in 点名玩家)
+        foreach (var c in 点名玩家)
         {
-            var unassignedBall = -1;
-            for (var i = 0; i < p4.黑球撞球序列.Length; i++)
-            {
-                if (p4.黑球撞球序列[i] != -1) continue;
-                unassignedBall = i;
-                break;
-            }
-            if (unassignedBall == -1) return -1;
-            p4.黑球撞球序列[unassignedBall] = 7;
+            if (a == b || a == c || b == c) continue;
+            var cost = 距离(a, 0) + 距离(b, 1) + 距离(c, 2) + (是近战[c] ? 1000f : 0f);
+            if (cost >= bestCost) continue;
+            bestCost = cost;
+            best = [a, b, c];
         }
 
-        return 0;
+        // 算完一次性写回，指路那边轮询到不含 -1 就开画
+        p4.黑球撞球序列 = best;
+        return best.Contains(-1) ? -1 : 0;
     }
 }
 
