@@ -2477,7 +2477,9 @@ public class UcobReborn
             ])) return;
 
         _upm.P3.连击点名玩家 = _pd.SelectLargePriorityIndices(3).Select(x => x.Key).ToList();
-        _upm.P3.求解连击撞球截球玩家();
+        // 点名到齐这一刻的坐标定死分配，不逐帧刷新，免得截球人选中途在几个人之间跳
+        var 玩家坐标 = sa.Data.PartyList.Select(id => sa.GetById(id)?.Position).ToArray();
+        _upm.P3.求解连击撞球截球玩家(_upm.拘束器坐标, 玩家坐标);
         sa.DebugMsg($"撞球截球玩家：{string.Join(", ", 
             _upm.P3.连击撞球截球玩家.Select(x => sa.GetPlayerJobByIndex(x)))}");
     }
@@ -2589,7 +2591,7 @@ public class UcobReborn
             ])) return;
         
         _upm.P3.大地摇动指引线绘图版本++;
-        float[] rotDegs = _upm.P3.大地摇动指引线绘图版本 == 1 ? [-40, 40, -100, 100]: [-80, 80, -140, 140];
+        float[] rotDegs = [-40, 40, -100, 100];
         var isFirstRound = _pd.FindPriorityIndexOfKey(sa.GetMyIndex(), true) <= 3;
         if (!Debugging && (isFirstRound ^ (_upm.P3.大地摇动指引线绘图版本 == 1))) return;
 
@@ -2613,7 +2615,7 @@ public class UcobReborn
             ])) return;
         
         _upm.P3.大地摇动指路绘图版本++;
-        var safePos = _upm.P3.大地摇动指路绘图版本 == 1 ? new Vector3(0, 0, -8.5f) : new Vector3(0, 0, 8.5f);
+        var safePos = new Vector3(0, 0, -8.5f);
 
         List<int> pidx = _upm.P3.大地摇动指路绘图版本 == 1
             ? _pd.SelectLargePriorityIndices(4).Select(x => x.Key).ToList()
@@ -3895,48 +3897,33 @@ internal static class UcobP3Extension
         return 0;
     }
 
-    public static void 求解连击撞球截球玩家(this UcobParamsP3 p3)
+    public static void 求解连击撞球截球玩家(this UcobParamsP3 p3, List<Vector3> 拘束器坐标, Vector3?[] 玩家坐标)
     {
-        // 三组撞球与截球的优先级
-        // H2 ST D2 D4 D3 D1 MT H1
-        int[] pdGroup1 = [3, 1, 5, 7, 6, 4, 0, 2];
-        // D3 D4 D1 D2 MT ST H1 H2
-        int[] pdGroup2 = [6, 7, 4, 5, 0, 1, 2, 3];
-        // H1 MT D1 D4 D3 D2 ST H2
-        int[] pdGroup3 = [2, 0, 4, 7, 6, 5, 1, 3];
-
+        // 撞球：三名点名玩家与三个拘束器一一对应，取总距离最小的分法（各自找最近会两人抢同一个拘束器）
+        // 截球：其余玩家中挑三人与三个拘束器一一对应，同样取总距离最小，没挑中的不动
         p3.连击撞球截球玩家 = [-1, -1, -1, -1, -1, -1];
-        int[][] pdGroups = [pdGroup1, pdGroup2, pdGroup3];
-        var 未分配撞球玩家 = new HashSet<int>(p3.连击点名玩家);
-        var 撞球玩家 = new HashSet<int>();
-        var 截球玩家 = new HashSet<int>();
+        if (拘束器坐标.Count != 3) return;
 
-        for (var pIdx = 0;
-            pIdx < pdGroups.Min(group => group.Length) && 撞球玩家.Count < 3;
-            pIdx++)
+        var 未点名玩家 = Enumerable.Range(0, 玩家坐标.Length).Except(p3.连击点名玩家).ToList();
+        p3.连击撞球截球玩家 = [..就近分配(p3.连击点名玩家), ..就近分配(未点名玩家)];
+
+        int[] 就近分配(List<int> players)
         {
-            for (var gIdx = 0; gIdx < pdGroups.Length; gIdx++)
+            // 取不到对象的玩家视作极远，排到最后
+            float 距离(int p, int i) => 玩家坐标[p] is { } pos ? Vector3.Distance(pos, 拘束器坐标[i]) : 999f;
+            int[] best = [-1, -1, -1];
+            var bestSum = float.MaxValue;
+            foreach (var a in players)
+            foreach (var b in players)
+            foreach (var c in players)
             {
-                if (p3.连击撞球截球玩家[gIdx] != -1) continue;
-
-                var player = pdGroups[gIdx][pIdx];
-                if (!未分配撞球玩家.Remove(player)) continue;
-
-                p3.连击撞球截球玩家[gIdx] = player;
-                撞球玩家.Add(player);
+                if (a == b || a == c || b == c) continue;
+                var sum = 距离(a, 0) + 距离(b, 1) + 距离(c, 2);
+                if (sum >= bestSum) continue;
+                bestSum = sum;
+                best = [a, b, c];
             }
-        }
-
-        for (var gIdx = 0; gIdx < pdGroups.Length; gIdx++)
-        {
-            for (var pIdx = 0; pIdx < pdGroups[gIdx].Length; pIdx++)
-            {
-                var player = pdGroups[gIdx][pIdx];
-                if (撞球玩家.Contains(player) || !截球玩家.Add(player)) continue;
-
-                p3.连击撞球截球玩家[gIdx + 3] = player;
-                break;
-            }
+            return best;
         }
     }
 
