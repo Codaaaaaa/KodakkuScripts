@@ -23,7 +23,7 @@ namespace Codaaaaaa.Enuo;
     territorys: [1362],
     version: "0.0.0.7",
     author: "Codaaaaaa",
-    updateInfo: "0.0.0.7更新了时间轴，修复了黑球范围不随双奶移动的问题",
+    updateInfo: "0.0.0.7\n更新了时间轴，修复了黑球范围不随双奶移动的问题",
     note: "mmw文档+NOCCHH")]
 public class Enuo
 {
