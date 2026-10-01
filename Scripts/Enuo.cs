@@ -23,6 +23,7 @@ namespace Codaaaaaa.Enuo;
     territorys: [1362],
     version: "0.0.0.6",
     author: "Codaaaaaa",
+    updateInfo: "更新了时间轴，修复了黑球范围不随双奶移动的问题",
     note: "mmw文档+NOCCHH")]
 public class Enuo
 {
@@ -189,15 +190,28 @@ public class Enuo
 
         RecordBlackBallTether(orbId, playerId);
 
+        var targetId = evt.TargetId();
         // 单奶黑球：被点名的人连线矩形固定 safeColor。
-        DrawRectFromOwnerToTarget(sa,
-            name: $"通用机制-回归重波动-{orbId:X}-{playerId:X}",
-            ownerId: orbId,
-            targetId: playerId,
-            width: 6f,
-            length: 15f,
-            duration: 9500,
-            color: sa.Data.DefaultSafeColor);
+        var dp = sa.Data.GetDefaultDrawProperties();
+        dp.Name = $"通用机制-回归重波动-{orbId:X}-{playerId:X}";
+        dp.Owner = orbId;
+        dp.Scale = new Vector2(6, 1);
+        dp.Color = sa.Data.DefaultSafeColor;
+        dp.DestoryAt = 9500;
+        dp.ScaleMode = ScaleMode.YByDistance;
+
+        // 终点 = 被点名的人沿「场中→人」方向再往外 7m，每帧按人当前位置重算
+        var center = new Vector3(100f, 0f, 100f);
+        Vector3? OutPoint()
+        {
+            if (sa.Data.Objects.SearchById(targetId) is not { } obj) return null;
+            var dir = obj.Position - center;
+            dir.Y = 0;
+            return dir.LengthSquared() < 0.01f ? obj.Position : obj.Position + Vector3.Normalize(dir) * 7f;
+        }
+        dp.TargetPosition = OutPoint();
+        sa.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Rect, dp, d => d.TargetPosition = OutPoint() ?? d.TargetPosition);
+
     }
 
     [ScriptMethod(name: "通用机制-回归波动(双奶妈黑球)", eventType: EventTypeEnum.TargetIcon, eventCondition: ["Id:regex:^(02BD)$"])]
@@ -213,15 +227,25 @@ public class Enuo
 
         // 按你的 comment：被点名 index 为奇数时 1/3/5/7 safe；为偶数时 0/2/4/6 safe。
         var isSafeForMe = (myIdx % 2) == (targetIdx % 2);
-        DrawRectFromOwnerToTarget(sa,
-            name: $"通用机制-回归波动-{targetIdx}",
-            ownerId: orbId,
-            targetId: targetId,
-            width: 6f,
-            length: 15f,
-            duration: 9500,
-            color: isSafeForMe ? sa.Data.DefaultSafeColor : sa.Data.DefaultDangerColor);
+        var dp = sa.Data.GetDefaultDrawProperties();
+        dp.Name = $"通用机制-回归波动-{targetIdx}";
+        dp.Owner = orbId;
+        dp.Scale = new Vector2(6, 1);
+        dp.Color = isSafeForMe ? sa.Data.DefaultSafeColor : sa.Data.DefaultDangerColor;
+        dp.DestoryAt = 9500;
+        dp.ScaleMode = ScaleMode.YByDistance;
 
+        // 终点 = 被点名的人沿「场中→人」方向再往外 7m，每帧按人当前位置重算
+        var center = new Vector3(100f, 0f, 100f);
+        Vector3? OutPoint()
+        {
+            if (sa.Data.Objects.SearchById(targetId) is not { } obj) return null;
+            var dir = obj.Position - center;
+            dir.Y = 0;
+            return dir.LengthSquared() < 0.01f ? obj.Position : obj.Position + Vector3.Normalize(dir) * 7f;
+        }
+        dp.TargetPosition = OutPoint();
+        sa.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Rect, dp, d => d.TargetPosition = OutPoint() ?? d.TargetPosition);
     }
 
     [ScriptMethod(name: "通用机制-集束波动(双奶扇形分摊)", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:regex:^(50033)$"])]
@@ -812,8 +836,6 @@ public class Enuo
             totalDelta += delta;
         }
 
-        // 这里用 totalDelta < 0 当作 0->1->2->... 是顺时针。
-        // 如果你实测发现完全反了，就把这里改成 totalDelta > 0。
         var isClockwise = totalDelta > 0f;
 
         if (isClockwise)
@@ -1510,6 +1532,154 @@ public class Enuo
         sa.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Circle, dp3);
     }
     
+    #endregion
+
+    #region 时间轴
+    [ScriptTimeline("恩欧歼殛战")]
+    const string EnuoTimeline = """
+        # info 在技能生效（ActionEffect）的时刻，sync 在读条开始
+        # 无之膨胀（钢铁/月环）、奔流（扇形大小）有随机变体，sync 用 Boss 本体读条或整组 regex
+        # P1
+           10.20  sync  eventName=StartCasting ActionId=50049 window=10.2 timeout=10.2
+           15.20  info  text=流星雨(AOE)
+           22.59  sync  eventName=StartCasting ActionId=regex:^(49975|49976)$ window=12.4 timeout=12.4
+           31.37  info  level=important text=无之膨胀(单/双奶分摊)
+           40.77  sync  eventName=StartCasting ActionId=50040
+           45.24  info  level=important text=核心熔毁(热病)
+           53.37  sync  eventName=StartCasting ActionId=regex:^(50032|50033)
+           58.37  info  level=important text=扩散/集束波动(分摊)
+           60.75  sync  eventName=StartCasting ActionId=regex:^(49975|49976)$
+           69.57  info  level=important text=无之膨胀(单/双奶分摊)
+           78.14  sync  eventName=StartCasting ActionId=50002 window=17.4 timeout=17.4
+          112.49  sync  eventName=StartCasting ActionId=regex:^(49995|49996|49997)$
+          116.49  info  text=奔流
+          117.04  sync  eventName=StartCasting ActionId=50001
+          118.50  info  text=无之漩涡
+          118.67  sync  eventName=StartCasting ActionId=regex:^(50032|50033)
+          123.72  info  level=important text=扩散/集束波动(分摊)
+          128.87  sync  eventName=StartCasting ActionId=50044 window=10.2 timeout=10.2
+          133.82  info  level=important text=深度冻结(冰冻持续移动)
+          137.02  sync  eventName=StartCasting ActionId=50049
+          141.97  info  text=流星雨(AOE)
+        # P2 无之深渊
+          150.64  sync  eventName=StartCasting ActionId=50010 window=13.6 timeout=13.6
+          155.66  info  text=无之领域(P2)
+          169.94  sync  eventName=StartCasting ActionId=49369 window=19.3 timeout=19.3
+          175.94  info  level=important text=虚无大冲击(击退)
+        # P3
+          254.55  sync  eventName=StartCasting ActionId=50029 window=9.7 timeout=9.7
+          265.54  info  text=无光的世界(持续AOE)
+          274.72  sync  eventName=StartCasting ActionId=49972 window=20.2 timeout=20.2
+          279.75  info  text=至高无上(AOE)
+          285.47  sync  eventName=StartCasting ActionId=regex:^(49975|49976)$ window=10.8 timeout=10.8
+          294.29  info  level=important text=无之膨胀(单/双奶分摊)
+          299.59  sync  eventName=StartCasting ActionId=49973 window=14.1 timeout=14.1
+          303.69  sync  eventName=StartCasting ActionId=49986
+          309.64  info  text=聚能波动
+          313.95  sync  eventName=StartCasting ActionId=49985 window=10.3 timeout=10.3
+          314.99  sync  eventName=StartCasting ActionId=49986
+          320.95  info  text=聚能波动
+          321.04  sync  eventName=StartCasting ActionId=50046
+          327.00  info  level=important text=暗影神圣(双奶分摊)
+          334.49  sync  eventName=StartCasting ActionId=regex:^(49975|49976)$ window=13.4 timeout=13.4
+          343.25  info  level=important text=无之膨胀(单/双奶分摊)
+          348.57  sync  eventName=StartCasting ActionId=50047 window=14.1 timeout=14.1
+          353.92  info  level=important text=零次元(持续分摊)
+          364.44  sync  eventName=StartCasting ActionId=49994 window=15.9 timeout=15.9
+          366.39  info  text=无之漩涡
+          368.55  sync  eventName=StartCasting ActionId=regex:^(49995|49996|49997)$
+          368.55  sync  eventName=StartCasting ActionId=50040
+          372.60  info  text=奔流
+          373.12  sync  eventName=StartCasting ActionId=50001
+          373.47  info  level=important text=核心熔毁(热病)
+          374.59  info  text=无之漩涡
+          379.12  info  text=核心熔毁
+          385.77  sync  eventName=StartCasting ActionId=50002 window=12.2 timeout=12.2
+          419.99  sync  eventName=StartCasting ActionId=49972 window=30 timeout=30
+          424.99  info  text=至高无上(AOE)
+          433.37  sync  eventName=StartCasting ActionId=49973 window=13.4 timeout=13.4
+          435.29  info  text=无之活性
+          437.52  sync  eventName=StartCasting ActionId=49992
+          438.50  sync  eventName=StartCasting ActionId=49986
+          438.59  sync  eventName=StartCasting ActionId=48475
+          443.46  info  level=important text=无之追踪
+          458.80  sync  eventName=StartCasting ActionId=49985 window=20.2 timeout=20.2
+          465.84  info  text=聚能波动
+          466.80  sync  eventName=StartCasting ActionId=regex:^(50032|50033)
+          471.86  info  level=important text=扩散/集束波动(分摊)
+          477.14  sync  eventName=StartCasting ActionId=49992 window=10.3 timeout=10.3
+          478.12  sync  eventName=StartCasting ActionId=49986
+          478.20  sync  eventName=StartCasting ActionId=48475
+          483.07  info  level=important text=无之追踪
+          498.35  sync  eventName=StartCasting ActionId=49985 window=20.2 timeout=20.2
+          505.39  info  text=聚能波动
+          506.39  sync  eventName=StartCasting ActionId=regex:^(50032|50033)
+          511.39  info  level=important text=扩散/集束波动(分摊)
+          515.54  sync  eventName=StartCasting ActionId=50047
+          520.87  info  level=important text=零次元(持续分摊)
+        """;
+
+    [ScriptTimelineI18n(ScriptTimelineLang.ChineseSimplified)]
+    static readonly Dictionary<string, string> EnuoTimelineI18n = new()
+    {
+        ["流星雨"] = "流星雨",
+        ["无之膨胀"] = "无之膨胀",
+        ["无之活性"] = "无之活性",
+        ["核心熔毁"] = "核心熔毁",
+        ["扩散波动"] = "扩散波动",
+        ["混沌激流"] = "混沌激流",
+        ["无之漩涡"] = "无之漩涡",
+        ["奔流"] = "奔流",
+        ["集束波动"] = "集束波动",
+        ["深度冻结"] = "深度冻结",
+        ["无之领域"] = "无之领域",
+        ["虚无大冲击"] = "虚无大冲击",
+        ["虚无冲击"] = "虚无冲击",
+        ["无之涡流"] = "无之涡流",
+        ["恶魔之瞳"] = "恶魔之瞳",
+        ["疫病诅咒"] = "疫病诅咒",
+        ["吸血触"] = "吸血触",
+        ["高压波动"] = "高压波动",
+        ["无之波动"] = "无之波动",
+        ["无光的世界"] = "无光的世界",
+        ["至高无上"] = "至高无上",
+        ["聚能波动"] = "聚能波动",
+        ["暗影神圣"] = "暗影神圣",
+        ["零次元"] = "零次元",
+        ["无之追踪"] = "无之追踪",
+        ["追尾波动"] = "追尾波动",
+    };
+
+    [ScriptTimelineI18n(ScriptTimelineLang.English)]
+    static readonly Dictionary<string, string> EnuoTimelineI18n_English = new()
+    {
+        ["流星雨"] = "Meteorain",
+        ["无之膨胀"] = "Naught Grows",
+        ["无之活性"] = "Naught Wakes",
+        ["核心熔毁"] = "Meltdown",
+        ["扩散波动"] = "Airy Emptiness",
+        ["混沌激流"] = "Gaze of the Void",
+        ["无之漩涡"] = "Vacuum",
+        ["奔流"] = "Silent Torrent",
+        ["集束波动"] = "Dense Emptiness",
+        ["深度冻结"] = "Deep Freeze",
+        ["无之领域"] = "All for Naught",
+        ["虚无大冲击"] = "Looming Emptiness",
+        ["虚无冲击"] = "Empty Shadow",
+        ["无之涡流"] = "Voidal Turbulence",
+        ["恶魔之瞳"] = "Demon Eye",
+        ["疫病诅咒"] = "Curse of the Flesh",
+        ["吸血触"] = "Drain Touch",
+        ["高压波动"] = "Weight of Nothing",
+        ["无之波动"] = "Nothingness",
+        ["无光的世界"] = "Lightless World",
+        ["至高无上"] = "Almagest",
+        ["聚能波动"] = "Passage of Naught",
+        ["暗影神圣"] = "Shrouded Holy",
+        ["零次元"] = "Dimension Zero",
+        ["无之追踪"] = "Naught Hunts",
+        ["追尾波动"] = "Endless Chase",
+    };
     #endregion
 }
 
