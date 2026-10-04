@@ -146,9 +146,10 @@ def main():
                 if e.get(k) != v:
                     print(f"{path}: {k}" + ("" if k in ("Note", "UpdateInfo") else f" {e.get(k)} → {v}"))
                     e[k] = v
-        for g, e in by_guid.items():
-            if g not in mine:
-                print(f"::warning::{repo_path}: {e['Name']} 找不到对应脚本", file=sys.stderr)
+        for e in repo:
+            if e["Guid"] not in mine:
+                print(f"{repo_path}: 删除 {e['Name']} ({e['Guid']})，找不到对应脚本")
+        repo = [e for e in repo if e["Guid"] in mine]
         # 新补的 Note 会排到 UpdateInfo 后面，按固定顺序重排
         repo = [dict(sorted(e.items(), key=lambda kv: KEYS.index(kv[0]) if kv[0] in KEYS else len(KEYS))) for e in repo]
         # 保持原来的格式：TerritoryIds 写一行
