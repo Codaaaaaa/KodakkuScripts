@@ -22,7 +22,7 @@ using FFXIVClientStructs.FFXIV.Client.Game.Object;
 
 namespace UsamisKodakku.Scripts._04_StormBlood.UcobReborn;
 
-[ScriptType(name: Name, territorys: [733], guid: "e2e37136-72a2-46b0-abc7-ade17da161b7",
+[ScriptType(name: Name, territorys: [733], guid: "8bb1c1ae-a8bf-4579-8da7-1074b8f9ac9b",
     version: Version, author: "Usami", note: NoteStr, updateInfo: UpdateInfo)]
 
 public class UcobReborn
