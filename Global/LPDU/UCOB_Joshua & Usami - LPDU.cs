@@ -50,11 +50,11 @@ public class UcobReborn
     const string UpdateInfo =
         $"""
         {Version}
-        LPDU adaption
+        Add transparency adjustment option
         """;
 
     private const string Name = "The Unending Coil of Bahamut (Ultimate) UCOB - LPDU";
-    private const string Version = "0.0.0.4";
+    private const string Version = "0.0.0.5";
     private const string DebugVersion = "g";
     private int _runId = 0;
     public const bool Debugging = false;
@@ -67,7 +67,13 @@ public class UcobReborn
 
     [UserSetting("Special mode: includes drawings that use the game's native VFX")]
     public static bool SpecialMode { get; set; } = true;
-    
+
+    [UserSetting("Opacity (0-100%) of spread AoEs: Nael quote spreads (Raven Dive / Meteor Stream), Chain Lightning, Megaflare. Lower it if the circles are too bright when players overlap")]
+    public static int SpreadAoeOpacity { get; set; } = 100;
+
+    // One circle per player, so a bunched-up party stacks the alpha
+    private static Vector4 SpreadColor(Vector4 color) => color.WithW(color.W * Math.Clamp(SpreadAoeOpacity, 0, 100) / 100f);
+
     // [UserSetting("Shotcaller mode")]
     // public static bool CaptainMode { get; set; } = false;
 
@@ -989,7 +995,7 @@ public class UcobReborn
     public void P2B_ChainLightningAoe(Event ev, ScriptAccessory sa)
     {
         if (_upm.Phase != 2010) return;
-        var color = new Vector4(0.4f, 0.2f, 1f, 2f);
+        var color = SpreadColor(new Vector4(0.4f, 0.2f, 1f, 2f));
         sa.DrawCircle(ev.TargetId, 0, 6000, $"P2B_ChainLightningAoe", 5f, color);
         // if (!Debugging && sa.GetPlayerIdIndex((uint)ev.TargetId) != sa.GetMyIndex()) return;
         if (!SpecialMode) return;
@@ -1030,12 +1036,12 @@ public class UcobReborn
             case NaelQuoteSkills.RavenDive:
                 for (int i = 0; i < sa.Data.PartyList.Count; i++)
                     sa.DrawCircle(sa.Data.PartyList[i], delayMs, destroyMs, 
-                        $"GEN_{_upm.Phase}_QuoteRavenDive{i}", 3f, color, byTime: true);
+                        $"GEN_{_upm.Phase}_QuoteRavenDive{i}", 3f, SpreadColor(color), byTime: true);
                 break;
             case NaelQuoteSkills.MeteorStream:
                 for (int i = 0; i < sa.Data.PartyList.Count; i++)
                     sa.DrawCircle(sa.Data.PartyList[i], delayMs, destroyMs, 
-                        $"GEN_{_upm.Phase}_QuoteMeteorStream{i}", 4f, color);
+                        $"GEN_{_upm.Phase}_QuoteMeteorStream{i}", 4f, SpreadColor(color));
                 break;
             default:
                 break;
@@ -1751,7 +1757,7 @@ public class UcobReborn
     public void P3A_MegaflareSpread(Event ev, ScriptAccessory sa)
     {
         if (_upm.Phase != 3100) return;
-        var color = new Vector4(0.3f, 1f, 1, 0.5f);
+        var color = SpreadColor(new Vector4(0.3f, 1f, 1, 0.5f));
         for (int i = 0; i < sa.Data.PartyList.Count; i++)
             sa.DrawCircle(sa.Data.PartyList[i], 0, 4000, 
                 $"P3A_{_upm.Phase}_MegaflareSpreadAoe{i}", 5f, color, byTime: true);
