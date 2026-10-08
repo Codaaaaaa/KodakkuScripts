@@ -50,11 +50,12 @@ public class UcobReborn
     const string UpdateInfo =
         $"""
         {Version}
-        Add transparency adjustment option
+        Fix P4 Hatch: the far Neurolink is now the correct one
+        Reword P4 Hatch TTS: "Hatch, then Twister" / "Twister, then Hatch"
         """;
 
     private const string Name = "The Unending Coil of Bahamut (Ultimate) UCOB - LPDU";
-    private const string Version = "0.0.0.5";
+    private const string Version = "0.0.0.6";
     private const string DebugVersion = "g";
     private int _runId = 0;
     public const bool Debugging = false;
@@ -3138,7 +3139,7 @@ public class UcobReborn
             sa.DrawGuidance(sa.Data.PartyList[playerIndex], tPos, 0, 5500, 
                 $"P4_{_upm.Phase}_HatchGuide{playerIndex}", sa.Data.DefaultSafeColor);
 
-            var ttsStr = i == 2 ? "Hatch after Twister" : "Hatch before Twister";
+            var ttsStr = i == 1 ? "Twister, then Hatch" : "Hatch, then Twister";
             sa.DebugMsg($"{sa.GetPlayerJobByIndex(playerIndex)} -> Neurolink {i + 1}: {ttsStr}", order: i);
             if (sa.GetMyIndex() != playerIndex) continue;
             sa.TextInfo(ttsStr, isWarning: true);
@@ -4013,8 +4014,8 @@ internal static class UcobP4Extension
     public static int SolveHatchOrder(this UcobParamsP4 p4, int[] markedPlayers, bool[] isMelee,
         Vector3?[] playerPositions, List<Vector3> neurolinks)
     {
-        // Melee get priority for Neurolinks 0/1, which are close to the boss (the tank spot sits between 0 and 1); among assignments that satisfy this, take the smallest total distance
-        // Melee priority = try not to give the far Neurolink 2 to a melee; doing so costs a 1000 penalty, which outweighs any distance difference
+        // Melee get priority for Neurolinks 0/2, which are close to the boss; among assignments that satisfy this, take the smallest total distance
+        // Melee priority = try not to give the far Neurolink 1 to a melee; doing so costs a 1000 penalty, which outweighs any distance difference
         p4.HatchOrder = [-1, -1, -1];
         if (neurolinks.Count != 3) return -1;
 
@@ -4027,7 +4028,7 @@ internal static class UcobP4Extension
         foreach (var c in markedPlayers)
         {
             if (a == b || a == c || b == c) continue;
-            var cost = Dist(a, 0) + Dist(b, 1) + Dist(c, 2) + (isMelee[c] ? 1000f : 0f);
+            var cost = Dist(a, 0) + Dist(b, 1) + Dist(c, 2) + (isMelee[b] ? 1000f : 0f);
             if (cost >= bestCost) continue;
             bestCost = cost;
             best = [a, b, c];
