@@ -40,11 +40,11 @@
   {
     "Name": "The Unending Coil of Bahamut (Ultimate) UCOB - LPDU",
     "Guid": "8bb1c1ae-a8bf-4579-8da7-1074b8f9ac9b",
-    "Version": "0.0.0.5",
+    "Version": "0.0.0.6",
     "Author": "Usami",
     "TerritoryIds": [733],
     "DownloadUrl": "https://raw.githubusercontent.com/Codaaaaaa/KodakkuScripts/main/Global/LPDU/UCOB_Joshua%20%26%20Usami%20-%20LPDU.cs",
-    "Note": "0.0.0.5\nThis is a modified version adapted for the LPDU strat.\n\n-----------Important-----------\n\nAt the very start, when everyone is lining up, once everyone is in position, type **/e sort** in the chat can automatically assign the players closest to each marker into the correct order.\n\nMT H1 D1 D3 → L1 L2 L3 L4\nST H2 D2 D4 → R1 R2 R3 R4\n\n-------------------------------\n\nA rework of the UCOB [The Unending Coil of Bahamut (Ultimate)] script.\nAdds a whole lot of new stuff.\n\nOriginal script authors: Joshua, Meva, KnightRider, Usami",
-    "UpdateInfo": "0.0.0.5\nAdd transparency adjustment option"
+    "Note": "0.0.0.6\nThis is a modified version adapted for the LPDU strat.\n\n-----------Important-----------\n\nAt the very start, when everyone is lining up, once everyone is in position, type **/e sort** in the chat can automatically assign the players closest to each marker into the correct order.\n\nMT H1 D1 D3 → L1 L2 L3 L4\nST H2 D2 D4 → R1 R2 R3 R4\n\n-------------------------------\n\nA rework of the UCOB [The Unending Coil of Bahamut (Ultimate)] script.\nAdds a whole lot of new stuff.\n\nOriginal script authors: Joshua, Meva, KnightRider, Usami",
+    "UpdateInfo": "0.0.0.6\nFix P4 Hatch: the far Neurolink is now the correct one\nReword P4 Hatch TTS: \"Hatch, then Twister\" / \"Twister, then Hatch\""
   }
 ]
