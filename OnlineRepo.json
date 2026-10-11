@@ -78,5 +78,15 @@
     "DownloadUrl": "https://raw.githubusercontent.com/Codaaaaaa/KodakkuScripts/main/Scripts/TheForkedTowerMagic.cs",
     "Note": "写完喽，还有电的可以在频道里圈我\n\n感谢铁虎老大的帮助\n感谢Yatel老大和洋葱炒米老大的arr",
     "UpdateInfo": "0.0.1.11\n修复一些范围错误\n\n0.0.1.9\n把一些钟灵tts挪到默语了，太吵了，删除textinfo\n\n0.0.1.7\n加了个扫雷和钟灵功能 电死你们\n\n0.0.1.2\n修了好多\n\n0.0.1.0\n写完喽\n\n0.0.0.8\n更新超魔Boss3\n\n0.0.0.7\n更新超魔Boss2\n\n0.0.0.5\n修了老二的月环钢铁"
+  },
+  {
+    "Name": "糖豆人简易画图",
+    "Guid": "c706caf6-827b-4880-b212-fb4e6931aab3",
+    "Version": "0.0.0.1",
+    "Author": "Codaaaaaa",
+    "TerritoryIds": [1165],
+    "DownloadUrl": "https://raw.githubusercontent.com/Codaaaaaa/KodakkuScripts/main/Scripts/Fallguys.cs",
+    "Note": "v0.0.0.1\n糖豆人简易画图，画着玩。",
+    "UpdateInfo": "0.0.0.1\n初版"
   }
 ]
