@@ -22,7 +22,7 @@ public class Fallguys
 {
     #region 元信息
     private const string Name = "糖豆人简易画图";
-    private const string Version = "0.0.0.1";
+    private const string Version = "0.0.0.2";
 
     private const string Note =
         $"""
@@ -63,7 +63,7 @@ public class Fallguys
     private const float 位置容差 = 1;
 
     private readonly Dictionary<uint, 机关记录> _机关记录 = [];
-    private readonly Dictionary<uint, (Vector3 起点, Vector3 终点)> _冲锋路线 = [];
+    private readonly Dictionary<uint, List<(Vector3 起点, Vector3 终点)>> _冲锋路线 = [];
     private readonly object _机关锁 = new();
 
     public void Init(ScriptAccessory sa)
@@ -157,19 +157,22 @@ public class Fallguys
         if (ps.Count > 位置记录上限) ps.RemoveAt(0);
     }
 
-    private static int? 找位置循环(List<Vector3> ps)
+    /// <summary>找最小的循环 p：最近几次（最多 p+1 次）都满足 第 i 次 ≈ 第 i-p 次，下一次就和 p 次前那次一样；看不出循环返回 null</summary>
+    private static int? 找循环<T>(List<T> xs, Func<T, T, bool> 相同)
     {
-        var n = ps.Count;
+        var n = xs.Count;
         for (var p = 1; p < n; p++)
         {
             var 核对次数 = Math.Min(n - p, p + 1);
             var 对上 = true;
             for (var i = n - 1; i >= n - 核对次数 && 对上; i--)
-                对上 = Vector3.Distance(ps[i], ps[i - p]) < 位置容差;
+                对上 = 相同(xs[i], xs[i - p]);
             if (对上) return p;
         }
         return null;
     }
+
+    private static int? 找位置循环(List<Vector3> ps) => 找循环(ps, (a, b) => Vector3.Distance(a, b) < 位置容差);
 
     private static Vector3? 按位置循环预测(List<Vector3> ps, Vector3 pos, bool 一次就当原地 = false)
     {
@@ -319,12 +322,20 @@ public class Fallguys
         => 预测机关下次判定(evt, sa, DrawTypeEnum.Circle, new Vector2(5), 原地AOE预测提前Ms, 8, 狂欢大圆周期Ms, 跟踪位置: true);
 
     // 34776 小圆：瞬发，ct=2 圆 r=2。坡顶 4 个机关（X = ±5.5 / ±1.83，Z = -366.8），每个间隔 0.4s 连打 14 下再停 5s，一轮 10.19s。
-    // 16351 号物体每 10.2s 成对在这 4 个位置出生
-    private const long 狂欢小圆周期Ms = 10190;
 
-    [ScriptMethod(name: "金碟狂欢 - 小圆预测画图", eventType: EventTypeEnum.ActionEffect, eventCondition: ["ActionId:34776", "TargetIndex:1"])]
-    public void 金碟狂欢小圆预测画图(Event evt, ScriptAccessory sa)
-        => 预测机关下次判定(evt, sa, DrawTypeEnum.Circle, new Vector2(2), 原地AOE预测提前Ms, 14, 狂欢小圆周期Ms, 跟踪位置: true);
+    private const float 滚球半径 = 2;
+    private const uint 滚球画图上限Ms = 30000;   // 兜底：正常在球移除时就删了
+
+    [ScriptMethod(name: "金碟狂欢 - 滚球碰撞范围画图", eventType: EventTypeEnum.AddCombatant, eventCondition: ["DataId:16351"])]
+    public void 金碟狂欢滚球碰撞范围画图(Event evt, ScriptAccessory sa)
+    {
+        var dp = sa.FastDp($"金碟狂欢滚球-{evt.SourceId():X}", evt.SourceId(), 滚球画图上限Ms, new Vector2(滚球半径));
+        sa.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Circle, dp);
+    }
+
+    [ScriptMethod(name: "金碟狂欢 - 滚球移除", eventType: EventTypeEnum.RemoveCombatant, eventCondition: ["DataId:16351"], userControl: false)]
+    public void 金碟狂欢滚球移除(Event evt, ScriptAccessory sa)
+        => sa.Method.RemoveDraw($"^金碟狂欢滚球-{evt.SourceId():X}$");
     #endregion
 
     #region 金碟攻城
@@ -349,26 +360,32 @@ public class Fallguys
     private const float 冲锋宽 = 3;
     private const float 冲锋路线容差 = 2;
 
+    private static bool 同一路线((Vector3 起点, Vector3 终点) a, (Vector3 起点, Vector3 终点) b)
+        => 距离XZ(a.起点, b.起点) < 冲锋路线容差 && 距离XZ(a.终点, b.终点) < 冲锋路线容差;
+
     [ScriptMethod(name: "金碟攻城/狂欢 - 冲锋预测画图", eventType: EventTypeEnum.ActionEffect, eventCondition: ["ActionId:34774", "TargetIndex:1"])]
     public void 冲锋预测画图(Event evt, ScriptAccessory sa)
     {
         var sid = evt.SourceId();
         var 这次 = (起点: evt.SourcePosition(), 终点: evt.EffectPosition());
-        (Vector3 起点, Vector3 终点)? 上次;
+        (Vector3 起点, Vector3 终点)? 下次 = null;
+        int? 循环 = null;
         lock (_机关锁)
         {
-            上次 = _冲锋路线.TryGetValue(sid, out var p) ? p : null;
-            _冲锋路线[sid] = 这次;
+            if (!_冲锋路线.TryGetValue(sid, out var 路线)) _冲锋路线[sid] = 路线 = [];
+            路线.Add(这次);
+            if (路线.Count > 位置记录上限) 路线.RemoveAt(0);
+            循环 = 找循环(路线, 同一路线);
+            if (循环 is { } p) 下次 = 路线[^p];
         }
-        if (记录并预测下次判定(sid, 2, 0) is not { } 等待 || 上次 is not { } 前) return;
+        sa.Log.Debug($"冲锋 {sid:X} 起点 {这次.起点} 终点 {这次.终点} 路线循环 {循环}");
+        if (记录并预测下次判定(sid, 2, 0) is not { } 等待 || 下次 is not { } 路) return;
 
-        var 长 = 距离XZ(这次.起点, 这次.终点);
-        var 来回 = 距离XZ(前.起点, 这次.终点) < 冲锋路线容差 && 距离XZ(前.终点, 这次.起点) < 冲锋路线容差;
-        var 原路 = 距离XZ(前.起点, 这次.起点) < 冲锋路线容差 && 距离XZ(前.终点, 这次.终点) < 冲锋路线容差;
-        if (长 < 1 || !来回 && !原路) return;
-
+        var (从, 到) = 路;
+        var 长 = 距离XZ(从, 到);
+        if (长 < 1) return;
+        // 长度直接写进 Scale.Y、朝向自己算：Vfx 绘图模式下矩形外框不吃 YByDistance
         if (预测Dp(sa, $"机关预测-{sid:X}", 等待, 移动机关预测提前Ms, new Vector2(冲锋宽, 长)) is not { } dp) return;
-        var (从, 到) = 来回 ? (这次.终点, 这次.起点) : (这次.起点, 这次.终点);
         dp.Position = 从;
         dp.Rotation = MathF.Atan2(到.X - 从.X, 到.Z - 从.Z);
         sa.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Rect, dp);
