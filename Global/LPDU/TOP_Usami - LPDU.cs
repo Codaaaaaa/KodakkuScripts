@@ -55,11 +55,11 @@ public class TopReborn
     const string UpdateInfo =
         $"""
          {Version}
-         P3 fixed
+         monitor auto-facing fixed
          """;
 
     private const string Name = "The Omega Protocol (Ultimate) TOP - LPDU";
-    private const string Version = "0.0.0.27";
+    private const string Version = "0.0.0.28";
     private const string DebugVersion = "a";
 
     private const bool Debugging = false;
@@ -6295,6 +6295,8 @@ public static class SpecialFunction
             sa.Log.Error($"传入的IGameObject不合法。");
             return;
         }
+        // Game rotation range is [-π, π]: an unwrapped 270° gets clamped to π when packed to 16 bits, so teammates and replays see you facing north
+        radian = MathF.IEEERemainder(radian, 2 * float.Pi);
         unsafe
         {
             GameObject* charaStruct = (GameObject*)obj.Address;
