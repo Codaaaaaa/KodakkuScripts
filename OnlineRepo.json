@@ -42,7 +42,7 @@
   {
     "Name": "多变迷宫 异闻商客奇谭 指路+画图",
     "Guid": "a2c7f9d1-4b6e-4f3a-9c18-7d2e6a5b8c41",
-    "Version": "0.0.0.4",
+    "Version": "0.0.0.5",
     "Author": "Codaaaaaa",
     "TerritoryIds": [1317],
     "DownloadUrl": "https://raw.githubusercontent.com/Codaaaaaa/KodakkuScripts/main/Scripts/MerchantsTale.cs",
