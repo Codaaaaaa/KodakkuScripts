@@ -32,13 +32,13 @@ using Newtonsoft.Json.Linq;
 
 namespace CicerosKodakkuAssist.DancingMadUltimate.LPDU;
 
-[ScriptType(name: Name, territorys: [1363], guid: "4d10c6d1-c98f-41a0-993b-a7a42ba14bfa",
+[ScriptType(name: Name, territorys: [1363], guid: "52a1cc3b-57fb-4893-9608-c0cbaaf210bd",
     version: Version, author: "Cicero 灵视 & Coda & Usami & RyougiMio & Errer", note: Note, updateInfo: UpdateInfo)]
 public class Dancing_Mad_Ultimate
 {
     #region 元信息
 
-    private const string Name = "妖星乱舞绝境战 DMU - LPDU";
+    private const string Name = "Dancing Mad (Ultimate) DMU/UMAD - LPDU";
     private const string Version = "0.0.0.1";
 
     private const string Note =
@@ -91,10 +91,26 @@ public class Dancing_Mad_Ultimate
 
     // ----- * 特殊功能（非原生，默认关闭） -----
 
-    [UserSetting("*启用方法设置中带*的特殊功能（屏蔽技能特效、Boss透明化、屏蔽无效目标、自动面向）")]
-    public static bool SpecialMode { get; set; } = false;
+    [UserSetting("*通用 屏蔽呼啦啦爆炎、扩大大冰封和劈啪啪暴雷的技能特效（开启后这三种范围改用原生绘制）")]
+    public bool blockFireIceThunderVfx { get; set; } = false;
     [UserSetting("*通用 呼啦啦爆炎、扩大大冰封和劈啪啪暴雷 技能特效屏蔽的方法")]
     public AnimationBlockadeModes animationBlockadeMode { get; set; } = AnimationBlockadeModes.传统方法_改变透明施法者的可见性;
+    [UserSetting("*P3 防火墙 屏蔽无效目标")]
+    public bool p3FirewallBlockInvalidTargets { get; set; } = false;
+    [UserSetting("*P3A 移除暴雷连线")]
+    public bool p3aRemoveThunderTether { get; set; } = false;
+    [UserSetting("*P3A 真空波读条期间卡奥斯透明")]
+    public bool p3aChaosTransparentDuringVacuumWave { get; set; } = false;
+    [UserSetting("*P3A1 真空波 自动面向辅助")]
+    public bool p3a1VacuumWaveAutoFace { get; set; } = false;
+    [UserSetting("*P3B 黑洞、冰封期间双Boss透明")]
+    public bool p3bBossesTransparentDuringBlackHole { get; set; } = false;
+    [UserSetting("*P3B 凯夫卡上桌透明化")]
+    public bool p3bKefkaTransparent { get; set; } = false;
+    [UserSetting("*P3B 卡奥斯非技能期间透明化")]
+    public bool p3bChaosTransparent { get; set; } = false;
+    [UserSetting("*P3B 艾克斯迪司非技能期间透明化")]
+    public bool p3bExdeathTransparent { get; set; } = false;
 
     // ----- 调试 -----
 
@@ -113,6 +129,8 @@ public class Dancing_Mad_Ultimate
 
     // ----- P2 -----
 
+    [UserSetting("P2/P3 按 PF 打法：P2 遗弃末世第 1 轮分摊跟搭档进塔（搭档扇形进扇形塔，搭档圆圈进圆圈塔）")]
+    public bool followPfStrats { get; set; } = false;
     [UserSetting("P2 遗弃末世 指路 在偶数轮为咏唱危机·波动(扇形)的位置绘制辅助线")]
     public bool phase2sub2_spellwaveAuxiliaryLines { get; set; } = true;
     [UserSetting("P2 遗弃末世 绘制的视觉类型")]
@@ -230,7 +248,7 @@ public class Dancing_Mad_Ultimate
     // 打开后所有指路按全队 8 人绘制（每人按自己的 buff / 点名 / 职能单独解算），
     // 并显示 userControl: Debugging 的内部方法、输出 Usami 部分的调试信息
     // 必须是 const：userControl: Debugging 是特性参数，只吃编译期常量
-    public const bool Debugging = false;
+    public const bool Debugging = true;
 
     /// <summary>指路箭头起点 Owner：正常取 PartyList[idx]，越界回退自己</summary>
     private static uint GuidanceOwner(ScriptAccessory sa, int idx)
@@ -490,6 +508,14 @@ public class Dancing_Mad_Ultimate
         phase2sub2_allThingsEndingSemaphore.Reset();
 
         phase2sub3_trineCounter=0;
+
+        lock(_trine锁) {
+
+            _trines.Clear();
+            _trine落地=0;
+            _trine安全半场=null;
+
+        }
 
         // ----- End Of Major Phase 2 -----
 
@@ -978,7 +1004,7 @@ public class Dancing_Mad_Ultimate
 
     public void 通用_呼啦啦爆炎_技能特效屏蔽_引擎方法(Event @event,ScriptAccessory accessory) {
 
-        if(!SpecialMode) {
+        if(!blockFireIceThunderVfx) {
 
             return;
 
@@ -1042,7 +1068,7 @@ public class Dancing_Mad_Ultimate
         currentProperties.DestoryAt=5000;
         currentProperties.Color=colourOfExtremelyDangerousAttacks.V4.WithW(1);
 
-        if(!SpecialMode) {
+        if(!blockFireIceThunderVfx) {
 
             accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Fan,currentProperties);
 
@@ -1062,7 +1088,7 @@ public class Dancing_Mad_Ultimate
 
     public void 通用_扩大大冰封_技能特效屏蔽_引擎方法(Event @event,ScriptAccessory accessory) {
 
-        if(!SpecialMode) {
+        if(!blockFireIceThunderVfx) {
 
             return;
 
@@ -1096,7 +1122,7 @@ public class Dancing_Mad_Ultimate
 
     public void 通用_扩大大冰封_技能特效屏蔽_传统方法(Event @event,ScriptAccessory accessory) {
 
-        if(!SpecialMode) {
+        if(!blockFireIceThunderVfx) {
 
             return;
 
@@ -1149,7 +1175,7 @@ public class Dancing_Mad_Ultimate
         currentProperties.DestoryAt=5000;
         currentProperties.Color=colourOfExtremelyDangerousAttacks.V4.WithW(1);
 
-        if(!SpecialMode) {
+        if(!blockFireIceThunderVfx) {
 
             accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Rect,currentProperties);
 
@@ -1169,7 +1195,7 @@ public class Dancing_Mad_Ultimate
 
     public void 通用_劈啪啪暴雷_技能特效屏蔽_引擎方法(Event @event,ScriptAccessory accessory) {
 
-        if(!SpecialMode) {
+        if(!blockFireIceThunderVfx) {
 
             return;
 
@@ -1203,7 +1229,7 @@ public class Dancing_Mad_Ultimate
 
     public void 通用_劈啪啪暴雷_技能特效屏蔽_传统方法(Event @event,ScriptAccessory accessory) {
 
-        if(!SpecialMode) {
+        if(!blockFireIceThunderVfx) {
 
             return;
 
@@ -2083,14 +2109,6 @@ public class Dancing_Mad_Ultimate
         lock (_p1危险区)
             _p1危险区.Clear();
 
-        lock (_陷阱锁)
-        {
-            Array.Clear(_陷阱持有者);
-            _陷阱轮次 = 0;
-            _陷阱已安排.Clear();
-            _陷阱已结算.Clear();
-        }
-
         lock (_g2锁)
         {
             _g2轮次 = 0;
@@ -2098,8 +2116,6 @@ public class Dancing_Mad_Ultimate
             Array.Clear(_g2重力弹);
             _g2安全左上右下 = null;
             _g2半场刀安全侧 = 0;
-            _g2水洼[0] = new(100, 0, 88);
-            _g2水洼[1] = new(100, 0, 112);
             _g2第一轮已指路 = false;
         }
 
@@ -2476,176 +2492,6 @@ public class Dancing_Mad_Ultimate
 
     #endregion
 
-    #region P1 连环环陷阱
-
-    // 5078 连环环陷阱：一支援一 DPS 持有，到期时在持有者脚下 47783 6m 分摊 + 击退（约 13~15m），陷阱传给被击中的人
-    // 三次按 buff 时长区分：第 1 次 5s（神像1 塔后，接冰雷）、第 2 次 68s（神像2 推进水洼）、第 3 次 49s（神像3 放完箭头）
-    // 持有者都站在本组外侧，把组员往场内推：
-    //   第 1 次 支援西 / DPS 东，互相推过 Boss，落地后躲冰雷（算最近安全点）
-    //   第 2 次 半场刀安全侧，支援在北 / DPS 在南，组员被推进对面的水洼，持有者自己走进另一个水洼
-    //   第 3 次 支援西北 / DPS 东南（箭头方框内），往场中推，别推上传送板
-    private readonly object _陷阱锁 = new();
-    private readonly uint[] _陷阱持有者 = new uint[2]; // [0] 支援 [1] DPS
-    private int _陷阱轮次 = 0;
-    private readonly HashSet<int> _陷阱已安排 = new();
-    private readonly HashSet<int> _陷阱已结算 = new();
-
-    [ScriptMethod(
-        name: "P1_连环环陷阱指路",
-        eventType: EventTypeEnum.StatusAdd,
-        eventCondition: ["StatusID:5078"])]
-    public void P1_连环环陷阱指路(Event evt, ScriptAccessory sa)
-    {
-        if (_phase >= 2.0)
-            return;
-
-        // 客户端预测那条 StatusAdd 时长是 0/∞，跳过
-        int idx = PartyIndex(sa.Data.PartyList, evt.TargetId());
-        if (!int.TryParse(evt["DurationMilliseconds"], out var ms) || ms <= 0 || ms > 100000 || idx < 0)
-            return;
-
-        double duration = ms / 1000.0;
-        int round = duration < 10 ? 1 : duration > 60 ? 2 : 3;
-
-        lock (_陷阱锁)
-        {
-            _陷阱轮次 = round;
-            _陷阱持有者[idx < 4 ? 0 : 1] = evt.TargetId();
-
-            if (!_陷阱已安排.Add(round))
-                return;
-        }
-
-        // 第 1 次要先踩完神像1 的塔，只给最后 3.5s；第 3 次要先放完第二个箭头，给最后 5s
-        double lead = round switch { 1 => 3.5, 2 => 8.0, _ => 5.0 };
-        int delay = (int)((duration - lead) * 1000);
-
-        Task.Run(async () =>
-        {
-            if (delay > 0)
-                await Task.Delay(delay);
-
-            P1_连环环陷阱_站位(sa, round, (uint)(lead * 1000));
-        });
-    }
-
-    private void P1_连环环陷阱_站位(ScriptAccessory sa, int round, uint duration)
-    {
-        uint[] holders;
-        int side;
-
-        lock (_陷阱锁)
-            holders = (uint[])_陷阱持有者.Clone();
-
-        lock (_g2锁)
-            side = _g2半场刀安全侧 == 0 ? 1 : _g2半场刀安全侧;
-
-        var party = sa.Data.PartyList;
-        int myIdx = sa.MyIndex();
-
-        for (int i = 0; i < party.Count && i < 8; i++)
-        {
-            if (!Debugging && i != myIdx)
-                continue;
-
-            bool support = i < 4;
-            bool holder = party[i] == holders[support ? 0 : 1];
-
-            // (组员位置, 持有者位置)，相对场中
-            var (member, holderPos) = (round, support) switch
-            {
-                (1, true) => (new Vector2(-7, 0), new Vector2(-9.5f, 0)),
-                (1, false) => (new Vector2(7, 0), new Vector2(9.5f, 0)),
-                (2, true) => (new Vector2(side * 3, -3.5f), new Vector2(side * 3, -6.5f)),
-                (2, false) => (new Vector2(side * 3, 3.5f), new Vector2(side * 3, 6.5f)),
-                (_, true) => (new Vector2(-5.5f, -5.5f), new Vector2(-7.3f, -7.3f)),
-                _ => (new Vector2(5.5f, 5.5f), new Vector2(7.3f, 7.3f)),
-            };
-
-            var p = holder ? holderPos : member;
-            var dp = sa.WaypointDp(new Vector3(100 + p.X, 0, 100 + p.Y), duration, 0, $"P1_连环环陷阱{round}_{i}");
-            dp.Owner = GuidanceOwner(sa, i);
-            sa.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
-        }
-
-        sa.Debug($"连环环陷阱第{round}次：持有者={PartyIndex(party, holders[0])},{PartyIndex(party, holders[1])}, 半场刀安全侧={side}");
-    }
-
-    // 47783 陷阱结算（分摊 + 击退）：第 1 次落地后去最近的冰雷安全点；第 2 次组员留在被推进的水洼，持有者走进另一个水洼
-    [ScriptMethod(
-        name: "P1_连环环陷阱结算后指路",
-        eventType: EventTypeEnum.ActionEffect,
-        eventCondition: ["ActionId:47783"],
-        userControl: false)]
-    public void P1_连环环陷阱结算后指路(Event evt, ScriptAccessory sa)
-    {
-        if (_phase >= 2.0)
-            return;
-
-        int round;
-        uint[] holders;
-
-        lock (_陷阱锁)
-        {
-            round = _陷阱轮次;
-            if (round is not (1 or 2) || !_陷阱已结算.Add(round))
-                return;
-            holders = (uint[])_陷阱持有者.Clone();
-        }
-
-        Task.Run(async () =>
-        {
-            var party = sa.Data.PartyList;
-            int myIdx = sa.MyIndex();
-
-            if (round == 1)
-            {
-                // 等击退落地；冰雷在击退后约 3.9s 结算
-                await Task.Delay(800);
-
-                for (int i = 0; i < party.Count && i < 8; i++)
-                {
-                    if (!Debugging && i != myIdx)
-                        continue;
-
-                    var pos = sa.Data.Objects.SearchById(party[i])?.Position;
-                    if (pos == null)
-                        continue;
-
-                    var dp = sa.WaypointDp(P1最近安全点(pos.Value), 3000, 0, $"P1_连环环陷阱1_躲冰雷_{i}");
-                    dp.Owner = GuidanceOwner(sa, i);
-                    sa.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
-                }
-
-                return;
-            }
-
-            Vector3 north, south;
-            lock (_g2锁)
-            {
-                north = _g2水洼[0];
-                south = _g2水洼[1];
-            }
-
-            // 强重力 47791（水洼爆炸）在击退后约 2.7s
-            for (int i = 0; i < party.Count && i < 8; i++)
-            {
-                if (!Debugging && i != myIdx)
-                    continue;
-
-                bool support = i < 4;
-                bool holder = party[i] == holders[support ? 0 : 1];
-                var target = support != holder ? south : north;
-
-                var dp = sa.WaypointDp(target, 2600, 0, $"P1_连环环陷阱2_吃水洼_{i}");
-                dp.Owner = GuidanceOwner(sa, i);
-                sa.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
-            }
-        });
-    }
-
-    #endregion
-
     #region P1 神像2（重力弹 / 岩石弹 + 吃水洼）
 
     // 两轮各 8 根 002D：中间神像 (102.5,22.5,27) 的是重力弹 47788 = 分摊，留 5m 水洼；侧边神像 (126,7,41.5) 的是岩石弹 47792 = 陨石
@@ -2659,7 +2505,6 @@ public class Dancing_Mad_Ultimate
     private readonly bool?[] _g2重力弹 = new bool?[8];
     private bool? _g2安全左上右下 = null;
     private int _g2半场刀安全侧 = 0; // +1 东安全，-1 西安全，0 未知
-    private readonly Vector3[] _g2水洼 = [new(100, 0, 88), new(100, 0, 112)];
     private bool _g2第一轮已指路 = false;
 
     private static readonly Vector3 G2重力弹神像 = new(102.5f, 22.5f, 27f);
@@ -2744,27 +2589,6 @@ public class Dancing_Mad_Ultimate
         }
     }
 
-    // 47788 重力弹：记下水洼位置（第 1 轮北、第 2 轮南），第二次陷阱推人进水洼用
-    [ScriptMethod(
-        name: "P1_神像2_记录水洼",
-        eventType: EventTypeEnum.ActionEffect,
-        eventCondition: ["ActionId:47788"],
-        userControl: false)]
-    public void P1_神像2_记录水洼(Event evt, ScriptAccessory sa)
-    {
-        if (!IsPhase(_phase, 1.2))
-            return;
-
-        var pos = evt.TargetPosition();
-        if (pos == Vector3.Zero)
-            return;
-
-        lock (_g2锁)
-        {
-            if (_g2轮次 is 1 or 2)
-                _g2水洼[_g2轮次 - 1] = pos with { Y = 0 };
-        }
-    }
 
     // 47765 扩大大冰封（第 1 轮）：4.7s 读条，+5.1s 重力弹，+9.1s 岩石弹
     [ScriptMethod(
@@ -3001,43 +2825,43 @@ public class Dancing_Mad_Ultimate
 
     // 神像3 后的 47764 玄乎乎魔法：火（可能假）+ 真假雷直线 + 视线，+5.8s 一起结算
     // 分摊：DPS 北、支援南，各自找离 Boss 6m 处最近的不在真雷线上的点；分散：原地，被真雷线罩住才挪到最近的安全点
-    [ScriptMethod(
-        name: "P1_神像3_最后火雷指路",
-        eventType: EventTypeEnum.StartCasting,
-        eventCondition: ["ActionId:47764"])]
-    public void P1_神像3_最后火雷指路(Event evt, ScriptAccessory sa)
-    {
-        if (!IsPhase(_phase, 1.3))
-            return;
+    // [ScriptMethod(
+    //     name: "P1_神像3_最后火雷指路",
+    //     eventType: EventTypeEnum.StartCasting,
+    //     eventCondition: ["ActionId:47764"])]
+    // public void P1_神像3_最后火雷指路(Event evt, ScriptAccessory sa)
+    // {
+    //     if (!IsPhase(_phase, 1.3))
+    //         return;
 
-        Task.Run(async () =>
-        {
-            // 真雷 47775/47777 和 47764 同一帧读条，稍等它们进危险区列表
-            await Task.Delay(300);
+    //     Task.Run(async () =>
+    //     {
+    //         // 真雷 47775/47777 和 47764 同一帧读条，稍等它们进危险区列表
+    //         await Task.Delay(300);
 
-            bool 分摊 = stackFlagrantFireIcon != fakeFlagrantFire;
-            var party = sa.Data.PartyList;
-            int myIdx = sa.MyIndex();
+    //         bool 分摊 = stackFlagrantFireIcon != fakeFlagrantFire;
+    //         var party = sa.Data.PartyList;
+    //         int myIdx = sa.MyIndex();
 
-            for (int i = 0; i < party.Count && i < 8; i++)
-            {
-                if (!Debugging && i != myIdx)
-                    continue;
+    //         for (int i = 0; i < party.Count && i < 8; i++)
+    //         {
+    //             if (!Debugging && i != myIdx)
+    //                 continue;
 
-                Vector3? from = 分摊
-                    ? new Vector3(100, 0, i < 4 ? 106 : 94)
-                    : sa.Data.Objects.SearchById(party[i])?.Position;
-                if (from == null)
-                    continue;
+    //             Vector3? from = 分摊
+    //                 ? new Vector3(100, 0, i < 4 ? 106 : 94)
+    //                 : sa.Data.Objects.SearchById(party[i])?.Position;
+    //             if (from == null)
+    //                 continue;
 
-                var dp = sa.WaypointDp(P1最近安全点(from.Value), 5300, 0, $"P1_神像3_最后火雷_{i}");
-                dp.Owner = GuidanceOwner(sa, i);
-                sa.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
-            }
+    //             var dp = sa.WaypointDp(P1最近安全点(from.Value), 5300, 0, $"P1_神像3_最后火雷_{i}");
+    //             dp.Owner = GuidanceOwner(sa, i);
+    //             sa.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
+    //         }
 
-            sa.Debug($"神像3 最后火雷：分摊={分摊}");
-        });
-    }
+    //         sa.Debug($"神像3 最后火雷：分摊={分摊}");
+    //     });
+    // }
 
     private void ResetStatue3ArrowState()
     {
@@ -3475,9 +3299,10 @@ public class Dancing_Mad_Ultimate
 
     }
 
+    // 塔出现：EnvControl Index 1~8，Flag 是 1 或 2（同一轮两座塔也可能不同，第 1 轮常是两个 1），只认 2 会漏塔导致整轮不指路
     [ScriptMethod(name:"P2 遗弃末世 塔 (数据收集)",
         eventType:EventTypeEnum.EnvControl,
-        eventCondition:["Flag:2"],
+        eventCondition:["Flag:regex:^(1|2)$"],
         userControl:false)]
 
     public void P2_遗弃末世_塔_数据收集(Event @event,ScriptAccessory accessory) {
@@ -3899,7 +3724,7 @@ public class Dancing_Mad_Ultimate
 
         if(currentRound%2==0&&phase2sub2_spellwaveAuxiliaryLines) {
 
-            Vector2 cone=P2偶数轮左塔(hitbox).cone;
+            Vector2 cone=P2偶数轮左塔().cone;
             Vector3[] fanPositions=[P2局部转世界(cone,currentRound),P2局部转世界(new Vector2(-cone.X,cone.Y),currentRound)];
 
             for(int i=0;i<2;++i) {
@@ -3945,7 +3770,7 @@ public class Dancing_Mad_Ultimate
         }
 
         Vector2? relative=(currentRound%2==1)
-            ?P2奇数轮站位(myIndex,inTower)
+            ?P2奇数轮站位(myIndex,inTower,currentRound==1)
             :P2偶数轮站位(myIndex,inTower,towerGroup,hitbox);
 
         if(enableDebugLogging) {
@@ -3973,8 +3798,9 @@ public class Dancing_Mad_Ultimate
     // 奇数轮（2 分摊 1 扇形 1 圆圈，分摊 5m）：
     // 扇形塔 = 支援的分摊（塔内靠 Boss）+ 扇形（塔最南略偏右）；圆圈塔 = DPS 的分摊（塔左侧最大近战）+ 圆圈（塔最东）
     // 搭档两人都是分摊：远程留本职能那边，T/近战换到另一边
+    // PF 打法只改第 1 轮：分摊跟搭档进塔（搭档扇形 → 扇形塔，搭档圆圈 → 圆圈塔），之后各轮同 LPDU
     // 闲人固定：T 在 Boss 判定圈内、扇形塔前（吃支援分摊），H 在扇形人正南引扇形；DPS 两人在两塔中间靠圆圈塔吃 DPS 分摊
-    private Vector2? P2奇数轮站位(int idx,bool inTower) {
+    private Vector2? P2奇数轮站位(int idx,bool inTower,bool firstRound) {
 
         if(!inTower) {
 
@@ -3996,11 +3822,18 @@ public class Dancing_Mad_Ultimate
             case Phase2Sub2_IconTypes.STACK: {
 
                 // idx^2 = 固定搭档（0↔2、1↔3、4↔6、5↔7）
+                var buddy=phase2sub2_iconType[idx^2];
                 bool coneTower=isSupporter(idx);
 
-                if(phase2sub2_iconType[idx^2]==Phase2Sub2_IconTypes.STACK&&isMelee(idx)) {
+                if(buddy==Phase2Sub2_IconTypes.STACK&&isMelee(idx)) {
 
                     coneTower=!coneTower;
+
+                }
+
+                else if(followPfStrats&&firstRound&&buddy is Phase2Sub2_IconTypes.FAN or Phase2Sub2_IconTypes.SPREAD) {
+
+                    coneTower=buddy==Phase2Sub2_IconTypes.FAN;
 
                 }
 
@@ -4021,7 +3854,7 @@ public class Dancing_Mad_Ultimate
     // H / 远程站扇形人外侧引扇形，扇形往东西两边打出去
     private Vector2? P2偶数轮站位(int idx,bool inTower,List<int> towerGroup,float hitbox) {
 
-        var (cone,circle,baiter)=P2偶数轮左塔(hitbox);
+        var (cone,circle,baiter)=P2偶数轮左塔();
 
         if(!inTower) {
 
@@ -4054,28 +3887,18 @@ public class Dancing_Mad_Ultimate
     }
 
     /// <summary>
-    /// 偶数轮左塔：扇形点 = Boss 内判定圈与塔边（塔心距场中 8m、半径 4m，往里收 0.4m）靠西的交点；
-    /// 圆圈点 = 过塔心的对面；引扇形点 = 扇形点外侧 5.5m、与扇形→圆圈连线垂直（大致在西标点内缘，出分身 5m 圈）
+    /// 偶数轮左塔（塔心距场中 8m、半径 4m，往里收 0.4m）：以两塔中间面向 Boss 为 12 点，
+    /// 扇形点在塔的 1 点钟（往场内收），圆圈点过塔心在对面 7 点钟（往外）；右塔由调用方镜像成 11 点 / 5 点。
+    /// 引扇形点 = 扇形点正西 5.5m（咏唱危机·散碎 47809 圆圈 5m + 0.5m 容错），扇形往西打出去
     /// </summary>
-    private static (Vector2 cone,Vector2 circle,Vector2 baiter) P2偶数轮左塔(float hitbox) {
+    private static (Vector2 cone,Vector2 circle,Vector2 baiter) P2偶数轮左塔() {
 
-        const float towerDistance=8,towerRadius=3.6f;
+        const float towerRadius=3.6f,clock=MathF.PI/6,baitDistance=5+0.5f;
 
-        float a=(hitbox*hitbox-towerRadius*towerRadius+towerDistance*towerDistance)/(2*towerDistance);
-        float h=MathF.Sqrt(MathF.Max(0,hitbox*hitbox-a*a));
-        var towerDirection=Vector2.Normalize(P2左塔);
-        var cone=a*towerDirection-h*new Vector2(0.7071f,0.7071f);
-        var circle=2*P2左塔-cone;
-        var line=Vector2.Normalize(circle-cone);
-        var outward=new Vector2(line.Y,-line.X);
+        var offset=new Vector2(MathF.Sin(clock),-MathF.Cos(clock))*towerRadius;
+        var cone=P2左塔+offset;
 
-        if(outward.X>0) {
-
-            outward=-outward;
-
-        }
-
-        return (cone,circle,cone+outward*5.5f);
+        return (cone,P2左塔-offset,cone-new Vector2(baitDistance,0));
 
     }
 
@@ -4336,7 +4159,7 @@ public class Dancing_Mad_Ultimate
 
     [ScriptMethod(name:"P2 遗弃末世 (塔辅助线)",
         eventType:EventTypeEnum.EnvControl,
-        eventCondition:["Flag:2"])]
+        eventCondition:["Flag:regex:^(1|2)$"])]
 
     public void P2_遗弃末世_塔辅助线(Event @event,ScriptAccessory accessory) {
 
@@ -4827,6 +4650,177 @@ public class Dancing_Mad_Ultimate
             currentProperties.DestoryAt=duration2;
 
             accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Circle,currentProperties);
+
+        }
+
+    }
+
+    // ----- LPDU 异三角：https://raidplan.io/plan/apkh6ytq72w8pt3v（Party N CW, Tanks NW CCW）-----
+    // 7 个三角按 3/1/3 三组落地，各组落地约 11.8s 后在三个尖角爆 6m 圆（47840）；场中那个总在第 3 组
+    // 外圈 6 个位置固定：第 k 个（从北顺时针 0~5）质心在方位 60k+10.9°、距场中 15.28m，尖角在 (60k°,10m)、(60k°,20m)、(60k+30°,17.32m)
+    //   西北那个外观朝向和爆炸对不上，所以外圈按位置算，不看 DataId；场中那个看 DataId：2015154 尖朝东，2015155 尖朝西
+    // 全员先在场中，破坏之翼半场刀（47821/47822）时站安全半场；第 1 组爆炸后：
+    //   人群进「从北开始顺时针」第一个第 1 组三角，坦克进「从西北开始逆时针」第一个第 1 组三角
+    //   ST 远：坦克三角的场边；MT 近：场中三角的缺口（两个尖角之间、距场中 7.5m），
+    //   选两侧外圈三角都不在第 3 组、离坦克三角最近的缺口，旁边有第 2 组三角就先在坦克三角内侧等它爆完
+    // 远近死刑 47823（7m）在第 3 组爆炸时点名最近/最远
+    private readonly object _trine锁=new();
+    private readonly List<(Vector3 pos,uint dataId)> _trines=new();
+    private long _trine落地=0;
+    private float? _trine安全半场=null; // 半场刀安全侧的游戏朝向（弧度）
+
+    // 相对第 1 组落地（日志实测）
+    private const int TRINE_第1组爆炸=11785,TRINE_第2组爆炸=13835,TRINE_死刑=16370;
+
+    private static Vector3 Trine点(float bearingDegrees,float radius) {
+
+        float rad=bearingDegrees*MathF.PI/180;
+        return new Vector3(100+radius*MathF.Sin(rad),0,100-radius*MathF.Cos(rad));
+
+    }
+
+    // 47821 打 Boss 面向 +90°、47822 打 -90°（同上面单翼范围的画法），安全侧取反
+    [ScriptMethod(name:"P2 异三角 破坏之翼 (数据收集)",
+        eventType:EventTypeEnum.StartCasting,
+        eventCondition:["ActionId:regex:^(47821|47822)$"],
+        userControl:false)]
+
+    public void P2_异三角_破坏之翼_数据收集(Event @event,ScriptAccessory accessory) {
+
+        if((majorPhase!=2||phase!=3)&&!skipPhaseChecks) {
+
+            return;
+
+        }
+
+        lock(_trine锁) {
+
+            _trine安全半场=@event.SourceRotation()+(@event.ActionId()==47821?-1:1)*MathF.PI/2;
+
+        }
+
+    }
+
+    [ScriptMethod(name:"P2 异三角 (指路)",
+        eventType:EventTypeEnum.ObjectChanged,
+        eventCondition:["DataId:regex:^(2015154|2015155)$","Operate:Add"])]
+
+    public void P2_异三角_指路(Event @event,ScriptAccessory accessory) {
+
+        if((majorPhase!=2||phase!=3)&&!skipPhaseChecks) {
+
+            return;
+
+        }
+
+        List<(Vector3 pos,uint dataId)> trines;
+        long landed;
+        float? safeSide;
+
+        lock(_trine锁) {
+
+            if(_trines.Count>=7) {
+
+                return;
+
+            }
+
+            if(_trines.Count==0) {
+
+                _trine落地=Environment.TickCount64;
+
+            }
+
+            _trines.Add((@event.SourcePosition(),@event.DataId()));
+
+            if(_trines.Count<7) {
+
+                return;
+
+            }
+
+            trines=[.._trines];
+            landed=_trine落地;
+            safeSide=_trine安全半场;
+
+        }
+
+        int ringOf(Vector3 p) {
+
+            float bearing=MathF.Atan2(p.X-100,100-p.Z)*180/MathF.PI;
+            return ((int)MathF.Round((bearing-10.9f)/60)%6+6)%6;
+
+        }
+
+        bool isCenter(Vector3 p)=>Vector3.Distance(p,ARENA_CENTER)<3;
+
+        var set1=trines.Take(3).Where(t=>!isCenter(t.pos)).Select(t=>ringOf(t.pos)).ToList();
+        var set2=trines.Skip(3).Take(1).Where(t=>!isCenter(t.pos)).Select(t=>ringOf(t.pos)).ToList();
+        var set3=trines.Skip(4).Where(t=>!isCenter(t.pos)).Select(t=>ringOf(t.pos)).ToList();
+        var center=trines.FirstOrDefault(t=>isCenter(t.pos));
+
+        if(set1.Count!=3||center.dataId==0) {
+
+            accessory.Log.Debug($"P2 异三角：布局不认识，不指路。{string.Join(" ",trines)}");
+            return;
+
+        }
+
+        int partyRing=set1.Min();
+        int tankRing=set1.Max();
+        float tankBearing=60*tankRing+10.9f;
+
+        // 场中三角的缺口在尖角对面：尖朝东（2015154）尖角 90/210/330°，缺口 270/30/150°
+        int[] gaps=center.dataId==2015154?[270,30,150]:[90,210,330];
+        int[] flanks(int gap)=>[(gap-30)/60%6,(gap+30)/60%6];
+        int gap=gaps.Where(g=>!flanks(g).Any(set3.Contains))
+            .OrderBy(g=>MathF.Abs(((g-tankBearing)%360+540)%360-180))
+            .First();
+        bool nearWaits=set2.Any(flanks(gap).Contains);
+
+        Vector3 mid=safeSide is { } a?new Vector3(100+3*MathF.Sin(a),0,100+3*MathF.Cos(a)):ARENA_CENTER;
+        Vector3 partySpot=Trine点(60*partyRing+10.9f,15.28f);
+        Vector3 farSpot=Trine点(tankBearing,19);
+        Vector3 nearWait=Trine点(tankBearing,11);
+        Vector3 nearSpot=Trine点(gap,7.5f);
+
+        long now=Environment.TickCount64;
+        uint until(int ms)=>(uint)Math.Max(0,landed+ms-now);
+        uint boom1=until(TRINE_第1组爆炸),boom2=until(TRINE_第2组爆炸),end=until(TRINE_死刑)+300;
+
+        accessory.Log.Debug($"P2 异三角：第1组={string.Join(",",set1)} 第2组={string.Join(",",set2)} 第3组={string.Join(",",set3)}+场中{center.dataId}，人群={partyRing} 坦克={tankRing} 近死刑缺口={gap}°{(nearWaits?"（先等第2组）":"")}");
+
+        int myIndex=accessory.Data.PartyList.IndexOf(accessory.Data.Me);
+
+        for(int i=0;i<accessory.Data.PartyList.Count&&i<8;++i) {
+
+            if(!Debugging&&i!=myIndex) {
+
+                continue;
+
+            }
+
+            Vector3 target=i switch { 0 => nearWaits?nearWait:nearSpot, 1 => farSpot, _ => partySpot };
+
+            var dp=accessory.WaypointDp(mid,boom1,0,$"P2_异三角_场中_{i}");
+            dp.Owner=GuidanceOwner(accessory,i);
+            accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Displacement,dp);
+
+            dp=accessory.WaypointFromToDp(mid,target,boom1,0,$"P2_异三角_预览_{i}",new Vector4(1,1,1,1));
+            accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Displacement,dp);
+
+            uint toTarget=i==0&&nearWaits?boom2:end;
+            dp=accessory.WaypointDp(target,toTarget-boom1,boom1,$"P2_异三角_三角_{i}");
+            dp.Owner=GuidanceOwner(accessory,i);
+            accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Displacement,dp);
+
+            if(i==0&&nearWaits) {
+
+                dp=accessory.WaypointDp(nearSpot,end-boom2,boom2,$"P2_异三角_缺口_{i}");
+                dp.Owner=GuidanceOwner(accessory,i);
+                accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Displacement,dp);
+
+            }
 
         }
 
@@ -6610,7 +6604,7 @@ public class Dancing_Mad_Ultimate
         userControl: true)]
     public void P3_防火墙_屏蔽无效目标(Event ev, ScriptAccessory sa)
     {
-        if (!SpecialMode) return;
+        if (!p3FirewallBlockInvalidTargets) return;
         if (_udmP3Param.防火墙已开启) return;
 
         _udmP3Param.防火墙已开启 = true;
@@ -6865,7 +6859,7 @@ public class Dancing_Mad_Ultimate
         eventCondition: ["Type:Channeling", "Id:64"], userControl: true)]
     public async void P3A_移除暴雷连线(Event ev, ScriptAccessory sa)
     {
-        if (!SpecialMode) return;
+        if (!p3aRemoveThunderTether) return;
         var runId = _runId;
         var obj = sa.GetById(ev.TargetId);
         sa.WriteVisible(obj, false);
@@ -7515,7 +7509,7 @@ public class Dancing_Mad_Ultimate
         eventCondition: ["ActionId:regex:^(47891)$"], userControl: true)]
     public async void P3A_真空波读条期间卡奥斯透明(Event ev, ScriptAccessory sa)
     {
-        if (!SpecialMode) return;
+        if (!p3aChaosTransparentDuringVacuumWave) return;
 
         if (_udmP3Param.当前阶段 != 3111) return;
         sa.DebugMsg($"执行");
@@ -7664,7 +7658,7 @@ public class Dancing_Mad_Ultimate
     {
         return;
         if (_udmP3Param.当前阶段 != 3111) return;
-        if (!SpecialMode) return;
+        if (!p3a1VacuumWaveAutoFace) return;
 
         sa.DebugMsg($"开始");
 
@@ -7819,7 +7813,7 @@ public class Dancing_Mad_Ultimate
         eventCondition: ["ActionId:regex:^(47867)$"], userControl: true)]
     public void P3B_黑洞期间双Boss透明(Event ev, ScriptAccessory sa)
     {
-        if (!SpecialMode) return;
+        if (!p3bBossesTransparentDuringBlackHole) return;
 
         const uint 黑洞 = 47867;
         var obj1 = sa.GetById(_udmP3Param.ObjectId_卡奥斯);
@@ -7832,7 +7826,7 @@ public class Dancing_Mad_Ultimate
         eventCondition: ["ActionId:regex:^(4784[67]|4785[235])$"], userControl: true)]
     public async void P3B_凯夫卡上桌透明化(Event ev, ScriptAccessory sa)
     {
-        if (!SpecialMode) return;
+        if (!p3bKefkaTransparent) return;
         var runId = _runId;
         var obj = sa.GetById(ev.SourceId);
         sa.AlphaModify(obj, 0.3f);
@@ -7845,7 +7839,7 @@ public class Dancing_Mad_Ultimate
         eventCondition: ["ActionId:regex:^(47867|47869|47870)$"], userControl: true)]
     public async void P3B_卡奥斯非技能期间透明化(Event ev, ScriptAccessory sa)
     {
-        if (!SpecialMode) return;
+        if (!p3bChaosTransparent) return;
         if (_udmP3Param.当前阶段 != 3200) return;
 
         const uint 诅咒敕令 = 47867;
@@ -7863,7 +7857,7 @@ public class Dancing_Mad_Ultimate
         eventCondition: ["ActionId:regex:^(47881)$"], userControl: true)]
     public async void P3B_艾克斯迪司非技能期间透明化(Event ev, ScriptAccessory sa)
     {
-        if (!SpecialMode) return;
+        if (!p3bExdeathTransparent) return;
         if (_udmP3Param.当前阶段 != 3200) return;
 
         var runId = _runId;
