@@ -48,15 +48,15 @@ public class Dancing_Mad_Ultimate
             Cicero 灵视 - P1~P5 的绘制，P2 遗弃末世全程与 P3 深层痛楚(一运)究极冲击波的指路。
             Coda - P1 众神之像 1~3 的指路。
             Usami - P3 的绘制与指路。
-            RyougiMio - P4 的指路与 PR 自动移动。
+            RyougiMio - P4 的指路。
             Errer - P5 的绘制与指路。
 
-        带 * 的方法与设置项是非原生功能（屏蔽技能特效、Boss 透明化、屏蔽无效目标、自动面向、自动移动），
+        带 * 的方法与设置项是非原生功能（屏蔽技能特效、Boss 透明化、屏蔽无效目标、自动面向），
         需要先在用户设置中打开「*启用方法设置中带*的特殊功能」，不想要的单项在方法设置里关掉。
 
-        P2 遗弃末世的指路仅支持「融合优化 2222预分组 闲人固定」，奇数轮支持原版站位与近战优化站位。
+        P1、P2 的指路按 LPDU 攻略：P1 支援西 / DPS 东、箭头顺时针大方框、神像3 全固定点；P2 遗弃末世 Buddies（AAABBBBA）。
+        小队顺序须为 MT ST H1 H2 D1(近战) D2(近战) D3(远程) D4(远程)。
         P3 二运黑洞的指路依赖攻击123、锁链123、禁止12 的头标，黑洞出现前需要有人标完。
-        P4 的 PR 自动移动依赖 PromeRotation 插件。
 
         小队排序测试：聊天框输入 /e kdmutest。
         """;
@@ -91,24 +91,10 @@ public class Dancing_Mad_Ultimate
 
     // ----- * 特殊功能（非原生，默认关闭） -----
 
-    [UserSetting("*启用方法设置中带*的特殊功能（屏蔽技能特效、Boss透明化、屏蔽无效目标、自动面向、自动移动）")]
+    [UserSetting("*启用方法设置中带*的特殊功能（屏蔽技能特效、Boss透明化、屏蔽无效目标、自动面向）")]
     public static bool SpecialMode { get; set; } = false;
     [UserSetting("*通用 呼啦啦爆炎、扩大大冰封和劈啪啪暴雷 技能特效屏蔽的方法")]
     public AnimationBlockadeModes animationBlockadeMode { get; set; } = AnimationBlockadeModes.传统方法_改变透明施法者的可见性;
-    [UserSetting("*P4 启用PR GreenMove自动移动（依赖PromeRotation插件）")]
-    public bool EnableGreenMove { get; set; } = false;
-    [UserSetting("*P4 PR移动判定距离")]
-    public float GreenMoveTolerance { get; set; } = 0.1f;
-    [UserSetting("*P4 PR移动速度倍率")]
-    public float GreenMoveSpeedMultiplier { get; set; } = 1.0f;
-    [UserSetting("*P4 PR移动忽略Y轴")]
-    public bool GreenMoveIgnoreY { get; set; } = true;
-    [UserSetting("*P4 PR移动前清空队列")]
-    public bool GreenMoveClearQueueBeforeMove { get; set; } = true;
-    [UserSetting("*P4 PR移动最大读条等待ms")]
-    public int GreenMoveMaxCastWaitMs { get; set; } = 2500;
-    [UserSetting("*P4 PR移动等待队列读条/滑步")]
-    public bool GreenMoveWaitForQueuedCast { get; set; } = true;
 
     // ----- 调试 -----
 
@@ -124,21 +110,9 @@ public class Dancing_Mad_Ultimate
 
     [UserSetting("P1 连环环陷阱 状态消失前的绘制持续时间(秒)")]
     public double doubleTroubleTrapDuration { get; set; } = 5;
-    [UserSetting("P1 众神之像1 攻略")]
-    public XuanHuHuGuideMode XuanHuHuMode { get; set; } = XuanHuHuGuideMode.盗火烬;
-    [UserSetting("P1 众神之像2 攻略")]
-    public BigIceSealGuideMode BigIceSealMode { get; set; } = BigIceSealGuideMode.斜角黑泥;
-    [UserSetting("P1 众神之像2 双T是否交换位置 只影响'斜角黑泥'和'_1A四人分摊_MT组上半场'")]
-    public BigIceSealMtUpperHalfTankMode BigIceSealMtUpperHalfTank { get; set; } = BigIceSealMtUpperHalfTankMode.不交换分组_MT上半场;
-    [UserSetting("P1 众神之像3 箭头攻略")]
-    public Statue3ArrowGuideMode Statue3ArrowMode { get; set; } = Statue3ArrowGuideMode.方逆;
-    [UserSetting("P1 众神之像3 睡眠魅惑攻略")]
-    public Statue3TetherGuideMode Statue3TetherMode { get; set; } = Statue3TetherGuideMode.魅惑在外;
 
     // ----- P2 -----
 
-    [UserSetting("P2 遗弃末世 解法")]
-    public Phase2Sub2_Strats phase2sub2_strat { get; set; } = Phase2Sub2_Strats.原版;
     [UserSetting("P2 遗弃末世 指路 在偶数轮为咏唱危机·波动(扇形)的位置绘制辅助线")]
     public bool phase2sub2_spellwaveAuxiliaryLines { get; set; } = true;
     [UserSetting("P2 遗弃末世 绘制的视觉类型")]
@@ -337,9 +311,7 @@ public class Dancing_Mad_Ultimate
     private System.Threading.AutoResetEvent[] phase2sub2_roundSemaphore=Enumerable.Range(0,7).Select(i=>new System.Threading.AutoResetEvent(false)).ToArray();
     private volatile int phase2sub2_pathOfLightCounter=0; // Its read-write lock is PHASE2_SUB2_PATH_OF_LIGHT_COUNTER_LOCK.
     private List<int> phase2sub2_groupA=new List<int>();
-    private volatile int initialLeftStack=-1,initialRightStack=-1;
     private List<int> phase2sub2_groupB=new List<int>();
-    private volatile int initialUpperFan=-1,initialUpperSpread=-1;
     private int[] phase2sub2_discretizedTowerGap=Enumerable.Range(0,9).Select(i=>-1).ToArray();
     private volatile int phase2sub2_towerCounter=0;
     private volatile int phase2sub2_discretizedPositionOfLastTower=-1;
@@ -414,35 +386,6 @@ public class Dancing_Mad_Ultimate
                                                         false,
                                                         false,
                                                         true];
-    // Thank Locria Sonata for the precise coordinates!
-    // I manually converted the coordinates into the north-tower case in order to make them work in Kodakku.
-    // Vanilla odd round: https://www.geogebra.org/calculator/ngbbj9uy
-    private static readonly Vector3 PHASE2_SUB2_ODD_LEFT_STACK=new Vector3(106.3f,0,95.3f);
-    private static readonly Vector3 PHASE2_SUB2_ODD_FAN=new Vector3(105.66f,0,90.84f);
-    private static readonly Vector3 PHASE2_SUB2_ODD_TANK=new Vector3(108.8f,0,97.5f);
-    private static readonly Vector3 PHASE2_SUB2_ODD_HEALER=new Vector3(105.66f,0,88.34f);
-    private static readonly Vector3 PHASE2_SUB2_ODD_RIGHT_STACK=new Vector3(91.81f,0,96.34f);
-    private static readonly Vector3 PHASE2_SUB2_ODD_SPREAD=new Vector3(97.8f,0,93.5f);
-    private static readonly Vector3 PHASE2_SUB2_ODD_MELEE_DPS=new Vector3(91.3f,0,97.66f);
-    private static readonly Vector3 PHASE2_SUB2_ODD_RANGED_DPS=new Vector3(90.41f,0,96.55f);
-    // Uptime odd round: https://www.geogebra.org/calculator/axpzzery
-    private static readonly Vector3 PHASE2_SUB2_UPTIME_ODD_LEFT_STACK=new Vector3(104.95f,0,95.05f);
-    private static readonly Vector3 PHASE2_SUB2_UPTIME_ODD_FAN=new Vector3(108,0,92);
-    private static readonly Vector3 PHASE2_SUB2_UPTIME_ODD_TANK=new Vector3(102.45f,0,97.55f);
-    private static readonly Vector3 PHASE2_SUB2_UPTIME_ODD_HEALER=new Vector3(109,0,91);
-    private static readonly Vector3 PHASE2_SUB2_UPTIME_ODD_RIGHT_STACK=new Vector3(94.34f,0,97.84f);
-    private static readonly Vector3 PHASE2_SUB2_UPTIME_ODD_SPREAD=new Vector3(91.87f,0,91.87f);
-    private static readonly Vector3 PHASE2_SUB2_UPTIME_ODD_MELEE_DPS=new Vector3(97.35f,0,97.75f);
-    private static readonly Vector3 PHASE2_SUB2_UPTIME_ODD_RANGED_DPS=new Vector3(97.75f,0,97.35f);
-    // Even round: https://www.geogebra.org/calculator/bp2wxkdh
-    private static readonly Vector3 PHASE2_SUB2_EVEN_LEFT_FAN=new Vector3(109.51f,0,93.73f);
-    private static readonly Vector3 PHASE2_SUB2_EVEN_RIGHT_FAN=new Vector3(108.3f,0,91.48f);
-    private static readonly Vector3 PHASE2_SUB2_EVEN_LEFT_SPREAD=new Vector3(95.29f,0,92.28f);
-    private static readonly Vector3 PHASE2_SUB2_EVEN_RIGHT_SPREAD=new Vector3(91.31f,0,96.78f);
-    private static readonly Vector3 PHASE2_SUB2_EVEN_TANK=new Vector3(101.9f,0,103.5f);
-    private static readonly Vector3 PHASE2_SUB2_EVEN_HEALER=new Vector3(103.2f,0,97.6f);
-    private static readonly Vector3 PHASE2_SUB2_EVEN_MELEE_DPS=new Vector3(96.03f,0,103.55f);
-    private static readonly Vector3 PHASE2_SUB2_EVEN_RANGED_DPS=new Vector3(96.8f,0,97.6f);
 
     private readonly object PHASE2_SUB3_TRINE_COUNTER_LOCK=new object();
 
@@ -473,13 +416,6 @@ public class Dancing_Mad_Ultimate
         SPREAD,
         STACK,
         UNKNOWN
-
-    }
-
-    public enum Phase2Sub2_Strats {
-
-        原版,
-        奇数轮近战优化_偶数轮不变
 
     }
 
@@ -543,7 +479,6 @@ public class Dancing_Mad_Ultimate
         for(int i=0;i<phase2sub2_roundSemaphore.Length;++i)phase2sub2_roundSemaphore[i].Reset();
         phase2sub2_pathOfLightCounter=0;
         phase2sub2_groupA.Clear();
-        initialLeftStack=-1;initialRightStack=-1;
         phase2sub2_groupB.Clear();
         for(int i=0;i<phase2sub2_discretizedTowerGap.Length;++i)phase2sub2_discretizedTowerGap[i]=-1;
         phase2sub2_towerCounter=0;
@@ -2119,62 +2054,18 @@ public class Dancing_Mad_Ultimate
 
     #endregion
 
-    #region P1 指路（Coda）
+    #region P1 指路（Coda，LPDU 攻略）
 
-    public enum BigIceSealGuideMode
-    {
-        斜角黑泥,
-        _1A四人分摊_TH上半场,
-        _1A四人分摊_MT组上半场,
-        _1A四人分摊_T远北奶近南,
-        Yan式八人全分摊,
-    }
-
-    public enum BigIceSealMtUpperHalfTankMode
-    {
-        不交换分组_MT上半场,
-        交换分组_ST上半场,
-    }
-
-    public enum Statue3ArrowGuideMode
-    {
-        _1A,
-        _1A改,
-        方逆,
-        方顺,
-    }
-
-    public enum Statue3TetherGuideMode
-    {
-        魅惑在外,
-        魅惑在内,
-        全固定,
-    }
-
-    private enum Statue3TetherType
-    {
-        Unknown,
-        睡眠,
-        魅惑,
-    }
-
-    public enum XuanHuHuGuideMode
-    {
-        固定半场,
-        盗火烬,
-    }
+    // LPDU P1：https://raidplan.io/plan/_5FyPYATLhNYkq8S ，传送箭头：https://raidplan.io/plan/saC2CjTaXmSApm6y
+    // 小队顺序 MT ST H1 H2 D1(M1) D2(M2) D3(R1) D4(R2)；场地标点 A/B/C/D、1/2/3/4 都在离场中 12m
 
     #region 全局变量与初始化
 
-    // P1 子阶段：
-    // 1.0 = P1 开场/未记录神像
-    // 1.1 = P1 神像1
-    // 1.2 = P1 神像2
-    // 1.3 = P1 神像3
-    // 2.0 = P2
-    // 3.0 = P3
+    // P1 子阶段：1.0 开场，1.1 神像1，1.2 神像2（从神像1 的波动炮开始算），1.3 神像3，2.0 P2
     private double _phase = 1.0;
     private int _p1StatueCount = 0;
+
+    private static readonly Vector3 ArenaCenter = new(100.00f, 0.00f, 100.00f);
 
     private void Init_Coda(ScriptAccessory sa)
     {
@@ -2183,26 +2074,33 @@ public class Dancing_Mad_Ultimate
 
         lock (_iceFireLock)
         {
-            _iceIsReal = null;
             _iceDiagonalIsLeftUpRightDown = null;
-            _actualStack = null;
-            _iceFireTargets.Clear();
             _waveCannonTargets.Clear();
             _action47784Targets.Clear();
             _action47784GuideSent = false;
-            _action47784Started = false;
         }
 
-        lock (_bigIceSealLock)
+        lock (_p1危险区)
+            _p1危险区.Clear();
+
+        lock (_陷阱锁)
         {
-            _bigIceSealSafeIsLeftUpRightDown = null;
-            Array.Clear(_bigIceSealFirstGuidePos);
-            _bigIceSealTetherTargets.Clear();
-            _bigIceSealActive = false;
-            _bigIceSealGuideStarted = false;
-            _bigIceSealSecondGuideDone = false;
-            _bigIceSealTetherDetectionEnabled = false;
-            _bigIceSealTetherDetectionWindowStarted = false;
+            Array.Clear(_陷阱持有者);
+            _陷阱轮次 = 0;
+            _陷阱已安排.Clear();
+            _陷阱已结算.Clear();
+        }
+
+        lock (_g2锁)
+        {
+            _g2轮次 = 0;
+            _g2上次连线 = 0;
+            Array.Clear(_g2重力弹);
+            _g2安全左上右下 = null;
+            _g2半场刀安全侧 = 0;
+            _g2水洼[0] = new(100, 0, 88);
+            _g2水洼[1] = new(100, 0, 112);
+            _g2第一轮已指路 = false;
         }
 
         ResetStatue3ArrowState();
@@ -2274,42 +2172,109 @@ public class Dancing_Mad_Ultimate
 
     #endregion
 
-    #region P1 神像1（冰爆）
+    #region P1 冰雷危险区（算最近安全点）
 
-    #region 神像1 变量
+    // 真冰 47768/47774：40m 90° 扇形（两个分身各朝一个对角）；真雷 47775/47777：从施法者沿面向 40×10 直线
+    // 和 Cicero 部分画危险区用的是同一组 ID；记到读条结束（4.7s）后自动失效
+    private readonly record struct P1危险区(bool 是扇形, Vector2 原点, float 朝向, long 结束);
+
+    private readonly List<P1危险区> _p1危险区 = new();
+
+    [ScriptMethod(
+        name: "P1_记录冰雷危险区",
+        eventType: EventTypeEnum.StartCasting,
+        eventCondition: ["ActionId:regex:^(47768|47774|47775|47777)$"],
+        userControl: false)]
+    public void P1_记录冰雷危险区(Event evt, ScriptAccessory sa)
+    {
+        if (_phase >= 2.0)
+            return;
+
+        var src = evt.SourcePosition();
+        var zone = new P1危险区(evt.ActionId() is 47768 or 47774, new Vector2(src.X, src.Z), evt.SourceRotation(), Environment.TickCount64 + 5500);
+
+        lock (_p1危险区)
+        {
+            _p1危险区.RemoveAll(z => z.结束 < Environment.TickCount64);
+            _p1危险区.Add(zone);
+        }
+    }
+
+    private static bool P1在危险区(P1危险区 z, Vector2 p, float margin)
+    {
+        var d = p - z.原点;
+        var dir = new Vector2(MathF.Sin(z.朝向), MathF.Cos(z.朝向));
+
+        if (z.是扇形)
+        {
+            float len = d.Length();
+            if (len < margin)
+                return true;
+            if (len > 40 + margin)
+                return false;
+
+            float angle = MathF.Acos(Math.Clamp(Vector2.Dot(d, dir) / len, -1f, 1f));
+            return angle < MathF.PI / 4 + MathF.Asin(Math.Min(1f, margin / len));
+        }
+
+        float along = Vector2.Dot(d, dir);
+        float side = MathF.Abs(d.X * dir.Y - d.Y * dir.X);
+        return along > -margin && along < 40 + margin && side < 5 + margin;
+    }
+
+    /// <summary>离 from 最近、场内 18m 以内、不在任何冰扇形/真雷直线里（留 1.5m）的点；没有危险区就原地</summary>
+    private Vector3 P1最近安全点(Vector3 from)
+    {
+        List<P1危险区> zones;
+        lock (_p1危险区)
+            zones = _p1危险区.Where(z => z.结束 >= Environment.TickCount64).ToList();
+
+        var f = new Vector2(from.X, from.Z);
+        Vector2? best = null;
+        float bestDistance = float.MaxValue;
+
+        for (float x = -18; x <= 18; x += 0.5f)
+        {
+            for (float z = -18; z <= 18; z += 0.5f)
+            {
+                if (x * x + z * z > 18 * 18)
+                    continue;
+
+                var p = new Vector2(100 + x, 100 + z);
+                if (zones.Any(zone => P1在危险区(zone, p, 1.5f)))
+                    continue;
+
+                float distance = Vector2.Distance(p, f);
+                if (distance < bestDistance)
+                {
+                    bestDistance = distance;
+                    best = p;
+                }
+            }
+        }
+
+        return best is { } b ? new Vector3(b.X, 0, b.Y) : from;
+    }
+
+    #endregion
+
+    #region P1 神像1（火冰 + 波动炮）
 
     private readonly object _iceFireLock = new();
 
-    // true = 真冰，false = 假冰
-    private bool? _iceIsReal = null;
-
-    // true = 左上右下，false = 左下右上
+    // 实际危险对角：true = 左上右下（47768 真冰按面向，47771 假冰取反）
     private bool? _iceDiagonalIsLeftUpRightDown = null;
 
-    // true = 实际分摊，false = 实际散开
-    private bool? _actualStack = null;
-
-    private readonly HashSet<uint> _iceFireTargets = new();
+    // 神像1 被 002D 连线的一组：波动弹 47785 往南击退约 13m
     private readonly HashSet<uint> _waveCannonTargets = new();
 
     private readonly Dictionary<uint, Vector3> _action47784Targets = new();
     private bool _action47784GuideSent = false;
-    private bool _action47784Started = false;
-
-    private static readonly Vector3 UpperLeftPoint = new(93.90f, 0.00f, 93.94f);
-    private static readonly Vector3 UpperRightPoint = new(106.09f, 0.00f, 93.93f);
-
-    private static readonly Vector3 UpperLeftAreaUpperPoint = new(94.67f, 0.00f, 88.49f);
-    private static readonly Vector3 UpperRightAreaUpperPoint = new(108.29f, 0.00f, 88.06f);
-
-    private static readonly Vector3 LowerLeftPoint = new(93.90f, 0.00f, 106.06f);
-    private static readonly Vector3 LowerRightPoint = new(106.09f, 0.00f, 106.07f);
 
     private const uint RealIceAction = 47768;
-    private const uint StackIcon = 0x0080;
-    private const uint SpreadIcon = 0x007F;
 
-    #endregion
+    // 波动炮排队：支援在西、DPS 在东，从场中往外 MT ST H1 H2 / M1 M2 R1 R2
+    private static readonly float[] 波动炮排队距离 = [2.25f, 6.81f, 11.45f, 16.25f];
 
     [ScriptMethod(
         name: "P1_冰爆_记录冰真假与方向",
@@ -2321,161 +2286,47 @@ public class Dancing_Mad_Ultimate
         if (!IsPhase(_phase, 1.1))
             return;
 
-        var actionId = evt.ActionId();
-
-        bool iceIsReal = actionId == RealIceAction;
+        bool iceIsReal = evt.ActionId() == RealIceAction;
         bool rawDiagonalIsLeftUpRightDown = IsLeftUpRightDownByRotation(evt.SourceRotation());
 
-        // 47768 真冰：实际覆盖方向 = SourceRotation 判断出来的方向
-        // 47771 假冰：实际覆盖方向 = 反方向
-        bool actualDiagonalIsLeftUpRightDown = iceIsReal
-            ? rawDiagonalIsLeftUpRightDown
-            : !rawDiagonalIsLeftUpRightDown;
-
         lock (_iceFireLock)
-        {
-            _iceIsReal = iceIsReal;
-            _iceDiagonalIsLeftUpRightDown = actualDiagonalIsLeftUpRightDown;
-        }
-
-        sa.Debug($"""
-        Ice cast:
-        Phase={_phase}
-        ActionId={actionId}
-        SourceRotation={evt.SourceRotation()}
-        IceIsReal={iceIsReal}
-        RawDiagonal={(rawDiagonalIsLeftUpRightDown ? "左上右下" : "左下右上")}
-        ActualDiagonal={(actualDiagonalIsLeftUpRightDown ? "左上右下" : "左下右上")}
-        UpperCoveredPoint={(actualDiagonalIsLeftUpRightDown ? "左上点" : "右上点")}
-        """);
+            _iceDiagonalIsLeftUpRightDown = iceIsReal ? rawDiagonalIsLeftUpRightDown : !rawDiagonalIsLeftUpRightDown;
     }
 
     [ScriptMethod(
-        name: "P1_冰爆_记录分摊散开",
-        eventType: EventTypeEnum.TargetIcon,
-        eventCondition: ["Id:regex:^(0080|007F)$"],
-        userControl: false)]
-    public void P1_冰爆_记录分摊散开(Event evt, ScriptAccessory sa)
-    {
-        if (!IsPhase(_phase, 1.1))
-            return;
-
-        uint iconId = evt.IconId();
-        uint targetId = evt.TargetId();
-
-        if (targetId == 0)
-            return;
-
-        lock (_iceFireLock)
-        {
-            _iceFireTargets.Add(targetId);
-
-            // 2 个 0080：认为实际是分摊
-            if (_iceFireTargets.Count == 2 && iconId == StackIcon)
-                _actualStack = true;
-
-            // 8 个 007F：认为实际是散开
-            if (_iceFireTargets.Count == 8 && iconId == SpreadIcon)
-                _actualStack = false;
-        }
-
-        // sa.Debug($"""
-        // Fire icon:
-        // Phase={_phase}
-        // IconId=0x{iconId:X4}
-        // TargetId=0x{targetId:X}
-        // TargetCount={_iceFireTargets.Count}
-        // ActualStack={_actualStack}
-        // """);
-    }
-
-    [ScriptMethod(
-        name: "P1_冰爆_记录002D点名",
+        name: "P1_记录002D连线",
         eventType: EventTypeEnum.Tether,
         eventCondition: ["Id:002D"],
         userControl: false)]
-    public void P1_冰爆_记录002D点名(Event evt, ScriptAccessory sa)
+    public void P1_记录002D连线(Event evt, ScriptAccessory sa)
     {
-        uint targetId = evt.TargetId();
-        uint sourceId = evt.SourceId();
+        // 连线方向不固定：在小队里的那一端是玩家，另一端是神像
+        bool sourceIsPlayer = sa.Data.PartyList.Contains(evt.SourceId());
+        uint playerId = sourceIsPlayer ? evt.SourceId() : evt.TargetId();
+        Vector3 statuePos = sourceIsPlayer ? evt.TargetPosition() : evt.SourcePosition();
 
-        uint tetherPlayerId = sa.Data.PartyList.Contains(targetId)
-            ? targetId
-            : sa.Data.PartyList.Contains(sourceId)
-                ? sourceId
-                : targetId;
-
-        if (tetherPlayerId == 0)
+        if (playerId == 0)
             return;
 
-        // 神像1：只记录玄乎乎魔法需要的 002D。
         if (IsPhase(_phase, 1.1))
         {
             lock (_iceFireLock)
-            {
-                _waveCannonTargets.Add(tetherPlayerId);
-            }
-
-            sa.Debug($"神像1 002D记录：Player=0x{tetherPlayerId:X}, Source=0x{sourceId:X}, Target=0x{targetId:X}, IsMe={tetherPlayerId == sa.Data.Me}, Phase={_phase}");
+                _waveCannonTargets.Add(playerId);
             return;
         }
 
-        // 神像2：只在扩大大冰封结算后 5 秒检测窗打开时，才接受 002D 并触发第二段。
         if (IsPhase(_phase, 1.2))
-        {
-            bool shouldSendBigIceSealSecondGuide = false;
-            bool bigIceSealDetectionEnabledSnapshot = false;
-            BigIceSealGuideMode modeSnapshot = BigIceSealMode;
-            double phaseSnapshot = _phase;
-            Vector3? firstGuidePosSnapshot = null;
-            int tetherIdx = -1;
-
-            lock (_bigIceSealLock)
-            {
-                bigIceSealDetectionEnabledSnapshot = _bigIceSealTetherDetectionEnabled;
-
-                if (_bigIceSealActive
-                    && _bigIceSealTetherDetectionEnabled
-                    && !_bigIceSealSecondGuideDone)
-                {
-                    bool isNewTether = _bigIceSealTetherTargets.Add(tetherPlayerId);
-
-                    // Debug 时每个被连线的人都按自己的第一段点位指路，且不关闭检测
-                    if (tetherPlayerId == sa.Data.Me || (Debugging && isNewTether))
-                    {
-                        modeSnapshot = BigIceSealMode;
-                        phaseSnapshot = _phase;
-                        tetherIdx = PartyIndex(sa.Data.PartyList, tetherPlayerId);
-                        firstGuidePosSnapshot = tetherIdx is >= 0 and < 8 ? _bigIceSealFirstGuidePos[tetherIdx] : null;
-
-                        if (!Debugging)
-                        {
-                            _bigIceSealSecondGuideDone = true;
-                            _bigIceSealActive = false;
-                            _bigIceSealTetherDetectionEnabled = false;
-                        }
-                        shouldSendBigIceSealSecondGuide = true;
-                    }
-                }
-            }
-
-            sa.Debug($"神像2 002D：Player=0x{tetherPlayerId:X}, Source=0x{sourceId:X}, Target=0x{targetId:X}, IsMe={tetherPlayerId == sa.Data.Me}, DetectionEnabled={bigIceSealDetectionEnabledSnapshot}, Phase={_phase}");
-
-            if (shouldSendBigIceSealSecondGuide)
-                SendBigIceSeal002DSecondGuide(sa, modeSnapshot, phaseSnapshot, firstGuidePosSnapshot, tetherIdx);
-
-            return;
-        }
-
-        // 神像3 002D 由 P1_神像3_002D指路 单独处理。
-        sa.Debug($"002D忽略：当前 Phase={_phase}, Player=0x{tetherPlayerId:X}, Source=0x{sourceId:X}, Target=0x{targetId:X}");
+            P1_神像2_记录连线(sa, playerId, statuePos);
     }
 
+    // 47764 玄乎乎魔法（神像1 第一次）：4.7s 读条；+2.6s 波动弹击退，+5.7s 呼啦啦爆炎，+10s 波动炮
+    // 火：0080 分摊 / 007F 分散，凯夫卡头上 02A1 = 假火要反着做（读 Cicero 部分记下的 stackFlagrantFireIcon / fakeFlagrantFire）
+    // 支援西、DPS 东，各去本半场的安全象限；被连线的人先站目标点正北 13m 等击退，落地再走到目标点
     [ScriptMethod(
-        name: "P1_冰爆_玄乎乎魔法指路",
+        name: "P1_神像1_火冰指路",
         eventType: EventTypeEnum.StartCasting,
         eventCondition: ["ActionId:47764"])]
-    public void P1_冰爆_玄乎乎魔法指路(Event evt, ScriptAccessory sa)
+    public void P1_神像1_火冰指路(Event evt, ScriptAccessory sa)
     {
         if (!IsPhase(_phase, 1.1))
             return;
@@ -2484,192 +2335,84 @@ public class Dancing_Mad_Ultimate
         {
             await Task.Delay(100);
 
-            bool? iceDiagonalIsLeftUpRightDown;
-            bool? iceIsReal;
-            bool? actualStack;
-            HashSet<uint> waveCannonTargetsSnapshot;
+            bool? dangerLeftUpRightDown;
+            HashSet<uint> knocked;
 
             lock (_iceFireLock)
             {
-                iceDiagonalIsLeftUpRightDown = _iceDiagonalIsLeftUpRightDown;
-                iceIsReal = _iceIsReal;
-                actualStack = _actualStack;
-                waveCannonTargetsSnapshot = new HashSet<uint>(_waveCannonTargets);
+                dangerLeftUpRightDown = _iceDiagonalIsLeftUpRightDown;
+                knocked = new HashSet<uint>(_waveCannonTargets);
             }
 
-            if (iceDiagonalIsLeftUpRightDown == null)
+            if (dangerLeftUpRightDown == null)
             {
-                sa.Debug("玄乎乎魔法指路失败：没有记录到冰方向。");
+                sa.Debug("神像1 火冰指路失败：没有记录到冰方向。");
                 return;
             }
 
+            bool 分摊 = stackFlagrantFireIcon != fakeFlagrantFire;
             var party = sa.Data.PartyList;
             int myIdx = sa.MyIndex();
 
-            if (myIdx < 0 || myIdx > 7)
-            {
-                sa.Debug($"玄乎乎魔法指路失败：自己的 index 异常。MyIndex={myIdx}");
-                return;
-            }
-
-            bool meHas002D = waveCannonTargetsSnapshot.Contains(sa.Data.Me);
-
-            Vector3 coveredUpperPoint = iceDiagonalIsLeftUpRightDown.Value
-                ? UpperLeftPoint
-                : UpperRightPoint;
-
-            Vector3 uncoveredUpperPoint = iceDiagonalIsLeftUpRightDown.Value
-                ? UpperRightPoint
-                : UpperLeftPoint;
-
-            Vector3 GetFirstGuidePos(uint playerId)
-            {
-                bool has002D = waveCannonTargetsSnapshot.Contains(playerId);
-                int playerIdx = PartyIndex(party, playerId);
-
-                if (XuanHuHuMode == XuanHuHuGuideMode.固定半场)
-                {
-                    // 固定半场：0/1/2/3 固定左半场，4/5/6/7 固定右半场。
-                    bool isLeftHalf = playerIdx <= 3;
-                    bool upperLeftHasIce = iceDiagonalIsLeftUpRightDown.Value;
-                    return GetFixedHalfPos(isLeftHalf, has002D, upperLeftHasIce);
-                }
-
-                // 盗火烬：002D 去上半场有冰点，其他人去上半场无冰点。
-                return has002D
-                    ? coveredUpperPoint
-                    : uncoveredUpperPoint;
-            }
-
-            bool IsRightHalfForSecondGuide(uint playerId)
-            {
-                int playerIdx = PartyIndex(party, playerId);
-
-                if (XuanHuHuMode == XuanHuHuGuideMode.固定半场)
-                {
-                    // 固定半场只有第一段半场判定不同；第二段仍按对应半场分左右点。
-                    return playerIdx >= 4;
-                }
-
-                // 盗火烬按第一段实际去到的点决定左右半场。
-                return GetFirstGuidePos(playerId).X > 100.0f;
-            }
-
-            Vector3 myFirstGuidePos = GetFirstGuidePos(sa.Data.Me);
-
-            // 每人按自己有没有 002D 解算
             for (int i = 0; i < party.Count && i < 8; i++)
             {
-                if (!Debugging && i != myIdx) continue;
-                var firstGuideDp = sa.WaypointDp(
-                    GetFirstGuidePos(party[i]),
-                    3000,
-                    0,
-                    $"P1_冰爆_玄乎乎魔法指路_第一段_{XuanHuHuMode}_{i}"
-                );
-                firstGuideDp.Owner = GuidanceOwner(sa, i);
-                sa.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, firstGuideDp);
+                if (!Debugging && i != myIdx)
+                    continue;
+
+                var final = P1神像1站位(i, dangerLeftUpRightDown.Value, 分摊);
+                uint finalDelay = 0;
+
+                if (knocked.Contains(party[i]))
+                {
+                    var preDp = sa.WaypointDp(P1神像1击退前站位(final), 2600, 0, $"P1_神像1_击退前_{i}");
+                    preDp.Owner = GuidanceOwner(sa, i);
+                    sa.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, preDp);
+                    finalDelay = 2600;
+                }
+
+                var finalDp = sa.WaypointDp(final, 5700 - finalDelay, finalDelay, $"P1_神像1_火冰_{i}");
+                finalDp.Owner = GuidanceOwner(sa, i);
+                sa.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, finalDp);
+
+                var congaPos = new Vector3(100 + (i < 4 ? -1 : 1) * 波动炮排队距离[i % 4], 0, 100);
+                var congaDp = sa.WaypointDp(congaPos, 4200, 5800, $"P1_神像1_波动炮排队_{i}");
+                congaDp.Owner = GuidanceOwner(sa, i);
+                sa.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, congaDp);
             }
 
-            sa.Debug($"""
-            玄乎乎魔法第一段指路:
-            Phase={_phase}
-            Mode={XuanHuHuMode}
-            IceIsReal={iceIsReal}
-            ActualStack={actualStack}
-            ActualDiagonal={(iceDiagonalIsLeftUpRightDown.Value ? "左上右下" : "左下右上")}
-            MyIndex={myIdx}
-            MeHas002D={meHas002D}
-            FirstSide={(IsRightHalfForSecondGuide(sa.Data.Me) ? "右半场" : "左半场")}
-            TargetPoint={myFirstGuidePos}
-            DrawName=P1_冰爆_玄乎乎魔法指路_第一段_{XuanHuHuMode}_{myIdx}
-            """);
-
-            await Task.Delay(5000);
-
-            var rightSidePoints = new List<Vector3>
-            {
-                new(102.25f, 0.00f, 100.00f),
-                new(106.81f, 0.00f, 100.00f),
-                new(111.45f, 0.00f, 100.00f),
-                new(116.25f, 0.00f, 100.00f),
-            };
-
-            var leftSidePoints = new List<Vector3>
-            {
-                new(97.75f, 0.00f, 100.00f),
-                new(93.19f, 0.00f, 100.00f),
-                new(88.55f, 0.00f, 100.00f),
-                new(83.75f, 0.00f, 100.00f),
-            };
-
-            var rightSideMembers = party
-                .Where(IsRightHalfForSecondGuide)
-                .OrderBy(id => PartyIndex(party, id))
-                .ToList();
-
-            var leftSideMembers = party
-                .Where(id => !IsRightHalfForSecondGuide(id))
-                .OrderBy(id => PartyIndex(party, id))
-                .ToList();
-
-            // 每人按自己所在半场里的职能顺序取点
-            Vector3? SecondGuidePos(uint playerId)
-            {
-                int rightOrder = rightSideMembers.IndexOf(playerId);
-                if (rightOrder >= 0 && rightOrder < rightSidePoints.Count)
-                    return rightSidePoints[rightOrder];
-
-                int leftOrder = leftSideMembers.IndexOf(playerId);
-                if (leftOrder >= 0 && leftOrder < leftSidePoints.Count)
-                    return leftSidePoints[leftOrder];
-
-                return null;
-            }
-
-            int myRightOrder = rightSideMembers.IndexOf(sa.Data.Me);
-            int myLeftOrder = leftSideMembers.IndexOf(sa.Data.Me);
-            Vector3? mySecondGuidePos = SecondGuidePos(sa.Data.Me);
-
-            for (int i = 0; i < party.Count && i < 8; i++)
-            {
-                if (!Debugging && i != myIdx) continue;
-                var pos = SecondGuidePos(party[i]);
-                if (pos == null) continue;
-                var secondGuideDp = sa.WaypointDp(
-                    pos.Value,
-                    5000,
-                    0,
-                    $"P1_冰爆_玄乎乎魔法指路_第二段_{XuanHuHuMode}_{i}"
-                );
-                secondGuideDp.Owner = GuidanceOwner(sa, i);
-                sa.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, secondGuideDp);
-            }
-
-            if (mySecondGuidePos == null)
-            {
-                sa.Debug("玄乎乎魔法第二段指路失败：没有找到自己的左右半场排序。");
-                return;
-            }
-
-            string side = myRightOrder >= 0 ? "右半场" : "左半场";
-            int order = myRightOrder >= 0 ? myRightOrder : myLeftOrder;
-
-            sa.Debug($"""
-            玄乎乎魔法第二段指路:
-            Phase={_phase}
-            Mode={XuanHuHuMode}
-            Side={side}
-            Order={order}
-            MyIndex={myIdx}
-            TargetPoint={mySecondGuidePos.Value}
-            DrawName=P1_冰爆_玄乎乎魔法指路_第二段_{XuanHuHuMode}_{myIdx}
-            RightMembers={string.Join(",", rightSideMembers.Select(x => PartyIndex(party, x)))}
-            LeftMembers={string.Join(",", leftSideMembers.Select(x => PartyIndex(party, x)))}
-            """);
+            sa.Debug($"神像1 火冰：危险对角={(dangerLeftUpRightDown.Value ? "左上右下" : "左下右上")}, 分摊={分摊}, 被连线={string.Join(",", knocked.Select(id => PartyIndex(party, id)))}");
         });
     }
 
+    /// <summary>神像1 火冰站位：分摊 = 半场四人同点；分散 = Boss 南北侧 / Boss 东西侧 / 安全区中间 / 墙边（MT ST H1 H2，DPS 同序）</summary>
+    private static Vector3 P1神像1站位(int idx, bool dangerLeftUpRightDown, bool 分摊)
+    {
+        float sx = idx < 4 ? -1 : 1;
+        float sz = dangerLeftUpRightDown ? -sx : sx;
+
+        var (x, z) = 分摊
+            ? (7f, 7f)
+            : (idx % 4) switch
+            {
+                0 => (1.5f, 7f),
+                1 => (7f, 1.5f),
+                2 => (9.5f, 9.5f),
+                _ => (18.5f, 1.5f),
+            };
+
+        return new Vector3(100 + sx * x, 0, 100 + sz * z);
+    }
+
+    /// <summary>被往南击退 13m 的人：先站目标点正北 13m，超出场内 17m 就往场中收</summary>
+    private static Vector3 P1神像1击退前站位(Vector3 final)
+    {
+        var p = new Vector2(final.X - 100, final.Z - 100 - 13);
+        if (p.Length() > 17)
+            p *= 17 / p.Length();
+        return new Vector3(100 + p.X, 0, 100 + p.Y);
+    }
+
+    // 47784 波动炮：每组被点名的两人原地留塔，没被点的两人按「从场中往外」的顺序去接本组两座塔
     [ScriptMethod(
         name: "P1_冰爆_47784换位指路",
         eventType: EventTypeEnum.ActionEffect,
@@ -2686,27 +2429,14 @@ public class Dancing_Mad_Ultimate
         if (targetId == 0)
             return;
 
-        Dictionary<uint, Vector3>? snapshot = null;
+        Dictionary<uint, Vector3> snapshot;
 
         lock (_iceFireLock)
         {
-            // 47784 已经完成过一次指路，后面的重复 ActionEffect 直接丢掉
             if (_action47784GuideSent)
                 return;
 
-            _action47784Started = true;
             _action47784Targets[targetId] = effectPosition;
-
-            sa.Debug($"""
-            47784 ActionEffect:
-            Phase={_phase}
-            Started={_action47784Started}
-            GuideSent={_action47784GuideSent}
-            TargetId=0x{targetId:X}
-            TargetIndex={sa.Data.PartyList.IndexOf(targetId)}
-            TargetPosition={effectPosition}
-            Count={_action47784Targets.Count}
-            """);
 
             if (_action47784Targets.Count < 4)
                 return;
@@ -2722,344 +2452,400 @@ public class Dancing_Mad_Ultimate
 
             var party = sa.Data.PartyList;
             int myIdx = sa.MyIndex();
+            var lowGroup = party.Take(4).ToList();
+            var highGroup = party.Skip(4).Take(4).ToList();
 
-            if (myIdx < 0 || myIdx > 7)
+            for (int i = 0; i < party.Count && i < 8; i++)
             {
-                sa.Debug($"47784换位指路失败：自己的 index 异常。MyIndex={myIdx}");
-                return;
+                if (!Debugging && i != myIdx)
+                    continue;
+
+                var pos = Get47784GuidePosForGroup(party[i], lowGroup, party, snapshot)
+                          ?? Get47784GuidePosForGroup(party[i], highGroup, party, snapshot);
+                if (pos == null)
+                    continue;
+
+                var dp = sa.WaypointDp(pos.Value, 4500, 0, $"P1_冰爆_47784换位指路_{i}");
+                dp.Owner = GuidanceOwner(sa, i);
+                sa.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
             }
 
-            var lowGroup = Enumerable.Range(0, 4)
-                .Where(i => i < party.Count)
-                .Select(i => party[i])
-                .ToList();
-
-            var highGroup = Enumerable.Range(4, 4)
-                .Where(i => i < party.Count)
-                .Select(i => party[i])
-                .ToList();
-
-            // 每人按自己所在组被点的情况解算
-            Vector3? GuidePos(uint playerId)
-                => Get47784GuidePosForGroup(playerId, lowGroup, party, snapshot)
-                   ?? Get47784GuidePosForGroup(playerId, highGroup, party, snapshot);
-
-            if (Debugging)
-            {
-                for (int i = 0; i < party.Count && i < 8; i++)
-                {
-                    if (i == myIdx) continue;
-                    var pos = GuidePos(party[i]);
-                    if (pos == null) continue;
-                    var dp = sa.WaypointDp(pos.Value, 4500, 0, $"P1_冰爆_47784换位指路_{i}");
-                    dp.Owner = GuidanceOwner(sa, i);
-                    sa.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
-                }
-            }
-
-            Vector3? myGuidePos = GuidePos(sa.Data.Me);
-
-            if (myGuidePos == null)
-            {
-                sa.Debug($"""
-                47784换位指路：自己不需要指路或没有匹配到。
-                MyIndex={myIdx}
-                MeWasTargeted={snapshot.ContainsKey(sa.Data.Me)}
-                Targets={string.Join(",", snapshot.Keys.Select(x => party.IndexOf(x)).OrderBy(x => x))}
-                """);
-                return;
-            }
-
-            var guideDp = sa.WaypointDp(
-                myGuidePos.Value,
-                4500,
-                0,
-                $"P1_冰爆_47784换位指路_{myIdx}"
-            );
-
-            sa.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, guideDp);
-
-            sa.Debug($"""
-            47784换位指路:
-            Phase={_phase}
-            MyIndex={myIdx}
-            TargetPoint={myGuidePos.Value}
-            DrawName=P1_冰爆_47784换位指路_{myIdx}
-            All47784Targets={string.Join(",", snapshot.Keys.Select(x => party.IndexOf(x)).OrderBy(x => x))}
-            LowGroupTargets={string.Join(",", snapshot.Keys.Where(x => party.IndexOf(x) >= 0 && party.IndexOf(x) <= 3).Select(x => party.IndexOf(x)).OrderBy(x => x))}
-            HighGroupTargets={string.Join(",", snapshot.Keys.Where(x => party.IndexOf(x) >= 4 && party.IndexOf(x) <= 7).Select(x => party.IndexOf(x)).OrderBy(x => x))}
-            """);
+            sa.Debug($"47784换位指路：被点名={string.Join(",", snapshot.Keys.Select(x => PartyIndex(party, x)).OrderBy(x => x))}");
         });
     }
 
     #endregion
 
-    #region P1 神像2（扩大大冰封）
+    #region P1 连环环陷阱
 
-    #region 神像2 变量
+    // 5078 连环环陷阱：一支援一 DPS 持有，到期时在持有者脚下 47783 6m 分摊 + 击退（约 13~15m），陷阱传给被击中的人
+    // 三次按 buff 时长区分：第 1 次 5s（神像1 塔后，接冰雷）、第 2 次 68s（神像2 推进水洼）、第 3 次 49s（神像3 放完箭头）
+    // 持有者都站在本组外侧，把组员往场内推：
+    //   第 1 次 支援西 / DPS 东，互相推过 Boss，落地后躲冰雷（算最近安全点）
+    //   第 2 次 半场刀安全侧，支援在北 / DPS 在南，组员被推进对面的水洼，持有者自己走进另一个水洼
+    //   第 3 次 支援西北 / DPS 东南（箭头方框内），往场中推，别推上传送板
+    private readonly object _陷阱锁 = new();
+    private readonly uint[] _陷阱持有者 = new uint[2]; // [0] 支援 [1] DPS
+    private int _陷阱轮次 = 0;
+    private readonly HashSet<int> _陷阱已安排 = new();
+    private readonly HashSet<int> _陷阱已结算 = new();
 
-    private readonly object _bigIceSealLock = new();
+    [ScriptMethod(
+        name: "P1_连环环陷阱指路",
+        eventType: EventTypeEnum.StatusAdd,
+        eventCondition: ["StatusID:5078"])]
+    public void P1_连环环陷阱指路(Event evt, ScriptAccessory sa)
+    {
+        if (_phase >= 2.0)
+            return;
 
-    private static readonly Vector3 ArenaCenter = new(100.00f, 0.00f, 100.00f);
+        // 客户端预测那条 StatusAdd 时长是 0/∞，跳过
+        int idx = PartyIndex(sa.Data.PartyList, evt.TargetId());
+        if (!int.TryParse(evt["DurationMilliseconds"], out var ms) || ms <= 0 || ms > 100000 || idx < 0)
+            return;
 
-    // true = 左上右下是安全区，false = 左下右上是安全区
-    private bool? _bigIceSealSafeIsLeftUpRightDown = null;
-    // 按职能下标记录每人的第一段点位
-    private readonly Vector3?[] _bigIceSealFirstGuidePos = new Vector3?[8];
-    private readonly HashSet<uint> _bigIceSealTetherTargets = new();
-    private bool _bigIceSealActive = false;
-    private bool _bigIceSealGuideStarted = false;
-    private bool _bigIceSealSecondGuideDone = false;
+        double duration = ms / 1000.0;
+        int round = duration < 10 ? 1 : duration > 60 ? 2 : 3;
 
-    // 只有扩大大冰封 ActionEffect 结算后再等 5 秒，才开启神像2第二段 002D 检测。
-    private bool _bigIceSealTetherDetectionEnabled = false;
-    private bool _bigIceSealTetherDetectionWindowStarted = false;
+        lock (_陷阱锁)
+        {
+            _陷阱轮次 = round;
+            _陷阱持有者[idx < 4 ? 0 : 1] = evt.TargetId();
+
+            if (!_陷阱已安排.Add(round))
+                return;
+        }
+
+        // 第 1 次要先踩完神像1 的塔，只给最后 3.5s；第 3 次要先放完第二个箭头，给最后 5s
+        double lead = round switch { 1 => 3.5, 2 => 8.0, _ => 5.0 };
+        int delay = (int)((duration - lead) * 1000);
+
+        Task.Run(async () =>
+        {
+            if (delay > 0)
+                await Task.Delay(delay);
+
+            P1_连环环陷阱_站位(sa, round, (uint)(lead * 1000));
+        });
+    }
+
+    private void P1_连环环陷阱_站位(ScriptAccessory sa, int round, uint duration)
+    {
+        uint[] holders;
+        int side;
+
+        lock (_陷阱锁)
+            holders = (uint[])_陷阱持有者.Clone();
+
+        lock (_g2锁)
+            side = _g2半场刀安全侧 == 0 ? 1 : _g2半场刀安全侧;
+
+        var party = sa.Data.PartyList;
+        int myIdx = sa.MyIndex();
+
+        for (int i = 0; i < party.Count && i < 8; i++)
+        {
+            if (!Debugging && i != myIdx)
+                continue;
+
+            bool support = i < 4;
+            bool holder = party[i] == holders[support ? 0 : 1];
+
+            // (组员位置, 持有者位置)，相对场中
+            var (member, holderPos) = (round, support) switch
+            {
+                (1, true) => (new Vector2(-7, 0), new Vector2(-9.5f, 0)),
+                (1, false) => (new Vector2(7, 0), new Vector2(9.5f, 0)),
+                (2, true) => (new Vector2(side * 3, -3.5f), new Vector2(side * 3, -6.5f)),
+                (2, false) => (new Vector2(side * 3, 3.5f), new Vector2(side * 3, 6.5f)),
+                (_, true) => (new Vector2(-5.5f, -5.5f), new Vector2(-7.3f, -7.3f)),
+                _ => (new Vector2(5.5f, 5.5f), new Vector2(7.3f, 7.3f)),
+            };
+
+            var p = holder ? holderPos : member;
+            var dp = sa.WaypointDp(new Vector3(100 + p.X, 0, 100 + p.Y), duration, 0, $"P1_连环环陷阱{round}_{i}");
+            dp.Owner = GuidanceOwner(sa, i);
+            sa.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
+        }
+
+        sa.Debug($"连环环陷阱第{round}次：持有者={PartyIndex(party, holders[0])},{PartyIndex(party, holders[1])}, 半场刀安全侧={side}");
+    }
+
+    // 47783 陷阱结算（分摊 + 击退）：第 1 次落地后去最近的冰雷安全点；第 2 次组员留在被推进的水洼，持有者走进另一个水洼
+    [ScriptMethod(
+        name: "P1_连环环陷阱结算后指路",
+        eventType: EventTypeEnum.ActionEffect,
+        eventCondition: ["ActionId:47783"],
+        userControl: false)]
+    public void P1_连环环陷阱结算后指路(Event evt, ScriptAccessory sa)
+    {
+        if (_phase >= 2.0)
+            return;
+
+        int round;
+        uint[] holders;
+
+        lock (_陷阱锁)
+        {
+            round = _陷阱轮次;
+            if (round is not (1 or 2) || !_陷阱已结算.Add(round))
+                return;
+            holders = (uint[])_陷阱持有者.Clone();
+        }
+
+        Task.Run(async () =>
+        {
+            var party = sa.Data.PartyList;
+            int myIdx = sa.MyIndex();
+
+            if (round == 1)
+            {
+                // 等击退落地；冰雷在击退后约 3.9s 结算
+                await Task.Delay(800);
+
+                for (int i = 0; i < party.Count && i < 8; i++)
+                {
+                    if (!Debugging && i != myIdx)
+                        continue;
+
+                    var pos = sa.Data.Objects.SearchById(party[i])?.Position;
+                    if (pos == null)
+                        continue;
+
+                    var dp = sa.WaypointDp(P1最近安全点(pos.Value), 3000, 0, $"P1_连环环陷阱1_躲冰雷_{i}");
+                    dp.Owner = GuidanceOwner(sa, i);
+                    sa.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
+                }
+
+                return;
+            }
+
+            Vector3 north, south;
+            lock (_g2锁)
+            {
+                north = _g2水洼[0];
+                south = _g2水洼[1];
+            }
+
+            // 强重力 47791（水洼爆炸）在击退后约 2.7s
+            for (int i = 0; i < party.Count && i < 8; i++)
+            {
+                if (!Debugging && i != myIdx)
+                    continue;
+
+                bool support = i < 4;
+                bool holder = party[i] == holders[support ? 0 : 1];
+                var target = support != holder ? south : north;
+
+                var dp = sa.WaypointDp(target, 2600, 0, $"P1_连环环陷阱2_吃水洼_{i}");
+                dp.Owner = GuidanceOwner(sa, i);
+                sa.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
+            }
+        });
+    }
 
     #endregion
 
+    #region P1 神像2（重力弹 / 岩石弹 + 吃水洼）
+
+    // 两轮各 8 根 002D：中间神像 (102.5,22.5,27) 的是重力弹 47788 = 分摊，留 5m 水洼；侧边神像 (126,7,41.5) 的是岩石弹 47792 = 陨石
+    // 同一轮里一个职能全是分摊、另一个全是陨石
+    // 第 1 轮：连线 → +1.4s 扩大大冰封 47765（对角冰）→ +6.5s 重力弹 → +10.5s 岩石弹；全队站 A 点（北）标点边缘的安全对角那侧
+    // 第 2 轮：半场刀预兆 → 连线 → +3.9s 扑杀的神气 47794（半场刀）→ +8.5s 重力弹 → +12.5s 岩石弹；全队站 C 点（南）标点边缘的半场刀安全侧
+    // 重力弹结算后：陨石职能分散（G1 = MT H1 M1 R1 面向 Boss 时在左，G2 = ST H2 M2 R2 在右；T/近战最大近战，H/远程外侧），分摊职能去 Boss 脚下
+    private readonly object _g2锁 = new();
+    private int _g2轮次 = 0;
+    private long _g2上次连线 = 0;
+    private readonly bool?[] _g2重力弹 = new bool?[8];
+    private bool? _g2安全左上右下 = null;
+    private int _g2半场刀安全侧 = 0; // +1 东安全，-1 西安全，0 未知
+    private readonly Vector3[] _g2水洼 = [new(100, 0, 88), new(100, 0, 112)];
+    private bool _g2第一轮已指路 = false;
+
+    private static readonly Vector3 G2重力弹神像 = new(102.5f, 22.5f, 27f);
+    private static readonly Vector3 G2岩石弹神像 = new(126f, 7f, 41.5f);
+
+    private void P1_神像2_记录连线(ScriptAccessory sa, uint playerId, Vector3 statuePos)
+    {
+        int idx = PartyIndex(sa.Data.PartyList, playerId);
+        if (idx is < 0 or > 7)
+            return;
+
+        long now = Environment.TickCount64;
+        bool newRound;
+        int round;
+
+        lock (_g2锁)
+        {
+            newRound = now - _g2上次连线 > 3000;
+            if (newRound)
+            {
+                _g2轮次++;
+                Array.Clear(_g2重力弹);
+            }
+
+            _g2上次连线 = now;
+            round = _g2轮次;
+            _g2重力弹[idx] = Vector3.Distance(statuePos, G2重力弹神像) < 1 ? true
+                : Vector3.Distance(statuePos, G2岩石弹神像) < 1 ? false
+                : null;
+        }
+
+        // 第 2 轮没有冰读条可挂，连线到齐后直接指路
+        if (newRound && round == 2)
+        {
+            Task.Run(async () =>
+            {
+                await Task.Delay(150);
+
+                int side;
+                lock (_g2锁)
+                    side = _g2半场刀安全侧;
+
+                P1_神像2_分摊与陨石(sa, 2, new Vector3(100 + side * 1.5f, 0, 112), 8500, 4000);
+            });
+        }
+    }
+
     [ScriptMethod(
-        name: "P1_神像2_记录47774安全对角",
+        name: "P1_神像2_记录安全对角",
         eventType: EventTypeEnum.StartCasting,
         eventCondition: ["ActionId:regex:^(47774|47768)$"],
         userControl: false)]
-    public void P1_神像2_记录47774安全对角(Event evt, ScriptAccessory sa)
+    public void P1_神像2_记录安全对角(Event evt, ScriptAccessory sa)
     {
         if (!IsPhase(_phase, 1.2))
             return;
 
-        bool hitIsLeftUpRightDown = IsLeftUpRightDownByRotation(evt.SourceRotation());
-        bool safeIsLeftUpRightDown = !hitIsLeftUpRightDown;
-
-        lock (_bigIceSealLock)
-        {
-            _bigIceSealSafeIsLeftUpRightDown = safeIsLeftUpRightDown;
-        }
-
-        sa.Debug($"神像2安全对角: Phase={_phase}, ActionId={evt.ActionId()}, Rot={evt.SourceRotation()}, Hit={(hitIsLeftUpRightDown ? "左上右下" : "左下右上")}, Safe={(safeIsLeftUpRightDown ? "左上右下" : "左下右上")}");
+        lock (_g2锁)
+            _g2安全左上右下 = !IsLeftUpRightDownByRotation(evt.SourceRotation());
     }
 
+    // 半场刀预兆：ObjectEffect 64/128，大球在 (92,15,27) = 西半场挨打，(116,6.5,43) = 东半场挨打（同 Cicero 部分的画图）
+    [ScriptMethod(
+        name: "P1_神像2_记录半场刀",
+        eventType: EventTypeEnum.ObjectEffect,
+        eventCondition: ["Id1:64"],
+        userControl: false)]
+    public void P1_神像2_记录半场刀(Event evt, ScriptAccessory sa)
+    {
+        if (!IsPhase(_phase, 1.2) || !string.Equals(evt["Id2"], "128"))
+            return;
+
+        var src = evt.SourcePosition();
+        int side = Vector3.Distance(src, new Vector3(92, 15, 27)) < 1 ? 1
+            : Vector3.Distance(src, new Vector3(116, 6.5f, 43)) < 1 ? -1
+            : 0;
+
+        if (side != 0)
+        {
+            lock (_g2锁)
+                _g2半场刀安全侧 = side;
+        }
+    }
+
+    // 47788 重力弹：记下水洼位置（第 1 轮北、第 2 轮南），第二次陷阱推人进水洼用
+    [ScriptMethod(
+        name: "P1_神像2_记录水洼",
+        eventType: EventTypeEnum.ActionEffect,
+        eventCondition: ["ActionId:47788"],
+        userControl: false)]
+    public void P1_神像2_记录水洼(Event evt, ScriptAccessory sa)
+    {
+        if (!IsPhase(_phase, 1.2))
+            return;
+
+        var pos = evt.TargetPosition();
+        if (pos == Vector3.Zero)
+            return;
+
+        lock (_g2锁)
+        {
+            if (_g2轮次 is 1 or 2)
+                _g2水洼[_g2轮次 - 1] = pos with { Y = 0 };
+        }
+    }
+
+    // 47765 扩大大冰封（第 1 轮）：4.7s 读条，+5.1s 重力弹，+9.1s 岩石弹
     [ScriptMethod(
         name: "P1_神像2指路",
         eventType: EventTypeEnum.StartCasting,
         eventCondition: ["ActionId:47765"])]
-    public void P1_第二次扩大大冰封指路(Event evt, ScriptAccessory sa)
+    public void P1_神像2指路(Event evt, ScriptAccessory sa)
     {
         if (!IsPhase(_phase, 1.2))
             return;
 
-        _ = Task.Run(async () =>
+        lock (_g2锁)
         {
-            await Task.Delay(100);
-
-            if (!IsPhase(_phase, 1.2))
+            if (_g2第一轮已指路)
                 return;
+            _g2第一轮已指路 = true;
+        }
 
-            int myIdx = sa.MyIndex();
+        Task.Run(async () =>
+        {
+            await Task.Delay(150);
 
-            if (myIdx < 0 || myIdx > 7)
-            {
-                sa.Debug($"扩大大冰封指路失败：自己的 index 异常。MyIndex={myIdx}");
-                return;
-            }
+            bool? safeLeftUpRightDown;
+            lock (_g2锁)
+                safeLeftUpRightDown = _g2安全左上右下;
 
-            bool safeIsLeftUpRightDown;
-
-            lock (_bigIceSealLock)
-            {
-                if (_bigIceSealGuideStarted)
-                {
-                    sa.Debug($"扩大大冰封指路跳过：本次 init 后已经触发过。Mode={BigIceSealMode}, MyIndex={myIdx}");
-                    return;
-                }
-
-                if (_bigIceSealSafeIsLeftUpRightDown == null)
-                {
-                    sa.Debug($"扩大大冰封指路失败：没有记录到 47774 安全对角。Mode={BigIceSealMode}, MyIndex={myIdx}");
-                    return;
-                }
-
-                _bigIceSealGuideStarted = true;
-                safeIsLeftUpRightDown = _bigIceSealSafeIsLeftUpRightDown.Value;
-            }
-
-            // 每人的第一段点位都记下来，第二段 002D 从各自的第一段点往场中走
-            var guidePositions = Enumerable.Range(0, 8)
-                .Select(i => GetBigIceSealInitialPos(BigIceSealMode, i, safeIsLeftUpRightDown, BigIceSealMtUpperHalfTank))
-                .ToArray();
-            Vector3? myGuidePos = guidePositions[myIdx];
-
-            if (myGuidePos == null)
-            {
-                sa.Debug($"扩大大冰封指路失败：没有匹配到点位。Mode={BigIceSealMode}, MyIndex={myIdx}, SafeDiagonal={(safeIsLeftUpRightDown ? "左上右下" : "左下右上")}");
-                return;
-            }
-
-            lock (_bigIceSealLock)
-            {
-                Array.Copy(guidePositions, _bigIceSealFirstGuidePos, 8);
-                _bigIceSealTetherTargets.Clear();
-                _bigIceSealActive = true;
-                _bigIceSealSecondGuideDone = false;
-                _bigIceSealTetherDetectionEnabled = false;
-                _bigIceSealTetherDetectionWindowStarted = false;
-            }
-
-            bool useTankGroupSwapSetting = BigIceSealMode is
-                BigIceSealGuideMode.斜角黑泥 or
-                BigIceSealGuideMode._1A四人分摊_MT组上半场;
-
-            string DrawName(int idx) => useTankGroupSwapSetting
-                ? $"P1_第二次扩大大冰封指路_{BigIceSealMode}_{BigIceSealMtUpperHalfTank}_{idx}"
-                : $"P1_第二次扩大大冰封指路_{BigIceSealMode}_{idx}";
-            string initialDrawName = DrawName(myIdx);
-
-            for (int i = 0; i < 8; i++)
-            {
-                if (!Debugging && i != myIdx) continue;
-                if (guidePositions[i] == null) continue;
-                var guideDp = sa.WaypointDp(
-                    guidePositions[i].Value,
-                    5000,
-                    0,
-                    DrawName(i)
-                );
-                guideDp.Owner = GuidanceOwner(sa, i);
-                sa.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, guideDp);
-            }
-
-            sa.Debug($"""
-            第二次扩大大冰封指路:
-            Phase={_phase}
-            Mode={BigIceSealMode}
-            TankGroupSwapSetting={BigIceSealMtUpperHalfTank}
-            MyIndex={myIdx}
-            SafeDiagonal={(safeIsLeftUpRightDown ? "左上右下" : "左下右上")}
-            TargetPoint={myGuidePos.Value}
-            DrawName={initialDrawName}
-            """);
+            // 北边标点：安全对角是左上右下就站标点西侧，否则东侧
+            float x = safeLeftUpRightDown switch { true => -1.2f, false => 1.2f, null => 0 };
+            P1_神像2_分摊与陨石(sa, 1, new Vector3(100 + x, 0, 88), 5100, 4000);
         });
     }
 
-    [ScriptMethod(
-        name: "P1_神像2指路第二段",
-        eventType: EventTypeEnum.ActionEffect,
-        eventCondition: ["ActionId:47765"],
-        userControl: false)]
-    public void P1_神像2_扩大大冰封结算后开启002D检测(Event evt, ScriptAccessory sa)
+    private void P1_神像2_分摊与陨石(ScriptAccessory sa, int round, Vector3 stackPos, uint stackMs, uint meteorMs)
     {
-        if (!IsPhase(_phase, 1.2))
-            return;
+        bool? supportStack;
 
-        bool shouldStartWindowTask = false;
-
-        lock (_bigIceSealLock)
+        lock (_g2锁)
         {
-            if (_bigIceSealActive
-                && _bigIceSealGuideStarted
-                && !_bigIceSealSecondGuideDone
-                && !_bigIceSealTetherDetectionWindowStarted)
-            {
-                _bigIceSealTetherDetectionWindowStarted = true;
-                _bigIceSealTetherDetectionEnabled = false;
-                shouldStartWindowTask = true;
-            }
+            int supports = Enumerable.Range(0, 4).Count(i => _g2重力弹[i] == true);
+            int dps = Enumerable.Range(4, 4).Count(i => _g2重力弹[i] == true);
+            supportStack = supports == dps ? null : supports > dps;
         }
 
-        if (!shouldStartWindowTask)
-            return;
+        int myIdx = sa.MyIndex();
 
-        sa.Debug("神像2扩大大冰封已结算：5秒后开启002D检测。首个结算 ActionEffect=47765");
-
-        _ = Task.Run(async () =>
+        for (int i = 0; i < sa.Data.PartyList.Count && i < 8; i++)
         {
-            await Task.Delay(5000);
+            if (!Debugging && i != myIdx)
+                continue;
 
-            lock (_bigIceSealLock)
-            {
-                if (!IsPhase(_phase, 1.2) || !_bigIceSealActive || _bigIceSealSecondGuideDone)
-                    return;
+            var stackDp = sa.WaypointDp(stackPos, stackMs, 0, $"P1_神像2_第{round}轮分摊_{i}");
+            stackDp.Owner = GuidanceOwner(sa, i);
+            sa.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, stackDp);
 
-                _bigIceSealTetherDetectionEnabled = true;
-            }
+            if (supportStack == null)
+                continue;
 
-            sa.Debug("神像2第二段002D检测已开启：现在收到自己的002D才会指路。");
-        });
+            bool meteor = (i < 4) != supportStack.Value;
+            var nextDp = sa.WaypointDp(meteor ? P1神像2陨石站位(i, round) : ArenaCenter, meteorMs, stackMs, $"P1_神像2_第{round}轮散开_{i}");
+            nextDp.Owner = GuidanceOwner(sa, i);
+            sa.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, nextDp);
+        }
+
+        sa.Debug($"神像2 第{round}轮：分摊点={stackPos}, 分摊职能={(supportStack == null ? "未知" : supportStack.Value ? "支援" : "DPS")}");
     }
 
-    private void SendBigIceSeal002DSecondGuide(
-        ScriptAccessory sa,
-        BigIceSealGuideMode modeSnapshot,
-        double phaseSnapshot,
-        Vector3? firstGuidePosSnapshot,
-        int myIdx)
+    /// <summary>陨石分散：G1 面向 Boss 在左（第 1 轮从北看 = 东，第 2 轮从南看 = 西），T/近战最大近战 7m，H/远程外侧偏向水洼那侧</summary>
+    private static Vector3 P1神像2陨石站位(int idx, int round)
     {
-        if (myIdx < 0 || myIdx > 7)
-        {
-            sa.Debug($"扩大大冰封002D第二段失败：被连线者的 index 异常。Index={myIdx}");
-            return;
-        }
+        float g1 = idx % 2 == 0 ? 1 : -1;
+        float side = round == 1 ? g1 : -g1;
+        float zs = round == 1 ? -1 : 1;
 
-        Vector3? myGuidePos2 = null;
-
-        if (modeSnapshot == BigIceSealGuideMode.Yan式八人全分摊)
-        {
-            myGuidePos2 = new Vector3(100.00f, 0.00f, 88.00f);
-        }
-        else if (firstGuidePosSnapshot != null)
-        {
-            myGuidePos2 = MoveTowards(firstGuidePosSnapshot.Value, ArenaCenter, 6.50f);
-        }
-
-        if (myGuidePos2 == null)
-        {
-            sa.Debug($"扩大大冰封002D第二段失败：没有第一段安全点。Mode={modeSnapshot}, MyIndex={myIdx}");
-            return;
-        }
-
-        Vector3 finalGuidePos = myGuidePos2.Value;
-        string drawName = $"P1_第二次扩大大冰封指路_002D第二段_{modeSnapshot}_{myIdx}";
-
-        sa.Debug($"第二次扩大大冰封002D第二段已触发：4.5秒后显示指路。Mode={modeSnapshot}, MyIndex={myIdx}, TargetPoint={finalGuidePos}");
-
-        _ = Task.Run(async () =>
-        {
-            await Task.Delay(4500);
-
-            if (!IsPhase(_phase, 1.2))
-            {
-                sa.Debug($"扩大大冰封002D第二段跳过：延迟后 Phase={_phase}，已经不在神像2。");
-                return;
-            }
-
-            var guideDp2 = sa.WaypointDp(
-                finalGuidePos,
-                5000,
-                0,
-                drawName
-            );
-            guideDp2.Owner = GuidanceOwner(sa, myIdx);
-
-            sa.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, guideDp2);
-
-            sa.Debug($"""
-            第二次扩大大冰封002D第二段指路:
-            Trigger=Self002D_Delay
-            Phase={phaseSnapshot}
-            CurrentPhase={_phase}
-            Mode={modeSnapshot}
-            MyIndex={myIdx}
-            FirstPoint={firstGuidePosSnapshot}
-            TargetPoint={finalGuidePos}
-            DrawName={drawName}
-            """);
-        });
+        return isMelee(idx)
+            ? new Vector3(100 + side * 7, 0, 100)
+            : new Vector3(100 + side * 12.5f, 0, 100 + zs * 9);
     }
 
     #endregion
 
-    #region P1 神像3（箭头 + 002D）
-
-    #region 神像3 变量
+    #region P1 神像3（箭头 + 固定点 + 最后火雷）
 
     private readonly object _statue3ArrowLock = new();
 
@@ -3079,12 +2865,7 @@ public class Dancing_Mad_Ultimate
     private const uint Statue3SmallArrowMinStatus = 0x130C;
     private const uint Statue3SmallArrowMaxStatus = 0x130F;
 
-    private static readonly Vector3 Statue3SleepSourcePos = new(107.00f, 8.50f, 43.00f);
-
-    private static readonly Vector3 Statue3CharmSourcePos = new(95f, 27f, 25f);
-
-    #endregion
-
+    // 唰啦啦传送箭头：4876~4879（同向两层都是这组）+ 5079~5082（异向的「拐出去」那个），7s / 10s 两层
     [ScriptMethod(
         name: "P1_神像3_箭头指路",
         eventType: EventTypeEnum.StatusAdd,
@@ -3094,12 +2875,11 @@ public class Dancing_Mad_Ultimate
         if (_phase >= 2.0)
             return;
 
-        // 神像3箭头 buff 是神像3专属；如果阶段控制 48370 漏了，用它兜底切到 1.3。
+        // 箭头 buff 是神像3 专属；48370 阶段控制漏了就用它兜底切到 1.3
         if (!IsPhase(_phase, 1.3))
         {
             _phase = 1.3;
             _p1StatueCount = Math.Max(_p1StatueCount, 3);
-            sa.Debug($"神像3箭头触发，兜底修正 Phase=1.3。Old status event entered with Phase={_phase}");
         }
 
         uint targetId = evt.TargetId();
@@ -3113,34 +2893,15 @@ public class Dancing_Mad_Ultimate
             return;
 
         uint statusId = evt.StatusId();
-        sa.Debug($"神像3statusID: StatusID={statusId}");
         int? dir4 = GetStatue3ArrowDir4(statusId);
         if (dir4 == null)
-        {
-            sa.Debug($"神像3箭头记录失败：未知 StatusID={statusId}");
             return;
-        }
 
-        uint sourceId = evt.SourceId();
-        Vector3 sourcePos = evt.SourcePosition();
         double duration = evt.Duration();
-
-        if (sourceId == 0 || sourcePos == Vector3.Zero || duration > 100)
-        {
-            sa.Debug($"""
-            神像3箭头忽略旧/无效StatusAdd:
-            StatusID=0x{statusId:X}
-            SourceId=0x{sourceId:X}
-            SourcePos={sourcePos}
-            Duration={duration}
-            Phase={_phase}
-            """);
+        if (evt.SourceId() == 0 || evt.SourcePosition() == Vector3.Zero || duration > 100)
             return;
-        }
 
         bool isSmallId = statusId >= Statue3SmallArrowMinStatus && statusId <= Statue3SmallArrowMaxStatus;
-
-        bool shouldSendGuide = false;
         bool sameBuff;
         bool smallIsShort;
         int smallDir4;
@@ -3167,149 +2928,115 @@ public class Dancing_Mad_Ultimate
             }
 
             if (rec.Count < 2)
-            {
-                sa.Debug($"神像3箭头记录：Index={targetIdx}, Count={rec.Count}, StatusID=0x{statusId:X}, IsSmall={isSmallId}, Dir4={dir4.Value}, Duration={duration}, Phase={_phase}");
                 return;
-            }
 
             sameBuff = !rec.SmallDir4.HasValue || !rec.LargeDir4.HasValue;
             smallIsShort = rec.SmallIsShort ?? false;
             smallDir4 = rec.SmallDir4 ?? 0;
             largeDir4 = rec.LargeDir4 ?? 0;
-
-            sa.Debug($"神像3箭头记录完毕：Index={targetIdx}, Count={rec.Count}, StatusID=0x{statusId:X}, IsSmall={isSmallId}, Dir4={dir4.Value}, Duration={duration}, sameBuff={sameBuff}, smallIsShort={smallIsShort}, ");
-
             rec.GuideSent = true;
-            shouldSendGuide = true;
         }
 
-        if (!shouldSendGuide)
-            return;
-
-        var plan = GetStatue3ArrowPlan(Statue3ArrowMode, sameBuff, smallIsShort, smallDir4, largeDir4);
+        var plan = GetStatue3ArrowPlan(sameBuff, smallIsShort, smallDir4, largeDir4);
         Vector3 firstPos = RotateStatue3RelativePoint(plan.Dir4, plan.FirstRelative);
         Vector3 secondPos = RotateStatue3RelativePoint(plan.Dir4, plan.SecondRelative);
 
-        var firstDp = sa.WaypointDp(
-            firstPos,
-            7500,
-            0,
-            $"P1_神像3_箭头指路_第一段_{Statue3ArrowMode}_{targetIdx}",
-            new Vector4(0, 1, 0, 1)
-        );
+        var firstDp = sa.WaypointDp(firstPos, 7500, 0, $"P1_神像3_箭头指路_第一段_{targetIdx}", new Vector4(0, 1, 0, 1));
         firstDp.Owner = GuidanceOwner(sa, targetIdx);
 
-        var secondDp = sa.WaypointDp(
-            secondPos,
-            3000,
-            7500,
-            $"P1_神像3_箭头指路_第二段_{Statue3ArrowMode}_{targetIdx}",
-            new Vector4(0, 1, 0, 1)
-        );
+        var secondDp = sa.WaypointDp(secondPos, 3000, 7500, $"P1_神像3_箭头指路_第二段_{targetIdx}", new Vector4(0, 1, 0, 1));
         secondDp.Owner = GuidanceOwner(sa, targetIdx);
 
-        var firstToSecondDp = sa.WaypointDp(
-            secondPos,
-            7500,
-            0,
-            $"P1_神像3_箭头指路_第一段到第二段提前观察_{Statue3ArrowMode}_{targetIdx}",
-            new Vector4(1, 1, 1, 1)
-        );
-        firstToSecondDp.Position = firstPos;
-        firstToSecondDp.Owner = 0;
+        var previewDp = sa.WaypointFromToDp(firstPos, secondPos, 7500, 0, $"P1_神像3_箭头指路_第二段预览_{targetIdx}", new Vector4(1, 1, 1, 1));
 
         sa.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, firstDp);
         sa.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, secondDp);
-        sa.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, firstToSecondDp);
+        sa.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, previewDp);
 
-        sa.Debug($"""
-        神像3箭头指路:
-        Phase={_phase}
-        Mode={Statue3ArrowMode}
-        SameBuff={sameBuff}
-        SmallIsShort={smallIsShort}
-        SmallDir4={smallDir4}
-        LargeDir4={largeDir4}
-        FinalDir4={plan.Dir4}
-        FirstRelative={plan.FirstRelative}
-        SecondRelative={plan.SecondRelative}
-        FirstPoint={firstPos}
-        SecondPoint={secondPos}
-        Callout={plan.Callout}
-        """);
+        sa.Debug($"神像3箭头：Index={targetIdx}, {plan.Callout}, First={firstPos}, Second={secondPos}");
     }
 
+    // 神像3 连线（睡眠/魅惑都不管）全固定：北 MT 内/R1 外，西 ST 内/R2 外，东 M2 内/H2 外，南 M1 内/H1 外
+    // 连线后 3.3s 第三次陷阱击退，+9s 睡魔/圣母的神气结算；击退落地后再去固定点
     [ScriptMethod(
-        name: "P1_神像3_魅惑睡眠指路",
+        name: "P1_神像3_固定点指路",
         eventType: EventTypeEnum.Tether,
         eventCondition: ["Id:002D"])]
-    public void P1_神像3_魅惑睡眠指路(Event evt, ScriptAccessory sa)
+    public void P1_神像3_固定点指路(Event evt, ScriptAccessory sa)
     {
         if (!IsPhase(_phase, 1.3))
             return;
 
-        uint sourceId = evt.SourceId(); // 众神之像
-        uint targetId = evt.TargetId(); // 被连线玩家
-
-        if (!Debugging && targetId != sa.Data.Me)
+        uint playerId = sa.Data.PartyList.Contains(evt.SourceId()) ? evt.SourceId() : evt.TargetId();
+        if (!Debugging && playerId != sa.Data.Me)
             return;
 
-        // 按被连线者的职能解算（Debug 时可以是任何人）
-        int myIdx = PartyIndex(sa.Data.PartyList, targetId);
-
-        if (myIdx < 0 || myIdx > 7)
-        {
-            sa.Debug($"神像3 002D指路失败：被连线者的 index 异常。Index={myIdx}");
+        int idx = PartyIndex(sa.Data.PartyList, playerId);
+        if (idx is < 0 or > 7)
             return;
-        }
-
-        Vector3 statueSourcePos = evt.SourcePosition();
-
-        Statue3TetherType tetherType = GetStatue3TetherType(statueSourcePos);
-        Vector3? wpos = GetStatue3TetherGuidePos(myIdx, tetherType, Statue3TetherMode);
-
-        if (wpos == null)
-        {
-            sa.Debug($"""
-            神像3 002D指路失败：没有匹配到点位或未识别睡眠/魅惑。
-            Phase={_phase}
-            Mode={Statue3TetherMode}
-            TetherType={tetherType}
-            MyIndex={myIdx}
-            SourceId=0x{sourceId:X}
-            TargetId=0x{targetId:X}
-            StatueSourcePos={statueSourcePos}
-            """);
-            return;
-        }
 
         lock (_statue3ArrowLock)
         {
-            if (!_statue3TetherGuided.Add(targetId))
+            if (!_statue3TetherGuided.Add(playerId))
                 return;
         }
 
-        var dp = sa.WaypointDp(
-            wpos.Value,
-            5000,
-            5000,
-            $"P1_神像3_002D指路_{Statue3TetherMode}_{tetherType}_{myIdx}"
-        );
-        dp.Owner = GuidanceOwner(sa, myIdx);
-
+        var dp = sa.WaypointDp(P1神像3固定点(idx), 5000, 5000, $"P1_神像3_固定点_{idx}");
+        dp.Owner = GuidanceOwner(sa, idx);
         sa.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
+    }
 
-        sa.Debug($"""
-        神像3 002D指路:
-        Phase={_phase}
-        Mode={Statue3TetherMode}
-        TetherType={tetherType}
-        MyIndex={myIdx}
-        SourceId=0x{sourceId:X}
-        TargetId=0x{targetId:X}
-        StatueSourcePos={statueSourcePos}
-        TargetPoint={wpos.Value}
-        """);
+    /// <summary>内 = Boss 最大近战 7.5m，外 = 箭头和墙之间 17m</summary>
+    private static Vector3 P1神像3固定点(int idx) => idx switch
+    {
+        0 => new Vector3(100, 0, 92.5f),
+        1 => new Vector3(92.5f, 0, 100),
+        2 => new Vector3(100, 0, 117),
+        3 => new Vector3(117, 0, 100),
+        4 => new Vector3(100, 0, 107.5f),
+        5 => new Vector3(107.5f, 0, 100),
+        6 => new Vector3(100, 0, 83),
+        _ => new Vector3(83, 0, 100),
+    };
+
+    // 神像3 后的 47764 玄乎乎魔法：火（可能假）+ 真假雷直线 + 视线，+5.8s 一起结算
+    // 分摊：DPS 北、支援南，各自找离 Boss 6m 处最近的不在真雷线上的点；分散：原地，被真雷线罩住才挪到最近的安全点
+    [ScriptMethod(
+        name: "P1_神像3_最后火雷指路",
+        eventType: EventTypeEnum.StartCasting,
+        eventCondition: ["ActionId:47764"])]
+    public void P1_神像3_最后火雷指路(Event evt, ScriptAccessory sa)
+    {
+        if (!IsPhase(_phase, 1.3))
+            return;
+
+        Task.Run(async () =>
+        {
+            // 真雷 47775/47777 和 47764 同一帧读条，稍等它们进危险区列表
+            await Task.Delay(300);
+
+            bool 分摊 = stackFlagrantFireIcon != fakeFlagrantFire;
+            var party = sa.Data.PartyList;
+            int myIdx = sa.MyIndex();
+
+            for (int i = 0; i < party.Count && i < 8; i++)
+            {
+                if (!Debugging && i != myIdx)
+                    continue;
+
+                Vector3? from = 分摊
+                    ? new Vector3(100, 0, i < 4 ? 106 : 94)
+                    : sa.Data.Objects.SearchById(party[i])?.Position;
+                if (from == null)
+                    continue;
+
+                var dp = sa.WaypointDp(P1最近安全点(from.Value), 5300, 0, $"P1_神像3_最后火雷_{i}");
+                dp.Owner = GuidanceOwner(sa, i);
+                sa.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
+            }
+
+            sa.Debug($"神像3 最后火雷：分摊={分摊}");
+        });
     }
 
     private void ResetStatue3ArrowState()
@@ -3325,22 +3052,9 @@ public class Dancing_Mad_Ultimate
 
     #region 工具方法
 
-    private readonly struct Statue3ArrowPlan
-    {
-        public Statue3ArrowPlan(int dir4, Vector2 firstRelative, Vector2 secondRelative, string callout)
-        {
-            Dir4 = dir4;
-            FirstRelative = firstRelative;
-            SecondRelative = secondRelative;
-            Callout = callout;
-        }
+    private readonly record struct Statue3ArrowPlan(int Dir4, Vector2 FirstRelative, Vector2 SecondRelative, string Callout);
 
-        public int Dir4 { get; }
-        public Vector2 FirstRelative { get; }
-        public Vector2 SecondRelative { get; }
-        public string Callout { get; }
-    }
-
+    // 箭头朝向：0 北 1 西 2 南 3 东（两组 ID 同图标同朝向）
     private static int? GetStatue3ArrowDir4(uint statusId)
     {
         return statusId switch
@@ -3353,75 +3067,23 @@ public class Dancing_Mad_Ultimate
         };
     }
 
-    private static Statue3ArrowPlan GetStatue3ArrowPlan(
-        Statue3ArrowGuideMode mode,
-        bool sameBuff,
-        bool smallIsShort,
-        int smallDir4,
-        int largeDir4)
+    // LPDU 顺时针方框（方框边长 24m，正点和角上都有标点）：
+    // 两个同向箭头：先放所在边的正点，再往逆时针挪一格（6m）
+    // 两个不同向：放「正点顺时针一格 + 角」，拐出去的那个（5079~5082 组）放角上，先到期的先放
+    private static Statue3ArrowPlan GetStatue3ArrowPlan(bool sameBuff, bool smallIsShort, int smallDir4, int largeDir4)
     {
-        int dir4;
-        Vector2 first;
-        Vector2 second;
-        string callout;
-
-        switch (mode)
+        if (sameBuff)
         {
-            case Statue3ArrowGuideMode._1A:
-                dir4 = sameBuff ? (Math.Max(smallDir4, largeDir4) + 3) % 4 : smallDir4;
-                first = sameBuff
-                    ? new Vector2(0, -14)
-                    : smallIsShort ? new Vector2(6, -9) : new Vector2(0, -8);
-                second = sameBuff
-                    ? new Vector2(6, -14)
-                    : smallIsShort ? new Vector2(0, -8) : new Vector2(6, -9);
-                callout = sameBuff
-                    ? $"{CardinalDirText(dir4)}外侧放两次"
-                    : $"{CardinalDirText(dir4)}内侧，{(smallIsShort ? "先斜后正" : "先正后斜")}";
-                break;
-
-            case Statue3ArrowGuideMode._1A改:
-                dir4 = sameBuff ? (Math.Max(smallDir4, largeDir4) + 2) % 4 : smallDir4;
-                first = sameBuff
-                    ? new Vector2(6, -9)
-                    : smallIsShort ? new Vector2(0, -8) : new Vector2(0, -14);
-                second = sameBuff
-                    ? new Vector2(6, -14)
-                    : smallIsShort ? new Vector2(0, -14) : new Vector2(0, -8);
-                callout = sameBuff
-                    ? $"{CardinalDirText(dir4)}斜方向，放两次"
-                    : $"{CardinalDirText(dir4)}正方向，{(smallIsShort ? "先近后远" : "先远后近")}";
-                break;
-
-            case Statue3ArrowGuideMode.方顺:
-                dir4 = sameBuff ? (Math.Max(smallDir4, largeDir4) + 1) % 4 : (largeDir4 + 2) % 4;
-                first = sameBuff
-                    ? new Vector2(0, -12)
-                    : smallIsShort ? new Vector2(6, -12) : new Vector2(12, -12);
-                second = sameBuff
-                    ? new Vector2(-6, -12)
-                    : smallIsShort ? new Vector2(12, -12) : new Vector2(6, -12);
-                callout = sameBuff
-                    ? $"{CardinalDirText(dir4)}正点放两次"
-                    : $"{DiagonalClockwiseDirText(dir4)}，{(smallIsShort ? "先角后边" : "先边后角")}";
-                break;
-
-            case Statue3ArrowGuideMode.方逆:
-            default:
-                dir4 = sameBuff ? (Math.Max(smallDir4, largeDir4) + 3) % 4 : (smallDir4 + 2) % 4;
-                first = sameBuff
-                    ? new Vector2(0, -12)
-                    : smallIsShort ? new Vector2(-12, -12) : new Vector2(-6, -12);
-                second = sameBuff
-                    ? new Vector2(6, -12)
-                    : smallIsShort ? new Vector2(-6, -12) : new Vector2(-12, -12);
-                callout = sameBuff
-                    ? $"{CardinalDirText(dir4)}正点放两次"
-                    : $"{DiagonalCounterClockwiseDirText(dir4)}，{(smallIsShort ? "先角后边" : "先边后角")}";
-                break;
+            int side = (Math.Max(smallDir4, largeDir4) + 1) % 4;
+            return new Statue3ArrowPlan(side, new Vector2(0, -12), new Vector2(-6, -12), $"{CardinalDirText(side)}正点放两次");
         }
 
-        return new Statue3ArrowPlan(dir4, first, second, callout);
+        int dir4 = (largeDir4 + 2) % 4;
+        return new Statue3ArrowPlan(
+            dir4,
+            smallIsShort ? new Vector2(6, -12) : new Vector2(12, -12),
+            smallIsShort ? new Vector2(12, -12) : new Vector2(6, -12),
+            $"{DiagonalClockwiseDirText(dir4)}，{(smallIsShort ? "先边后角" : "先角后边")}");
     }
 
     private static Vector3 RotateStatue3RelativePoint(int dir4, Vector2 relative)
@@ -3453,18 +3115,6 @@ public class Dancing_Mad_Ultimate
         };
     }
 
-    private static string DiagonalCounterClockwiseDirText(int dir4)
-    {
-        return ((dir4 % 4 + 4) % 4) switch
-        {
-            0 => "左上",
-            1 => "左下",
-            2 => "右下",
-            3 => "右上",
-            _ => "未知",
-        };
-    }
-
     private static string DiagonalClockwiseDirText(int dir4)
     {
         return ((dir4 % 4 + 4) % 4) switch
@@ -3477,227 +3127,13 @@ public class Dancing_Mad_Ultimate
         };
     }
 
-    private static Statue3TetherType GetStatue3TetherType(Vector3 statueSourcePos)
-    {
-        const float deviation = 1.0f;
-
-        if (Vector3.Distance(statueSourcePos, Statue3SleepSourcePos) < deviation)
-            return Statue3TetherType.睡眠;
-
-        if (Vector3.Distance(statueSourcePos, Statue3CharmSourcePos) < deviation)
-            return Statue3TetherType.魅惑;
-
-        return Statue3TetherType.Unknown;
-    }
-
-    private static Vector3? GetStatue3TetherGuidePos(
-        int myIdx,
-        Statue3TetherType tetherType,
-        Statue3TetherGuideMode mode)
-    {
-        if (myIdx < 0 || myIdx > 7)
-            return null;
-
-        if (mode == Statue3TetherGuideMode.全固定)
-        {
-            return myIdx switch
-            {
-                0 => new Vector3(100f, 0.00f, 91f),
-                1 => new Vector3(109f, 0.00f, 100f),
-                2 => new Vector3(85f, 0.00f, 100f),
-                3 => new Vector3(100f, 0.00f, 115f),
-                4 => new Vector3(91f, 0.00f, 100f),
-                5 => new Vector3(100f, 0.00f, 109f),
-                6 => new Vector3(100f, 0.00f, 85f),
-                7 => new Vector3(115f, 0.00f, 100f),
-                _ => null,
-            };
-        }
-
-        return tetherType switch
-        {
-            // 魅惑在外：睡眠走内侧，魅惑走外侧。
-            // 魅惑在内：睡眠/魅惑点位反过来。
-            Statue3TetherType.睡眠 => mode == Statue3TetherGuideMode.魅惑在内
-                ? GetStatue3TetherOuterPos(myIdx)
-                : GetStatue3TetherInnerPos(myIdx),
-
-            Statue3TetherType.魅惑 => mode == Statue3TetherGuideMode.魅惑在内
-                ? GetStatue3TetherInnerPos(myIdx)
-                : GetStatue3TetherOuterPos(myIdx),
-
-            _ => null,
-        };
-    }
-
-    private static Vector3? GetStatue3TetherInnerPos(int myIdx)
-    {
-        return myIdx switch
-        {
-            0 or 6 => new Vector3(100f, 0.00f, 91f),
-            1 or 7 => new Vector3(109f, 0.00f, 100f),
-            2 or 4 => new Vector3(91f, 0.00f, 100f),
-            3 or 5 => new Vector3(100f, 0.00f, 109f),
-            _      => null,
-        };
-    }
-
-    private static Vector3? GetStatue3TetherOuterPos(int myIdx)
-    {
-        return myIdx switch
-        {
-            0 or 6 => new Vector3(100f, 0.00f, 85f),
-            1 or 7 => new Vector3(115f, 0.00f, 100f),
-            2 or 4 => new Vector3(85f, 0.00f, 100f),
-            3 or 5 => new Vector3(100f, 0.00f, 115f),
-            _      => null,
-        };
-    }
-
-    private static Vector3? GetBigIceSealInitialPos(
-        BigIceSealGuideMode mode,
-        int index,
-        bool safeIsLeftUpRightDown,
-        BigIceSealMtUpperHalfTankMode mtUpperHalfTankMode)
-    {
-        return mode switch
-        {
-            BigIceSealGuideMode.斜角黑泥 => GetBigIceSealDiagonalBlackMudPos(index, safeIsLeftUpRightDown, mtUpperHalfTankMode),
-            BigIceSealGuideMode._1A四人分摊_TH上半场 => GetBigIceSeal1AThUpperHalfPos(index, safeIsLeftUpRightDown),
-            BigIceSealGuideMode._1A四人分摊_MT组上半场 => GetBigIceSeal1AMtUpperHalfPos(index, safeIsLeftUpRightDown, mtUpperHalfTankMode),
-            BigIceSealGuideMode._1A四人分摊_T远北奶近南 => GetBigIceSeal1ATFarNorthHealerNearSouthPos(index, safeIsLeftUpRightDown),
-            BigIceSealGuideMode.Yan式八人全分摊 => GetBigIceSealYanEightStackPos(safeIsLeftUpRightDown),
-            _ => null,
-        };
-    }
-
-    private static Vector3? GetBigIceSealDiagonalBlackMudPos(
-        int index,
-        bool safeIsLeftUpRightDown,
-        BigIceSealMtUpperHalfTankMode mtUpperHalfTankMode)
-    {
-        int groupIndex = GetBigIceSealTankGroupIndex(index, mtUpperHalfTankMode);
-
-        return groupIndex switch
-        {
-            2 or 4 => safeIsLeftUpRightDown
-                ? new Vector3(84.39f, 0.00f, 90.18f)
-                : new Vector3(84.30f, 0.00f, 109.84f),
-
-            0 or 6 => safeIsLeftUpRightDown
-                ? new Vector3(90.25f, 0.00f, 83.63f)
-                : new Vector3(109.65f, 0.00f, 84.57f),
-
-            3 or 5 => safeIsLeftUpRightDown
-                ? new Vector3(110.09f, 0.00f, 115.08f)
-                : new Vector3(89.38f, 0.00f, 115.14f),
-
-            1 or 7 => safeIsLeftUpRightDown
-                ? new Vector3(115.83f, 0.00f, 109.33f)
-                : new Vector3(115.92f, 0.00f, 90.07f),
-
-            _ => null,
-        };
-    }
-
-    private static Vector3? GetBigIceSeal1AThUpperHalfPos(int index, bool safeIsLeftUpRightDown)
-    {
-        return index switch
-        {
-            0 or 1 or 2 or 3 => safeIsLeftUpRightDown
-                ? new Vector3(99.50f, 0.00f, 81.00f)
-                : new Vector3(100.50f, 0.00f, 81.00f),
-
-            4 or 5 or 6 or 7 => safeIsLeftUpRightDown
-                ? new Vector3(100.00f, 0.00f, 119.50f)
-                : new Vector3(100.00f, 0.00f, 118.50f),
-
-            _ => null,
-        };
-    }
-
-    private static Vector3? GetBigIceSeal1ATFarNorthHealerNearSouthPos(int index, bool safeIsLeftUpRightDown)
-    {
-        // T远北奶近南：固定 0/1/6/7 去北，2/3/4/5 去南。
-        return index switch
-        {
-            0 or 1 or 6 or 7 => safeIsLeftUpRightDown
-                ? new Vector3(99.50f, 0.00f, 81.00f)
-                : new Vector3(100.50f, 0.00f, 81.00f),
-
-            2 or 3 or 4 or 5 => safeIsLeftUpRightDown
-                ? new Vector3(100.50f, 0.00f, 119f)
-                : new Vector3(100.00f, 0.00f, 118.50f),
-
-            _ => null,
-        };
-    }
-
-    private static Vector3? GetBigIceSeal1AMtUpperHalfPos(
-        int index,
-        bool safeIsLeftUpRightDown,
-        BigIceSealMtUpperHalfTankMode mtUpperHalfTankMode)
-    {
-        int groupIndex = GetBigIceSealTankGroupIndex(index, mtUpperHalfTankMode);
-
-        return groupIndex switch
-        {
-            0 or 2 or 4 or 6 => safeIsLeftUpRightDown
-                ? new Vector3(99.50f, 0.00f, 81.00f)
-                : new Vector3(100.50f, 0.00f, 81.00f),
-
-            1 or 3 or 5 or 7 => safeIsLeftUpRightDown
-                ? new Vector3(100.50f, 0.00f, 119.00f)
-                : new Vector3(99.50f, 0.00f, 119.00f),
-
-            _ => null,
-        };
-    }
-
-    private static int GetBigIceSealTankGroupIndex(int index, BigIceSealMtUpperHalfTankMode mtUpperHalfTankMode)
-    {
-        if (mtUpperHalfTankMode == BigIceSealMtUpperHalfTankMode.交换分组_ST上半场)
-        {
-            return index switch
-            {
-                0 => 1,
-                1 => 0,
-                _ => index,
-            };
-        }
-
-        return index;
-    }
-
-    private static Vector3? GetBigIceSealYanEightStackPos(bool safeIsLeftUpRightDown)
-    {
-        return safeIsLeftUpRightDown
-            ? new Vector3(100.50f, 0.00f, 112.00f)
-            : new Vector3(99.50f, 0.00f, 112.00f);
-    }
-
-    private static Vector3 MoveTowards(Vector3 from, Vector3 to, float distance)
-    {
-        Vector3 dir = to - from;
-        dir.Y = 0;
-
-        if (dir.LengthSquared() <= 0.0001f)
-            return from;
-
-        dir = Vector3.Normalize(dir);
-        return from + dir * distance;
-    }
-
     private static Vector3? Get47784GuidePosForGroup(
         uint me,
         List<uint> groupMembers,
         IReadOnlyList<uint> party,
         Dictionary<uint, Vector3> targetPositions)
     {
-        if (!groupMembers.Contains(me))
-            return null;
-
-        if (targetPositions.ContainsKey(me))
+        if (!groupMembers.Contains(me) || targetPositions.ContainsKey(me))
             return null;
 
         var targetedMembers = groupMembers
@@ -3715,44 +3151,7 @@ public class Dancing_Mad_Ultimate
 
         int myOrder = untargetedMembers.IndexOf(me);
 
-        if (myOrder < 0 || myOrder >= targetedMembers.Count)
-            return null;
-
-        uint targetToGo = targetedMembers[myOrder];
-
-        return targetPositions[targetToGo];
-    }
-
-    private static Vector3 GetFixedHalfPos(bool isLeftHalf, bool has002D, bool upperLeftHasIce)
-    {
-        if (isLeftHalf)
-        {
-            // 0/1/2/3：固定左半场
-            if (has002D)
-            {
-                return upperLeftHasIce
-                    ? UpperLeftPoint
-                    : UpperLeftAreaUpperPoint;
-            }
-
-            // 没002D
-            return upperLeftHasIce
-                ? LowerLeftPoint
-                : UpperLeftPoint;
-        }
-
-        // 4/5/6/7：固定右半场
-        if (has002D)
-        {
-            return upperLeftHasIce
-                ? UpperRightAreaUpperPoint
-                : UpperRightPoint;
-        }
-
-        // 没002D
-        return upperLeftHasIce
-            ? UpperRightPoint
-            : LowerRightPoint;
+        return myOrder is >= 0 and < 2 ? targetPositions[targetedMembers[myOrder]] : null;
     }
 
     private static int PartyIndex(IReadOnlyList<uint> party, uint playerId)
@@ -3776,15 +3175,8 @@ public class Dancing_Mad_Ultimate
         double degree = rotation * 180.0 / Math.PI;
         degree = (degree % 360.0 + 360.0) % 360.0;
 
-        double distanceTo45Or225 = Math.Min(
-            AngleDistance(degree, 45.0),
-            AngleDistance(degree, 225.0)
-        );
-
-        double distanceTo135Or315 = Math.Min(
-            AngleDistance(degree, 135.0),
-            AngleDistance(degree, 315.0)
-        );
+        double distanceTo45Or225 = Math.Min(AngleDistance(degree, 45.0), AngleDistance(degree, 225.0));
+        double distanceTo135Or315 = Math.Min(AngleDistance(degree, 135.0), AngleDistance(degree, 315.0));
 
         return distanceTo45Or225 <= distanceTo135Or315;
     }
@@ -3897,6 +3289,7 @@ public class Dancing_Mad_Ultimate
 
     }
 
+    // 固定搭档 MT+H1 / ST+H2 / M1+R1 / M2+R2：有分摊的两对是 A 组（第 1/2/3/8 轮进塔），另外两对是 B 组（第 4~7 轮）
     private bool groupPartyMembersAtBeginning(ScriptAccessory accessory) {
 
         int[][] group=[[0,2],
@@ -3904,82 +3297,10 @@ public class Dancing_Mad_Ultimate
                        [4,6],
                        [5,7]];
 
-        for(int i=0;i<4;++i) {
+        foreach(var pair in group) {
 
-            int member1=group[i][0];
-            int member2=group[i][1];
-
-            if(phase2sub2_iconType[member1]==Phase2Sub2_IconTypes.STACK
-               ||
-               phase2sub2_iconType[member2]==Phase2Sub2_IconTypes.STACK) {
-
-                phase2sub2_groupA.Add(member1);
-                phase2sub2_groupA.Add(member2);
-
-                if(phase2sub2_iconType[member1]==Phase2Sub2_IconTypes.FAN) {
-
-                    initialLeftStack=member2;
-
-                }
-
-                if(phase2sub2_iconType[member2]==Phase2Sub2_IconTypes.FAN) {
-
-                    initialLeftStack=member1;
-
-                }
-
-                if(phase2sub2_iconType[member1]==Phase2Sub2_IconTypes.SPREAD) {
-
-                    initialRightStack=member2;
-
-                }
-
-                if(phase2sub2_iconType[member2]==Phase2Sub2_IconTypes.SPREAD) {
-
-                    initialRightStack=member1;
-
-                }
-
-            }
-
-            else {
-
-                phase2sub2_groupB.Add(member1);
-                phase2sub2_groupB.Add(member2);
-
-                if(isMelee(member1)) {
-
-                    if(phase2sub2_iconType[member1]==Phase2Sub2_IconTypes.FAN) {
-
-                        initialUpperFan=member1;
-
-                    }
-
-                    if(phase2sub2_iconType[member1]==Phase2Sub2_IconTypes.SPREAD) {
-
-                        initialUpperSpread=member1;
-
-                    }
-
-                }
-
-                if(isMelee(member2)) {
-
-                    if(phase2sub2_iconType[member2]==Phase2Sub2_IconTypes.FAN) {
-
-                        initialUpperFan=member2;
-
-                    }
-
-                    if(phase2sub2_iconType[member2]==Phase2Sub2_IconTypes.SPREAD) {
-
-                        initialUpperSpread=member2;
-
-                    }
-
-                }
-
-            }
+            bool hasStack=pair.Any(i => phase2sub2_iconType[i]==Phase2Sub2_IconTypes.STACK);
+            (hasStack?phase2sub2_groupA:phase2sub2_groupB).AddRange(pair);
 
         }
 
@@ -3987,150 +3308,12 @@ public class Dancing_Mad_Ultimate
 
             accessory.Log.Debug($"""
                                  phase2sub2_groupA:{string.Join(",",phase2sub2_groupA)}
-                                 initialLeftStack={initialLeftStack},initialRightStack={initialRightStack}
                                  phase2sub2_groupB:{string.Join(",",phase2sub2_groupB)}
-                                 initialUpperFan={initialUpperFan},initialUpperSpread={initialUpperSpread}
                                  """);
 
         }
 
-        if(phase2sub2_groupA.Count==4
-           &&
-           phase2sub2_groupB.Count==4
-           &&
-           !(phase2sub2_groupA.ToHashSet().Overlaps(phase2sub2_groupB.ToHashSet()))) {
-
-            return true;
-
-        }
-
-        else {
-
-            return false;
-
-        }
-
-    }
-
-    private bool scanAndSort(bool isGroupA,int discretizedGap,ScriptAccessory accessory) {
-
-        if(discretizedGap<0||discretizedGap>7) {
-
-            return false;
-
-        }
-
-        if(isGroupA) {
-
-            phase2sub2_groupA.Sort((x,y) => {
-
-                var xObject=accessory.Data.Objects.SearchById(accessory.Data.PartyList[x]);
-
-                if(xObject==null||!xObject.IsValid()) {
-
-                    accessory.Log.Error($"An invalid object occurred while sorting.\nThe party index is {x}.");
-
-                    return -1;
-
-                }
-
-                var yObject=accessory.Data.Objects.SearchById(accessory.Data.PartyList[y]);
-
-                if(yObject==null||!yObject.IsValid()) {
-
-                    accessory.Log.Error($"An invalid object occurred while sorting.\nThe party index is {y}.");
-
-                    return 1;
-
-                }
-
-                Vector3 xRelativePosition=rotatePosition(xObject.Position,ARENA_CENTER,-Math.PI/4*discretizedGap);
-                Vector3 yRelativePosition=rotatePosition(yObject.Position,ARENA_CENTER,-Math.PI/4*discretizedGap);
-
-                if(xRelativePosition.X>yRelativePosition.X) {
-
-                    return -1;
-
-                }
-
-                if(xRelativePosition.X<yRelativePosition.X) {
-
-                    return 1;
-
-                }
-
-                return 0;
-
-            });
-
-            if(enableDebugLogging) {
-
-                accessory.Log.Debug($"""
-                                     Group A has been sorted.
-                                     discretizedGap={discretizedGap}
-                                     phase2sub2_groupA:{string.Join(",",phase2sub2_groupA)}
-                                     """);
-
-            }
-
-        }
-
-        else {
-
-            phase2sub2_groupB.Sort((x,y) => {
-
-                var xObject=accessory.Data.Objects.SearchById(accessory.Data.PartyList[x]);
-
-                if(xObject==null||!xObject.IsValid()) {
-
-                    accessory.Log.Error($"An invalid object occurred while sorting.\nThe party index is {x}.");
-
-                    return -1;
-
-                }
-
-                var yObject=accessory.Data.Objects.SearchById(accessory.Data.PartyList[y]);
-
-                if(yObject==null||!yObject.IsValid()) {
-
-                    accessory.Log.Error($"An invalid object occurred while sorting.\nThe party index is {y}.");
-
-                    return 1;
-
-                }
-
-                Vector3 xRelativePosition=rotatePosition(xObject.Position,ARENA_CENTER,-Math.PI/4*discretizedGap);
-                Vector3 yRelativePosition=rotatePosition(yObject.Position,ARENA_CENTER,-Math.PI/4*discretizedGap);
-
-                if(xRelativePosition.X>yRelativePosition.X) {
-
-                    return -1;
-
-                }
-
-                if(xRelativePosition.X<yRelativePosition.X) {
-
-                    return 1;
-
-                }
-
-                return 0;
-
-            });
-
-            if(enableDebugLogging) {
-
-                accessory.Log.Debug($"""
-                                     Group B has been sorted.
-                                     discretizedGap={discretizedGap}
-                                     phase2sub2_groupB:{string.Join(",",phase2sub2_groupB)}
-                                     """);
-
-            }
-
-        }
-
-        return true;
+        return phase2sub2_groupA.Count==4&&phase2sub2_groupB.Count==4;
 
     }
 
@@ -4235,18 +3418,6 @@ public class Dancing_Mad_Ultimate
                         if(updateCountAfterInitialization%4==0) {
 
                             int lastRound=updateCountAfterInitialization/4;
-
-                            if(new List<int>{1,2,3}.Contains(lastRound)) {
-
-                                scanAndSort(true,phase2sub2_discretizedTowerGap[lastRound],accessory);
-
-                            }
-
-                            if(new List<int>{4,5,6}.Contains(lastRound)) {
-
-                                scanAndSort(false,phase2sub2_discretizedTowerGap[lastRound],accessory);
-
-                            }
 
                             phase2sub2_roundSemaphore[lastRound].Set();
 
@@ -4468,101 +3639,7 @@ public class Dancing_Mad_Ultimate
         if(!signalled) {
             return;
         }
-        // 每人按自己的分组、头顶图标、初始分摊位解算；Debug 时画全队
-        for(int partyIndex=0;partyIndex<8;++partyIndex) {
-            if(!Debugging&&partyIndex!=myIndex) {
-                continue;
-            }
-            P2_遗弃末世_指路_第1轮_单人(accessory,partyIndex);
-        }
-    }
-
-    private void P2_遗弃末世_指路_第1轮_单人(ScriptAccessory accessory,int myIndex) {
-        Vector3 myPosition=ARENA_CENTER;
-
-        if(phase2sub2_groupA.Contains(myIndex)) {
-
-            if(phase2sub2_iconType[myIndex]==Phase2Sub2_IconTypes.FAN) {
-
-                myPosition=(phase2sub2_strat==Phase2Sub2_Strats.原版?PHASE2_SUB2_ODD_FAN:PHASE2_SUB2_UPTIME_ODD_FAN);
-
-            }
-
-            if(phase2sub2_iconType[myIndex]==Phase2Sub2_IconTypes.SPREAD) {
-
-                myPosition=(phase2sub2_strat==Phase2Sub2_Strats.原版?PHASE2_SUB2_ODD_SPREAD:PHASE2_SUB2_UPTIME_ODD_SPREAD);
-
-            }
-
-            if(phase2sub2_iconType[myIndex]==Phase2Sub2_IconTypes.STACK) {
-
-                if(myIndex==initialLeftStack) {
-
-                    myPosition=(phase2sub2_strat==Phase2Sub2_Strats.原版?PHASE2_SUB2_ODD_LEFT_STACK:PHASE2_SUB2_UPTIME_ODD_LEFT_STACK);
-
-                }
-
-                if(myIndex==initialRightStack) {
-
-                    myPosition=(phase2sub2_strat==Phase2Sub2_Strats.原版?PHASE2_SUB2_ODD_RIGHT_STACK:PHASE2_SUB2_UPTIME_ODD_RIGHT_STACK);
-
-                }
-
-            }
-
-        }
-
-        if(phase2sub2_groupB.Contains(myIndex)) {
-
-            if(isTank(myIndex)) {
-
-                myPosition=(phase2sub2_strat==Phase2Sub2_Strats.原版?PHASE2_SUB2_ODD_TANK:PHASE2_SUB2_UPTIME_ODD_TANK);
-
-            }
-
-            if(isHealer(myIndex)) {
-
-                myPosition=(phase2sub2_strat==Phase2Sub2_Strats.原版?PHASE2_SUB2_ODD_HEALER:PHASE2_SUB2_UPTIME_ODD_HEALER);
-
-            }
-
-            if(isMeleeDps(myIndex)) {
-
-                myPosition=(phase2sub2_strat==Phase2Sub2_Strats.原版?PHASE2_SUB2_ODD_MELEE_DPS:PHASE2_SUB2_UPTIME_ODD_MELEE_DPS);
-
-            }
-
-            if(isRangedDps(myIndex)) {
-
-                myPosition=(phase2sub2_strat==Phase2Sub2_Strats.原版?PHASE2_SUB2_ODD_RANGED_DPS:PHASE2_SUB2_UPTIME_ODD_RANGED_DPS);
-
-            }
-
-        }
-
-        if(Vector3.Distance(myPosition,ARENA_CENTER)<COMMON_DEVIATION) {
-
-            return;
-
-        }
-
-        else {
-
-            myPosition=rotatePosition(myPosition,ARENA_CENTER,Math.PI/4*phase2sub2_discretizedTowerGap[1]);
-
-        }
-
-        var currentProperties=accessory.Data.GetDefaultDrawProperties();
-
-        currentProperties.Name=$"P2_遗弃末世_指路_第1轮_{myIndex}";
-        currentProperties.Scale=new(2);
-        currentProperties.Owner=GuidanceOwner(accessory,myIndex);
-        currentProperties.TargetPosition=myPosition;
-        currentProperties.ScaleMode|=ScaleMode.YByDistance;
-        currentProperties.Color=accessory.Data.DefaultSafeColor;
-        currentProperties.DestoryAt=10750;
-
-        accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Displacement,currentProperties);
+        P2_遗弃末世_指路(1,accessory);
 
     }
 
@@ -4659,14 +3736,6 @@ public class Dancing_Mad_Ultimate
             accessory.Method.RemoveDraw($"P2_遗弃末世_指路辅助线2_第{lastRound}轮");
             accessory.Method.RemoveDraw($"P2_遗弃末世_指路_第{lastRound}轮(_\\d)?");
 
-            if(lastRound==3) {
-
-                P2_遗弃末世_指路_第4轮(accessory);
-
-                return;
-
-            }
-
             if(lastRound==8) {
 
                 P2_遗弃末世_指路_末尾(accessory);
@@ -4676,143 +3745,6 @@ public class Dancing_Mad_Ultimate
             }
 
             P2_遗弃末世_指路(lastRound+1,accessory);
-
-        }
-
-    }
-
-    private void P2_遗弃末世_指路_第4轮(ScriptAccessory accessory) {
-        int myIndex=accessory.Data.PartyList.IndexOf(accessory.Data.Me);
-        if(!isLegalPartyIndex(myIndex)) {
-            return;
-        }
-        // 每人按自己的分组、头顶图标解算；Debug 时画全队
-        for(int partyIndex=0;partyIndex<8;++partyIndex) {
-            if(!Debugging&&partyIndex!=myIndex) {
-                continue;
-            }
-            P2_遗弃末世_指路_第4轮_单人(accessory,partyIndex);
-        }
-    }
-
-    private void P2_遗弃末世_指路_第4轮_单人(ScriptAccessory accessory,int myIndex) {
-        Vector3 myPosition=ARENA_CENTER;
-
-        if(phase2sub2_groupB.Contains(myIndex)) {
-
-            if(phase2sub2_iconType[myIndex]==Phase2Sub2_IconTypes.FAN) {
-
-                if(myIndex==initialUpperFan) {
-
-                    myPosition=PHASE2_SUB2_EVEN_LEFT_FAN;
-
-                }
-
-                else {
-
-                    myPosition=PHASE2_SUB2_EVEN_RIGHT_FAN;
-
-                }
-
-            }
-
-            if(phase2sub2_iconType[myIndex]==Phase2Sub2_IconTypes.SPREAD) {
-
-                if(myIndex==initialUpperSpread) {
-
-                    myPosition=PHASE2_SUB2_EVEN_RIGHT_SPREAD;
-
-                }
-
-                else {
-
-                    myPosition=PHASE2_SUB2_EVEN_LEFT_SPREAD;
-
-                }
-
-            }
-
-        }
-
-        if(phase2sub2_groupA.Contains(myIndex)) {
-
-            if(isTank(myIndex)) {
-
-                myPosition=PHASE2_SUB2_EVEN_TANK;
-
-            }
-
-            if(isHealer(myIndex)) {
-
-                myPosition=PHASE2_SUB2_EVEN_HEALER;
-
-            }
-
-            if(isMeleeDps(myIndex)) {
-
-                myPosition=PHASE2_SUB2_EVEN_MELEE_DPS;
-
-            }
-
-            if(isRangedDps(myIndex)) {
-
-                myPosition=PHASE2_SUB2_EVEN_RANGED_DPS;
-
-            }
-
-        }
-
-        if(Vector3.Distance(myPosition,ARENA_CENTER)<COMMON_DEVIATION) {
-
-            return;
-
-        }
-
-        else {
-
-            myPosition=rotatePosition(myPosition,ARENA_CENTER,Math.PI/4*phase2sub2_discretizedTowerGap[4]);
-
-        }
-
-        var currentProperties=accessory.Data.GetDefaultDrawProperties();
-
-        currentProperties.Name=$"P2_遗弃末世_指路_第4轮_{myIndex}";
-        currentProperties.Scale=new(2);
-        currentProperties.Owner=GuidanceOwner(accessory,myIndex);
-        currentProperties.TargetPosition=myPosition;
-        currentProperties.ScaleMode|=ScaleMode.YByDistance;
-        currentProperties.Color=accessory.Data.DefaultSafeColor;
-        currentProperties.DestoryAt=MAXIMUM_DURATION;
-
-        accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Displacement,currentProperties);
-
-        if(phase2sub2_spellwaveAuxiliaryLines) {
-
-            Vector3 fanPosition1=PHASE2_SUB2_EVEN_LEFT_FAN;
-            Vector3 fanPosition2=PHASE2_SUB2_EVEN_RIGHT_FAN;
-
-            fanPosition1=rotatePosition(fanPosition1,ARENA_CENTER,Math.PI/4*phase2sub2_discretizedTowerGap[4]);
-            fanPosition2=rotatePosition(fanPosition2,ARENA_CENTER,Math.PI/4*phase2sub2_discretizedTowerGap[4]);
-
-            currentProperties=accessory.Data.GetDefaultDrawProperties();
-
-            currentProperties.Name=$"P2_遗弃末世_指路辅助线1_第4轮";
-            currentProperties.Scale=new(0.5f);
-            currentProperties.Position=fanPosition1;
-            currentProperties.Color=phase2sub2_colourOfAuxiliaryLines.V4.WithW(1);
-            currentProperties.DestoryAt=MAXIMUM_DURATION;
-
-            accessory.Method.SendDraw(getDrawModeEnum(DrawTypeEnum.Circle),DrawTypeEnum.Circle,currentProperties);
-
-            currentProperties=accessory.Data.GetDefaultDrawProperties();
-
-            currentProperties.Name=$"P2_遗弃末世_指路辅助线2_第4轮";
-            currentProperties.Scale=new(0.5f);
-            currentProperties.Position=fanPosition2;
-            currentProperties.Color=phase2sub2_colourOfAuxiliaryLines.V4.WithW(1);
-            currentProperties.DestoryAt=MAXIMUM_DURATION;
-
-            accessory.Method.SendDraw(getDrawModeEnum(DrawTypeEnum.Circle),DrawTypeEnum.Circle,currentProperties);
 
         }
 
@@ -4872,133 +3804,15 @@ public class Dancing_Mad_Ultimate
         }
     }
 
-    private bool? isOnLeftInGroup(int targetIndex,ScriptAccessory accessory) {
-
-        if(!isLegalPartyIndex(targetIndex)) {
-
-            return null;
-
-        }
-
-        if(!phase2sub2_groupA.Contains(targetIndex)&&!phase2sub2_groupB.Contains(targetIndex)) {
-
-            return null;
-
-        }
-
-        if(phase2sub2_groupA.Contains(targetIndex)&&phase2sub2_groupB.Contains(targetIndex)) {
-
-            return null;
-
-        }
-
-        Phase2Sub2_IconTypes targetIcon=phase2sub2_iconType[targetIndex];
-
-        if(targetIcon==Phase2Sub2_IconTypes.UNKNOWN) {
-
-            return null;
-
-        }
-
-        if(phase2sub2_groupA.Contains(targetIndex)) {
-
-            for(int i=0;i<phase2sub2_groupA.Count;++i) {
-
-                if(phase2sub2_iconType[phase2sub2_groupA[i]]==targetIcon) {
-
-                    if(phase2sub2_groupA[i]==targetIndex) {
-
-                        if(enableDebugLogging) {
-
-                            accessory.Log.Debug($"""
-                                                 Party member {targetIndex} is in Group A.
-                                                 targetIcon={targetIcon}
-                                                 The first party member with the same icon is {phase2sub2_groupA[i]}.
-                                                 Party member {targetIndex} should take the left spot.
-                                                 """);
-
-                        }
-
-                        return true;
-
-                    }
-
-                    else {
-
-                        if(enableDebugLogging) {
-
-                            accessory.Log.Debug($"""
-                                                 Party member {targetIndex} is in Group A.
-                                                 targetIcon={targetIcon}
-                                                 The first party member with the same icon is {phase2sub2_groupA[i]}.
-                                                 Party member {targetIndex} should take the right spot.
-                                                 """);
-
-                        }
-
-                        return false;
-
-                    }
-
-                }
-
-            }
-
-        }
-
-        if(phase2sub2_groupB.Contains(targetIndex)) {
-
-            for(int i=0;i<phase2sub2_groupB.Count;++i) {
-
-                if(phase2sub2_iconType[phase2sub2_groupB[i]]==targetIcon) {
-
-                    if(phase2sub2_groupB[i]==targetIndex) {
-
-                        if(enableDebugLogging) {
-
-                            accessory.Log.Debug($"""
-                                                 Party member {targetIndex} is in Group B.
-                                                 targetIcon={targetIcon}
-                                                 The first party member with the same icon is {phase2sub2_groupB[i]}.
-                                                 Party member {targetIndex} should take the left spot.
-                                                 """);
-
-                        }
-
-                        return true;
-
-                    }
-
-                    else {
-
-                        if(enableDebugLogging) {
-
-                            accessory.Log.Debug($"""
-                                                 Party member {targetIndex} is in Group B.
-                                                 targetIcon={targetIcon}
-                                                 The first party member with the same icon is {phase2sub2_groupB[i]}.
-                                                 Party member {targetIndex} should take the right spot.
-                                                 """);
-
-                        }
-
-                        return false;
-
-                    }
-
-                }
-
-            }
-
-        }
-
-        return null;
-
-    }
+    // ----- LPDU Buddies：https://raidplan.io/plan/142oXOZpPc_jh3dd ，精确站位：https://raidplan.io/plan/A0xlCay835pm5qxs -----
+    // 搭档 MT+H1 / ST+H2 / M1+R1 / M2+R2，有分摊的两对是 A 组，按 AAABBBBA 进塔；远程（H/R）站位固定，T/近战看搭档调整
+    // 站位都写在「本轮两座塔在南」的局部系里（x 东为正、z 南为正，相对场中）：面向 Boss 左塔（西南）= 扇形塔、右塔（东南）= 圆圈塔
+    private static readonly Vector2 P2左塔=new(-5.657f,5.657f);
+    private const float P2默认判定圈=6;
 
     private void P2_遗弃末世_指路(int currentRound,ScriptAccessory accessory) {
 
-        if(currentRound<2||currentRound==4||currentRound>8) {
+        if(currentRound<1||currentRound>8) {
 
             return;
 
@@ -5012,13 +3826,15 @@ public class Dancing_Mad_Ultimate
 
         }
 
-        // 每人按自己的分组、头顶图标、组内左右位解算；Debug 时画全队
+        float hitbox=P2Boss判定圈(accessory);
+
+        // 每人按自己的分组、头顶图标、职能解算；Debug 时画全队
         var positions=new Dictionary<int,Vector3>();
         for(int partyIndex=0;partyIndex<8;++partyIndex) {
             if(!Debugging&&partyIndex!=myIndex) {
                 continue;
             }
-            var position=P2_遗弃末世_位置(currentRound,partyIndex,accessory);
+            var position=P2_遗弃末世_位置(currentRound,partyIndex,hitbox,accessory);
             if(position!=null) {
                 positions[partyIndex]=position.Value;
             }
@@ -5028,7 +3844,8 @@ public class Dancing_Mad_Ultimate
         }
         var currentProperties=accessory.Data.GetDefaultDrawProperties();
 
-        if(currentRound%2==1) {
+        // 第 3/5/7 轮先引上一轮的过去/未来终结（第 1 轮没有）
+        if(currentRound%2==1&&currentRound>1) {
 
             Vector3 baitPosition=PHASE2_SUB2_RAW_TOWER_POSITION;
 
@@ -5082,31 +3899,22 @@ public class Dancing_Mad_Ultimate
 
         if(currentRound%2==0&&phase2sub2_spellwaveAuxiliaryLines) {
 
-            Vector3 fanPosition1=PHASE2_SUB2_EVEN_LEFT_FAN;
-            Vector3 fanPosition2=PHASE2_SUB2_EVEN_RIGHT_FAN;
+            Vector2 cone=P2偶数轮左塔(hitbox).cone;
+            Vector3[] fanPositions=[P2局部转世界(cone,currentRound),P2局部转世界(new Vector2(-cone.X,cone.Y),currentRound)];
 
-            fanPosition1=rotatePosition(fanPosition1,ARENA_CENTER,Math.PI/4*phase2sub2_discretizedTowerGap[currentRound]);
-            fanPosition2=rotatePosition(fanPosition2,ARENA_CENTER,Math.PI/4*phase2sub2_discretizedTowerGap[currentRound]);
+            for(int i=0;i<2;++i) {
 
-            currentProperties=accessory.Data.GetDefaultDrawProperties();
+                currentProperties=accessory.Data.GetDefaultDrawProperties();
 
-            currentProperties.Name=$"P2_遗弃末世_指路辅助线1_第{currentRound}轮";
-            currentProperties.Scale=new(0.5f);
-            currentProperties.Position=fanPosition1;
-            currentProperties.Color=phase2sub2_colourOfAuxiliaryLines.V4.WithW(1);
-            currentProperties.DestoryAt=MAXIMUM_DURATION;
+                currentProperties.Name=$"P2_遗弃末世_指路辅助线{i+1}_第{currentRound}轮";
+                currentProperties.Scale=new(0.5f);
+                currentProperties.Position=fanPositions[i];
+                currentProperties.Color=phase2sub2_colourOfAuxiliaryLines.V4.WithW(1);
+                currentProperties.DestoryAt=MAXIMUM_DURATION;
 
-            accessory.Method.SendDraw(getDrawModeEnum(DrawTypeEnum.Circle),DrawTypeEnum.Circle,currentProperties);
+                accessory.Method.SendDraw(getDrawModeEnum(DrawTypeEnum.Circle),DrawTypeEnum.Circle,currentProperties);
 
-            currentProperties=accessory.Data.GetDefaultDrawProperties();
-
-            currentProperties.Name=$"P2_遗弃末世_指路辅助线2_第{currentRound}轮";
-            currentProperties.Scale=new(0.5f);
-            currentProperties.Position=fanPosition2;
-            currentProperties.Color=phase2sub2_colourOfAuxiliaryLines.V4.WithW(1);
-            currentProperties.DestoryAt=MAXIMUM_DURATION;
-
-            accessory.Method.SendDraw(getDrawModeEnum(DrawTypeEnum.Circle),DrawTypeEnum.Circle,currentProperties);
+            }
 
         }
 
@@ -5118,392 +3926,165 @@ public class Dancing_Mad_Ultimate
             currentProperties.TargetPosition=myPosition;
             currentProperties.ScaleMode|=ScaleMode.YByDistance;
             currentProperties.Color=accessory.Data.DefaultSafeColor;
-            currentProperties.DestoryAt=MAXIMUM_DURATION;
+            currentProperties.DestoryAt=currentRound==1?10750:MAXIMUM_DURATION;
             accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Displacement,currentProperties);
         }
     }
 
-    private Vector3? P2_遗弃末世_位置(int currentRound,int myIndex,ScriptAccessory accessory) {
-        Vector3 myPosition=ARENA_CENTER;
+    private Vector3? P2_遗弃末世_位置(int currentRound,int myIndex,float hitbox,ScriptAccessory accessory) {
 
-        if(currentRound%2==1) {
+        bool towerIsGroupA=phase2sub2_isGroupARound[currentRound];
+        List<int> towerGroup=towerIsGroupA?phase2sub2_groupA:phase2sub2_groupB;
+        List<int> helperGroup=towerIsGroupA?phase2sub2_groupB:phase2sub2_groupA;
+        bool inTower=towerGroup.Contains(myIndex);
 
-            if(phase2sub2_isGroupARound[currentRound]) {
+        if(!inTower&&!helperGroup.Contains(myIndex)) {
 
-                if(phase2sub2_groupA.Contains(myIndex)) {
-
-                    if(phase2sub2_iconType[myIndex]==Phase2Sub2_IconTypes.FAN) {
-
-                        myPosition=(phase2sub2_strat==Phase2Sub2_Strats.原版?PHASE2_SUB2_ODD_FAN:PHASE2_SUB2_UPTIME_ODD_FAN);
-
-                    }
-
-                    if(phase2sub2_iconType[myIndex]==Phase2Sub2_IconTypes.SPREAD) {
-
-                        myPosition=(phase2sub2_strat==Phase2Sub2_Strats.原版?PHASE2_SUB2_ODD_SPREAD:PHASE2_SUB2_UPTIME_ODD_SPREAD);
-
-                    }
-
-                    if(phase2sub2_iconType[myIndex]==Phase2Sub2_IconTypes.STACK) {
-
-                        bool? rawResult=isOnLeftInGroup(myIndex,accessory);
-                        bool isOnLeft=false;
-
-                        if(rawResult==null) {
-
-                            return null;
-
-                        }
-
-                        else {
-
-                            isOnLeft=((bool)(rawResult));
-
-                        }
-
-                        if(isOnLeft) {
-
-                            myPosition=(phase2sub2_strat==Phase2Sub2_Strats.原版?PHASE2_SUB2_ODD_LEFT_STACK:PHASE2_SUB2_UPTIME_ODD_LEFT_STACK);
-
-                        }
-
-                        else {
-
-                            myPosition=(phase2sub2_strat==Phase2Sub2_Strats.原版?PHASE2_SUB2_ODD_RIGHT_STACK:PHASE2_SUB2_UPTIME_ODD_RIGHT_STACK);
-
-                        }
-
-                    }
-
-                }
-
-                if(phase2sub2_groupB.Contains(myIndex)) {
-
-                    if(isTank(myIndex)) {
-
-                        myPosition=(phase2sub2_strat==Phase2Sub2_Strats.原版?PHASE2_SUB2_ODD_TANK:PHASE2_SUB2_UPTIME_ODD_TANK);
-
-                    }
-
-                    if(isHealer(myIndex)) {
-
-                        myPosition=(phase2sub2_strat==Phase2Sub2_Strats.原版?PHASE2_SUB2_ODD_HEALER:PHASE2_SUB2_UPTIME_ODD_HEALER);
-
-                    }
-
-                    if(isMeleeDps(myIndex)) {
-
-                        myPosition=(phase2sub2_strat==Phase2Sub2_Strats.原版?PHASE2_SUB2_ODD_MELEE_DPS:PHASE2_SUB2_UPTIME_ODD_MELEE_DPS);
-
-                    }
-
-                    if(isRangedDps(myIndex)) {
-
-                        myPosition=(phase2sub2_strat==Phase2Sub2_Strats.原版?PHASE2_SUB2_ODD_RANGED_DPS:PHASE2_SUB2_UPTIME_ODD_RANGED_DPS);
-
-                    }
-
-                }
-
-            }
-
-            else {
-
-                if(phase2sub2_groupB.Contains(myIndex)) {
-
-                    if(phase2sub2_iconType[myIndex]==Phase2Sub2_IconTypes.FAN) {
-
-                        myPosition=(phase2sub2_strat==Phase2Sub2_Strats.原版?PHASE2_SUB2_ODD_FAN:PHASE2_SUB2_UPTIME_ODD_FAN);
-
-                    }
-
-                    if(phase2sub2_iconType[myIndex]==Phase2Sub2_IconTypes.SPREAD) {
-
-                        myPosition=(phase2sub2_strat==Phase2Sub2_Strats.原版?PHASE2_SUB2_ODD_SPREAD:PHASE2_SUB2_UPTIME_ODD_SPREAD);
-
-                    }
-
-                    if(phase2sub2_iconType[myIndex]==Phase2Sub2_IconTypes.STACK) {
-
-                        bool? rawResult=isOnLeftInGroup(myIndex,accessory);
-                        bool isOnLeft=false;
-
-                        if(rawResult==null) {
-
-                            return null;
-
-                        }
-
-                        else {
-
-                            isOnLeft=((bool)(rawResult));
-
-                        }
-
-                        if(isOnLeft) {
-
-                            myPosition=(phase2sub2_strat==Phase2Sub2_Strats.原版?PHASE2_SUB2_ODD_LEFT_STACK:PHASE2_SUB2_UPTIME_ODD_LEFT_STACK);
-
-                        }
-
-                        else {
-
-                            myPosition=(phase2sub2_strat==Phase2Sub2_Strats.原版?PHASE2_SUB2_ODD_RIGHT_STACK:PHASE2_SUB2_UPTIME_ODD_RIGHT_STACK);
-
-                        }
-
-                    }
-
-                }
-
-                if(phase2sub2_groupA.Contains(myIndex)) {
-
-                    if(isTank(myIndex)) {
-
-                        myPosition=(phase2sub2_strat==Phase2Sub2_Strats.原版?PHASE2_SUB2_ODD_TANK:PHASE2_SUB2_UPTIME_ODD_TANK);
-
-                    }
-
-                    if(isHealer(myIndex)) {
-
-                        myPosition=(phase2sub2_strat==Phase2Sub2_Strats.原版?PHASE2_SUB2_ODD_HEALER:PHASE2_SUB2_UPTIME_ODD_HEALER);
-
-                    }
-
-                    if(isMeleeDps(myIndex)) {
-
-                        myPosition=(phase2sub2_strat==Phase2Sub2_Strats.原版?PHASE2_SUB2_ODD_MELEE_DPS:PHASE2_SUB2_UPTIME_ODD_MELEE_DPS);
-
-                    }
-
-                    if(isRangedDps(myIndex)) {
-
-                        myPosition=(phase2sub2_strat==Phase2Sub2_Strats.原版?PHASE2_SUB2_ODD_RANGED_DPS:PHASE2_SUB2_UPTIME_ODD_RANGED_DPS);
-
-                    }
-
-                }
-
-            }
+            return null;
 
         }
 
-        if(currentRound%2==0) {
-
-            if(phase2sub2_isGroupARound[currentRound]) {
-
-                if(phase2sub2_groupA.Contains(myIndex)) {
-
-                    if(phase2sub2_iconType[myIndex]==Phase2Sub2_IconTypes.FAN) {
-
-                        bool? rawResult=isOnLeftInGroup(myIndex,accessory);
-                        bool isOnLeft=false;
-
-                        if(rawResult==null) {
-
-                            return null;
-
-                        }
-
-                        else {
-
-                            isOnLeft=((bool)(rawResult));
-
-                        }
-
-                        if(isOnLeft) {
-
-                            myPosition=PHASE2_SUB2_EVEN_LEFT_FAN;
-
-                        }
-
-                        else {
-
-                            myPosition=PHASE2_SUB2_EVEN_RIGHT_FAN;
-
-                        }
-
-                    }
-
-                    if(phase2sub2_iconType[myIndex]==Phase2Sub2_IconTypes.SPREAD) {
-
-                        bool? rawResult=isOnLeftInGroup(myIndex,accessory);
-                        bool isOnLeft=false;
-
-                        if(rawResult==null) {
-
-                            return null;
-
-                        }
-
-                        else {
-
-                            isOnLeft=((bool)(rawResult));
-
-                        }
-
-                        if(isOnLeft) {
-
-                            myPosition=PHASE2_SUB2_EVEN_LEFT_SPREAD;
-
-                        }
-
-                        else {
-
-                            myPosition=PHASE2_SUB2_EVEN_RIGHT_SPREAD;
-
-                        }
-
-                    }
-
-                }
-
-                if(phase2sub2_groupB.Contains(myIndex)) {
-
-                    if(isTank(myIndex)) {
-
-                        myPosition=PHASE2_SUB2_EVEN_TANK;
-
-                    }
-
-                    if(isHealer(myIndex)) {
-
-                        myPosition=PHASE2_SUB2_EVEN_HEALER;
-
-                    }
-
-                    if(isMeleeDps(myIndex)) {
-
-                        myPosition=PHASE2_SUB2_EVEN_MELEE_DPS;
-
-                    }
-
-                    if(isRangedDps(myIndex)) {
-
-                        myPosition=PHASE2_SUB2_EVEN_RANGED_DPS;
-
-                    }
-
-                }
-
-            }
-
-            else {
-
-                if(phase2sub2_groupB.Contains(myIndex)) {
-
-                    if(phase2sub2_iconType[myIndex]==Phase2Sub2_IconTypes.FAN) {
-
-                        bool? rawResult=isOnLeftInGroup(myIndex,accessory);
-                        bool isOnLeft=false;
-
-                        if(rawResult==null) {
-
-                            return null;
-
-                        }
-
-                        else {
-
-                            isOnLeft=((bool)(rawResult));
-
-                        }
-
-                        if(isOnLeft) {
-
-                            myPosition=PHASE2_SUB2_EVEN_LEFT_FAN;
-
-                        }
-
-                        else {
-
-                            myPosition=PHASE2_SUB2_EVEN_RIGHT_FAN;
-
-                        }
-
-                    }
-
-                    if(phase2sub2_iconType[myIndex]==Phase2Sub2_IconTypes.SPREAD) {
-
-                        bool? rawResult=isOnLeftInGroup(myIndex,accessory);
-                        bool isOnLeft=false;
-
-                        if(rawResult==null) {
-
-                            return null;
-
-                        }
-
-                        else {
-
-                            isOnLeft=((bool)(rawResult));
-
-                        }
-
-                        if(isOnLeft) {
-
-                            myPosition=PHASE2_SUB2_EVEN_LEFT_SPREAD;
-
-                        }
-
-                        else {
-
-                            myPosition=PHASE2_SUB2_EVEN_RIGHT_SPREAD;
-
-                        }
-
-                    }
-
-                }
-
-                if(phase2sub2_groupA.Contains(myIndex)) {
-
-                    if(isTank(myIndex)) {
-
-                        myPosition=PHASE2_SUB2_EVEN_TANK;
-
-                    }
-
-                    if(isHealer(myIndex)) {
-
-                        myPosition=PHASE2_SUB2_EVEN_HEALER;
-
-                    }
-
-                    if(isMeleeDps(myIndex)) {
-
-                        myPosition=PHASE2_SUB2_EVEN_MELEE_DPS;
-
-                    }
-
-                    if(isRangedDps(myIndex)) {
-
-                        myPosition=PHASE2_SUB2_EVEN_RANGED_DPS;
-
-                    }
-
-                }
-
-            }
-
-        }
+        Vector2? relative=(currentRound%2==1)
+            ?P2奇数轮站位(myIndex,inTower)
+            :P2偶数轮站位(myIndex,inTower,towerGroup,hitbox);
 
         if(enableDebugLogging) {
 
             accessory.Log.Debug($"""
                                  currentRound={currentRound}
-                                 phase2sub2_isGroupARound[{currentRound}]={phase2sub2_isGroupARound[currentRound]}
-                                 myIndex={myIndex}
-                                 phase2sub2_iconType[{myIndex}]={phase2sub2_iconType[myIndex]}.
-                                 myPosition={myPosition}
+                                 myIndex={myIndex}, inTower={inTower}
+                                 phase2sub2_iconType[{myIndex}]={phase2sub2_iconType[myIndex]}
+                                 relative={relative}, hitbox={hitbox}
                                  """);
 
         }
 
-        if(Vector3.Distance(myPosition,ARENA_CENTER)<COMMON_DEVIATION) {
-            return null;
+        return relative==null?null:P2局部转世界(relative.Value,currentRound);
+
+    }
+
+    // 局部系是塔在南，原来的离散方位以塔在北为 0，所以多转半圈
+    private Vector3 P2局部转世界(Vector2 relative,int currentRound) {
+
+        return rotatePosition(new Vector3(100+relative.X,0,100+relative.Y),ARENA_CENTER,Math.PI/4*phase2sub2_discretizedTowerGap[currentRound]+Math.PI);
+
+    }
+
+    // 奇数轮（2 分摊 1 扇形 1 圆圈，分摊 5m）：
+    // 扇形塔 = 支援的分摊（塔内靠 Boss）+ 扇形（塔最南略偏右）；圆圈塔 = DPS 的分摊（塔左侧最大近战）+ 圆圈（塔最东）
+    // 搭档两人都是分摊：远程留本职能那边，T/近战换到另一边
+    // 闲人固定：T 在 Boss 判定圈内、扇形塔前（吃支援分摊），H 在扇形人正南引扇形；DPS 两人在两塔中间靠圆圈塔吃 DPS 分摊
+    private Vector2? P2奇数轮站位(int idx,bool inTower) {
+
+        if(!inTower) {
+
+            if(isTank(idx)) return new Vector2(-2.8f,2.8f);
+            if(isHealer(idx)) return new Vector2(-5.0f,11.9f);
+            if(isMeleeDps(idx)) return new Vector2(1.2f,6.4f);
+            return new Vector2(1.6f,7.6f);
+
         }
-        return rotatePosition(myPosition,ARENA_CENTER,Math.PI/4*phase2sub2_discretizedTowerGap[currentRound]);
+
+        switch(phase2sub2_iconType[idx]) {
+
+            case Phase2Sub2_IconTypes.FAN:
+                return new Vector2(-5.0f,9.2f);
+
+            case Phase2Sub2_IconTypes.SPREAD:
+                return new Vector2(9.06f,5.66f);
+
+            case Phase2Sub2_IconTypes.STACK: {
+
+                // idx^2 = 固定搭档（0↔2、1↔3、4↔6、5↔7）
+                bool coneTower=isSupporter(idx);
+
+                if(phase2sub2_iconType[idx^2]==Phase2Sub2_IconTypes.STACK&&isMelee(idx)) {
+
+                    coneTower=!coneTower;
+
+                }
+
+                return coneTower?new Vector2(-4.81f,4.81f):new Vector2(3.46f,6.26f);
+
+            }
+
+            default:
+                return null;
+
+        }
+
+    }
+
+    // 偶数轮（2 扇形 2 圆圈）：每座塔前扇形后圆圈
+    // H+近战进左塔、远程+T 进右塔，近战和 H 同图标时近战与 T 对调
+    // 闲人固定：T 西北 / 近战东北站 Boss 外判定圈引分身（四个分身点名最近的 4 人 = 两个扇形 + 这两人），
+    // H / 远程站扇形人外侧引扇形，扇形往东西两边打出去
+    private Vector2? P2偶数轮站位(int idx,bool inTower,List<int> towerGroup,float hitbox) {
+
+        var (cone,circle,baiter)=P2偶数轮左塔(hitbox);
+
+        if(!inTower) {
+
+            if(isTank(idx)) return new Vector2(-0.7071f,-0.7071f)*(hitbox+0.5f);
+            if(isMeleeDps(idx)) return new Vector2(0.7071f,-0.7071f)*(hitbox+0.5f);
+            if(isHealer(idx)) return baiter;
+            return new Vector2(-baiter.X,baiter.Y);
+
+        }
+
+        int healer=towerGroup.FirstOrDefault(isHealer,-1);
+        int melee=towerGroup.FirstOrDefault(isMeleeDps,-1);
+        bool swap=healer>=0&&melee>=0&&phase2sub2_iconType[healer]==phase2sub2_iconType[melee];
+        bool left=isHealer(idx)||(isMeleeDps(idx)&&!swap)||(isTank(idx)&&swap);
+
+        Vector2? spot=phase2sub2_iconType[idx] switch {
+            Phase2Sub2_IconTypes.FAN => cone,
+            Phase2Sub2_IconTypes.SPREAD => circle,
+            _ => null
+        };
+
+        if(spot==null) {
+
+            return null;
+
+        }
+
+        return left?spot:new Vector2(-spot.Value.X,spot.Value.Y);
+
+    }
+
+    /// <summary>
+    /// 偶数轮左塔：扇形点 = Boss 内判定圈与塔边（塔心距场中 8m、半径 4m，往里收 0.4m）靠西的交点；
+    /// 圆圈点 = 过塔心的对面；引扇形点 = 扇形点外侧 5.5m、与扇形→圆圈连线垂直（大致在西标点内缘，出分身 5m 圈）
+    /// </summary>
+    private static (Vector2 cone,Vector2 circle,Vector2 baiter) P2偶数轮左塔(float hitbox) {
+
+        const float towerDistance=8,towerRadius=3.6f;
+
+        float a=(hitbox*hitbox-towerRadius*towerRadius+towerDistance*towerDistance)/(2*towerDistance);
+        float h=MathF.Sqrt(MathF.Max(0,hitbox*hitbox-a*a));
+        var towerDirection=Vector2.Normalize(P2左塔);
+        var cone=a*towerDirection-h*new Vector2(0.7071f,0.7071f);
+        var circle=2*P2左塔-cone;
+        var line=Vector2.Normalize(circle-cone);
+        var outward=new Vector2(line.Y,-line.X);
+
+        if(outward.X>0) {
+
+            outward=-outward;
+
+        }
+
+        return (cone,circle,cone+outward*5.5f);
+
+    }
+
+    // P2 凯夫卡（19506）判定圈半径；读不到或不在合理范围就按 6m
+    private static float P2Boss判定圈(ScriptAccessory accessory) {
+
+        float radius=accessory.GetByDataId(19506u).FirstOrDefault()?.HitboxRadius??0;
+        return radius is > 4.5f and < 11f?radius:P2默认判定圈;
+
     }
 
     [ScriptMethod(name:"P2 遗弃末世 消灭之脚 数据收集",
@@ -11550,7 +10131,7 @@ public class Dancing_Mad_Ultimate
 
     #endregion
 
-    #region P4 指路与自动移动（RyougiMio）
+    #region P4 指路（RyougiMio）
 
     #region State
 
@@ -11686,7 +10267,6 @@ public class Dancing_Mad_Ultimate
     private const int P4BRectLookbackMs = 7000;
     private const int P4DFanLookbackMs = 10000;
     private const string P4DrawPrefix = "KDYD_P4";
-    private const string GreenMovePrefix = "PromeRotation.GreenMove.";
 
     private static readonly Vector3 P4ArenaCenter = new Vector3(100.0f, 0.0f, 100.0f);
     private static readonly Vector3 DefaultNorth = new Vector3(0.0f, 0.0f, -1.0f);
@@ -11735,13 +10315,6 @@ public class Dancing_Mad_Ultimate
     private bool _p4HotpotBlueSourceReady;
     private bool _p4HotpotPurpleSourceReady;
     private bool _p4HotpotResolved;
-    private object _greenMoveToPointSub;
-    private MethodInfo _greenMoveToPointInvoke;
-    private object _greenMoveClearQueueSub;
-    private MethodInfo _greenMoveClearQueueInvoke;
-    private object _greenMoveStopSub;
-    private MethodInfo _greenMoveStopInvoke;
-    private bool _warnedGreenMove;
 
     #endregion
 
@@ -11753,7 +10326,6 @@ public class Dancing_Mad_Ultimate
         _p4Phase = Phase.Init;
         _generation++;
         ResetP4State();
-        _warnedGreenMove = false;
 
         accessory.Method.RemoveDraw(".*");
     }
@@ -11762,8 +10334,6 @@ public class Dancing_Mad_Ultimate
     {
         _generation++;
         ResetP4State();
-
-        GreenMoveStopAndClear(accessory, "reset mechanic");
 
         if (removeDraw)
             accessory.Method.RemoveDraw($"{P4DrawPrefix}_.*");
@@ -13391,15 +11961,13 @@ public class Dancing_Mad_Ultimate
         });
     }
 
-    /// <summary>partyIndex 为空时画给自己；图名带下标，Debug 全队时不互相覆盖；PR 自动移动只跟自己的点</summary>
+    /// <summary>partyIndex 为空时画给自己；图名带下标，Debug 全队时不互相覆盖</summary>
     private void DrawP4SelfGuide(ScriptAccessory accessory, string guideName, string targetName, Vector3 target, int duration, int delay = 0, int partyIndex = -1)
     {
         if (partyIndex < 0)
             partyIndex = GetMyIndex(accessory);
         DrawGuide(accessory, $"{guideName}_{partyIndex}", target, duration, delay, partyIndex: partyIndex);
         DrawStaticCircle(accessory, $"{targetName}_{partyIndex}", target, 0.25f, duration, GuideColor.V4);
-        if (delay <= 0 && partyIndex == GetMyIndex(accessory))
-            GreenMoveToPoint(target, accessory, guideName);
     }
 
     private void ExecuteP4PetrifyGroupB(ScriptAccessory accessory, P4BuffGroup group, Vector3 newTwelveDirection)
@@ -14014,8 +12582,7 @@ public class Dancing_Mad_Ultimate
             var target = targets[myIndex];
             DrawGuide(accessory, $"{P4DrawPrefix}_P4_Chain_Move_Guide_{myIndex}", target, P4ChainGuideDurationMs);
             DrawStaticCircle(accessory, $"{P4DrawPrefix}_P4_Chain_Move_Target_{myIndex}", target, 0.25f, P4ChainGuideDurationMs, GuideColor.V4);
-            DebugEcho(accessory, $"P4循环移动指路已画：round={round} my={PartyPriorityLabel(myIndex)} clock={FormatP4Clock(clocks[myIndex])} target={FormatPosition(target)} duration={P4ChainGuideDurationMs}ms greenMove={EnableGreenMove}");
-            GreenMoveToPoint(target, accessory, $"P4 chain move round {round}");
+            DebugEcho(accessory, $"P4循环移动指路已画：round={round} my={PartyPriorityLabel(myIndex)} clock={FormatP4Clock(clocks[myIndex])} target={FormatPosition(target)} duration={P4ChainGuideDurationMs}ms");
 
             if (!string.IsNullOrWhiteSpace(moveCalls[myIndex]))
                 ScheduleP4SelfTtsAtRemaining3(accessory, generation, round, myIndex, moveCallStates[myIndex], moveCallRemaining[myIndex], moveCalls[myIndex]);
@@ -14169,157 +12736,6 @@ public class Dancing_Mad_Ultimate
                 $"{PartyPriorityLabel(i)} {FormatObjectId(objectId)} {FormatP4StatusesWithRemaining(states, expiresAt, i, now, 5547, 5548)} => active5547={active5547}({FormatRemainingMs(activeRemaining5547)}) active5548={active5548}({FormatRemainingMs(activeRemaining5548)})");
         }
     }
-    #endregion
-
-    #region GreenMove
-
-    private void GreenMoveToPoint(Vector3 target, ScriptAccessory accessory, string reason)
-    {
-        if (!SpecialMode || !EnableGreenMove) return;
-
-        try
-        {
-            if (GreenMoveClearQueueBeforeMove)
-                GreenMoveClearQueue();
-
-            InvokeGreenMove6(
-                "MoveToPoint",
-                ref _greenMoveToPointSub,
-                ref _greenMoveToPointInvoke,
-                target,
-                GreenMoveTolerance > 0.0f ? GreenMoveTolerance : 0.1f,
-                GreenMoveSpeedMultiplier > 0.0f ? GreenMoveSpeedMultiplier : 1.0f,
-                GreenMoveIgnoreY,
-                Math.Max(0, GreenMoveMaxCastWaitMs),
-                GreenMoveWaitForQueuedCast);
-        }
-        catch (Exception ex)
-        {
-            WarnGreenMoveFailure(accessory, ex);
-        }
-    }
-
-    private void GreenMoveStopAndClear(ScriptAccessory accessory, string reason)
-    {
-        if (!SpecialMode || !EnableGreenMove) return;
-
-        try
-        {
-            GreenMoveClearQueue();
-            GreenMoveStop();
-        }
-        catch (Exception ex)
-        {
-            WarnGreenMoveFailure(accessory, ex);
-        }
-    }
-
-    private void GreenMoveClearQueue()
-    {
-        InvokeGreenMoveAction0("ClearQueue", ref _greenMoveClearQueueSub, ref _greenMoveClearQueueInvoke);
-    }
-
-    private void GreenMoveStop()
-    {
-        InvokeGreenMoveAction0("Stop", ref _greenMoveStopSub, ref _greenMoveStopInvoke);
-    }
-
-    private void WarnGreenMoveFailure(ScriptAccessory accessory, Exception ex)
-    {
-        if (_warnedGreenMove) return;
-
-        _warnedGreenMove = true;
-        accessory.Method.SendChat("/e GreenMove IPC调用失败，请确认PromeRotation已加载且GreenMove IPC已注册。");
-    }
-
-    private static void InvokeGreenMove6<T1>(
-        string name,
-        ref object sub,
-        ref MethodInfo invoke,
-        T1 arg1,
-        float tolerance,
-        float speed,
-        bool ignoreY,
-        int maxCastWaitMs,
-        bool waitForQueuedCast)
-    {
-        var fullName = GreenMovePrefix + name;
-        if (sub == null || invoke == null)
-        {
-            sub = CreateSubscriber<T1, float, float, bool, int, bool, object>(fullName);
-            invoke = sub.GetType().GetMethods(BindingFlags.Instance | BindingFlags.Public)
-                .FirstOrDefault(m => m.Name == "InvokeAction" && m.GetParameters().Length == 6)
-                ?? throw new MissingMethodException($"{name} missing InvokeAction.");
-        }
-
-        try
-        {
-            invoke.Invoke(sub, new object[] { arg1, tolerance, speed, ignoreY, maxCastWaitMs, waitForQueuedCast });
-        }
-        catch (TargetInvocationException ex) when (ex.InnerException != null)
-        {
-            throw ex.InnerException;
-        }
-    }
-
-    private static void InvokeGreenMoveAction0(string name, ref object sub, ref MethodInfo invoke)
-    {
-        var fullName = GreenMovePrefix + name;
-        if (sub == null || invoke == null)
-        {
-            sub = CreateSubscriber<object>(fullName);
-            invoke = sub.GetType().GetMethods(BindingFlags.Instance | BindingFlags.Public)
-                .FirstOrDefault(m => m.Name == "InvokeAction" && m.GetParameters().Length == 0)
-                ?? throw new MissingMethodException($"{name} missing InvokeAction.");
-        }
-
-        try
-        {
-            invoke.Invoke(sub, Array.Empty<object>());
-        }
-        catch (TargetInvocationException ex) when (ex.InnerException != null)
-        {
-            throw ex.InnerException;
-        }
-    }
-
-    private static object CreateSubscriber<TRet>(string fullName)
-    {
-        var pluginInterface = GetKodakkuPluginInterface();
-        var method = pluginInterface.GetType().GetMethods(BindingFlags.Instance | BindingFlags.Public)
-            .FirstOrDefault(m => m.Name == "GetIpcSubscriber" && m.IsGenericMethodDefinition && m.GetGenericArguments().Length == 1);
-
-        if (method == null)
-            throw new MissingMethodException("GetIpcSubscriber<TRet> not found.");
-
-        return method.MakeGenericMethod(typeof(TRet)).Invoke(pluginInterface, new object[] { fullName })
-            ?? throw new InvalidOperationException($"{fullName} subscriber is null.");
-    }
-
-    private static object CreateSubscriber<T1, T2, T3, T4, T5, T6, TRet>(string fullName)
-    {
-        var pluginInterface = GetKodakkuPluginInterface();
-        var method = pluginInterface.GetType().GetMethods(BindingFlags.Instance | BindingFlags.Public)
-            .FirstOrDefault(m => m.Name == "GetIpcSubscriber" && m.IsGenericMethodDefinition && m.GetGenericArguments().Length == 7);
-
-        if (method == null)
-            throw new MissingMethodException("GetIpcSubscriber<T1,T2,T3,T4,T5,T6,TRet> not found.");
-
-        return method.MakeGenericMethod(typeof(T1), typeof(T2), typeof(T3), typeof(T4), typeof(T5), typeof(T6), typeof(TRet)).Invoke(pluginInterface, new object[] { fullName })
-            ?? throw new InvalidOperationException($"{fullName} subscriber is null.");
-    }
-
-    private static object GetKodakkuPluginInterface()
-    {
-        var serviceType = typeof(ScriptAccessory).Assembly.GetType("KodakkuAssist.Data.Service")
-            ?? throw new TypeLoadException("KodakkuAssist.Data.Service not found.");
-        var prop = serviceType.GetProperty("PluginInterface", BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic)
-            ?? throw new MissingMemberException("KodakkuAssist.Data.Service.PluginInterface not found.");
-
-        return prop.GetValue(null)
-            ?? throw new InvalidOperationException("KodakkuAssist PluginInterface is null.");
-    }
-
     #endregion
 
     #region Draw Helpers
@@ -14628,7 +13044,6 @@ public class Dancing_Mad_Ultimate
         if (_p4Phase != Phase.P4) return;
 
         accessory.Method.RemoveDraw($"{P4DrawPrefix}_P4_First_.*");
-        GreenMoveStopAndClear(accessory, "P4 chain start");
         DebugEcho(accessory, "P4 later timeline start by 50070");
         ScheduleP4LaterGroupsIfReady(accessory);
     }
@@ -14846,8 +13261,7 @@ public class Dancing_Mad_Ultimate
                 var targetPosition = mySide == P4HalfSide.Right ? r1 : l1;
                 DrawGuide(accessory, $"{P4DrawPrefix}_P4_First_Guide_{myIndex}", targetPosition, P4GuideDurationMs);
                 DrawStaticCircle(accessory, $"{P4DrawPrefix}_P4_First_Target_{myIndex}", targetPosition, 0.25f, P4GuideDurationMs, GuideColor.V4);
-                DebugEcho(accessory, $"P4一运指路已画：my={PartyPriorityLabel(myIndex)} side={FormatP4Side(mySide)} color={FormatP4Color(colors[myIndex])} target={FormatPosition(targetPosition)} duration={P4GuideDurationMs}ms greenMove={EnableGreenMove}");
-                GreenMoveToPoint(targetPosition, accessory, "P4 first mechanic");
+                DebugEcho(accessory, $"P4一运指路已画：my={PartyPriorityLabel(myIndex)} side={FormatP4Side(mySide)} color={FormatP4Color(colors[myIndex])} target={FormatPosition(targetPosition)} duration={P4GuideDurationMs}ms");
             }
             else
             {
