@@ -65,6 +65,7 @@ public class Dancing_Mad_Ultimate
         $"""
         {Version}
         1. 整合 Cicero / Coda / Usami / RyougiMio / Errer 五个脚本。
+        2. P3 与 Usami 重复的范围绘制只保留 Usami 的。
         """;
 
     #endregion
@@ -363,8 +364,6 @@ public class Dancing_Mad_Ultimate
 
     private ConcurrentDictionary<ulong,int> phase3sub3_blackHoleDrawingCounter=new ConcurrentDictionary<ulong,int>();
     private volatile int phase3sub3_nothingnessCounter=0;
-    private List<Vector3> phase3sub3_stackPositions=new List<Vector3>();
-    private System.Threading.AutoResetEvent phase3sub3_bigBangSemaphore=new System.Threading.AutoResetEvent(false);
 
     // ----- End Of Major Phase 3 -----
 
@@ -570,8 +569,6 @@ public class Dancing_Mad_Ultimate
 
         phase3sub3_blackHoleDrawingCounter.Clear();
         phase3sub3_nothingnessCounter=0;
-        phase3sub3_stackPositions.Clear();
-        phase3sub3_bigBangSemaphore.Reset();
 
         // ----- End Of Major Phase 3 -----
 
@@ -6225,163 +6222,6 @@ public class Dancing_Mad_Ultimate
 
     }
 
-    [ScriptMethod(name:"P3 暴雷 (死刑范围)",
-        eventType:EventTypeEnum.StartCasting,
-        eventCondition:["ActionId:47881"])]
-
-    public void P3_暴雷_死刑范围(Event @event,ScriptAccessory accessory) {
-
-        if(majorPhase!=3&&!skipPhaseChecks) {
-
-            return;
-
-        }
-
-        if(!convertObjectIdToDecimal(@event["SourceId"],out var sourceId)) {
-
-            return;
-
-        }
-
-        var currentProperties=accessory.Data.GetDefaultDrawProperties();
-
-        currentProperties.Scale=new(5);
-        currentProperties.Owner=sourceId;
-        currentProperties.CentreResolvePattern=PositionResolvePatternEnum.PlayerNearestOrder;
-        currentProperties.CentreOrderIndex=1;
-        currentProperties.Color=colourOfExtremelyDangerousAttacks.V4.WithW(1);
-        currentProperties.DestoryAt=8125;
-
-        accessory.Method.SendDraw(DrawModeEnum.Default,DrawTypeEnum.Circle,currentProperties);
-
-    }
-
-    [ScriptMethod(name:"P3 经度聚爆与纬度聚爆 (范围)",
-        eventType:EventTypeEnum.StartCasting,
-        eventCondition:["ActionId:regex:^(47870|47869)$"])]
-
-    public void P3_经度聚爆与纬度聚爆_范围(Event @event,ScriptAccessory accessory) {
-
-        if(majorPhase!=3&&!skipPhaseChecks) {
-
-            return;
-
-        }
-
-        if(!convertObjectIdToDecimal(@event["SourceId"],out var sourceId)) {
-
-            return;
-
-        }
-
-        var currentProperties=accessory.Data.GetDefaultDrawProperties();
-
-        if(string.Equals(@event["ActionId"],"47869")) {
-
-            currentProperties=accessory.Data.GetDefaultDrawProperties();
-
-            currentProperties.Scale=new(40);
-            currentProperties.Radian=float.Pi/2;
-            currentProperties.Owner=sourceId;
-            currentProperties.Rotation=0;
-            currentProperties.Color=accessory.Data.DefaultDangerColor;
-            currentProperties.Delay=0;
-            currentProperties.DestoryAt=5750;
-
-            accessory.Method.SendDraw(DrawModeEnum.Default,DrawTypeEnum.Fan,currentProperties);
-
-            currentProperties=accessory.Data.GetDefaultDrawProperties();
-
-            currentProperties.Scale=new(40);
-            currentProperties.Radian=float.Pi/2;
-            currentProperties.Owner=sourceId;
-            currentProperties.Rotation=float.Pi;
-            currentProperties.Color=accessory.Data.DefaultDangerColor;
-            currentProperties.Delay=0;
-            currentProperties.DestoryAt=5750;
-
-            accessory.Method.SendDraw(DrawModeEnum.Default,DrawTypeEnum.Fan,currentProperties);
-
-            currentProperties=accessory.Data.GetDefaultDrawProperties();
-
-            currentProperties.Scale=new(40);
-            currentProperties.Radian=float.Pi/2;
-            currentProperties.Owner=sourceId;
-            currentProperties.Rotation=float.Pi/2;
-            currentProperties.Color=accessory.Data.DefaultDangerColor;
-            currentProperties.Delay=5750;
-            currentProperties.DestoryAt=2000;
-
-            accessory.Method.SendDraw(DrawModeEnum.Default,DrawTypeEnum.Fan,currentProperties);
-
-            currentProperties=accessory.Data.GetDefaultDrawProperties();
-
-            currentProperties.Scale=new(40);
-            currentProperties.Radian=float.Pi/2;
-            currentProperties.Owner=sourceId;
-            currentProperties.Rotation=-(float.Pi/2);
-            currentProperties.Color=accessory.Data.DefaultDangerColor;
-            currentProperties.Delay=5750;
-            currentProperties.DestoryAt=2000;
-
-            accessory.Method.SendDraw(DrawModeEnum.Default,DrawTypeEnum.Fan,currentProperties);
-
-        }
-
-        if(string.Equals(@event["ActionId"],"47870")) {
-
-            currentProperties=accessory.Data.GetDefaultDrawProperties();
-
-            currentProperties.Scale=new(40);
-            currentProperties.Radian=float.Pi/2;
-            currentProperties.Owner=sourceId;
-            currentProperties.Rotation=float.Pi/2;
-            currentProperties.Color=accessory.Data.DefaultDangerColor;
-            currentProperties.Delay=0;
-            currentProperties.DestoryAt=5750;
-
-            accessory.Method.SendDraw(DrawModeEnum.Default,DrawTypeEnum.Fan,currentProperties);
-
-            currentProperties=accessory.Data.GetDefaultDrawProperties();
-
-            currentProperties.Scale=new(40);
-            currentProperties.Radian=float.Pi/2;
-            currentProperties.Owner=sourceId;
-            currentProperties.Rotation=-(float.Pi/2);
-            currentProperties.Color=accessory.Data.DefaultDangerColor;
-            currentProperties.Delay=0;
-            currentProperties.DestoryAt=5750;
-
-            accessory.Method.SendDraw(DrawModeEnum.Default,DrawTypeEnum.Fan,currentProperties);
-
-            currentProperties=accessory.Data.GetDefaultDrawProperties();
-
-            currentProperties.Scale=new(40);
-            currentProperties.Radian=float.Pi/2;
-            currentProperties.Owner=sourceId;
-            currentProperties.Rotation=0;
-            currentProperties.Color=accessory.Data.DefaultDangerColor;
-            currentProperties.Delay=5750;
-            currentProperties.DestoryAt=2000;
-
-            accessory.Method.SendDraw(DrawModeEnum.Default,DrawTypeEnum.Fan,currentProperties);
-
-            currentProperties=accessory.Data.GetDefaultDrawProperties();
-
-            currentProperties.Scale=new(40);
-            currentProperties.Radian=float.Pi/2;
-            currentProperties.Owner=sourceId;
-            currentProperties.Rotation=float.Pi;
-            currentProperties.Color=accessory.Data.DefaultDangerColor;
-            currentProperties.Delay=5750;
-            currentProperties.DestoryAt=2000;
-
-            accessory.Method.SendDraw(DrawModeEnum.Default,DrawTypeEnum.Fan,currentProperties);
-
-        }
-
-    }
-
     [ScriptMethod(name:"P3 深层痛楚 (阶段控制)",
         eventType:EventTypeEnum.StartCasting,
         eventCondition:["ActionId:47858"],
@@ -6562,41 +6402,6 @@ public class Dancing_Mad_Ultimate
             }
 
         }
-
-    }
-
-    [ScriptMethod(name:"P3 深层痛楚 暴雷 (钢铁范围)",
-        eventType:EventTypeEnum.StartCasting,
-        eventCondition:["ActionId:47890"])]
-
-    public void P3_深层痛楚_暴雷_钢铁范围(Event @event,ScriptAccessory accessory) {
-
-        if(majorPhase!=3&&!skipPhaseChecks) {
-
-            return;
-
-        }
-
-        if(phase!=2&&!skipPhaseChecks) {
-
-            return;
-
-        }
-
-        if(!convertObjectIdToDecimal(@event["SourceId"],out var sourceId)) {
-
-            return;
-
-        }
-
-        var currentProperties=accessory.Data.GetDefaultDrawProperties();
-
-        currentProperties.Scale=new(14.8f);
-        currentProperties.Owner=sourceId;
-        currentProperties.Color=accessory.Data.DefaultDangerColor;
-        currentProperties.DestoryAt=7000;
-
-        accessory.Method.SendDraw(DrawModeEnum.Default,DrawTypeEnum.Circle,currentProperties);
 
     }
 
@@ -7712,162 +7517,6 @@ public class Dancing_Mad_Ultimate
 
     }
 
-    [ScriptMethod(name:"P3 地震 响亮亮耳光 (范围)",
-        eventType:EventTypeEnum.StartCasting,
-        eventCondition:["ActionId:regex:^(47846|47847)$"])]
-
-    public void P3_地震_响亮亮耳光_范围(Event @event,ScriptAccessory accessory) {
-
-        if(majorPhase!=3&&!skipPhaseChecks) {
-
-            return;
-
-        }
-
-        if(phase!=3&&!skipPhaseChecks) {
-
-            return;
-
-        }
-
-        if(!convertObjectIdToDecimal(@event["SourceId"],out var sourceId)) {
-
-            return;
-
-        }
-
-        int xOffset=0;
-
-        if(string.Equals(@event["ActionId"],"47846")) {
-
-            xOffset=10;
-
-        }
-
-        if(string.Equals(@event["ActionId"],"47847")) {
-
-            xOffset=-10;
-
-        }
-
-        if(xOffset==0) {
-
-            return;
-
-        }
-
-        var currentProperties=accessory.Data.GetDefaultDrawProperties();
-
-        currentProperties.Scale=new(13);
-        currentProperties.Owner=sourceId;
-        currentProperties.Offset=new Vector3(xOffset,0,10);
-        currentProperties.Color=accessory.Data.DefaultDangerColor;
-        currentProperties.DestoryAt=5750;
-
-        accessory.Method.SendDraw(DrawModeEnum.Default,DrawTypeEnum.Circle,currentProperties);
-
-        currentProperties=accessory.Data.GetDefaultDrawProperties();
-
-        currentProperties.Scale=new(13);
-        currentProperties.Owner=sourceId;
-        currentProperties.Offset=new Vector3(xOffset,0,0);
-        currentProperties.Color=accessory.Data.DefaultDangerColor;
-        currentProperties.DestoryAt=6375;
-
-        accessory.Method.SendDraw(DrawModeEnum.Default,DrawTypeEnum.Circle,currentProperties);
-
-        currentProperties=accessory.Data.GetDefaultDrawProperties();
-
-        currentProperties.Scale=new(13);
-        currentProperties.Owner=sourceId;
-        currentProperties.Offset=new Vector3(xOffset,0,-10);
-        currentProperties.Color=accessory.Data.DefaultDangerColor;
-        currentProperties.DestoryAt=6875;
-
-        accessory.Method.SendDraw(DrawModeEnum.Default,DrawTypeEnum.Circle,currentProperties);
-
-        currentProperties=accessory.Data.GetDefaultDrawProperties();
-
-        currentProperties.Scale=new(6);
-        currentProperties.Position=ARENA_CENTER;
-        currentProperties.Color=accessory.Data.DefaultDangerColor;
-        currentProperties.Delay=5125;
-        currentProperties.DestoryAt=3250;
-
-        accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Circle,currentProperties);
-
-        if(string.Equals(@event["ActionId"],"47846")) {
-
-            currentProperties=accessory.Data.GetDefaultDrawProperties();
-
-            currentProperties.Scale=new(100);
-            currentProperties.Radian=float.Pi/3;
-            currentProperties.Position=ARENA_CENTER;
-            currentProperties.TargetObject=accessory.Data.Me;
-            currentProperties.Color=colourOfDirectionIndicators.V4.WithW(1);
-            currentProperties.Delay=5125;
-            currentProperties.DestoryAt=3375;
-
-            accessory.Method.SendDraw(DrawModeEnum.Default,DrawTypeEnum.Fan,currentProperties);
-
-        }
-
-        if(string.Equals(@event["ActionId"],"47847")) {
-
-            int myIndex=accessory.Data.PartyList.IndexOf(accessory.Data.Me);
-
-            if(!isLegalPartyIndex(myIndex)) {
-
-                return;
-
-            }
-
-            for(int i=0;i<8;++i) {
-
-                int currentIndex=accessory.Data.PartyList.IndexOf(accessory.Data.PartyList[i]);
-
-                if(!isLegalPartyIndex(currentIndex)) {
-
-                    continue;
-
-                }
-
-                else {
-
-                    if(isTank(currentIndex)==isTank(myIndex)
-                       &&
-                       isHealer(currentIndex)==isHealer(myIndex)
-                       &&
-                       isDps(currentIndex)==isDps(myIndex)) {
-
-                        currentProperties=accessory.Data.GetDefaultDrawProperties();
-
-                        currentProperties.Scale=new(100);
-                        currentProperties.Radian=float.Pi/3;
-                        currentProperties.Position=ARENA_CENTER;
-                        currentProperties.TargetObject=accessory.Data.PartyList[i];
-                        currentProperties.Color=colourOfDirectionIndicators.V4.WithW(1);
-                        currentProperties.Delay=5125;
-                        currentProperties.DestoryAt=3375;
-
-                        accessory.Method.SendDraw(DrawModeEnum.Default,DrawTypeEnum.Fan,currentProperties);
-
-                    }
-
-                    else {
-
-                        continue;
-
-                    }
-
-                }
-
-            }
-
-        }
-
-    }
-
     [ScriptMethod(name:"P3 地震 黑洞 (碰撞箱范围)",
         eventType:EventTypeEnum.AddCombatant,
         eventCondition:["DataId:19512"])]
@@ -8057,76 +7706,6 @@ public class Dancing_Mad_Ultimate
 
     }
 
-    [ScriptMethod(name:"P3 地震 诅咒敕令 (范围)",
-        eventType:EventTypeEnum.StartCasting,
-        eventCondition:["ActionId:47873"])]
-
-    public void P3_地震_诅咒敕令_范围(Event @event,ScriptAccessory accessory) {
-
-        if(majorPhase!=3&&!skipPhaseChecks) {
-
-            return;
-
-        }
-
-        if(phase!=3&&!skipPhaseChecks) {
-
-            return;
-
-        }
-
-        if(!convertObjectIdToDecimal(@event["SourceId"],out var sourceId)) {
-
-            return;
-
-        }
-
-        var currentProperties=accessory.Data.GetDefaultDrawProperties();
-
-        currentProperties.Scale=new(80,60);
-        currentProperties.Owner=sourceId;
-        currentProperties.Color=accessory.Data.DefaultDangerColor;
-        currentProperties.DestoryAt=5000;
-
-        accessory.Method.SendDraw(DrawModeEnum.Default,DrawTypeEnum.Rect,currentProperties);
-
-    }
-
-    [ScriptMethod(name:"P3 地震 本色出演的我 (范围)",
-        eventType:EventTypeEnum.StartCasting,
-        eventCondition:["ActionId:47854"])]
-
-    public void P3_地震_本色出演的我_范围(Event @event,ScriptAccessory accessory) {
-
-        if(majorPhase!=3&&!skipPhaseChecks) {
-
-            return;
-
-        }
-
-        if(phase!=3&&!skipPhaseChecks) {
-
-            return;
-
-        }
-
-        if(!convertObjectIdToDecimal(@event["SourceId"],out var sourceId)) {
-
-            return;
-
-        }
-
-        var currentProperties=accessory.Data.GetDefaultDrawProperties();
-
-        currentProperties.Scale=new(16,100);
-        currentProperties.Owner=sourceId;
-        currentProperties.Color=accessory.Data.DefaultDangerColor;
-        currentProperties.DestoryAt=5000;
-
-        accessory.Method.SendDraw(DrawModeEnum.Default,DrawTypeEnum.Straight,currentProperties);
-
-    }
-
     [ScriptMethod(name:"P3 地震 轰击 (范围)",
         eventType:EventTypeEnum.TargetIcon,
         eventCondition:["Id:00A1"])]
@@ -8228,116 +7807,6 @@ public class Dancing_Mad_Ultimate
                 accessory.Method.SendDraw(DrawModeEnum.Default,DrawTypeEnum.Circle,currentProperties);
 
             }
-
-        }
-
-    }
-
-    [ScriptMethod(name:"P3 地震 轰击 (数据收集)",
-        eventType:EventTypeEnum.ActionEffect,
-        eventCondition:["ActionId:47875"],
-        userControl:false)]
-
-    public void P3_地震_轰击_数据收集(Event @event,ScriptAccessory accessory) {
-
-        if(majorPhase!=3&&!skipPhaseChecks) {
-
-            return;
-
-        }
-
-        if(phase!=3&&!skipPhaseChecks) {
-
-            return;
-
-        }
-
-        if(!string.Equals(@event["TargetIndex"],"1")) {
-
-            return;
-
-        }
-
-        if(phase3sub3_stackPositions.Count>=2) {
-
-            return;
-
-        }
-
-        Vector3 targetPosition=ARENA_CENTER;
-
-        try {
-
-            targetPosition=JsonConvert.DeserializeObject<Vector3>(@event["TargetPosition"]);
-
-        } catch(Exception e) {
-
-            accessory.Log.Error("TargetPosition deserialization failed.");
-
-            return;
-
-        }
-
-        lock(phase3sub3_stackPositions) {
-
-            phase3sub3_stackPositions.Add(targetPosition);
-
-            if(phase3sub3_stackPositions.Count==2) {
-
-                phase3sub3_bigBangSemaphore.Set();
-
-                if(enableDebugLogging) {
-
-                    accessory.Log.Debug($"""
-                                         phase3sub3_stackPositions:{string.Join(",",phase3sub3_stackPositions)}
-                                         """);
-
-                }
-
-            }
-
-        }
-
-    }
-
-    [ScriptMethod(name:"P3 地震 顶起 (范围)",
-        eventType:EventTypeEnum.StartCasting,
-        eventCondition:["ActionId:47877"])]
-
-    public void P3_地震_顶起_范围(Event @event,ScriptAccessory accessory) {
-
-        if(majorPhase!=3&&!skipPhaseChecks) {
-
-            return;
-
-        }
-
-        if(phase!=3&&!skipPhaseChecks) {
-
-            return;
-
-        }
-
-        bool signalled=phase3sub3_bigBangSemaphore.WaitOne(COMMON_INTERVAL);
-
-        if(!signalled) {
-
-            return;
-
-        }
-
-        var currentProperties=accessory.Data.GetDefaultDrawProperties();
-
-        for(int i=0;i<2;++i) {
-
-            currentProperties=accessory.Data.GetDefaultDrawProperties();
-
-            currentProperties.Scale=new(6);
-            currentProperties.Position=phase3sub3_stackPositions[i];
-            currentProperties.Color=accessory.Data.DefaultDangerColor;
-            currentProperties.DestoryAt=4500;
-
-            accessory.Method.SendDraw(DrawModeEnum.Default,DrawTypeEnum.Circle,currentProperties);
 
         }
 
@@ -17300,7 +16769,7 @@ public class Dancing_Mad_Ultimate
 
 }
 
-#region Helpers
+#region Helpers（Coda）
 
 public static class EventExtensions
 {
@@ -17584,6 +17053,8 @@ public static class CiceroScriptAccessoryExtensions
 #endregion
 
 #endregion
+
+#region Helpers（Usami）
 
 #region 优先级字典
 internal class PriorityDict
@@ -18691,3 +18162,5 @@ internal static class SpecialFunction
 #endregion 特殊函数
 
 #endregion 函数集
+
+#endregion
