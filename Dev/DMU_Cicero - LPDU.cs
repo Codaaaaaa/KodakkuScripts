@@ -253,9 +253,14 @@ public class Dancing_Mad_Ultimate
 
     #region 调试
 
-    // 打开后方法列表里显示 userControl: Debugging 的内部方法，Usami 部分输出调试信息
+    // 打开后所有指路按全队 8 人绘制（每人按自己的 buff / 点名 / 职能单独解算），
+    // 并显示 userControl: Debugging 的内部方法、输出 Usami 部分的调试信息
     // 必须是 const：userControl: Debugging 是特性参数，只吃编译期常量
     public const bool Debugging = false;
+
+    /// <summary>指路箭头起点 Owner：正常取 PartyList[idx]，越界回退自己</summary>
+    private static uint GuidanceOwner(ScriptAccessory sa, int idx)
+        => idx >= 0 && idx < sa.Data.PartyList.Count ? sa.Data.PartyList[idx] : sa.Data.Me;
 
     #endregion
 
@@ -1474,32 +1479,19 @@ public class Dancing_Mad_Ultimate
 
         }
 
-        if(targetId==accessory.Data.Me) {
-
+        if(!Debugging&&targetId==accessory.Data.Me) {
             return;
-
         }
-
         int durationMilliseconds=0;
-
         try {
-
             durationMilliseconds=JsonConvert.DeserializeObject<int>(@event["DurationMilliseconds"]);
-
         } catch(Exception e) {
-
             accessory.Log.Error("DurationMilliseconds deserialization failed.");
-
             return;
-
         }
-
         if(durationMilliseconds<=0||durationMilliseconds>MAXIMUM_DURATION) {
-
             return;
-
         }
-
         int standardDuration=((int)(doubleTroubleTrapDuration*1000));
         int delay=0;
         int duration=0;
@@ -1518,21 +1510,27 @@ public class Dancing_Mad_Ultimate
 
         }
 
-        var currentProperties=accessory.Data.GetDefaultDrawProperties();
-
-        currentProperties.Name=$"P1_连环环陷阱_击退指示_{targetId}";
-        currentProperties.Scale=new(2,14);
-        currentProperties.Owner=accessory.Data.Me;
-        currentProperties.TargetObject=targetId;
-        currentProperties.Rotation=float.Pi;
-        currentProperties.Color=colourOfDirectionIndicators.V4.WithW(1);
-        currentProperties.FadeDistance=6;
-        currentProperties.FadeCentreObject=targetId;
-        currentProperties.Delay=delay;
-        currentProperties.DestoryAt=duration;
-
-        accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Arrow,currentProperties);
-
+        int myIndex=accessory.Data.PartyList.IndexOf(accessory.Data.Me);
+        for(int partyIndex=0;partyIndex<accessory.Data.PartyList.Count;++partyIndex) {
+            if(!Debugging&&partyIndex!=myIndex) {
+                continue;
+            }
+            if(accessory.Data.PartyList[partyIndex]==targetId) {
+                continue;
+            }
+            var currentProperties=accessory.Data.GetDefaultDrawProperties();
+            currentProperties.Name=$"P1_连环环陷阱_击退指示_{targetId}_{partyIndex}";
+            currentProperties.Scale=new(2,14);
+            currentProperties.Owner=GuidanceOwner(accessory,partyIndex);
+            currentProperties.TargetObject=targetId;
+            currentProperties.Rotation=float.Pi;
+            currentProperties.Color=colourOfDirectionIndicators.V4.WithW(1);
+            currentProperties.FadeDistance=6;
+            currentProperties.FadeCentreObject=targetId;
+            currentProperties.Delay=delay;
+            currentProperties.DestoryAt=duration;
+            accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Arrow,currentProperties);
+        }
     }
 
     [ScriptMethod(name:"P1 连环环陷阱 (范围与击退指示清除)",
@@ -1555,7 +1553,7 @@ public class Dancing_Mad_Ultimate
         }
 
         accessory.Method.RemoveDraw($"P1_连环环陷阱_范围_{targetId}");
-        accessory.Method.RemoveDraw($"P1_连环环陷阱_击退指示_{targetId}");
+        accessory.Method.RemoveDraw($"P1_连环环陷阱_击退指示_{targetId}(_\\d)?");
 
     }
 
@@ -1606,14 +1604,11 @@ public class Dancing_Mad_Ultimate
 
         }
 
-        if(targetId!=accessory.Data.Me) {
-
+        if(!Debugging&&targetId!=accessory.Data.Me) {
             return;
-
         }
-
         var currentProperties=accessory.Data.GetDefaultDrawProperties();
-
+        currentProperties.Name=$"P1_众神之像1_波动弹_击退指示_{targetId}";
         currentProperties.Scale=new(2,13);
         currentProperties.Owner=targetId;
         currentProperties.FixRotation=true;
@@ -2103,17 +2098,21 @@ public class Dancing_Mad_Ultimate
 
         }
 
-        var currentProperties=accessory.Data.GetDefaultDrawProperties();
-
-        currentProperties.Scale=new(1,3);
-        currentProperties.Owner=accessory.Data.Me;
-        currentProperties.FixRotation=true;
-        currentProperties.Rotation=rotation;
-        currentProperties.Color=accessory.Data.DefaultSafeColor;
-        currentProperties.DestoryAt=9875;
-
-        accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Arrow,currentProperties);
-
+        int myIndex=accessory.Data.PartyList.IndexOf(accessory.Data.Me);
+        for(int partyIndex=0;partyIndex<accessory.Data.PartyList.Count;++partyIndex) {
+            if(!Debugging&&partyIndex!=myIndex) {
+                continue;
+            }
+            var currentProperties=accessory.Data.GetDefaultDrawProperties();
+            currentProperties.Name=$"P1_众神之像3_懒惰的神气与圣母颂_面向指示_{partyIndex}";
+            currentProperties.Scale=new(1,3);
+            currentProperties.Owner=GuidanceOwner(accessory,partyIndex);
+            currentProperties.FixRotation=true;
+            currentProperties.Rotation=rotation;
+            currentProperties.Color=accessory.Data.DefaultSafeColor;
+            currentProperties.DestoryAt=9875;
+            accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Arrow,currentProperties);
+        }
     }
 
     #endregion
@@ -2197,7 +2196,7 @@ public class Dancing_Mad_Ultimate
         lock (_bigIceSealLock)
         {
             _bigIceSealSafeIsLeftUpRightDown = null;
-            _lastBigIceSealGuidePos = null;
+            Array.Clear(_bigIceSealFirstGuidePos);
             _bigIceSealTetherTargets.Clear();
             _bigIceSealActive = false;
             _bigIceSealGuideStarted = false;
@@ -2429,6 +2428,7 @@ public class Dancing_Mad_Ultimate
             BigIceSealGuideMode modeSnapshot = BigIceSealMode;
             double phaseSnapshot = _phase;
             Vector3? firstGuidePosSnapshot = null;
+            int tetherIdx = -1;
 
             lock (_bigIceSealLock)
             {
@@ -2438,17 +2438,22 @@ public class Dancing_Mad_Ultimate
                     && _bigIceSealTetherDetectionEnabled
                     && !_bigIceSealSecondGuideDone)
                 {
-                    _bigIceSealTetherTargets.Add(tetherPlayerId);
+                    bool isNewTether = _bigIceSealTetherTargets.Add(tetherPlayerId);
 
-                    if (tetherPlayerId == sa.Data.Me)
+                    // Debug 时每个被连线的人都按自己的第一段点位指路，且不关闭检测
+                    if (tetherPlayerId == sa.Data.Me || (Debugging && isNewTether))
                     {
                         modeSnapshot = BigIceSealMode;
                         phaseSnapshot = _phase;
-                        firstGuidePosSnapshot = _lastBigIceSealGuidePos;
+                        tetherIdx = PartyIndex(sa.Data.PartyList, tetherPlayerId);
+                        firstGuidePosSnapshot = tetherIdx is >= 0 and < 8 ? _bigIceSealFirstGuidePos[tetherIdx] : null;
 
-                        _bigIceSealSecondGuideDone = true;
-                        _bigIceSealActive = false;
-                        _bigIceSealTetherDetectionEnabled = false;
+                        if (!Debugging)
+                        {
+                            _bigIceSealSecondGuideDone = true;
+                            _bigIceSealActive = false;
+                            _bigIceSealTetherDetectionEnabled = false;
+                        }
                         shouldSendBigIceSealSecondGuide = true;
                     }
                 }
@@ -2457,7 +2462,7 @@ public class Dancing_Mad_Ultimate
             sa.Debug($"神像2 002D：Player=0x{tetherPlayerId:X}, Source=0x{sourceId:X}, Target=0x{targetId:X}, IsMe={tetherPlayerId == sa.Data.Me}, DetectionEnabled={bigIceSealDetectionEnabledSnapshot}, Phase={_phase}");
 
             if (shouldSendBigIceSealSecondGuide)
-                SendBigIceSeal002DSecondGuide(sa, modeSnapshot, phaseSnapshot, firstGuidePosSnapshot);
+                SendBigIceSeal002DSecondGuide(sa, modeSnapshot, phaseSnapshot, firstGuidePosSnapshot, tetherIdx);
 
             return;
         }
@@ -2552,14 +2557,19 @@ public class Dancing_Mad_Ultimate
 
             Vector3 myFirstGuidePos = GetFirstGuidePos(sa.Data.Me);
 
-            var firstGuideDp = sa.WaypointDp(
-                myFirstGuidePos,
-                3000,
-                0,
-                $"P1_冰爆_玄乎乎魔法指路_第一段_{XuanHuHuMode}_{myIdx}"
-            );
-
-            sa.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, firstGuideDp);
+            // 每人按自己有没有 002D 解算
+            for (int i = 0; i < party.Count && i < 8; i++)
+            {
+                if (!Debugging && i != myIdx) continue;
+                var firstGuideDp = sa.WaypointDp(
+                    GetFirstGuidePos(party[i]),
+                    3000,
+                    0,
+                    $"P1_冰爆_玄乎乎魔法指路_第一段_{XuanHuHuMode}_{i}"
+                );
+                firstGuideDp.Owner = GuidanceOwner(sa, i);
+                sa.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, firstGuideDp);
+            }
 
             sa.Debug($"""
             玄乎乎魔法第一段指路:
@@ -2603,30 +2613,44 @@ public class Dancing_Mad_Ultimate
                 .OrderBy(id => PartyIndex(party, id))
                 .ToList();
 
-            Vector3? mySecondGuidePos = null;
+            // 每人按自己所在半场里的职能顺序取点
+            Vector3? SecondGuidePos(uint playerId)
+            {
+                int rightOrder = rightSideMembers.IndexOf(playerId);
+                if (rightOrder >= 0 && rightOrder < rightSidePoints.Count)
+                    return rightSidePoints[rightOrder];
+
+                int leftOrder = leftSideMembers.IndexOf(playerId);
+                if (leftOrder >= 0 && leftOrder < leftSidePoints.Count)
+                    return leftSidePoints[leftOrder];
+
+                return null;
+            }
 
             int myRightOrder = rightSideMembers.IndexOf(sa.Data.Me);
-            if (myRightOrder >= 0 && myRightOrder < rightSidePoints.Count)
-                mySecondGuidePos = rightSidePoints[myRightOrder];
-
             int myLeftOrder = leftSideMembers.IndexOf(sa.Data.Me);
-            if (myLeftOrder >= 0 && myLeftOrder < leftSidePoints.Count)
-                mySecondGuidePos = leftSidePoints[myLeftOrder];
+            Vector3? mySecondGuidePos = SecondGuidePos(sa.Data.Me);
+
+            for (int i = 0; i < party.Count && i < 8; i++)
+            {
+                if (!Debugging && i != myIdx) continue;
+                var pos = SecondGuidePos(party[i]);
+                if (pos == null) continue;
+                var secondGuideDp = sa.WaypointDp(
+                    pos.Value,
+                    5000,
+                    0,
+                    $"P1_冰爆_玄乎乎魔法指路_第二段_{XuanHuHuMode}_{i}"
+                );
+                secondGuideDp.Owner = GuidanceOwner(sa, i);
+                sa.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, secondGuideDp);
+            }
 
             if (mySecondGuidePos == null)
             {
                 sa.Debug("玄乎乎魔法第二段指路失败：没有找到自己的左右半场排序。");
                 return;
             }
-
-            var secondGuideDp = sa.WaypointDp(
-                mySecondGuidePos.Value,
-                5000,
-                0,
-                $"P1_冰爆_玄乎乎魔法指路_第二段_{XuanHuHuMode}_{myIdx}"
-            );
-
-            sa.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, secondGuideDp);
 
             string side = myRightOrder >= 0 ? "右半场" : "左半场";
             int order = myRightOrder >= 0 ? myRightOrder : myLeftOrder;
@@ -2715,8 +2739,25 @@ public class Dancing_Mad_Ultimate
                 .Select(i => party[i])
                 .ToList();
 
-            Vector3? myGuidePos = Get47784GuidePosForGroup(sa.Data.Me, lowGroup, party, snapshot);
-            myGuidePos ??= Get47784GuidePosForGroup(sa.Data.Me, highGroup, party, snapshot);
+            // 每人按自己所在组被点的情况解算
+            Vector3? GuidePos(uint playerId)
+                => Get47784GuidePosForGroup(playerId, lowGroup, party, snapshot)
+                   ?? Get47784GuidePosForGroup(playerId, highGroup, party, snapshot);
+
+            if (Debugging)
+            {
+                for (int i = 0; i < party.Count && i < 8; i++)
+                {
+                    if (i == myIdx) continue;
+                    var pos = GuidePos(party[i]);
+                    if (pos == null) continue;
+                    var dp = sa.WaypointDp(pos.Value, 4500, 0, $"P1_冰爆_47784换位指路_{i}");
+                    dp.Owner = GuidanceOwner(sa, i);
+                    sa.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
+                }
+            }
+
+            Vector3? myGuidePos = GuidePos(sa.Data.Me);
 
             if (myGuidePos == null)
             {
@@ -2763,7 +2804,8 @@ public class Dancing_Mad_Ultimate
 
     // true = 左上右下是安全区，false = 左下右上是安全区
     private bool? _bigIceSealSafeIsLeftUpRightDown = null;
-    private Vector3? _lastBigIceSealGuidePos = null;
+    // 按职能下标记录每人的第一段点位
+    private readonly Vector3?[] _bigIceSealFirstGuidePos = new Vector3?[8];
     private readonly HashSet<uint> _bigIceSealTetherTargets = new();
     private bool _bigIceSealActive = false;
     private bool _bigIceSealGuideStarted = false;
@@ -2840,12 +2882,11 @@ public class Dancing_Mad_Ultimate
                 safeIsLeftUpRightDown = _bigIceSealSafeIsLeftUpRightDown.Value;
             }
 
-            Vector3? myGuidePos = GetBigIceSealInitialPos(
-                BigIceSealMode,
-                myIdx,
-                safeIsLeftUpRightDown,
-                BigIceSealMtUpperHalfTank
-            );
+            // 每人的第一段点位都记下来，第二段 002D 从各自的第一段点往场中走
+            var guidePositions = Enumerable.Range(0, 8)
+                .Select(i => GetBigIceSealInitialPos(BigIceSealMode, i, safeIsLeftUpRightDown, BigIceSealMtUpperHalfTank))
+                .ToArray();
+            Vector3? myGuidePos = guidePositions[myIdx];
 
             if (myGuidePos == null)
             {
@@ -2855,7 +2896,7 @@ public class Dancing_Mad_Ultimate
 
             lock (_bigIceSealLock)
             {
-                _lastBigIceSealGuidePos = myGuidePos.Value;
+                Array.Copy(guidePositions, _bigIceSealFirstGuidePos, 8);
                 _bigIceSealTetherTargets.Clear();
                 _bigIceSealActive = true;
                 _bigIceSealSecondGuideDone = false;
@@ -2867,18 +2908,24 @@ public class Dancing_Mad_Ultimate
                 BigIceSealGuideMode.斜角黑泥 or
                 BigIceSealGuideMode._1A四人分摊_MT组上半场;
 
-            string initialDrawName = useTankGroupSwapSetting
-                ? $"P1_第二次扩大大冰封指路_{BigIceSealMode}_{BigIceSealMtUpperHalfTank}_{myIdx}"
-                : $"P1_第二次扩大大冰封指路_{BigIceSealMode}_{myIdx}";
+            string DrawName(int idx) => useTankGroupSwapSetting
+                ? $"P1_第二次扩大大冰封指路_{BigIceSealMode}_{BigIceSealMtUpperHalfTank}_{idx}"
+                : $"P1_第二次扩大大冰封指路_{BigIceSealMode}_{idx}";
+            string initialDrawName = DrawName(myIdx);
 
-            var guideDp = sa.WaypointDp(
-                myGuidePos.Value,
-                5000,
-                0,
-                initialDrawName
-            );
-
-            sa.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, guideDp);
+            for (int i = 0; i < 8; i++)
+            {
+                if (!Debugging && i != myIdx) continue;
+                if (guidePositions[i] == null) continue;
+                var guideDp = sa.WaypointDp(
+                    guidePositions[i].Value,
+                    5000,
+                    0,
+                    DrawName(i)
+                );
+                guideDp.Owner = GuidanceOwner(sa, i);
+                sa.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, guideDp);
+            }
 
             sa.Debug($"""
             第二次扩大大冰封指路:
@@ -2943,13 +2990,12 @@ public class Dancing_Mad_Ultimate
         ScriptAccessory sa,
         BigIceSealGuideMode modeSnapshot,
         double phaseSnapshot,
-        Vector3? firstGuidePosSnapshot)
+        Vector3? firstGuidePosSnapshot,
+        int myIdx)
     {
-        int myIdx = sa.MyIndex();
-
         if (myIdx < 0 || myIdx > 7)
         {
-            sa.Debug($"扩大大冰封002D第二段失败：自己的 index 异常。MyIndex={myIdx}");
+            sa.Debug($"扩大大冰封002D第二段失败：被连线者的 index 异常。Index={myIdx}");
             return;
         }
 
@@ -2991,6 +3037,7 @@ public class Dancing_Mad_Ultimate
                 0,
                 drawName
             );
+            guideDp2.Owner = GuidanceOwner(sa, myIdx);
 
             sa.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, guideDp2);
 
@@ -3016,12 +3063,18 @@ public class Dancing_Mad_Ultimate
 
     private readonly object _statue3ArrowLock = new();
 
-    private int _statue3ArrowCount = 0;
-    private int? _statue3SmallDir4 = null;
-    private int? _statue3LargeDir4 = null;
-    private bool? _statue3SmallIsShort = null;
-    private bool _statue3ArrowGuideSent = false;
-    private bool _statue3TetherGuideDone = false;
+    // 每人身上各有两层箭头 buff，按玩家分开记（Debug 时全队都要解算）
+    private sealed class Statue3ArrowRecord
+    {
+        public int Count;
+        public int? SmallDir4;
+        public int? LargeDir4;
+        public bool? SmallIsShort;
+        public bool GuideSent;
+    }
+
+    private readonly Dictionary<uint, Statue3ArrowRecord> _statue3Arrows = new();
+    private readonly HashSet<uint> _statue3TetherGuided = new();
 
     private const uint Statue3SmallArrowMinStatus = 0x130C;
     private const uint Statue3SmallArrowMaxStatus = 0x130F;
@@ -3050,7 +3103,13 @@ public class Dancing_Mad_Ultimate
         }
 
         uint targetId = evt.TargetId();
-        if (targetId != 0 && targetId != sa.Data.Me)
+        if (targetId == 0)
+            targetId = sa.Data.Me;
+        if (!Debugging && targetId != sa.Data.Me)
+            return;
+
+        int targetIdx = PartyIndex(sa.Data.PartyList, targetId);
+        if (targetIdx < 0)
             return;
 
         uint statusId = evt.StatusId();
@@ -3089,35 +3148,38 @@ public class Dancing_Mad_Ultimate
 
         lock (_statue3ArrowLock)
         {
-            if (_statue3ArrowGuideSent)
+            if (!_statue3Arrows.TryGetValue(targetId, out var rec))
+                _statue3Arrows[targetId] = rec = new Statue3ArrowRecord();
+
+            if (rec.GuideSent)
                 return;
 
-            _statue3ArrowCount++;
+            rec.Count++;
 
             if (isSmallId)
             {
-                _statue3SmallDir4 = dir4.Value;
-                _statue3SmallIsShort = duration < 8.0;
+                rec.SmallDir4 = dir4.Value;
+                rec.SmallIsShort = duration < 8.0;
             }
             else
             {
-                _statue3LargeDir4 = dir4.Value;
+                rec.LargeDir4 = dir4.Value;
             }
 
-            if (_statue3ArrowCount < 2)
+            if (rec.Count < 2)
             {
-                sa.Debug($"神像3箭头记录：Count={_statue3ArrowCount}, StatusID=0x{statusId:X}, IsSmall={isSmallId}, Dir4={dir4.Value}, Duration={duration}, Phase={_phase}");
+                sa.Debug($"神像3箭头记录：Index={targetIdx}, Count={rec.Count}, StatusID=0x{statusId:X}, IsSmall={isSmallId}, Dir4={dir4.Value}, Duration={duration}, Phase={_phase}");
                 return;
             }
 
-            sameBuff = !_statue3SmallDir4.HasValue || !_statue3LargeDir4.HasValue;
-            smallIsShort = _statue3SmallIsShort ?? false;
-            smallDir4 = _statue3SmallDir4 ?? 0;
-            largeDir4 = _statue3LargeDir4 ?? 0;
+            sameBuff = !rec.SmallDir4.HasValue || !rec.LargeDir4.HasValue;
+            smallIsShort = rec.SmallIsShort ?? false;
+            smallDir4 = rec.SmallDir4 ?? 0;
+            largeDir4 = rec.LargeDir4 ?? 0;
 
-            sa.Debug($"神像3箭头记录完毕：Count={_statue3ArrowCount}, StatusID=0x{statusId:X}, IsSmall={isSmallId}, Dir4={dir4.Value}, Duration={duration}, sameBuff={sameBuff}, smallIsShort={smallIsShort}, ");
+            sa.Debug($"神像3箭头记录完毕：Index={targetIdx}, Count={rec.Count}, StatusID=0x{statusId:X}, IsSmall={isSmallId}, Dir4={dir4.Value}, Duration={duration}, sameBuff={sameBuff}, smallIsShort={smallIsShort}, ");
 
-            _statue3ArrowGuideSent = true;
+            rec.GuideSent = true;
             shouldSendGuide = true;
         }
 
@@ -3132,23 +3194,25 @@ public class Dancing_Mad_Ultimate
             firstPos,
             7500,
             0,
-            $"P1_神像3_箭头指路_第一段_{Statue3ArrowMode}",
+            $"P1_神像3_箭头指路_第一段_{Statue3ArrowMode}_{targetIdx}",
             new Vector4(0, 1, 0, 1)
         );
+        firstDp.Owner = GuidanceOwner(sa, targetIdx);
 
         var secondDp = sa.WaypointDp(
             secondPos,
             3000,
             7500,
-            $"P1_神像3_箭头指路_第二段_{Statue3ArrowMode}",
+            $"P1_神像3_箭头指路_第二段_{Statue3ArrowMode}_{targetIdx}",
             new Vector4(0, 1, 0, 1)
         );
+        secondDp.Owner = GuidanceOwner(sa, targetIdx);
 
         var firstToSecondDp = sa.WaypointDp(
             secondPos,
             7500,
             0,
-            $"P1_神像3_箭头指路_第一段到第二段提前观察_{Statue3ArrowMode}",
+            $"P1_神像3_箭头指路_第一段到第二段提前观察_{Statue3ArrowMode}_{targetIdx}",
             new Vector4(1, 1, 1, 1)
         );
         firstToSecondDp.Position = firstPos;
@@ -3187,14 +3251,15 @@ public class Dancing_Mad_Ultimate
         uint sourceId = evt.SourceId(); // 众神之像
         uint targetId = evt.TargetId(); // 被连线玩家
 
-        if (targetId != sa.Data.Me)
+        if (!Debugging && targetId != sa.Data.Me)
             return;
 
-        int myIdx = sa.MyIndex();
+        // 按被连线者的职能解算（Debug 时可以是任何人）
+        int myIdx = PartyIndex(sa.Data.PartyList, targetId);
 
         if (myIdx < 0 || myIdx > 7)
         {
-            sa.Debug($"神像3 002D指路失败：自己的 index 异常。MyIndex={myIdx}");
+            sa.Debug($"神像3 002D指路失败：被连线者的 index 异常。Index={myIdx}");
             return;
         }
 
@@ -3220,10 +3285,8 @@ public class Dancing_Mad_Ultimate
 
         lock (_statue3ArrowLock)
         {
-            if (_statue3TetherGuideDone)
+            if (!_statue3TetherGuided.Add(targetId))
                 return;
-
-            _statue3TetherGuideDone = true;
         }
 
         var dp = sa.WaypointDp(
@@ -3232,6 +3295,7 @@ public class Dancing_Mad_Ultimate
             5000,
             $"P1_神像3_002D指路_{Statue3TetherMode}_{tetherType}_{myIdx}"
         );
+        dp.Owner = GuidanceOwner(sa, myIdx);
 
         sa.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
 
@@ -3252,12 +3316,8 @@ public class Dancing_Mad_Ultimate
     {
         lock (_statue3ArrowLock)
         {
-            _statue3ArrowCount = 0;
-            _statue3SmallDir4 = null;
-            _statue3LargeDir4 = null;
-            _statue3SmallIsShort = null;
-            _statue3ArrowGuideSent = false;
-            _statue3TetherGuideDone = false;
+            _statue3Arrows.Clear();
+            _statue3TetherGuided.Clear();
         }
     }
 
@@ -4405,13 +4465,19 @@ public class Dancing_Mad_Ultimate
         }
 
         signalled=phase2sub2_discretizedTowerGap1Semaphore.WaitOne(1500+COMMON_INTERVAL);
-
         if(!signalled) {
-
             return;
-
         }
+        // 每人按自己的分组、头顶图标、初始分摊位解算；Debug 时画全队
+        for(int partyIndex=0;partyIndex<8;++partyIndex) {
+            if(!Debugging&&partyIndex!=myIndex) {
+                continue;
+            }
+            P2_遗弃末世_指路_第1轮_单人(accessory,partyIndex);
+        }
+    }
 
+    private void P2_遗弃末世_指路_第1轮_单人(ScriptAccessory accessory,int myIndex) {
         Vector3 myPosition=ARENA_CENTER;
 
         if(phase2sub2_groupA.Contains(myIndex)) {
@@ -4488,9 +4554,9 @@ public class Dancing_Mad_Ultimate
 
         var currentProperties=accessory.Data.GetDefaultDrawProperties();
 
-        currentProperties.Name="P2_遗弃末世_指路_第1轮";
+        currentProperties.Name=$"P2_遗弃末世_指路_第1轮_{myIndex}";
         currentProperties.Scale=new(2);
-        currentProperties.Owner=accessory.Data.Me;
+        currentProperties.Owner=GuidanceOwner(accessory,myIndex);
         currentProperties.TargetPosition=myPosition;
         currentProperties.ScaleMode|=ScaleMode.YByDistance;
         currentProperties.Color=accessory.Data.DefaultSafeColor;
@@ -4586,12 +4652,12 @@ public class Dancing_Mad_Ultimate
 
             phase2sub2_allThingsEndingSemaphore.Reset();
 
-            accessory.Method.RemoveDraw($"P2_遗弃末世_消灭之脚指路1_第{lastRound}轮");
+            accessory.Method.RemoveDraw($"P2_遗弃末世_消灭之脚指路1_第{lastRound}轮(_\\d)?");
             accessory.Method.RemoveDraw($"P2_遗弃末世_消灭之脚指路2_第{lastRound}轮");
-            accessory.Method.RemoveDraw($"P2_遗弃末世_消灭之脚指路3_第{lastRound}轮");
+            accessory.Method.RemoveDraw($"P2_遗弃末世_消灭之脚指路3_第{lastRound}轮(_\\d)?");
             accessory.Method.RemoveDraw($"P2_遗弃末世_指路辅助线1_第{lastRound}轮");
             accessory.Method.RemoveDraw($"P2_遗弃末世_指路辅助线2_第{lastRound}轮");
-            accessory.Method.RemoveDraw($"P2_遗弃末世_指路_第{lastRound}轮");
+            accessory.Method.RemoveDraw($"P2_遗弃末世_指路_第{lastRound}轮(_\\d)?");
 
             if(lastRound==3) {
 
@@ -4616,15 +4682,20 @@ public class Dancing_Mad_Ultimate
     }
 
     private void P2_遗弃末世_指路_第4轮(ScriptAccessory accessory) {
-
         int myIndex=accessory.Data.PartyList.IndexOf(accessory.Data.Me);
-
         if(!isLegalPartyIndex(myIndex)) {
-
             return;
-
         }
+        // 每人按自己的分组、头顶图标解算；Debug 时画全队
+        for(int partyIndex=0;partyIndex<8;++partyIndex) {
+            if(!Debugging&&partyIndex!=myIndex) {
+                continue;
+            }
+            P2_遗弃末世_指路_第4轮_单人(accessory,partyIndex);
+        }
+    }
 
+    private void P2_遗弃末世_指路_第4轮_单人(ScriptAccessory accessory,int myIndex) {
         Vector3 myPosition=ARENA_CENTER;
 
         if(phase2sub2_groupB.Contains(myIndex)) {
@@ -4705,9 +4776,9 @@ public class Dancing_Mad_Ultimate
 
         var currentProperties=accessory.Data.GetDefaultDrawProperties();
 
-        currentProperties.Name="P2_遗弃末世_指路_第4轮";
+        currentProperties.Name=$"P2_遗弃末世_指路_第4轮_{myIndex}";
         currentProperties.Scale=new(2);
-        currentProperties.Owner=accessory.Data.Me;
+        currentProperties.Owner=GuidanceOwner(accessory,myIndex);
         currentProperties.TargetPosition=myPosition;
         currentProperties.ScaleMode|=ScaleMode.YByDistance;
         currentProperties.Color=accessory.Data.DefaultSafeColor;
@@ -4748,19 +4819,22 @@ public class Dancing_Mad_Ultimate
     }
 
     private void P2_遗弃末世_指路_末尾(ScriptAccessory accessory) {
-
+        int myIndex=accessory.Data.PartyList.IndexOf(accessory.Data.Me);
         var currentProperties=accessory.Data.GetDefaultDrawProperties();
-
-        currentProperties.Name="P2_遗弃末世_消灭之脚指路1_末尾";
-        currentProperties.Scale=new(2);
-        currentProperties.Owner=accessory.Data.Me;
-        currentProperties.TargetPosition=PHASE2_SUB2_RAW_TOWER_POSITION;
-        currentProperties.ScaleMode|=ScaleMode.YByDistance;
-        currentProperties.Color=accessory.Data.DefaultSafeColor;
-        currentProperties.DestoryAt=MAXIMUM_DURATION;
-
-        accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Displacement,currentProperties);
-
+        for(int partyIndex=0;partyIndex<8;++partyIndex) {
+            if(!Debugging&&partyIndex!=myIndex) {
+                continue;
+            }
+            currentProperties=accessory.Data.GetDefaultDrawProperties();
+            currentProperties.Name=$"P2_遗弃末世_消灭之脚指路1_末尾_{partyIndex}";
+            currentProperties.Scale=new(2);
+            currentProperties.Owner=GuidanceOwner(accessory,partyIndex);
+            currentProperties.TargetPosition=PHASE2_SUB2_RAW_TOWER_POSITION;
+            currentProperties.ScaleMode|=ScaleMode.YByDistance;
+            currentProperties.Color=accessory.Data.DefaultSafeColor;
+            currentProperties.DestoryAt=MAXIMUM_DURATION;
+            accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Displacement,currentProperties);
+        }
         currentProperties=accessory.Data.GetDefaultDrawProperties();
 
         currentProperties.Name="P2_遗弃末世_消灭之脚指路2_末尾";
@@ -4775,32 +4849,27 @@ public class Dancing_Mad_Ultimate
 
         phase2sub2_allThingsEndingSemaphore.WaitOne(6375+COMMON_INTERVAL);
 
-        accessory.Method.RemoveDraw("P2_遗弃末世_消灭之脚指路1_末尾");
+        accessory.Method.RemoveDraw("P2_遗弃末世_消灭之脚指路1_末尾(_\\d)?");
         accessory.Method.RemoveDraw("P2_遗弃末世_消灭之脚指路2_末尾");
-
-        currentProperties=accessory.Data.GetDefaultDrawProperties();
-
-        currentProperties.Name="P2_遗弃末世_消灭之脚指路3_末尾";
-        currentProperties.Scale=new(2);
-        currentProperties.Owner=accessory.Data.Me;
-        currentProperties.ScaleMode|=ScaleMode.YByDistance;
-        currentProperties.Color=accessory.Data.DefaultSafeColor;
-        currentProperties.DestoryAt=5000;
-
-        if(isFuturesEnd) {
-
-            currentProperties.TargetPosition=rotatePosition(PHASE2_SUB2_RAW_TOWER_POSITION,ARENA_CENTER,Math.PI);
-
+        for(int partyIndex=0;partyIndex<8;++partyIndex) {
+            if(!Debugging&&partyIndex!=myIndex) {
+                continue;
+            }
+            currentProperties=accessory.Data.GetDefaultDrawProperties();
+            currentProperties.Name=$"P2_遗弃末世_消灭之脚指路3_末尾_{partyIndex}";
+            currentProperties.Scale=new(2);
+            currentProperties.Owner=GuidanceOwner(accessory,partyIndex);
+            currentProperties.ScaleMode|=ScaleMode.YByDistance;
+            currentProperties.Color=accessory.Data.DefaultSafeColor;
+            currentProperties.DestoryAt=5000;
+            if(isFuturesEnd) {
+                currentProperties.TargetPosition=rotatePosition(PHASE2_SUB2_RAW_TOWER_POSITION,ARENA_CENTER,Math.PI);
+            }
+            else {
+                currentProperties.TargetPosition=PHASE2_SUB2_RAW_TOWER_POSITION;
+            }
+            accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Displacement,currentProperties);
         }
-
-        else {
-
-            currentProperties.TargetPosition=PHASE2_SUB2_RAW_TOWER_POSITION;
-
-        }
-
-        accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Displacement,currentProperties);
-
     }
 
     private bool? isOnLeftInGroup(int targetIndex,ScriptAccessory accessory) {
@@ -4943,6 +5012,118 @@ public class Dancing_Mad_Ultimate
 
         }
 
+        // 每人按自己的分组、头顶图标、组内左右位解算；Debug 时画全队
+        var positions=new Dictionary<int,Vector3>();
+        for(int partyIndex=0;partyIndex<8;++partyIndex) {
+            if(!Debugging&&partyIndex!=myIndex) {
+                continue;
+            }
+            var position=P2_遗弃末世_位置(currentRound,partyIndex,accessory);
+            if(position!=null) {
+                positions[partyIndex]=position.Value;
+            }
+        }
+        if(positions.Count==0) {
+            return;
+        }
+        var currentProperties=accessory.Data.GetDefaultDrawProperties();
+
+        if(currentRound%2==1) {
+
+            Vector3 baitPosition=PHASE2_SUB2_RAW_TOWER_POSITION;
+
+            if(isFuturesEnd) {
+
+                baitPosition=rotatePosition(PHASE2_SUB2_RAW_TOWER_POSITION,ARENA_CENTER,Math.PI);
+
+            }
+
+            baitPosition=rotatePosition(baitPosition,ARENA_CENTER,Math.PI/4*phase2sub2_discretizedTowerGap[currentRound]);
+
+            foreach(var (partyIndex,myPosition) in positions) {
+                currentProperties=accessory.Data.GetDefaultDrawProperties();
+                currentProperties.Name=$"P2_遗弃末世_消灭之脚指路1_第{currentRound}轮_{partyIndex}";
+                currentProperties.Scale=new(2);
+                currentProperties.Owner=GuidanceOwner(accessory,partyIndex);
+                currentProperties.TargetPosition=baitPosition;
+                currentProperties.ScaleMode|=ScaleMode.YByDistance;
+                currentProperties.Color=accessory.Data.DefaultSafeColor;
+                currentProperties.DestoryAt=MAXIMUM_DURATION;
+                accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Displacement,currentProperties);
+            }
+            currentProperties=accessory.Data.GetDefaultDrawProperties();
+
+            currentProperties.Name=$"P2_遗弃末世_消灭之脚指路2_第{currentRound}轮";
+            currentProperties.Scale=new(20);
+            currentProperties.Radian=((float)(convertDegreesToRadians(5)));
+            currentProperties.Position=ARENA_CENTER;
+            currentProperties.TargetPosition=baitPosition;
+            currentProperties.Color=accessory.Data.DefaultSafeColor;
+            currentProperties.DestoryAt=MAXIMUM_DURATION;
+
+            accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Fan,currentProperties);
+
+            foreach(var (partyIndex,myPosition) in positions) {
+                currentProperties=accessory.Data.GetDefaultDrawProperties();
+                currentProperties.Name=$"P2_遗弃末世_消灭之脚指路3_第{currentRound}轮_{partyIndex}";
+                currentProperties.Scale=new(2);
+                currentProperties.Position=baitPosition;
+                currentProperties.TargetPosition=myPosition;
+                currentProperties.ScaleMode|=ScaleMode.YByDistance;
+                currentProperties.Color=accessory.Data.DefaultDangerColor;
+                currentProperties.DestoryAt=MAXIMUM_DURATION;
+                accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Displacement,currentProperties);
+            }
+            phase2sub2_allThingsEndingSemaphore.WaitOne(6375+COMMON_INTERVAL);
+            accessory.Method.RemoveDraw($"P2_遗弃末世_消灭之脚指路1_第{currentRound}轮(_\\d)?");
+            accessory.Method.RemoveDraw($"P2_遗弃末世_消灭之脚指路2_第{currentRound}轮");
+            accessory.Method.RemoveDraw($"P2_遗弃末世_消灭之脚指路3_第{currentRound}轮(_\\d)?");
+        }
+
+        if(currentRound%2==0&&phase2sub2_spellwaveAuxiliaryLines) {
+
+            Vector3 fanPosition1=PHASE2_SUB2_EVEN_LEFT_FAN;
+            Vector3 fanPosition2=PHASE2_SUB2_EVEN_RIGHT_FAN;
+
+            fanPosition1=rotatePosition(fanPosition1,ARENA_CENTER,Math.PI/4*phase2sub2_discretizedTowerGap[currentRound]);
+            fanPosition2=rotatePosition(fanPosition2,ARENA_CENTER,Math.PI/4*phase2sub2_discretizedTowerGap[currentRound]);
+
+            currentProperties=accessory.Data.GetDefaultDrawProperties();
+
+            currentProperties.Name=$"P2_遗弃末世_指路辅助线1_第{currentRound}轮";
+            currentProperties.Scale=new(0.5f);
+            currentProperties.Position=fanPosition1;
+            currentProperties.Color=phase2sub2_colourOfAuxiliaryLines.V4.WithW(1);
+            currentProperties.DestoryAt=MAXIMUM_DURATION;
+
+            accessory.Method.SendDraw(getDrawModeEnum(DrawTypeEnum.Circle),DrawTypeEnum.Circle,currentProperties);
+
+            currentProperties=accessory.Data.GetDefaultDrawProperties();
+
+            currentProperties.Name=$"P2_遗弃末世_指路辅助线2_第{currentRound}轮";
+            currentProperties.Scale=new(0.5f);
+            currentProperties.Position=fanPosition2;
+            currentProperties.Color=phase2sub2_colourOfAuxiliaryLines.V4.WithW(1);
+            currentProperties.DestoryAt=MAXIMUM_DURATION;
+
+            accessory.Method.SendDraw(getDrawModeEnum(DrawTypeEnum.Circle),DrawTypeEnum.Circle,currentProperties);
+
+        }
+
+        foreach(var (partyIndex,myPosition) in positions) {
+            currentProperties=accessory.Data.GetDefaultDrawProperties();
+            currentProperties.Name=$"P2_遗弃末世_指路_第{currentRound}轮_{partyIndex}";
+            currentProperties.Scale=new(2);
+            currentProperties.Owner=GuidanceOwner(accessory,partyIndex);
+            currentProperties.TargetPosition=myPosition;
+            currentProperties.ScaleMode|=ScaleMode.YByDistance;
+            currentProperties.Color=accessory.Data.DefaultSafeColor;
+            currentProperties.DestoryAt=MAXIMUM_DURATION;
+            accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Displacement,currentProperties);
+        }
+    }
+
+    private Vector3? P2_遗弃末世_位置(int currentRound,int myIndex,ScriptAccessory accessory) {
         Vector3 myPosition=ARENA_CENTER;
 
         if(currentRound%2==1) {
@@ -4970,7 +5151,7 @@ public class Dancing_Mad_Ultimate
 
                         if(rawResult==null) {
 
-                            return;
+                            return null;
 
                         }
 
@@ -5049,7 +5230,7 @@ public class Dancing_Mad_Ultimate
 
                         if(rawResult==null) {
 
-                            return;
+                            return null;
 
                         }
 
@@ -5120,7 +5301,7 @@ public class Dancing_Mad_Ultimate
 
                         if(rawResult==null) {
 
-                            return;
+                            return null;
 
                         }
 
@@ -5151,7 +5332,7 @@ public class Dancing_Mad_Ultimate
 
                         if(rawResult==null) {
 
-                            return;
+                            return null;
 
                         }
 
@@ -5218,7 +5399,7 @@ public class Dancing_Mad_Ultimate
 
                         if(rawResult==null) {
 
-                            return;
+                            return null;
 
                         }
 
@@ -5249,7 +5430,7 @@ public class Dancing_Mad_Ultimate
 
                         if(rawResult==null) {
 
-                            return;
+                            return null;
 
                         }
 
@@ -5320,117 +5501,9 @@ public class Dancing_Mad_Ultimate
         }
 
         if(Vector3.Distance(myPosition,ARENA_CENTER)<COMMON_DEVIATION) {
-
-            return;
-
+            return null;
         }
-
-        else {
-
-            myPosition=rotatePosition(myPosition,ARENA_CENTER,Math.PI/4*phase2sub2_discretizedTowerGap[currentRound]);
-
-        }
-
-        var currentProperties=accessory.Data.GetDefaultDrawProperties();
-
-        if(currentRound%2==1) {
-
-            Vector3 baitPosition=PHASE2_SUB2_RAW_TOWER_POSITION;
-
-            if(isFuturesEnd) {
-
-                baitPosition=rotatePosition(PHASE2_SUB2_RAW_TOWER_POSITION,ARENA_CENTER,Math.PI);
-
-            }
-
-            baitPosition=rotatePosition(baitPosition,ARENA_CENTER,Math.PI/4*phase2sub2_discretizedTowerGap[currentRound]);
-
-            currentProperties=accessory.Data.GetDefaultDrawProperties();
-
-            currentProperties.Name=$"P2_遗弃末世_消灭之脚指路1_第{currentRound}轮";
-            currentProperties.Scale=new(2);
-            currentProperties.Owner=accessory.Data.Me;
-            currentProperties.TargetPosition=baitPosition;
-            currentProperties.ScaleMode|=ScaleMode.YByDistance;
-            currentProperties.Color=accessory.Data.DefaultSafeColor;
-            currentProperties.DestoryAt=MAXIMUM_DURATION;
-
-            accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Displacement,currentProperties);
-
-            currentProperties=accessory.Data.GetDefaultDrawProperties();
-
-            currentProperties.Name=$"P2_遗弃末世_消灭之脚指路2_第{currentRound}轮";
-            currentProperties.Scale=new(20);
-            currentProperties.Radian=((float)(convertDegreesToRadians(5)));
-            currentProperties.Position=ARENA_CENTER;
-            currentProperties.TargetPosition=baitPosition;
-            currentProperties.Color=accessory.Data.DefaultSafeColor;
-            currentProperties.DestoryAt=MAXIMUM_DURATION;
-
-            accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Fan,currentProperties);
-
-            currentProperties=accessory.Data.GetDefaultDrawProperties();
-
-            currentProperties.Name=$"P2_遗弃末世_消灭之脚指路3_第{currentRound}轮";
-            currentProperties.Scale=new(2);
-            currentProperties.Position=baitPosition;
-            currentProperties.TargetPosition=myPosition;
-            currentProperties.ScaleMode|=ScaleMode.YByDistance;
-            currentProperties.Color=accessory.Data.DefaultDangerColor;
-            currentProperties.DestoryAt=MAXIMUM_DURATION;
-
-            accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Displacement,currentProperties);
-
-            phase2sub2_allThingsEndingSemaphore.WaitOne(6375+COMMON_INTERVAL);
-
-            accessory.Method.RemoveDraw($"P2_遗弃末世_消灭之脚指路1_第{currentRound}轮");
-            accessory.Method.RemoveDraw($"P2_遗弃末世_消灭之脚指路2_第{currentRound}轮");
-            accessory.Method.RemoveDraw($"P2_遗弃末世_消灭之脚指路3_第{currentRound}轮");
-
-        }
-
-        if(currentRound%2==0&&phase2sub2_spellwaveAuxiliaryLines) {
-
-            Vector3 fanPosition1=PHASE2_SUB2_EVEN_LEFT_FAN;
-            Vector3 fanPosition2=PHASE2_SUB2_EVEN_RIGHT_FAN;
-
-            fanPosition1=rotatePosition(fanPosition1,ARENA_CENTER,Math.PI/4*phase2sub2_discretizedTowerGap[currentRound]);
-            fanPosition2=rotatePosition(fanPosition2,ARENA_CENTER,Math.PI/4*phase2sub2_discretizedTowerGap[currentRound]);
-
-            currentProperties=accessory.Data.GetDefaultDrawProperties();
-
-            currentProperties.Name=$"P2_遗弃末世_指路辅助线1_第{currentRound}轮";
-            currentProperties.Scale=new(0.5f);
-            currentProperties.Position=fanPosition1;
-            currentProperties.Color=phase2sub2_colourOfAuxiliaryLines.V4.WithW(1);
-            currentProperties.DestoryAt=MAXIMUM_DURATION;
-
-            accessory.Method.SendDraw(getDrawModeEnum(DrawTypeEnum.Circle),DrawTypeEnum.Circle,currentProperties);
-
-            currentProperties=accessory.Data.GetDefaultDrawProperties();
-
-            currentProperties.Name=$"P2_遗弃末世_指路辅助线2_第{currentRound}轮";
-            currentProperties.Scale=new(0.5f);
-            currentProperties.Position=fanPosition2;
-            currentProperties.Color=phase2sub2_colourOfAuxiliaryLines.V4.WithW(1);
-            currentProperties.DestoryAt=MAXIMUM_DURATION;
-
-            accessory.Method.SendDraw(getDrawModeEnum(DrawTypeEnum.Circle),DrawTypeEnum.Circle,currentProperties);
-
-        }
-
-        currentProperties=accessory.Data.GetDefaultDrawProperties();
-
-        currentProperties.Name=$"P2_遗弃末世_指路_第{currentRound}轮";
-        currentProperties.Scale=new(2);
-        currentProperties.Owner=accessory.Data.Me;
-        currentProperties.TargetPosition=myPosition;
-        currentProperties.ScaleMode|=ScaleMode.YByDistance;
-        currentProperties.Color=accessory.Data.DefaultSafeColor;
-        currentProperties.DestoryAt=MAXIMUM_DURATION;
-
-        accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Displacement,currentProperties);
-
+        return rotatePosition(myPosition,ARENA_CENTER,Math.PI/4*phase2sub2_discretizedTowerGap[currentRound]);
     }
 
     [ScriptMethod(name:"P2 遗弃末世 消灭之脚 数据收集",
@@ -7062,29 +7135,26 @@ public class Dancing_Mad_Ultimate
 
         }
 
-        var currentProperties=accessory.Data.GetDefaultDrawProperties();
-
-        currentProperties.Scale=new(1,3);
-        currentProperties.Owner=accessory.Data.Me;
-        currentProperties.TargetObject=sourceId;
-        currentProperties.Color=accessory.Data.DefaultSafeColor;
-        currentProperties.Delay=4750;
-        currentProperties.DestoryAt=4250;
-
-        if(phase3sub2_shouldFaceBoss[myIndex]) {
-
-            currentProperties.Rotation=0;
-
+        for(int partyIndex=0;partyIndex<8;++partyIndex) {
+            if(!Debugging&&partyIndex!=myIndex) {
+                continue;
+            }
+            var currentProperties=accessory.Data.GetDefaultDrawProperties();
+            currentProperties.Name=$"P3_深层痛楚_真空波_面向指示_{partyIndex}";
+            currentProperties.Scale=new(1,3);
+            currentProperties.Owner=GuidanceOwner(accessory,partyIndex);
+            currentProperties.TargetObject=sourceId;
+            currentProperties.Color=accessory.Data.DefaultSafeColor;
+            currentProperties.Delay=4750;
+            currentProperties.DestoryAt=4250;
+            if(phase3sub2_shouldFaceBoss[partyIndex]) {
+                currentProperties.Rotation=0;
+            }
+            else {
+                currentProperties.Rotation=float.Pi;
+            }
+            accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Arrow,currentProperties);
         }
-
-        else {
-
-            currentProperties.Rotation=float.Pi;
-
-        }
-
-        accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Arrow,currentProperties);
-
     }
 
     /*
@@ -7398,12 +7468,9 @@ public class Dancing_Mad_Ultimate
 
         }
 
-        if(targetId!=accessory.Data.Me) {
-
+        if(!Debugging&&targetId!=accessory.Data.Me) {
             return;
-
         }
-
         int targetIconNumber=getTargetIconNumber(@event["Id"]);
 
         if(!isLegalPartyIndex(targetIconNumber-1)) {
@@ -7475,9 +7542,9 @@ public class Dancing_Mad_Ultimate
         }
 
         var currentProperties=accessory.Data.GetDefaultDrawProperties();
-
+        currentProperties.Name=$"P3_深层痛楚_究极冲击波_指路_{targetId}";
         currentProperties.Scale=new(2);
-        currentProperties.Owner=accessory.Data.Me;
+        currentProperties.Owner=targetId;
         currentProperties.TargetPosition=myPosition;
         currentProperties.ScaleMode|=ScaleMode.YByDistance;
         currentProperties.Color=accessory.Data.DefaultSafeColor;
@@ -7860,6 +7927,18 @@ public class Dancing_Mad_Ultimate
         sa.Method.RemoveDraw(".*");
         sa.Method.ClearFrameworkUpdateAction(this);
     }
+
+    /// <summary>需要指路的人：Debug 时全队，否则只有自己</summary>
+    private static IEnumerable<int> 指路对象(ScriptAccessory sa)
+    {
+        var myIndex = sa.GetMyIndex();
+        for (var i = 0; i < Math.Min(8, sa.Data.PartyList.Count); i++)
+            if (Debugging || i == myIndex)
+                yield return i;
+    }
+
+    /// <summary>全队指路时只有自己那份播报</summary>
+    private static bool 是自己(ScriptAccessory sa, int idx) => idx == sa.GetMyIndex();
 
     #region 测试项
 
@@ -8259,35 +8338,37 @@ public class Dancing_Mad_Ultimate
         if (!_udmP3Param.一水火准备.WaitOne(2000)) return;
 
         sa.DebugMsg($"开始");
-        var myIndex = sa.GetMyIndex();
-
-        // 艾克斯迪司 ST 无水晶
-        if (myIndex == (_udmP3Param.拉艾克斯迪司的是MT ? 0 : 1))
+        foreach (var myIndex in 指路对象(sa))
         {
-            var aimRegion = BoAStg switch
+            // 艾克斯迪司 ST 无水晶
+            if (myIndex == (_udmP3Param.拉艾克斯迪司的是MT ? 0 : 1))
             {
-                BoAStgEnum.TLB_拉火水晶_夜音 => _udmP3Param.水水晶方位,
-                _ => _udmP3Param.无水晶方位
-            };
-            执行P3拉怪指路逻辑(sa, "艾克斯迪司", aimRegion, 6500, false);
-        }
+                var aimRegion = BoAStg switch
+                {
+                    BoAStgEnum.TLB_拉火水晶_夜音 => _udmP3Param.水水晶方位,
+                    _ => _udmP3Param.无水晶方位
+                };
+                执行P3拉怪指路逻辑(sa, myIndex, "艾克斯迪司", aimRegion, 6500, false);
+            }
 
-        // 卡奥斯 MT 正攻场中，逃课风水晶
-        else if (myIndex == (_udmP3Param.拉艾克斯迪司的是MT ? 1 : 0))
-        {
-            var toCenter = BoAStg == BoAStgEnum.正攻;
-            var aimRegion = BoAStg switch
+            // 卡奥斯 MT 正攻场中，逃课风水晶
+            else if (myIndex == (_udmP3Param.拉艾克斯迪司的是MT ? 1 : 0))
             {
-                BoAStgEnum.TLB_拉火水晶_夜音 => _udmP3Param.火水晶方位,
-                _ => _udmP3Param.风水晶方位
-            };
-            执行P3拉怪指路逻辑(sa, "卡奥斯", aimRegion, 6500, toCenter);
+                var toCenter = BoAStg == BoAStgEnum.正攻;
+                var aimRegion = BoAStg switch
+                {
+                    BoAStgEnum.TLB_拉火水晶_夜音 => _udmP3Param.火水晶方位,
+                    _ => _udmP3Param.风水晶方位
+                };
+                执行P3拉怪指路逻辑(sa, myIndex, "卡奥斯", aimRegion, 6500, toCenter);
+            }
         }
 
         await Task.Delay(8000);
         if (runId != _runId) return;
 
-        执行水火指路逻辑(sa, _udmP3Param.一水火指路与绘图时间);
+        foreach (var idx in 指路对象(sa))
+            执行水火指路逻辑(sa, idx, _udmP3Param.一水火指路与绘图时间);
         _udmP3Param.一水火准备.Reset();
     }
 
@@ -8314,7 +8395,7 @@ public class Dancing_Mad_Ultimate
         }
     }
 
-    private void 执行P3拉怪指路逻辑(ScriptAccessory sa, string bossStr, int region, int destroyTime, bool toCenter = false)
+    private void 执行P3拉怪指路逻辑(ScriptAccessory sa, int idx, string bossStr, int region, int destroyTime, bool toCenter = false)
     {
         string regionStr;
         Vector3 guidePos;
@@ -8336,14 +8417,15 @@ public class Dancing_Mad_Ultimate
             };
         }
 
-        sa.DrawGuidance(guidePos, 0, destroyTime, $"执行P3拉怪指路逻辑 {bossStr}", sa.Data.DefaultSafeColor);
+        sa.DrawGuidance(GuidanceOwner(sa, idx), guidePos, 0, destroyTime, $"执行P3拉怪指路逻辑 {bossStr} {idx}", sa.Data.DefaultSafeColor);
+        if (!是自己(sa, idx)) return;
         sa.Method.TextInfo($"将 {bossStr} 拉到{regionStr}", 3000);
         sa.Method.TTS($"将{bossStr}拉到{regionStr}", 3);
     }
 
-    private void 执行水火指路逻辑(ScriptAccessory sa, int destroyTime)
+    private void 执行水火指路逻辑(ScriptAccessory sa, int myIndex, int destroyTime)
     {
-        var myIndex = sa.GetMyIndex();
+        var isMe = 是自己(sa, myIndex);
         var myPriVal = _pd.Priorities[myIndex];
 
         var windIndex = _udmP3Param.查询组序(_udmP3Param.风组, myIndex);
@@ -8354,44 +8436,53 @@ public class Dancing_Mad_Ultimate
         {
             case BoAStgEnum.正攻:
                 if (windIndex >= 0)
-                    DrawWindGuideAroundCrystal_Wf(sa, windIndex, destroyTime);
+                    DrawWindGuideAroundCrystal_Wf(sa, myIndex, windIndex, destroyTime);
                 if (waterIndex >= 0)
-                    DrawWaterGuideAlongCrystal_Wf(sa, waterIndex, myPriVal, destroyTime);
+                    DrawWaterGuideAlongCrystal_Wf(sa, myIndex, waterIndex, myPriVal, destroyTime);
                 if (fireIndex >= 0)
-                    DrawFireGuideAlongCrystal_Wf(sa, fireIndex, myPriVal, destroyTime);
+                    DrawFireGuideAlongCrystal_Wf(sa, myIndex, fireIndex, myPriVal, destroyTime);
                 break;
 
             case BoAStgEnum.TLB_相反水晶_盗火文档:
                 if (windIndex >= 0)
-                    DrawWindGuideAroundCrystal_Wf(sa, windIndex, destroyTime);
+                    DrawWindGuideAroundCrystal_Wf(sa, myIndex, windIndex, destroyTime);
                 if (waterIndex >= 0)
                 {
-                    DrawToCrystal(sa, _udmP3Param.火水晶方位, destroyTime, $"水组去火");
-                    sa.Method.TextInfo($"靠近火水晶，集合放月环", 6000);
-                    sa.Method.TTS($"靠近火水晶 集合放月环", 3);
+                    DrawToCrystal(sa, myIndex, _udmP3Param.火水晶方位, destroyTime, $"水组去火");
+                    if (isMe)
+                    {
+                        sa.Method.TextInfo($"靠近火水晶，集合放月环", 6000);
+                        sa.Method.TTS($"靠近火水晶 集合放月环", 3);
+                    }
                 }
 
                 if (fireIndex >= 0)
                 {
-                    DrawToCrystal(sa, _udmP3Param.水水晶方位, destroyTime, $"火组去水");
-                    sa.Method.TextInfo($"靠近水水晶，分散放钢铁", 6000);
-                    sa.Method.TTS($"靠近水水晶 分散放钢铁", 3);
+                    DrawToCrystal(sa, myIndex, _udmP3Param.水水晶方位, destroyTime, $"火组去水");
+                    if (isMe)
+                    {
+                        sa.Method.TextInfo($"靠近水水晶，分散放钢铁", 6000);
+                        sa.Method.TTS($"靠近水水晶 分散放钢铁", 3);
+                    }
                 }
                 break;
 
             case BoAStgEnum.TLB_纯固定_NoCCHH:
-                DrawGuide_CCHH_Wf(sa, destroyTime);
-                DrawGuideLine_CCHH_Wf(sa, destroyTime);
+                DrawGuide_CCHH_Wf(sa, myIndex, destroyTime);
+                DrawGuideLine_CCHH_Wf(sa, myIndex, destroyTime);
                 break;
 
             case BoAStgEnum.TLB_拉火水晶_夜音:
                 if (fireIndex >= 0)
-                    DrawFireGuide_YY_Wf(sa, fireIndex, destroyTime);
+                    DrawFireGuide_YY_Wf(sa, myIndex, fireIndex, destroyTime);
                 else
                 {
-                    DrawToCrystal(sa, _udmP3Param.火水晶方位, destroyTime, $"风水去水");
-                    sa.Method.TextInfo($"原地处理月环", 6000);
-                    sa.Method.TTS($"原地处理月环", 3);
+                    DrawToCrystal(sa, myIndex, _udmP3Param.火水晶方位, destroyTime, $"风水去水");
+                    if (isMe)
+                    {
+                        sa.Method.TextInfo($"原地处理月环", 6000);
+                        sa.Method.TTS($"原地处理月环", 3);
+                    }
                 }
                 break;
 
@@ -8400,7 +8491,7 @@ public class Dancing_Mad_Ultimate
         }
     }
 
-    private void DrawFireGuide_YY_Wf(ScriptAccessory sa, int fireIndex, int destroyTime)
+    private void DrawFireGuide_YY_Wf(ScriptAccessory sa, int idx, int fireIndex, int destroyTime)
     {
         float angleBias = fireIndex switch
         {
@@ -8411,7 +8502,10 @@ public class Dancing_Mad_Ultimate
         var basePos = CrystalBasePos.RotateAndExtend(Center, 0, -10f);
         var guidePos = basePos.RotateAndExtend(CrystalBasePos, angleBias.DegToRad());
 
-        if (_udmP3Param.当前轮为火())
+        if (!是自己(sa, idx))
+        {
+        }
+        else if (_udmP3Param.当前轮为火())
         {
             sa.Method.TextInfo($"远离 放火钢铁", 6000);
             sa.Method.TTS($"远离放火钢铁", 3);
@@ -8423,13 +8517,13 @@ public class Dancing_Mad_Ultimate
         }
 
         guidePos = _udmP3Param.基于水晶旋转(guidePos, _udmP3Param.火水晶方位);
-        sa.DrawGuidance(guidePos, 0, destroyTime, $"DrawFireGuide_YY_Wf 指路", sa.Data.DefaultSafeColor);
+        sa.DrawGuidance(GuidanceOwner(sa, idx), guidePos, 0, destroyTime, $"DrawFireGuide_YY_Wf 指路 {idx}", sa.Data.DefaultSafeColor);
         sa.DebugMsg($"玩家为火组第 {fireIndex}，基于水晶逆时针旋转 {angleBias} deg");
     }
 
-    private void DrawGuide_CCHH_Wf(ScriptAccessory sa, int destroyTime)
+    private void DrawGuide_CCHH_Wf(ScriptAccessory sa, int myIndex, int destroyTime)
     {
-        var myIndex = sa.GetMyIndex();
+        var isMe = 是自己(sa, myIndex);
         float angleBias = myIndex switch
         {
             0 => -135f,
@@ -8450,22 +8544,24 @@ public class Dancing_Mad_Ultimate
         if (!_udmP3Param.当前轮为火() && _udmP3Param.水组有近战(sa) && isMelee)
         {
             guidePos = CrystalBasePos;
-            sa.Method.TextInfo($"集合放月环", 6000);
-            sa.Method.TTS($"集合放月环", 3);
+            if (isMe)
+            {
+                sa.Method.TextInfo($"集合放月环", 6000);
+                sa.Method.TTS($"集合放月环", 3);
+            }
         }
-        else
+        else if (isMe)
         {
             sa.Method.TextInfo($"避开钢铁月环", 6000);
             sa.Method.TTS($"避开钢铁月环", 3);
         }
 
         guidePos = _udmP3Param.基于水晶旋转(guidePos, _udmP3Param.风水晶方位);
-        sa.DrawGuidance(guidePos, 0, destroyTime, $"DrawGuide_CCHH_Wf 指路", sa.Data.DefaultSafeColor);
+        sa.DrawGuidance(GuidanceOwner(sa, myIndex), guidePos, 0, destroyTime, $"DrawGuide_CCHH_Wf 指路 {myIndex}", sa.Data.DefaultSafeColor);
     }
 
-    private void DrawGuideLine_CCHH_Wf(ScriptAccessory sa, int destroyTime)
+    private void DrawGuideLine_CCHH_Wf(ScriptAccessory sa, int myIndex, int destroyTime)
     {
-        var myIndex = sa.GetMyIndex();
         bool isMelee = (myIndex % 4) <= 1;
         var windCrystalPos = _udmP3Param.基于水晶旋转(CrystalBasePos, _udmP3Param.风水晶方位);
         var baseRadian = 180f.DegToRad() + windCrystalPos.GetRadian(Center);
@@ -8474,7 +8570,7 @@ public class Dancing_Mad_Ultimate
             List<float> biasDeg = [-135, 135, -45, 45];
             for (int i = 0; i < 4; i++)
             {
-                var dp = sa.DrawLine(windCrystalPos, 0, 0, destroyTime, $"DrawStaticGuideLine 指引线{i}",
+                var dp = sa.DrawLine(windCrystalPos, 0, 0, destroyTime, $"DrawStaticGuideLine 近战指引线{i}",
                     baseRadian + biasDeg[i].DegToRad(), 20f, 50f, sa.Data.DefaultSafeColor, draw: false);
                 dp.Color = i switch
                 {
@@ -8489,7 +8585,7 @@ public class Dancing_Mad_Ultimate
             List<float> biasDeg = [-30, 30, -75, 75];
             for (int i = 0; i < 4; i++)
             {
-                var dp = sa.DrawLine(windCrystalPos, 0, 0, destroyTime, $"DrawStaticGuideLine 指引线{i}",
+                var dp = sa.DrawLine(windCrystalPos, 0, 0, destroyTime, $"DrawStaticGuideLine 远程指引线{i}",
                     baseRadian + biasDeg[i].DegToRad(), 20f, 50f, sa.Data.DefaultSafeColor, draw: false);
                 dp.Color = i switch
                 {
@@ -8501,29 +8597,34 @@ public class Dancing_Mad_Ultimate
         }
     }
 
-    private void DrawWindGuideAroundCrystal_Wf(ScriptAccessory sa, int windIndex, int destroyTime)
+    private void DrawWindGuideAroundCrystal_Wf(ScriptAccessory sa, int idx, int windIndex, int destroyTime)
     {
         List<float> angleBias = [-30, -15, 15, 30];
         var guidePos = CrystalBasePos.RotateAndExtend(Center, angleBias[windIndex].DegToRad());
         guidePos = _udmP3Param.基于水晶旋转(guidePos, _udmP3Param.风水晶方位);
-        sa.DrawGuidance(guidePos, 0, destroyTime, $"DrawWindGuideByBuffAndIndex_Wf 风组指路", sa.Data.DefaultSafeColor);
+        sa.DrawGuidance(GuidanceOwner(sa, idx), guidePos, 0, destroyTime, $"DrawWindGuideByBuffAndIndex_Wf 风组指路 {idx}", sa.Data.DefaultSafeColor);
+        if (!是自己(sa, idx)) return;
         var dir = windIndex >= 2 ? "右" : "左";
         sa.Method.TextInfo(BoAStg == BoAStgEnum.正攻 ? $"面向场中，前往 风水晶{dir} 吃分摊" : $"前往 风水晶", 6000);
         sa.Method.TTS(BoAStg == BoAStgEnum.正攻 ? $"前往 风水晶{dir} 吃分摊" : $"前往风水晶", 3);
     }
 
-    private void DrawWaterGuideAlongCrystal_Wf(ScriptAccessory sa, int waterIndex, int myPriVal, int destroyTime)
+    private void DrawWaterGuideAlongCrystal_Wf(ScriptAccessory sa, int idx, int waterIndex, int myPriVal, int destroyTime)
     {
+        var isMe = 是自己(sa, idx);
         Vector3 guidePos;
         if (_udmP3Param.当前轮为火())
         {
             guidePos = Center;
-            DrawCrystalSightAvoid(sa, _udmP3Param.火水晶方位, myPriVal, destroyTime);
+            DrawCrystalSightAvoid(sa, idx, _udmP3Param.火水晶方位, myPriVal, destroyTime);
             guidePos = _udmP3Param.基于水晶旋转(guidePos, _udmP3Param.水水晶方位);
 
             var needBackStr = _udmP3Param.需要背对(myPriVal) ? "背对" : "面向";
-            sa.Method.TextInfo($"前往场中 {needBackStr}火水晶 吃火", 6000);
-            sa.Method.TTS($"前往场中{needBackStr}火水晶吃火", 3);
+            if (isMe)
+            {
+                sa.Method.TextInfo($"前往场中 {needBackStr}火水晶 吃火", 6000);
+                sa.Method.TTS($"前往场中{needBackStr}火水晶吃火", 3);
+            }
         }
         else
         {
@@ -8532,15 +8633,19 @@ public class Dancing_Mad_Ultimate
             guidePos = _udmP3Param.基于水晶旋转(guidePos, _udmP3Param.水水晶方位);
 
             var dir = waterIndex >= 1 ? "外" : "内";
-            sa.Method.TextInfo($"前往 水水晶{dir} 准备判定", 6000);
-            sa.Method.TTS($"前往 水水晶{dir} 准备判定", 3);
+            if (isMe)
+            {
+                sa.Method.TextInfo($"前往 水水晶{dir} 准备判定", 6000);
+                sa.Method.TTS($"前往 水水晶{dir} 准备判定", 3);
+            }
         }
 
-        sa.DrawGuidance(guidePos, 0, destroyTime, $"DrawWaterGuideAlongCrystal_Wf 水组指路", sa.Data.DefaultSafeColor);
+        sa.DrawGuidance(GuidanceOwner(sa, idx), guidePos, 0, destroyTime, $"DrawWaterGuideAlongCrystal_Wf 水组指路 {idx}", sa.Data.DefaultSafeColor);
     }
 
-    private void DrawFireGuideAlongCrystal_Wf(ScriptAccessory sa, int fireIndex, int myPriVal, int destroyTime)
+    private void DrawFireGuideAlongCrystal_Wf(ScriptAccessory sa, int idx, int fireIndex, int myPriVal, int destroyTime)
     {
+        var isMe = 是自己(sa, idx);
         Vector3 guidePos;
         if (_udmP3Param.当前轮为火())
         {
@@ -8549,41 +8654,47 @@ public class Dancing_Mad_Ultimate
             guidePos = _udmP3Param.基于水晶旋转(guidePos, _udmP3Param.火水晶方位);
 
             var dir = fireIndex >= 1 ? "外" : "内";
-            sa.Method.TextInfo($"前往 火水晶{dir} 准备判定", 6000);
-            sa.Method.TTS($"前往 火水晶{dir} 准备判定", 3);
+            if (isMe)
+            {
+                sa.Method.TextInfo($"前往 火水晶{dir} 准备判定", 6000);
+                sa.Method.TTS($"前往 火水晶{dir} 准备判定", 3);
+            }
 
         }
         else
         {
             guidePos = Center;
-            DrawCrystalSightAvoid(sa, _udmP3Param.水水晶方位, myPriVal, destroyTime);
+            DrawCrystalSightAvoid(sa, idx, _udmP3Param.水水晶方位, myPriVal, destroyTime);
             guidePos = _udmP3Param.基于水晶旋转(guidePos, _udmP3Param.火水晶方位);
 
             var needBackStr = _udmP3Param.需要背对(myPriVal) ? "背对" : "面向";
-            sa.Method.TextInfo($"前往场中 {needBackStr}水水晶 吃火", 6000);
-            sa.Method.TTS($"前往场中{needBackStr}水水晶吃火", 3);
+            if (isMe)
+            {
+                sa.Method.TextInfo($"前往场中 {needBackStr}水水晶 吃火", 6000);
+                sa.Method.TTS($"前往场中{needBackStr}水水晶吃火", 3);
+            }
         }
 
-        sa.DrawGuidance(guidePos, 0, destroyTime, $"DrawFireGuideWf 火组指路", sa.Data.DefaultSafeColor);
+        sa.DrawGuidance(GuidanceOwner(sa, idx), guidePos, 0, destroyTime, $"DrawFireGuideWf 火组指路 {idx}", sa.Data.DefaultSafeColor);
     }
 
-    private void DrawToCrystal(ScriptAccessory sa, int crystalRegion, int destroyTime, string name)
+    private void DrawToCrystal(ScriptAccessory sa, int idx, int crystalRegion, int destroyTime, string name)
     {
         var guidePos = _udmP3Param.基于水晶旋转(CrystalBasePos, crystalRegion);
-        sa.DrawGuidance(guidePos, 0, destroyTime, $"DrawToCrystal {name}", sa.Data.DefaultSafeColor);
+        sa.DrawGuidance(GuidanceOwner(sa, idx), guidePos, 0, destroyTime, $"DrawToCrystal {name} {idx}", sa.Data.DefaultSafeColor);
     }
 
-    private void DrawCrystalSightAvoid(ScriptAccessory sa, int crystalRegion, int myPriVal, int destroyTime)
+    private void DrawCrystalSightAvoid(ScriptAccessory sa, int idx, int crystalRegion, int myPriVal, int destroyTime)
     {
         var needBack = _udmP3Param.需要背对(myPriVal);
         var sightRegion = crystalRegion + (needBack ? 0 : 2);
-        DrawFacingArrow(sa, sightRegion, false, $"DrawCrystalSightAvoid 面向辅助自身", destroyTime);
-        DrawFacingArrow(sa, sightRegion, true, $"DrawCrystalSightAvoid 面向辅助正确面向", destroyTime);
+        DrawFacingArrow(sa, idx, sightRegion, false, $"DrawCrystalSightAvoid 面向辅助自身", destroyTime);
+        DrawFacingArrow(sa, idx, sightRegion, true, $"DrawCrystalSightAvoid 面向辅助正确面向", destroyTime);
     }
 
-    void DrawFacingArrow(ScriptAccessory sa, int dir, bool isSupport, string name, int destroyTime)
+    void DrawFacingArrow(ScriptAccessory sa, int idx, int dir, bool isSupport, string name, int destroyTime)
     {
-        var dp = sa.DrawLine(sa.Data.Me, 0, 0, destroyTime, name,
+        var dp = sa.DrawLine(GuidanceOwner(sa, idx), 0, 0, destroyTime, $"{name} {idx}",
             isSupport ? (45f + dir * 90f).DegToRad() : 0, 1f, 4.5f,
             isSupport ? sa.Data.DefaultSafeColor : sa.Data.DefaultDangerColor, draw: false);
         dp.FixRotation = isSupport;
@@ -8642,8 +8753,10 @@ public class Dancing_Mad_Ultimate
         _udmP3Param.当前阶段 = 3101;
         sa.DebugMsg($"暴雷死刑，一水火结束");
 
-        if (sa.GetMyIndex() != (_udmP3Param.拉艾克斯迪司的是MT ? 0 : 1)) return;
-        sa.DrawGuidance(ev.TargetId, 0, 5000, $"P3A_暴雷_死刑", sa.Data.DefaultSafeColor);
+        var tankIdx = _udmP3Param.拉艾克斯迪司的是MT ? 0 : 1;
+        if (!Debugging && sa.GetMyIndex() != tankIdx) return;
+        sa.DrawGuidance(GuidanceOwner(sa, tankIdx), ev.TargetId, 0, 5000, $"P3A_暴雷_死刑 {tankIdx}", sa.Data.DefaultSafeColor);
+        if (!是自己(sa, tankIdx)) return;
         sa.Method.TextInfo($"前往 艾克斯迪司 脚下吃死刑", 3000);
         sa.Method.TTS($"前往艾克斯迪司脚下吃死刑", 3);
     }
@@ -8655,25 +8768,26 @@ public class Dancing_Mad_Ultimate
         if (_udmP3Param.当前阶段 != 3101) return;
         _udmP3Param.当前阶段 = 3102;
 
-        // 非正攻情况下，死刑后，艾克斯迪司回人群
-        if (sa.GetMyIndex() == (_udmP3Param.拉艾克斯迪司的是MT ? 0 : 1))
+        foreach (var myIndex in 指路对象(sa))
         {
-            if (BoAStg == BoAStgEnum.正攻) return;
-            var aimRegion = BoAStg switch
+            // 非正攻情况下，死刑后，艾克斯迪司回人群
+            if (myIndex == (_udmP3Param.拉艾克斯迪司的是MT ? 0 : 1) && BoAStg != BoAStgEnum.正攻)
             {
-                BoAStgEnum.TLB_拉火水晶_夜音 => _udmP3Param.火水晶方位,
-                _ => _udmP3Param.风水晶方位
-            };
-            执行P3拉怪指路逻辑(sa, "艾克斯迪司", aimRegion, 4000, false);
-            sa.DebugMsg($"暴雷死刑结束，ST 拉艾克斯迪司");
-        }
+                var aimRegion = BoAStg switch
+                {
+                    BoAStgEnum.TLB_拉火水晶_夜音 => _udmP3Param.火水晶方位,
+                    _ => _udmP3Param.风水晶方位
+                };
+                执行P3拉怪指路逻辑(sa, myIndex, "艾克斯迪司", aimRegion, 4000, false);
+                sa.DebugMsg($"暴雷死刑结束，ST 拉艾克斯迪司");
+            }
 
-        // 正攻情况下，死刑后，卡奥斯去场中
-        if (sa.GetMyIndex() == (_udmP3Param.拉艾克斯迪司的是MT ? 1 : 0))
-        {
-            if (BoAStg != BoAStgEnum.正攻) return;
-            执行P3拉怪指路逻辑(sa, "卡奥斯", 0, 4000, true);
-            sa.DebugMsg($"暴雷死刑结束，MT 拉卡奥斯去场中");
+            // 正攻情况下，死刑后，卡奥斯去场中
+            if (myIndex == (_udmP3Param.拉艾克斯迪司的是MT ? 1 : 0) && BoAStg == BoAStgEnum.正攻)
+            {
+                执行P3拉怪指路逻辑(sa, myIndex, "卡奥斯", 0, 4000, true);
+                sa.DebugMsg($"暴雷死刑结束，MT 拉卡奥斯去场中");
+            }
         }
     }
 
@@ -8702,7 +8816,8 @@ public class Dancing_Mad_Ultimate
     {
         if (_udmP3Param.当前阶段 != 3102 && _udmP3Param.当前阶段 != 3110) return;
         sa.DebugMsg($"开始");
-        执行水火指路逻辑(sa, _udmP3Param.二水火指路与绘图时间);
+        foreach (var idx in 指路对象(sa))
+            执行水火指路逻辑(sa, idx, _udmP3Param.二水火指路与绘图时间);
     }
 
     [ScriptMethod(name: "P3A_二水火结束阶段推进", eventType: EventTypeEnum.ActionEffect,
@@ -8731,16 +8846,18 @@ public class Dancing_Mad_Ultimate
         // 根据海啸/烈焰与当前阶段判断二水火的结束
         sa.DebugMsg($"二水火结束，当前阶段 {_udmP3Param.当前阶段}");
 
-        var myIndex = sa.GetMyIndex();
-        if (myIndex <= 1)
-            执行二水火后拉怪指路逻辑(sa, true);
-        else if (myIndex == 6)
-            执行二水火后引导指路逻辑(sa);
-        else
-            执行二水火后拉怪指路逻辑(sa, false);
+        foreach (var myIndex in 指路对象(sa))
+        {
+            if (myIndex <= 1)
+                执行二水火后拉怪指路逻辑(sa, myIndex, true);
+            else if (myIndex == 6)
+                执行二水火后引导指路逻辑(sa, myIndex);
+            else
+                执行二水火后拉怪指路逻辑(sa, myIndex, false);
+        }
     }
 
-    private void 执行二水火后拉怪指路逻辑(ScriptAccessory sa, bool isTank)
+    private void 执行二水火后拉怪指路逻辑(ScriptAccessory sa, int idx, bool isTank)
     {
         var aimRegion = BoAStg switch
         {
@@ -8749,7 +8866,8 @@ public class Dancing_Mad_Ultimate
         };
         var guidePos = _udmP3Param.基于水晶旋转(CrystalBasePos, aimRegion);
 
-        sa.DrawGuidance(guidePos, 0, 6500, $"执行二水火后拉怪指路逻辑 拉怪", sa.Data.DefaultSafeColor);
+        sa.DrawGuidance(GuidanceOwner(sa, idx), guidePos, 0, 6500, $"执行二水火后拉怪指路逻辑 拉怪 {idx}", sa.Data.DefaultSafeColor);
+        if (!是自己(sa, idx)) return;
         var dirStr = aimRegion switch
         {
             0 => "右下",
@@ -8761,7 +8879,7 @@ public class Dancing_Mad_Ultimate
         sa.Method.TTS(isTank ? $"将双BOSS拉到{dirStr}" : $"于 {dirStr} 集合", 3);
     }
 
-    private void 执行二水火后引导指路逻辑(ScriptAccessory sa)
+    private void 执行二水火后引导指路逻辑(ScriptAccessory sa, int idx)
     {
         var aimRegion = BoAStg switch
         {
@@ -8772,7 +8890,8 @@ public class Dancing_Mad_Ultimate
         };
 
         var guidePos = _udmP3Param.基于水晶旋转(CrystalBasePos, aimRegion);
-        sa.DrawGuidance(guidePos, 0, 6500, $"执行二水火后引导指路逻辑 引导", sa.Data.DefaultSafeColor);
+        sa.DrawGuidance(GuidanceOwner(sa, idx), guidePos, 0, 6500, $"执行二水火后引导指路逻辑 引导 {idx}", sa.Data.DefaultSafeColor);
+        if (!是自己(sa, idx)) return;
         var dirStr = aimRegion switch
         {
             0 => "右下",
@@ -8801,11 +8920,14 @@ public class Dancing_Mad_Ultimate
         if (_udmP3Param.当前阶段 != 3111) return;
         sa.DebugMsg($"开始");
 
-        if (BoAStg == BoAStgEnum.正攻)
-            执行真空波正攻指路逻辑(sa);
-        else
-            // 其余逃课都是执行固定站位逻辑
-            执行真空波逃课指路逻辑(sa);
+        foreach (var idx in 指路对象(sa))
+        {
+            if (BoAStg == BoAStgEnum.正攻)
+                执行真空波正攻指路逻辑(sa, idx);
+            else
+                // 其余逃课都是执行固定站位逻辑
+                执行真空波逃课指路逻辑(sa, idx);
+        }
     }
 
     [ScriptMethod(name: "*P3A_真空波读条期间卡奥斯透明", eventType: EventTypeEnum.StartCasting,
@@ -8852,88 +8974,89 @@ public class Dancing_Mad_Ultimate
         }
     }
 
-    private void 执行真空波正攻指路逻辑(ScriptAccessory sa)
+    private void 执行真空波正攻指路逻辑(ScriptAccessory sa, int myIndex)
     {
-        var myIndex = sa.GetMyIndex();
         var myPriVal = _pd.Priorities[myIndex];
 
         // 水组火组站定，风组靠近等待击退
         var windIndex = _udmP3Param.查询组序(_udmP3Param.风组, myIndex);
         if (windIndex >= 0)
         {
-            DrawWindGuideVw(sa, windIndex, myPriVal, _udmP3Param.真空波指路时间);
+            DrawWindGuideVw(sa, myIndex, windIndex, myPriVal, _udmP3Param.真空波指路时间);
             return;
         }
 
         var waterIndex = _udmP3Param.查询组序(_udmP3Param.水组, myIndex);
         if (waterIndex >= 0)
         {
-            DrawWaterFireGuideVw(sa, waterIndex, _udmP3Param.真空波指路时间, true);
+            DrawWaterFireGuideVw(sa, myIndex, waterIndex, _udmP3Param.真空波指路时间, true);
             return;
         }
 
         var fireIndex = _udmP3Param.查询组序(_udmP3Param.火组, myIndex);
         if (fireIndex >= 0)
         {
-            DrawWaterFireGuideVw(sa, fireIndex, _udmP3Param.真空波指路时间, false);
+            DrawWaterFireGuideVw(sa, myIndex, fireIndex, _udmP3Param.真空波指路时间, false);
             return;
         }
     }
 
-    private void DrawWindGuideVw(ScriptAccessory sa, int windIndex, int myPriVal, int destroyTime)
+    private void DrawWindGuideVw(ScriptAccessory sa, int idx, int windIndex, int myPriVal, int destroyTime)
     {
         List<float> angleBias = [60, 20, -20, -60];
         var basePos = CrystalBasePos.RotateAndExtend(Center, 0, -1f);
         var guidePos = basePos.RotateAndExtend(CrystalBasePos, angleBias[windIndex].DegToRad(), 4f);
 
         guidePos = _udmP3Param.基于水晶旋转(guidePos, _udmP3Param.风水晶方位);
-        sa.DrawGuidance(guidePos, 0, destroyTime, $"DrawWindGuideVw 风组指路", sa.Data.DefaultSafeColor);
+        sa.DrawGuidance(GuidanceOwner(sa, idx), guidePos, 0, destroyTime, $"DrawWindGuideVw 风组指路 {idx}", sa.Data.DefaultSafeColor);
 
         var needBack = _udmP3Param.需要背对(myPriVal);
         var needBackStr = needBack ? "背对" : "面向";
 
-        DrawFacingArrow(sa, 0, false, $"DrawWindGuideVw 面向辅助自身", destroyTime);
-        var dp = sa.DrawLine(sa.Data.Me, _udmP3Param.ObjectId_艾克斯迪司, 0, destroyTime, $"DrawWindGuideVw 与艾克斯迪司连线",
+        DrawFacingArrow(sa, idx, 0, false, $"DrawWindGuideVw 面向辅助自身", destroyTime);
+        var dp = sa.DrawLine(GuidanceOwner(sa, idx), _udmP3Param.ObjectId_艾克斯迪司, 0, destroyTime, $"DrawWindGuideVw 与艾克斯迪司连线 {idx}",
             (needBack ? 0 : 180f).DegToRad(), 1, 4.5f, sa.Data.DefaultSafeColor, draw: false);
         sa.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Arrow, dp);
 
+        if (!是自己(sa, idx)) return;
         sa.Method.TextInfo($"目标圈内 {needBackStr} 艾克斯迪司 击退", 4000);
         sa.Method.TTS($"{needBackStr}Boss击退", 3);
     }
 
-    private void DrawWaterFireGuideVw(ScriptAccessory sa, int groupIndex, int destroyTime, bool isWater)
+    private void DrawWaterFireGuideVw(ScriptAccessory sa, int idx, int groupIndex, int destroyTime, bool isWater)
     {
         List<float> angleBias = [20, 60];
         var basePos = CrystalBasePos.RotateAndExtend(Center, 0, -1f);
         var guidePos = basePos.RotateAndExtend(CrystalBasePos, (isWater ? -1 : 1) * angleBias[groupIndex].DegToRad(), 10f);
         guidePos = _udmP3Param.基于水晶旋转(guidePos, _udmP3Param.风水晶方位);
-        sa.DrawGuidance(guidePos, 0, destroyTime, $"DrawWaterFireGuideVw 水组指路", sa.Data.DefaultSafeColor);
+        sa.DrawGuidance(GuidanceOwner(sa, idx), guidePos, 0, destroyTime, $"DrawWaterFireGuideVw 水组指路 {idx}", sa.Data.DefaultSafeColor);
+        if (!是自己(sa, idx)) return;
 
         sa.Method.TextInfo($"防击退，然后与搭档分摊", 4000);
         sa.Method.TTS($"防击退，然后与搭档分摊", 3);
     }
 
-    private void 执行真空波逃课指路逻辑(ScriptAccessory sa)
+    private void 执行真空波逃课指路逻辑(ScriptAccessory sa, int myIndex)
     {
-        var myIndex = sa.GetMyIndex();
 
         // 根据 role 固定站位
         List<float> angleBias = [-60, 60, -20, 20, -20, 20, -60, 60];
         Vector3 bossPos = sa.GetById(_udmP3Param.ObjectId_艾克斯迪司).Position;
         var basePos = bossPos.RotateAndExtend(Center, 0, -3.8f);
         var guidePos = basePos.RotateAndExtend(bossPos, angleBias[myIndex].DegToRad());
-        sa.DrawGuidance(guidePos, 0, _udmP3Param.真空波指路时间, $"执行真空波逃课指路逻辑 指路", sa.Data.DefaultSafeColor);
+        sa.DrawGuidance(GuidanceOwner(sa, myIndex), guidePos, 0, _udmP3Param.真空波指路时间, $"执行真空波逃课指路逻辑 指路 {myIndex}", sa.Data.DefaultSafeColor);
 
         // 面向指示
         var myPriVal = _pd.Priorities[myIndex];
         var needBack = _udmP3Param.需要背对(myPriVal);
         var needBackStr = needBack ? "背对" : "面向";
-        DrawFacingArrow(sa, 0, false, $"执行真空波逃课指路逻辑 面向辅助自身", _udmP3Param.真空波指路时间);
+        DrawFacingArrow(sa, myIndex, 0, false, $"执行真空波逃课指路逻辑 面向辅助自身", _udmP3Param.真空波指路时间);
 
-        var dp = sa.DrawLine(sa.Data.Me, _udmP3Param.ObjectId_艾克斯迪司, 0, _udmP3Param.真空波指路时间, $"执行真空波逃课指路逻辑 面向辅助正确面向",
+        var dp = sa.DrawLine(GuidanceOwner(sa, myIndex), _udmP3Param.ObjectId_艾克斯迪司, 0, _udmP3Param.真空波指路时间, $"执行真空波逃课指路逻辑 面向辅助正确面向 {myIndex}",
             needBack ? 180f.DegToRad() : 0, 1f, 4.5f, sa.Data.DefaultSafeColor, draw: false);
         sa.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Arrow, dp);
 
+        if (!是自己(sa, myIndex)) return;
         sa.Method.TextInfo($"目标圈内 {needBackStr} 艾克斯迪司 击退", 4000);
         sa.Method.TTS($"{needBackStr}Boss击退", 3);
     }
@@ -9074,17 +9197,20 @@ public class Dancing_Mad_Ultimate
     {
         if (_udmP3Param.当前阶段 != 3111) return;
         sa.DebugMsg($"风分摊结束，从方位 {_udmP3Param.究极冲击波起始方位} {(_udmP3Param.究极冲击波为顺时针 ? "逆" : "顺")} 开始");
-        var priVal = _pd.Priorities[sa.GetMyIndex()];
-        var num = priVal.GetDecimalDigit(3);
-        sa.DebugMsg($"玩家被点麻将 {priVal.GetDecimalDigit(3)}");
-        if (num == 0) return;
+        foreach (var idx in 指路对象(sa))
+        {
+            var priVal = _pd.Priorities[idx];
+            var num = priVal.GetDecimalDigit(3);
+            sa.DebugMsg($"{Role[idx]} 被点麻将 {num}");
+            if (num == 0) continue;
 
-        // 顺则逆转
-        var baseRotDeg = _udmP3Param.究极冲击波起始方位 * 45f + 22.5f * (_udmP3Param.究极冲击波为顺时针 ? 1 : -1);
-        var basePos = new Vector3(100, 0, 119.5f).RotateAndExtend(Center,
-            baseRotDeg.DegToRad());
-        var guidePos = basePos.RotateAndExtend(Center, 45f.DegToRad() * (num - 1) * (_udmP3Param.究极冲击波为顺时针 ? 1 : -1));
-        sa.DrawGuidance(guidePos, 0, 12000, $"P3A_究极冲击波指路", sa.Data.DefaultSafeColor);
+            // 顺则逆转
+            var baseRotDeg = _udmP3Param.究极冲击波起始方位 * 45f + 22.5f * (_udmP3Param.究极冲击波为顺时针 ? 1 : -1);
+            var basePos = new Vector3(100, 0, 119.5f).RotateAndExtend(Center,
+                baseRotDeg.DegToRad());
+            var guidePos = basePos.RotateAndExtend(Center, 45f.DegToRad() * (num - 1) * (_udmP3Param.究极冲击波为顺时针 ? 1 : -1));
+            sa.DrawGuidance(GuidanceOwner(sa, idx), guidePos, 0, 12000, $"P3A_究极冲击波指路 {idx}", sa.Data.DefaultSafeColor);
+        }
     }
 
     #endregion P3A1 究极冲击波 3111
@@ -9171,8 +9297,11 @@ public class Dancing_Mad_Ultimate
         userControl: true, suppress: 10000)]
     public void P3B_地震后拉回场中提示(Event ev, ScriptAccessory sa)
     {
-        if (sa.GetMyIndex() > 1) return;
-        sa.DrawGuidance(Center, 0, 3000, $"P3B_地震后拉回场中", sa.Data.DefaultSafeColor);
+        foreach (var idx in 指路对象(sa))
+        {
+            if (idx > 1) continue;
+            sa.DrawGuidance(GuidanceOwner(sa, idx), Center, 0, 3000, $"P3B_地震后拉回场中 {idx}", sa.Data.DefaultSafeColor);
+        }
         sa.Method.TextInfo($"将 双BOSS 拉回场中", 3000);
         sa.Method.TTS($"将双BOSS拉回场中", 3);
     }
@@ -9205,7 +9334,7 @@ public class Dancing_Mad_Ultimate
         // 画分摊或职能线
         List<float> biasDeg = [0, -45f, 45f]; // H T D
         var lineCount = isStack ? 1 : 3;
-        var myRole = sa.GetMyIndex() switch
+        static int RoleOf(int idx) => idx switch
         {
             0 or 1 => 1,
             2 or 3 => 0,
@@ -9225,8 +9354,9 @@ public class Dancing_Mad_Ultimate
             };
             sa.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Line, dp);
 
-            if (myRole == i || isStack)
-                sa.DrawGuidance(guidePos, 0, 8000, $"响亮亮耳光 指路", sa.Data.DefaultSafeColor);
+            foreach (var idx in 指路对象(sa))
+                if (RoleOf(idx) == i || isStack)
+                    sa.DrawGuidance(GuidanceOwner(sa, idx), guidePos, 0, 8000, $"响亮亮耳光 指路 {idx}", sa.Data.DefaultSafeColor);
         }
 
         sa.DebugMsg($"{actionStr}");
@@ -9959,13 +10089,28 @@ public class Dancing_Mad_Ultimate
 
         if (_udmP3Param.当前阶段 != 3210) return;
         _udmP3Param.绘制冰封引导路径 = true;
-        var myIndex = sa.GetMyIndex();
 
-        // 盗火策略，第一步在上下；其余，第一步在场中
-        var relativeUpDownPos = myIndex <= 3 ? new Vector3(100, 0, 110f) : new Vector3(100, 0, 90f);
-        var initPos = BlizStg == BlizStgEnum.从上下引导后四角_盗火文档 ? relativeUpDownPos: Center;
-        initPos = _udmP3Param.基于凯夫卡旋转(initPos, _udmP3Param.冰封北方位);
+        foreach (var myIndex in 指路对象(sa))
+        {
+            // 盗火策略，第一步在上下；其余，第一步在场中
+            var relativeUpDownPos = myIndex <= 3 ? new Vector3(100, 0, 110f) : new Vector3(100, 0, 90f);
+            var initPos = BlizStg == BlizStgEnum.从上下引导后四角_盗火文档 ? relativeUpDownPos : Center;
+            initPos = _udmP3Param.基于凯夫卡旋转(initPos, _udmP3Param.冰封北方位);
 
+            var targetPos = 冰封第二枚黄圈位置(myIndex);
+            if (是自己(sa, myIndex))
+                _udmP3Param.第二枚黄圈引导位置 = targetPos;
+
+            var owner = GuidanceOwner(sa, myIndex);
+            sa.DrawGuidance(owner, initPos, 0, 3000, $"冰封路径一 黄圈 1 {myIndex}", sa.Data.DefaultSafeColor);
+            sa.DrawGuidance(initPos, targetPos, 0, 3000, $"冰封路径一 黄圈 1->2 {myIndex}", sa.Data.DefaultDangerColor);
+            sa.DrawGuidance(owner, targetPos, 3000, 3000, $"冰封路径一 黄圈 2 {myIndex}", sa.Data.DefaultSafeColor);
+        }
+    }
+
+    /// <summary>冰封第二枚黄圈的引导位置，只和职能、策略、冰封北方位有关</summary>
+    private Vector3 冰封第二枚黄圈位置(int myIndex)
+    {
         // 在这里画一与二
         var targetPos = new Vector3(100, 0, 114.14f);
         // 根据位置旋转特定角度
@@ -9978,12 +10123,7 @@ public class Dancing_Mad_Ultimate
         };
         targetPos = targetPos.RotateAndExtend(Center, rotDeg.DegToRad(),
             BlizStg == BlizStgEnum.从场中引导后上下_NoCCHH ? -3 : 0);
-        targetPos = _udmP3Param.基于凯夫卡旋转(targetPos, _udmP3Param.冰封北方位);
-        _udmP3Param.第二枚黄圈引导位置 = targetPos;
-
-        sa.DrawGuidance(initPos, 0, 3000, $"冰封路径一 黄圈 1", sa.Data.DefaultSafeColor);
-        sa.DrawGuidance(initPos, targetPos, 0, 3000, $"冰封路径一 黄圈 1->2", sa.Data.DefaultDangerColor);
-        sa.DrawGuidance(targetPos, 3000, 3000, $"冰封路径一 黄圈 2", sa.Data.DefaultSafeColor);
+        return _udmP3Param.基于凯夫卡旋转(targetPos, _udmP3Param.冰封北方位);
     }
 
     [ScriptMethod(name: "P3B2_冰封_引导路径二", eventType: EventTypeEnum.TargetIcon,
@@ -9996,29 +10136,30 @@ public class Dancing_Mad_Ultimate
 
         var targetIdx = sa.GetPlayerIdIndex((uint)ev.TargetId);
         _udmP3Param.分摊点TN = targetIdx <= 3;
-        var myIndex = sa.GetMyIndex();
-
-        if (_udmP3Param.需要踩塔(myIndex))
-            绘制冰封踩塔路径(sa);
-        else
-            绘制冰封分摊路径(sa);
+        foreach (var myIndex in 指路对象(sa))
+        {
+            if (_udmP3Param.需要踩塔(myIndex))
+                绘制冰封踩塔路径(sa, myIndex);
+            else
+                绘制冰封分摊路径(sa, myIndex);
+        }
     }
 
-    private int 获得踩塔方位(ScriptAccessory sa)
+    private int 获得踩塔方位(int myIndex)
     {
         // NoCCHH 踩塔为场基（面向凯夫卡分左右），西塔 MT/H1/D1/D3，东塔 ST/H2/D2/D4
         // 其余踩塔为面基（面向场中分左右），西塔 ST/H2/D1/D3，东塔 MT/H1/D2/D4
-        var myIndex = sa.GetMyIndex();
         if (BlizStg == BlizStgEnum.从场中引导后上下_NoCCHH)
             return myIndex is 0 or 2 or 4 or 6 ? _udmP3Param.西塔方位 : _udmP3Param.东塔方位;
         else
             return myIndex is 1 or 3 or 4 or 6 ? _udmP3Param.西塔方位 : _udmP3Param.东塔方位;
     }
 
-    private void 绘制冰封踩塔路径(ScriptAccessory sa)
+    private void 绘制冰封踩塔路径(ScriptAccessory sa, int idx)
     {
         Vector3 stackPos = Center;
-        var towerRegion = 获得踩塔方位(sa);
+        var owner = GuidanceOwner(sa, idx);
+        var towerRegion = 获得踩塔方位(idx);
         Vector3 towerPos = new Vector3(100, 0, 110).RotateAndExtend(Center, towerRegion * 45f.DegToRad());
 
         // 凯夫卡一定先跺右脚出西塔，如果是踩塔，东塔玩家需要延迟指路，西塔玩家直接去
@@ -10026,37 +10167,38 @@ public class Dancing_Mad_Ultimate
 
         if (_udmP3Param.是第一次分摊)
         {
-            sa.DrawGuidance(_udmP3Param.第二枚黄圈引导位置, towerPos, 0, 3000, $"冰封路径二 黄圈 2->塔", sa.Data.DefaultDangerColor);
-            sa.DrawCircle(towerPos, 3000, towerDelay ? 3500 : 2500, $"冰封路径二 塔范围", 5f, sa.Data.DefaultSafeColor);
-            sa.DrawGuidance(towerPos, 3000, towerDelay ? 3500 : 2500, $"冰封路径二 黄圈 塔", sa.Data.DefaultSafeColor);
-            sa.DrawGuidance(towerPos, stackPos, 3000, towerDelay ? 3500 : 2500, $"冰封路径二 踩塔->分摊", sa.Data.DefaultDangerColor);
+            sa.DrawGuidance(冰封第二枚黄圈位置(idx), towerPos, 0, 3000, $"冰封路径二 黄圈 2->塔 {idx}", sa.Data.DefaultDangerColor);
+            sa.DrawCircle(towerPos, 3000, towerDelay ? 3500 : 2500, $"冰封路径二 塔范围 {towerRegion}", 5f, sa.Data.DefaultSafeColor);
+            sa.DrawGuidance(owner, towerPos, 3000, towerDelay ? 3500 : 2500, $"冰封路径二 黄圈 塔 {idx}", sa.Data.DefaultSafeColor);
+            sa.DrawGuidance(towerPos, stackPos, 3000, towerDelay ? 3500 : 2500, $"冰封路径二 踩塔->分摊 {idx}", sa.Data.DefaultDangerColor);
         }
         else
         {
             sa.DrawCircle(towerPos, towerDelay ? 1000 : 0, towerDelay ? 3000 : 4000,
-                $"冰封路径二 塔范围", 6f, sa.Data.DefaultSafeColor);
-            sa.DrawGuidance(towerPos, towerDelay ? 1000 : 0, towerDelay ? 3000 : 4000,
-                $"冰封路径二 塔 第二轮", sa.Data.DefaultSafeColor);
+                $"冰封路径二 塔范围 {towerRegion}", 6f, sa.Data.DefaultSafeColor);
+            sa.DrawGuidance(owner, towerPos, towerDelay ? 1000 : 0, towerDelay ? 3000 : 4000,
+                $"冰封路径二 塔 第二轮 {idx}", sa.Data.DefaultSafeColor);
         }
 
     }
 
-    private void 绘制冰封分摊路径(ScriptAccessory sa)
+    private void 绘制冰封分摊路径(ScriptAccessory sa, int idx)
     {
         Vector3 stackPos = Center;
-        var towerRegion = 获得踩塔方位(sa);
+        var owner = GuidanceOwner(sa, idx);
+        var towerRegion = 获得踩塔方位(idx);
         Vector3 towerPos = new Vector3(100, 0, 110).RotateAndExtend(Center, towerRegion * 45f.DegToRad());
         bool towerDelay = towerRegion == (BlizKefkaIsNorth ? _udmP3Param.东塔方位 : _udmP3Param.西塔方位);
 
         if (_udmP3Param.是第一次分摊)
         {
-            sa.DrawGuidance(_udmP3Param.第二枚黄圈引导位置, stackPos, 0, 3000, $"冰封路径二 黄圈 2->分摊", sa.Data.DefaultDangerColor);
-            sa.DrawGuidance(stackPos, 3000, towerDelay ? 3500 : 2500, $"冰封路径二 黄圈 分摊", sa.Data.DefaultSafeColor);
-            sa.DrawGuidance(stackPos, towerPos, 3000, towerDelay ? 3500 : 2500, $"冰封路径二 分摊->踩塔", sa.Data.DefaultDangerColor);
+            sa.DrawGuidance(冰封第二枚黄圈位置(idx), stackPos, 0, 3000, $"冰封路径二 黄圈 2->分摊 {idx}", sa.Data.DefaultDangerColor);
+            sa.DrawGuidance(owner, stackPos, 3000, towerDelay ? 3500 : 2500, $"冰封路径二 黄圈 分摊 {idx}", sa.Data.DefaultSafeColor);
+            sa.DrawGuidance(stackPos, towerPos, 3000, towerDelay ? 3500 : 2500, $"冰封路径二 分摊->踩塔 {idx}", sa.Data.DefaultDangerColor);
         }
         else
         {
-            sa.DrawGuidance(stackPos, towerDelay ? 1000 : 0, towerDelay ? 3000 : 4000, $"冰封路径二 分摊 第二轮", sa.Data.DefaultSafeColor);
+            sa.DrawGuidance(owner, stackPos, towerDelay ? 1000 : 0, towerDelay ? 3000 : 4000, $"冰封路径二 分摊 第二轮 {idx}", sa.Data.DefaultSafeColor);
         }
     }
 
@@ -10422,32 +10564,19 @@ public class Dancing_Mad_Ultimate
 
         }
 
-        if(targetId==accessory.Data.Me) {
-
+        if(!Debugging&&targetId==accessory.Data.Me) {
             return;
-
         }
-
         int durationMilliseconds=0;
-
         try {
-
             durationMilliseconds=JsonConvert.DeserializeObject<int>(@event["DurationMilliseconds"]);
-
         } catch(Exception e) {
-
             accessory.Log.Error("DurationMilliseconds deserialization failed.");
-
             return;
-
         }
-
         if(durationMilliseconds<=0||durationMilliseconds>MAXIMUM_DURATION) {
-
             return;
-
         }
-
         int standardDuration=8000;
         int delay=0;
         int duration=0;
@@ -10466,30 +10595,30 @@ public class Dancing_Mad_Ultimate
 
         }
 
-        var currentProperties=accessory.Data.GetDefaultDrawProperties();
-
-        currentProperties.Name=$"P4_诅咒之嚎_面向指示_{targetId}";
-        currentProperties.Scale=new(1,3);
-        currentProperties.Owner=accessory.Data.Me;
-        currentProperties.TargetObject=targetId;
-        currentProperties.Color=accessory.Data.DefaultSafeColor;
-        currentProperties.Delay=delay;
-        currentProperties.DestoryAt=duration;
-
-        if(!phase4_fakeNeoExdeathAction) {
-
-            currentProperties.Rotation=float.Pi;
-
+        int myIndex=accessory.Data.PartyList.IndexOf(accessory.Data.Me);
+        for(int partyIndex=0;partyIndex<accessory.Data.PartyList.Count;++partyIndex) {
+            if(!Debugging&&partyIndex!=myIndex) {
+                continue;
+            }
+            if(accessory.Data.PartyList[partyIndex]==targetId) {
+                continue;
+            }
+            var currentProperties=accessory.Data.GetDefaultDrawProperties();
+            currentProperties.Name=$"P4_诅咒之嚎_面向指示_{targetId}_{partyIndex}";
+            currentProperties.Scale=new(1,3);
+            currentProperties.Owner=GuidanceOwner(accessory,partyIndex);
+            currentProperties.TargetObject=targetId;
+            currentProperties.Color=accessory.Data.DefaultSafeColor;
+            currentProperties.Delay=delay;
+            currentProperties.DestoryAt=duration;
+            if(!phase4_fakeNeoExdeathAction) {
+                currentProperties.Rotation=float.Pi;
+            }
+            else {
+                currentProperties.Rotation=0;
+            }
+            accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Arrow,currentProperties);
         }
-
-        else {
-
-            currentProperties.Rotation=0;
-
-        }
-
-        accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Arrow,currentProperties);
-
     }
 
     [ScriptMethod(name:"P4 诅咒之嚎 (指示清除)",
@@ -10519,7 +10648,7 @@ public class Dancing_Mad_Ultimate
 
         accessory.Method.RemoveDraw($"P4_诅咒之嚎_类型指示1_{targetId}");
         accessory.Method.RemoveDraw($"P4_诅咒之嚎_类型指示2_{targetId}");
-        accessory.Method.RemoveDraw($"P4_诅咒之嚎_面向指示_{targetId}");
+        accessory.Method.RemoveDraw($"P4_诅咒之嚎_面向指示_{targetId}(_\\d)?");
 
     }
 
@@ -13231,9 +13360,15 @@ public class Dancing_Mad_Ultimate
             if (TryGetP4AccelCall(records, myIndex, out var accelCall))
                 parts.Add(accelCall);
             Alert(string.Join(" ", parts.Where(p => !string.IsNullOrWhiteSpace(p))));
+        }
 
-            if (hasThunderState || IsTnPartyIndex(myIndex) || IsDpsPartyIndex(myIndex))
-                DrawP4SelfGuide(accessory, $"{P4DrawPrefix}_{drawName}_Guide", $"{P4DrawPrefix}_{drawName}_Target", targets[myIndex], duration, delay);
+        for (var i = 0; i < 8; i++)
+        {
+            if (!Debugging && i != myIndex)
+                continue;
+            var hasThunderState = TryGetP4ThunderState(records, i, out _);
+            if (hasThunderState || IsTnPartyIndex(i) || IsDpsPartyIndex(i))
+                DrawP4SelfGuide(accessory, $"{P4DrawPrefix}_{drawName}_Guide", $"{P4DrawPrefix}_{drawName}_Target", targets[i], duration, delay, i);
         }
     }
 
@@ -13256,11 +13391,14 @@ public class Dancing_Mad_Ultimate
         });
     }
 
-    private void DrawP4SelfGuide(ScriptAccessory accessory, string guideName, string targetName, Vector3 target, int duration, int delay = 0)
+    /// <summary>partyIndex 为空时画给自己；图名带下标，Debug 全队时不互相覆盖；PR 自动移动只跟自己的点</summary>
+    private void DrawP4SelfGuide(ScriptAccessory accessory, string guideName, string targetName, Vector3 target, int duration, int delay = 0, int partyIndex = -1)
     {
-        DrawGuide(accessory, guideName, target, duration, delay);
-        DrawStaticCircle(accessory, targetName, target, 0.25f, duration, GuideColor.V4);
-        if (delay <= 0)
+        if (partyIndex < 0)
+            partyIndex = GetMyIndex(accessory);
+        DrawGuide(accessory, $"{guideName}_{partyIndex}", target, duration, delay, partyIndex: partyIndex);
+        DrawStaticCircle(accessory, $"{targetName}_{partyIndex}", target, 0.25f, duration, GuideColor.V4);
+        if (delay <= 0 && partyIndex == GetMyIndex(accessory))
             GreenMoveToPoint(target, accessory, guideName);
     }
 
@@ -13310,8 +13448,12 @@ public class Dancing_Mad_Ultimate
         else if (oldPetrifyAlertEnabled && petrifies.Count > 0)
             Alert(petrifies[0].State == P4StateTrue ? "背对" : "正对");
 
-        if (myIndex >= 0 && myIndex < 8)
-            DrawP4SelfGuide(accessory, $"{P4DrawPrefix}_{drawName}_Guide", $"{P4DrawPrefix}_{drawName}_Target", targets[myIndex], duration);
+        for (var i = 0; i < 8; i++)
+        {
+            if (!Debugging && i != myIndex)
+                continue;
+            DrawP4SelfGuide(accessory, $"{P4DrawPrefix}_{drawName}_Guide", $"{P4DrawPrefix}_{drawName}_Target", targets[i], duration, 0, i);
+        }
 
         DebugEcho(accessory, $"P4{FormatP4BuffGroupKind(group.Kind)} PETRI safe={safeClock:F1} petrify={string.Join(",", petrifies.Select(r => $"{PartyPriorityLabel(r.PartyIndex)}:{r.State}/{(r.State == P4StateTrue ? "8m" : r.State == P4StateFalse ? "3m" : "6m")}"))} idle=6m");
     }
@@ -13328,7 +13470,13 @@ public class Dancing_Mad_Ultimate
         if (!string.IsNullOrWhiteSpace(text))
             QTTS(text);
 
-        DrawP4SelfGuide(accessory, $"{P4DrawPrefix}_P4_{FormatP4BuffGroupKind(kind)}_Center_Guide", $"{P4DrawPrefix}_P4_{FormatP4BuffGroupKind(kind)}_Center_Target", P4ArenaCenter, duration);
+        var myIndex = GetMyIndex(accessory);
+        for (var i = 0; i < 8; i++)
+        {
+            if (!Debugging && i != myIndex)
+                continue;
+            DrawP4SelfGuide(accessory, $"{P4DrawPrefix}_P4_{FormatP4BuffGroupKind(kind)}_Center_Guide", $"{P4DrawPrefix}_P4_{FormatP4BuffGroupKind(kind)}_Center_Target", P4ArenaCenter, duration, 0, i);
+        }
         DebugEcho(accessory, $"P4{FormatP4BuffGroupKind(kind)} ELEM result={FormatP4ElementCall(call)} records={FormatP4GroupRecords(group)}");
     }
 
@@ -13384,12 +13532,17 @@ public class Dancing_Mad_Ultimate
         if (myIndex < 0 || myIndex >= 8)
             return;
 
-        TryGetP4ThunderState(group.Records, myIndex, out var isThunder);
-        var baseClock = ClockDirectionToClock(RoleDefaultClock(isThunder, myIndex));
-        var targetClock = safeByRoleClock.ContainsKey(baseClock) ? safeByRoleClock[baseClock] : baseClock;
-        var target = P4ClockPoint(newTwelveDirection, targetClock, 8.0f);
-        DrawP4SelfGuide(accessory, $"{P4DrawPrefix}_P4_D_Safe_Guide", $"{P4DrawPrefix}_P4_D_Safe_Target", target, 3000);
-        DebugEcho(accessory, $"P4D SAFE my={PartyPriorityLabel(myIndex)} base={baseClock:F1} safe={targetClock:F1} target={FormatPosition(target)}");
+        for (var i = 0; i < 8; i++)
+        {
+            if (!Debugging && i != myIndex)
+                continue;
+            TryGetP4ThunderState(group.Records, i, out var isThunder);
+            var baseClock = ClockDirectionToClock(RoleDefaultClock(isThunder, i));
+            var targetClock = safeByRoleClock.ContainsKey(baseClock) ? safeByRoleClock[baseClock] : baseClock;
+            var target = P4ClockPoint(newTwelveDirection, targetClock, 8.0f);
+            DrawP4SelfGuide(accessory, $"{P4DrawPrefix}_P4_D_Safe_Guide", $"{P4DrawPrefix}_P4_D_Safe_Target", target, 3000, 0, i);
+            DebugEcho(accessory, $"P4D SAFE {PartyPriorityLabel(i)} base={baseClock:F1} safe={targetClock:F1} target={FormatPosition(target)}");
+        }
     }
 
     private int CountP4Dangers(P4DangerShape shape, long minCapturedAt)
@@ -13527,12 +13680,14 @@ public class Dancing_Mad_Ultimate
 
         var myIndex = GetMyIndex(accessory);
         var distance = call == P4ElementCall.WaterMoon ? 3.0f : 8.0f;
-        if (myIndex >= 0 && myIndex < 8)
+        for (var i = 0; i < 8; i++)
         {
-            var targetClock = myIndex < 4 ? safeClocks[0] : safeClocks[1];
+            if (!Debugging && i != myIndex)
+                continue;
+            var targetClock = i < 4 ? safeClocks[0] : safeClocks[1];
             var target = P4ClockPoint(newTwelveDirection, targetClock, distance);
-            DrawP4SelfGuide(accessory, $"{P4DrawPrefix}_P4_F_Final_Guide", $"{P4DrawPrefix}_P4_F_Final_Target", target, 5000);
-            DebugEcho(accessory, $"P4F FINAL my={PartyPriorityLabel(myIndex)} clock={targetClock:F1} dist={distance:F1} target={FormatPosition(target)} call={FormatP4ElementCall(call)} dangers={FormatP4Dangers(dangers)}");
+            DrawP4SelfGuide(accessory, $"{P4DrawPrefix}_P4_F_Final_Guide", $"{P4DrawPrefix}_P4_F_Final_Target", target, 5000, 0, i);
+            DebugEcho(accessory, $"P4F FINAL {PartyPriorityLabel(i)} clock={targetClock:F1} dist={distance:F1} target={FormatPosition(target)} call={FormatP4ElementCall(call)} dangers={FormatP4Dangers(dangers)}");
         }
 
         return true;
@@ -13843,11 +13998,22 @@ public class Dancing_Mad_Ultimate
         }
 
         var myIndex = GetMyIndex(accessory);
+        if (Debugging)
+        {
+            for (var i = 0; i < 8; i++)
+            {
+                if (i == myIndex || clocks[i] == P4ClockDirection.Unknown)
+                    continue;
+                DrawGuide(accessory, $"{P4DrawPrefix}_P4_Chain_Move_Guide_{i}", targets[i], P4ChainGuideDurationMs, partyIndex: i);
+                DrawStaticCircle(accessory, $"{P4DrawPrefix}_P4_Chain_Move_Target_{i}", targets[i], 0.25f, P4ChainGuideDurationMs, GuideColor.V4);
+            }
+        }
+
         if (myIndex >= 0 && myIndex < 8 && clocks[myIndex] != P4ClockDirection.Unknown)
         {
             var target = targets[myIndex];
-            DrawGuide(accessory, $"{P4DrawPrefix}_P4_Chain_Move_Guide", target, P4ChainGuideDurationMs);
-            DrawStaticCircle(accessory, $"{P4DrawPrefix}_P4_Chain_Move_Target", target, 0.25f, P4ChainGuideDurationMs, GuideColor.V4);
+            DrawGuide(accessory, $"{P4DrawPrefix}_P4_Chain_Move_Guide_{myIndex}", target, P4ChainGuideDurationMs);
+            DrawStaticCircle(accessory, $"{P4DrawPrefix}_P4_Chain_Move_Target_{myIndex}", target, 0.25f, P4ChainGuideDurationMs, GuideColor.V4);
             DebugEcho(accessory, $"P4循环移动指路已画：round={round} my={PartyPriorityLabel(myIndex)} clock={FormatP4Clock(clocks[myIndex])} target={FormatPosition(target)} duration={P4ChainGuideDurationMs}ms greenMove={EnableGreenMove}");
             GreenMoveToPoint(target, accessory, $"P4 chain move round {round}");
 
@@ -14249,11 +14415,11 @@ public class Dancing_Mad_Ultimate
         accessory.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Rect, dp);
     }
 
-    private void DrawGuide(ScriptAccessory accessory, string name, Vector3 targetPosition, int duration, int delay = 0, Vector4? color = null)
+    private void DrawGuide(ScriptAccessory accessory, string name, Vector3 targetPosition, int duration, int delay = 0, Vector4? color = null, int partyIndex = -1)
     {
         var dp = accessory.Data.GetDefaultDrawProperties();
         dp.Name = name;
-        dp.Owner = GetMyId(accessory);
+        dp.Owner = partyIndex < 0 ? GetMyId(accessory) : GuidanceOwner(accessory, partyIndex);
         dp.TargetPosition = targetPosition;
         dp.Scale = new Vector2(0.5f);
         dp.ScaleMode = ScaleMode.YByDistance;
@@ -14660,14 +14826,26 @@ public class Dancing_Mad_Ultimate
         }
 
         var myIndex = GetMyIndex(accessory);
+        if (Debugging)
+        {
+            for (var i = 0; i < sides.Length; i++)
+            {
+                if (i == myIndex || sides[i] is not (P4HalfSide.Left or P4HalfSide.Right))
+                    continue;
+                var pos = sides[i] == P4HalfSide.Right ? r1 : l1;
+                DrawGuide(accessory, $"{P4DrawPrefix}_P4_First_Guide_{i}", pos, P4GuideDurationMs, partyIndex: i);
+                DrawStaticCircle(accessory, $"{P4DrawPrefix}_P4_First_Target_{i}", pos, 0.25f, P4GuideDurationMs, GuideColor.V4);
+            }
+        }
+
         if (myIndex >= 0 && myIndex < sides.Length)
         {
             var mySide = sides[myIndex];
             if (mySide == P4HalfSide.Left || mySide == P4HalfSide.Right)
             {
                 var targetPosition = mySide == P4HalfSide.Right ? r1 : l1;
-                DrawGuide(accessory, $"{P4DrawPrefix}_P4_First_Guide", targetPosition, P4GuideDurationMs);
-                DrawStaticCircle(accessory, $"{P4DrawPrefix}_P4_First_Target", targetPosition, 0.25f, P4GuideDurationMs, GuideColor.V4);
+                DrawGuide(accessory, $"{P4DrawPrefix}_P4_First_Guide_{myIndex}", targetPosition, P4GuideDurationMs);
+                DrawStaticCircle(accessory, $"{P4DrawPrefix}_P4_First_Target_{myIndex}", targetPosition, 0.25f, P4GuideDurationMs, GuideColor.V4);
                 DebugEcho(accessory, $"P4一运指路已画：my={PartyPriorityLabel(myIndex)} side={FormatP4Side(mySide)} color={FormatP4Color(colors[myIndex])} target={FormatPosition(targetPosition)} duration={P4GuideDurationMs}ms greenMove={EnableGreenMove}");
                 GreenMoveToPoint(targetPosition, accessory, "P4 first mechanic");
             }
@@ -15136,16 +15314,37 @@ public class Dancing_Mad_Ultimate
     private const int TowerAssignPollMs = 100;
 
     private int _fireCount;
-    private int _fireCandidateLeftCol;
-    private int _fireCandidateRightCol;
-    private Vector3 _fireSafeCenter = P5ArenaCenter;
     private bool _fireGuideInitialized;
-    private bool _fireGuideReady;
-    private bool _fireInitialPointDrawn;
-    private bool _fireRouteCompleted;
-    private bool _fireFirstHalfDrawn;
-    private readonly List<int> _fireGuideCols = new();
-    private readonly List<int> _fireGuideRels = new();
+
+    // 安全点方向是 Auto 时按职能下标取（FireAutoStrategies），不同人路线不同；
+    // 每种方向一条轨道，各自记相位、画路线，指路箭头画给走这条轨道的人
+    private sealed class FireGuideTrack
+    {
+        public FireSafeStrategy Strategy;
+        public readonly List<int> PartyIndices = new();
+        public int LeftCol;
+        public int RightCol;
+        public Vector3 SafeCenter = new(100f, 0f, 100f);
+        public bool Ready;
+        public bool InitialPointDrawn;
+        public bool RouteCompleted;
+        public bool FirstHalfDrawn;
+        public readonly List<int> Cols = new();
+        public readonly List<int> Rels = new();
+    }
+
+    private readonly List<FireGuideTrack> _fireTracks = new();
+    // 当前正在处理的轨道；只在 _fireLock 内切换
+    private FireGuideTrack _curFire = new();
+    private int _fireCandidateLeftCol { get => _curFire.LeftCol; set => _curFire.LeftCol = value; }
+    private int _fireCandidateRightCol { get => _curFire.RightCol; set => _curFire.RightCol = value; }
+    private Vector3 _fireSafeCenter { get => _curFire.SafeCenter; set => _curFire.SafeCenter = value; }
+    private bool _fireGuideReady { get => _curFire.Ready; set => _curFire.Ready = value; }
+    private bool _fireInitialPointDrawn { get => _curFire.InitialPointDrawn; set => _curFire.InitialPointDrawn = value; }
+    private bool _fireRouteCompleted { get => _curFire.RouteCompleted; set => _curFire.RouteCompleted = value; }
+    private bool _fireFirstHalfDrawn { get => _curFire.FirstHalfDrawn; set => _curFire.FirstHalfDrawn = value; }
+    private List<int> _fireGuideCols => _curFire.Cols;
+    private List<int> _fireGuideRels => _curFire.Rels;
     // 框架每方法一线程且无序列化，47931(初始化)与47932(步进)会并发变更火状态，
     // 迟到的 47931 会 Clear 掉已记录的相位导致 n 索引错位、误选路线分支，故加锁串行化。
     private readonly object _fireLock = new object();
@@ -15284,7 +15483,27 @@ public class Dancing_Mad_Ultimate
         if (!EnableFireSafeGuide)
             return;
 
-        var strategy = ResolveFireSafeStrategy(accessory);
+        var myIndex = accessory.Data.PartyList.IndexOf(accessory.Data.Me);
+        for (var i = 0; i < Math.Min(8, accessory.Data.PartyList.Count); i++)
+        {
+            if (!Debugging && i != myIndex)
+                continue;
+            var st = ResolveFireSafeStrategy(i);
+            var track = _fireTracks.FirstOrDefault(t => t.Strategy == st);
+            if (track == null)
+                _fireTracks.Add(track = new FireGuideTrack { Strategy = st });
+            track.PartyIndices.Add(i);
+        }
+
+        foreach (var track in _fireTracks)
+        {
+            _curFire = track;
+            InitFireTrack(accessory, track.Strategy);
+        }
+    }
+
+    private void InitFireTrack(ScriptAccessory accessory, FireSafeStrategy strategy)
+    {
         (_fireCandidateLeftCol, _fireCandidateRightCol) = FireCandidateColumns(strategy);
         _fireGuideReady = _fireCandidateLeftCol != 0 && _fireCandidateRightCol != 0;
 
@@ -15304,19 +15523,21 @@ public class Dancing_Mad_Ultimate
 
     private void ClearFireSafeGuideState()
     {
-        _fireCandidateLeftCol = 0;
-        _fireCandidateRightCol = 0;
-        _fireSafeCenter = P5ArenaCenter;
         _fireGuideInitialized = false;
-        _fireGuideReady = false;
-        _fireInitialPointDrawn = false;
-        _fireRouteCompleted = false;
-        _fireFirstHalfDrawn = false;
-        _fireGuideCols.Clear();
-        _fireGuideRels.Clear();
+        _fireTracks.Clear();
+        _curFire = new FireGuideTrack();
     }
 
     private void HandleFireSafeGuideCast(ScriptAccessory accessory, Vector3 pos)
+    {
+        foreach (var track in _fireTracks)
+        {
+            _curFire = track;
+            HandleFireSafeGuideCastForTrack(accessory, pos);
+        }
+    }
+
+    private void HandleFireSafeGuideCastForTrack(ScriptAccessory accessory, Vector3 pos)
     {
         if (!_fireGuideReady)
             return;
@@ -15487,7 +15708,7 @@ public class Dancing_Mad_Ultimate
             return;
 
         var dp = accessory.Data.GetDefaultDrawProperties();
-        dp.Name = $"{FireSafePrefix}_{suffix}";
+        dp.Name = $"{FireSafePrefix}_{suffix}_{_curFire.Strategy}";
         dp.Position = pos;
         dp.Scale = new Vector2(radius);
         dp.Color = color;
@@ -15502,16 +15723,19 @@ public class Dancing_Mad_Ultimate
         if (durationMs <= 0)
             return;
 
-        var dp = accessory.Data.GetDefaultDrawProperties();
-        dp.Name = $"{FireSafePrefix}_{suffix}";
-        dp.Owner = accessory.Data.Me;
-        dp.TargetPosition = target;
-        dp.Scale = new Vector2(FireGuideWidth);
-        dp.ScaleMode = ScaleMode.YByDistance;
-        dp.Color = color;
-        dp.Delay = delayMs;
-        dp.DestoryAt = durationMs;
-        accessory.Method.SendDraw(DMG, DrawTypeEnum.Displacement, dp);
+        foreach (var i in _curFire.PartyIndices)
+        {
+            var dp = accessory.Data.GetDefaultDrawProperties();
+            dp.Name = $"{FireSafePrefix}_{suffix}_{i}";
+            dp.Owner = GuidanceOwner(accessory, i);
+            dp.TargetPosition = target;
+            dp.Scale = new Vector2(FireGuideWidth);
+            dp.ScaleMode = ScaleMode.YByDistance;
+            dp.Color = color;
+            dp.Delay = delayMs;
+            dp.DestoryAt = durationMs;
+            accessory.Method.SendDraw(DMG, DrawTypeEnum.Displacement, dp);
+        }
     }
 
     private void DrawFireRouteLine(ScriptAccessory accessory, string suffix, Vector3 from, Vector3 to, int delayMs, int durationMs, Vector4 color)
@@ -15520,7 +15744,7 @@ public class Dancing_Mad_Ultimate
             return;
 
         var dp = accessory.Data.GetDefaultDrawProperties();
-        dp.Name = $"{FireSafePrefix}_{suffix}";
+        dp.Name = $"{FireSafePrefix}_{suffix}_{_curFire.Strategy}";
         dp.Position = from;
         dp.TargetPosition = to;
         dp.Scale = new Vector2(FireRouteLineWidth);
@@ -15536,17 +15760,19 @@ public class Dancing_Mad_Ultimate
         accessory.Method.RemoveDraw($"{FireSafePrefix}_.*");
     }
 
+    // 只删当前轨道的初始斜点，别把其他方向的轨道一起删了
     private void RemoveFireInitialPointDraws(ScriptAccessory accessory)
     {
-        accessory.Method.RemoveDraw($"{FireSafePrefix}_Initial.*");
+        accessory.Method.RemoveDraw($"{FireSafePrefix}_InitialPoint_{_curFire.Strategy}");
+        foreach (var i in _curFire.PartyIndices)
+            accessory.Method.RemoveDraw($"{FireSafePrefix}_InitialGuide_{i}");
     }
 
-    private FireSafeStrategy ResolveFireSafeStrategy(ScriptAccessory accessory)
+    private FireSafeStrategy ResolveFireSafeStrategy(int partyIndex)
     {
         if (FireSafeDirection != FireSafeStrategy.Auto)
             return FireSafeDirection;
 
-        var partyIndex = accessory.Data.PartyList.IndexOf(accessory.Data.Me);
         return partyIndex >= 0 && partyIndex < FireAutoStrategies.Length ? FireAutoStrategies[partyIndex] : FireSafeStrategy.Center;
     }
 
@@ -15906,7 +16132,7 @@ public class Dancing_Mad_Ultimate
     {
         if (partyIndex >= accessory.Data.PartyList.Count) return;
         var owner = accessory.Data.PartyList[partyIndex];
-        if (TowerGuideSelfOnly && owner != accessory.Data.Me) return;
+        if (!Debugging && TowerGuideSelfOnly && owner != accessory.Data.Me) return;
 
         var dp = accessory.Data.GetDefaultDrawProperties();
         dp.Name = $"{TowerPrefix}_g{partyIndex}";
@@ -16308,16 +16534,19 @@ public class Dancing_Mad_Ultimate
     {
         if (durationMs <= 0) return;
 
-        var dp = a.Data.GetDefaultDrawProperties();
-        dp.Name = $"{P5DrawPrefix}_Flood{suffix}";
-        dp.Owner = a.Data.Me;
-        dp.TargetPosition = target;
-        dp.Scale = new Vector2(1.5f);
-        dp.ScaleMode = ScaleMode.YByDistance;
-        dp.Color = color;
-        dp.Delay = delayMs;
-        dp.DestoryAt = durationMs;
-        a.Method.SendDraw(DMG, DrawTypeEnum.Displacement, dp);
+        foreach (var i in 指路对象(a))
+        {
+            var dp = a.Data.GetDefaultDrawProperties();
+            dp.Name = $"{P5DrawPrefix}_Flood{suffix}_p{i}";
+            dp.Owner = GuidanceOwner(a, i);
+            dp.TargetPosition = target;
+            dp.Scale = new Vector2(1.5f);
+            dp.ScaleMode = ScaleMode.YByDistance;
+            dp.Color = color;
+            dp.Delay = delayMs;
+            dp.DestoryAt = durationMs;
+            a.Method.SendDraw(DMG, DrawTypeEnum.Displacement, dp);
+        }
     }
 
     private void DrawFloodRouteLine(ScriptAccessory a, string suffix, Vector3 from, Vector3 to, int delayMs, int durationMs, Vector4 color)
@@ -16369,16 +16598,19 @@ public class Dancing_Mad_Ultimate
                 dpMid.ScaleMode = ScaleMode.None;
                 a.Method.SendDraw(DM, DrawTypeEnum.Circle, dpMid);
 
-                var dpMidGuide = a.Data.GetDefaultDrawProperties();
-                dpMidGuide.Name = $"{P5DrawPrefix}_FloodMidGuide{idx}";
-                dpMidGuide.Owner = a.Data.Me;
-                dpMidGuide.TargetPosition = midPos.Value;
-                dpMidGuide.Scale = new Vector2(1.5f);
-                dpMidGuide.ScaleMode = ScaleMode.YByDistance;
-                dpMidGuide.Color = new Vector4(0f, 1f, 0.4f, 1f);
-                dpMidGuide.Delay = delayMs;
-                dpMidGuide.DestoryAt = midDuration;
-                a.Method.SendDraw(DMG, DrawTypeEnum.Displacement, dpMidGuide);
+                foreach (var i in 指路对象(a))
+                {
+                    var dpMidGuide = a.Data.GetDefaultDrawProperties();
+                    dpMidGuide.Name = $"{P5DrawPrefix}_FloodMidGuide{idx}_p{i}";
+                    dpMidGuide.Owner = GuidanceOwner(a, i);
+                    dpMidGuide.TargetPosition = midPos.Value;
+                    dpMidGuide.Scale = new Vector2(1.5f);
+                    dpMidGuide.ScaleMode = ScaleMode.YByDistance;
+                    dpMidGuide.Color = new Vector4(0f, 1f, 0.4f, 1f);
+                    dpMidGuide.Delay = delayMs;
+                    dpMidGuide.DestoryAt = midDuration;
+                    a.Method.SendDraw(DMG, DrawTypeEnum.Displacement, dpMidGuide);
+                }
 
                 guideDelay += midDuration;
                 guideDuration -= midDuration;
@@ -16387,16 +16619,19 @@ public class Dancing_Mad_Ultimate
 
         if (guideDuration <= 0) return;
 
-        var dpGuide = a.Data.GetDefaultDrawProperties();
-        dpGuide.Name = $"{P5DrawPrefix}_FloodGuide{idx}";
-        dpGuide.Owner = a.Data.Me;
-        dpGuide.TargetPosition = pos;
-        dpGuide.Scale = new Vector2(1.5f);
-        dpGuide.ScaleMode = ScaleMode.YByDistance;
-        dpGuide.Color = new Vector4(0f, 1f, 1f, 1f);
-        dpGuide.Delay = guideDelay;
-        dpGuide.DestoryAt = guideDuration;
-        a.Method.SendDraw(DMG, DrawTypeEnum.Displacement, dpGuide);
+        foreach (var i in 指路对象(a))
+        {
+            var dpGuide = a.Data.GetDefaultDrawProperties();
+            dpGuide.Name = $"{P5DrawPrefix}_FloodGuide{idx}_p{i}";
+            dpGuide.Owner = GuidanceOwner(a, i);
+            dpGuide.TargetPosition = pos;
+            dpGuide.Scale = new Vector2(1.5f);
+            dpGuide.ScaleMode = ScaleMode.YByDistance;
+            dpGuide.Color = new Vector4(0f, 1f, 1f, 1f);
+            dpGuide.Delay = guideDelay;
+            dpGuide.DestoryAt = guideDuration;
+            a.Method.SendDraw(DMG, DrawTypeEnum.Displacement, dpGuide);
+        }
     }
 
     #endregion
