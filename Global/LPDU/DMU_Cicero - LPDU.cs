@@ -33,7 +33,7 @@ using Newtonsoft.Json.Linq;
 namespace CicerosKodakkuAssist.DancingMadUltimate.LPDU;
 
 [ScriptType(name: Name, territorys: [1363], guid: "52a1cc3b-57fb-4893-9608-c0cbaaf210bd",
-    version: Version, author: "Cicero 灵视 & Coda & Usami & RyougiMio & Errer", note: Note, updateInfo: UpdateInfo)]
+    version: Version, author: "Cicero & Coda & Usami & RyougiMio & Errer", note: Note, updateInfo: UpdateInfo)]
 public class Dancing_Mad_Ultimate
 {
     #region Metadata
@@ -61,7 +61,7 @@ public class Dancing_Mad_Ultimate
     private const string UpdateInfo =
         $"""
         {Version}
-        1. Merged the Cicero / Coda / Usami / RyougiMio / Errer scripts.
+        Merged the Cicero / Coda / Usami / RyougiMio / Errer scripts.
         """;
 
     #endregion
