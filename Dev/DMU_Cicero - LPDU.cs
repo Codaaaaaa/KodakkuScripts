@@ -36,7 +36,7 @@ namespace CicerosKodakkuAssist.DancingMadUltimate.LPDU;
     version: Version, author: "Cicero 灵视 & Coda & Usami & RyougiMio & Errer", note: Note, updateInfo: UpdateInfo)]
 public class Dancing_Mad_Ultimate
 {
-    #region 元信息
+    #region Metadata
 
     private const string Name = "Dancing Mad (Ultimate) DMU UMAD - LPDU";
     private const string Version = "0.0.0.1";
@@ -44,177 +44,177 @@ public class Dancing_Mad_Ultimate
     private const string Note =
         $"""
         {Version}
-        由五个脚本整合而成：
-            Cicero 灵视 - P1~P5 的绘制，P2 遗弃末世全程与 P3 深层痛楚(一运)究极冲击波的指路。
-            Coda - P1 众神之像 1~3 的指路，P1~P3 指路的 LPDU 攻略适配。
-            Usami - P3 的绘制与指路。
-            RyougiMio - P4 的指路。
-            Errer - P5 的绘制与指路。
+        Merged from five scripts:
+            Cicero - P1~P5 draws, full P2 Forsaken guidance, and the P3 Bowels of Agony (P3A) Ultima Blaster guidance.
+            Coda - P1 Graven Image 1~3 guidance, and the LPDU strat adaptation of the P1~P3 guidance.
+            Usami - P3 draws and guidance.
+            RyougiMio - P4 guidance.
+            Errer - P5 draws and guidance.
 
-        小队顺序须为 MT ST H1 H2 D1(近战) D2(近战) D3(远程) D4(远程)。
-        小队排序测试：聊天框输入 /e kdmutest。
+        Party order must be MT ST H1 H2 D1(melee) D2(melee) D3(ranged) D4(ranged).
+        Party order test: type /e kdmutest in chat.
 
-        P1~P3 的指路按 LPDU 攻略：
-            P1 支援西 / DPS 东、箭头顺时针大方框、神像3 全固定点。
-            P2 遗弃末世 Buddies（AAABBBBA）。
-            P3 二运黑洞按地震 debuff 分配接线，不需要标点；冰封四角与踩塔 T+近战在左、H+远程在右（以凯夫卡为北）。
-        P2、P3 可在用户设置里改成 PF 打法。
+        P1~P3 guidance follows the LPDU strat:
+            P1 Supports West / DPS East, clockwise big box for the arrows, Graven Image 3 fully static tethers.
+            P2 Forsaken Buddies (AAABBBBA).
+            P3B black hole tethers are assigned by the Earthquake debuffs, no markers needed; Blizzard III corners and towers: T + melee left, H + ranged right (Kefka = north).
+        P2 and P3 can be switched to the PF strats in the user settings.
 
-        带 * 的方法与设置项是非原生功能（屏蔽技能特效、Boss 透明化、屏蔽无效目标、移除暴雷连线），
-        默认开启，不想要的在用户设置「* 特殊功能」分组里逐项关掉。
+        Methods and settings marked with * are non-vanilla features (hiding skill VFX, transparent bosses, blocking invalid targets, removing the Thunder III tether).
+        They are on by default; turn off the ones you don't want in the '* Special Features' group of the user settings.
         """;
 
     private const string UpdateInfo =
         $"""
         {Version}
-        1. 整合 Cicero / Coda / Usami / RyougiMio / Errer 五个脚本。
-        2. P3 与 Usami 重复的范围绘制只保留 Usami 的。
+        1. Merged the Cicero / Coda / Usami / RyougiMio / Errer scripts.
+        2. P3 AoE draws that overlapped with Usami's: only Usami's are kept.
         """;
 
     #endregion
 
-    #region 用户设置
+    #region User Settings
 
-    // 分隔项：没有实际作用，只把灰色说明当分组标题。插件没有"只显示文字"的设置类型，
-    // bool 一定会画勾选框，勾选框旁边显示属性名，所以属性名用不同长度的纯下划线，几乎看不见
-    // （至少两个下划线：单个 _ 会盖掉类里所有 out _ 弃元）
-    [UserSetting("—————————— 通用 ——————————")]
+    // Separator items: no real effect, they just use the grey note as a group title. The plugin has no "text only" setting type,
+    // a bool always draws a checkbox with the property name next to it, so the property names are underscores of different lengths, almost invisible
+    // (at least two underscores: a single _ would shadow every out _ discard in the class)
+    [UserSetting("—————————— General ——————————")]
     public bool __ { get; set; } = true;
-    [UserSetting("通用 启用文字提示")]
+    [UserSetting("General - Enable text prompts")]
     public bool enablePrompts { get; set; } = true;
-    [UserSetting("通用 启用原生TTS")]
+    [UserSetting("General - Enable vanilla TTS")]
     public bool enableVanillaTts { get; set; } = true;
-    [UserSetting("通用 启用Daily Routines TTS\n(需要安装并启用Daily Routines插件!)")]
+    [UserSetting("General - Enable Daily Routines TTS\n(requires the Daily Routines plugin to be installed and enabled!)")]
     public bool enableDailyRoutinesTts { get; set; } = false;
-    [UserSetting("通用 机制方向的颜色")]
+    [UserSetting("General - Colour of mechanic direction indicators")]
     public ScriptColor colourOfDirectionIndicators { get; set; } = new() { V4 = new Vector4(1,1,0, 1) }; // Yellow by default.
-    [UserSetting("通用 高度危险攻击的颜色")]
+    [UserSetting("General - Colour of extremely dangerous attacks")]
     public ScriptColor colourOfExtremelyDangerousAttacks { get; set; } = new() { V4 = new Vector4(1,0,0,1) }; // Red by default.
-    [UserSetting("通用 小队排序测试文本发送到的频道")]
-    public PartyTestChannels partyTestChannel { get; set; } = PartyTestChannels.默语频道_仅自己可见;
+    [UserSetting("General - Channel for the party order test text")]
+    public PartyTestChannels partyTestChannel { get; set; } = PartyTestChannels.EchoChannel_VisibleOnlyToYou;
 
-    [UserSetting("\n\n\n\n\n\n—————————— * 特殊功能（非原生） ——————————")]
+    [UserSetting("\n\n\n\n\n\n—————————— * Special Features (non-vanilla) ——————————")]
     public bool ___ { get; set; } = true;
-    [UserSetting("*通用 屏蔽呼啦啦爆炎、扩大大冰封和劈啪啪暴雷的技能特效\n（开启后这三种范围改用原生绘制）")]
+    [UserSetting("*General - Hide the VFX of Flagrant Fire III, Blizzard III Blowout and Thrumming Thunder III\n(when enabled, these three AoEs are drawn by the script instead)")]
     public bool blockFireIceThunderVfx { get; set; } = true;
-    [UserSetting("*通用 呼啦啦爆炎、扩大大冰封和劈啪啪暴雷\n技能特效屏蔽的方法")]
-    public AnimationBlockadeModes animationBlockadeMode { get; set; } = AnimationBlockadeModes.传统方法_改变透明施法者的可见性;
-    [UserSetting("*P3 防火墙 屏蔽无效目标")]
+    [UserSetting("*General - How to hide the VFX of\nFlagrant Fire III, Blizzard III Blowout and Thrumming Thunder III")]
+    public AnimationBlockadeModes animationBlockadeMode { get; set; } = AnimationBlockadeModes.LegacyMethod_ToggleVisibilityOfInvisibleCasters;
+    [UserSetting("*P3 Firewall - Make the boss you can't damage untargetable")]
     public bool p3FirewallBlockInvalidTargets { get; set; } = true;
-    [UserSetting("*P3A 移除暴雷连线")]
+    [UserSetting("*P3A Remove the Thunder III tether")]
     public bool p3aRemoveThunderTether { get; set; } = true;
-    [UserSetting("*P3A 真空波读条期间卡奥斯透明")]
+    [UserSetting("*P3A Make Chaos transparent while Vacuum Wave is casting")]
     public bool p3aChaosTransparentDuringVacuumWave { get; set; } = true;
-    [UserSetting("*P3B 黑洞、冰封期间双Boss透明")]
+    [UserSetting("*P3B Make both bosses transparent during Black Holes and Blizzard III")]
     public bool p3bBossesTransparentDuringBlackHole { get; set; } = true;
-    [UserSetting("*P3B 凯夫卡上桌透明化")]
+    [UserSetting("*P3B Make Giant Kefka transparent")]
     public bool p3bKefkaTransparent { get; set; } = true;
-    [UserSetting("*P3B 卡奥斯非技能期间透明化")]
+    [UserSetting("*P3B Make Chaos transparent when not casting")]
     public bool p3bChaosTransparent { get; set; } = true;
-    [UserSetting("*P3B 艾克斯迪司非技能期间透明化")]
+    [UserSetting("*P3B Make Exdeath transparent when not casting")]
     public bool p3bExdeathTransparent { get; set; } = true;
 
-    [UserSetting("\n\n\n\n\n\n—————————— 调试 ——————————")]
+    [UserSetting("\n\n\n\n\n\n—————————— Debug ——————————")]
     public bool ____ { get; set; } = true;
     internal static bool DebugEnabled;
-    [UserSetting("调试 输出调试信息\n（Dalamud日志，部分会发到默语频道）")]
+    [UserSetting("Debug - Output debug info\n(Dalamud log, some of it also goes to the Echo channel)")]
     public bool enableDebugLogging { get => DebugEnabled; set => DebugEnabled = value; }
 
     [UserSetting("\n\n\n\n\n\n—————————— P1 ——————————")]
     public bool _____ { get; set; } = true;
-    [UserSetting("P1 连环环陷阱 状态消失前的绘制持续时间(秒)")]
+    [UserSetting("P1 Double-trouble Trap - Draw duration before the debuff expires (seconds)")]
     public double doubleTroubleTrapDuration { get; set; } = 5;
 
     [UserSetting("\n\n\n\n\n\n—————————— P2 ——————————")]
     public bool ______ { get; set; } = true;
-    [UserSetting("P2 按 PF 打法：遗弃末世第 1 轮分摊跟搭档进塔\n（搭档扇形进扇形塔，搭档圆圈进圆圈塔）")]
+    [UserSetting("P2 Use PF strat: Forsaken set 1 stacks take the tower with their buddy\n(buddy has a cone -> cone tower, buddy has a circle -> circle tower)")]
     public bool followPfStrats { get; set; } = false;
-    [UserSetting("P2 遗弃末世 指路\n在偶数轮为咏唱危机·波动(扇形)的位置绘制辅助线")]
+    [UserSetting("P2 Forsaken guidance\nDraw helper lines to the Spellwave (cone) spots on even sets")]
     public bool phase2sub2_spellwaveAuxiliaryLines { get; set; } = true;
-    [UserSetting("P2 遗弃末世 绘制的视觉类型")]
-    public Phase2Sub2_DrawingTypes phase2sub2_drawingType { get; set; } = Phase2Sub2_DrawingTypes.默认;
-    [UserSetting("P2 遗弃末世 咏唱危机\n塔判定前的绘制持续时间(秒,最多7)")]
+    [UserSetting("P2 Forsaken - Draw style")]
+    public Phase2Sub2_DrawingTypes phase2sub2_drawingType { get; set; } = Phase2Sub2_DrawingTypes.Default;
+    [UserSetting("P2 Forsaken Spell's Trouble\nDraw duration before the towers resolve (seconds, max 7)")]
     public double phase2sub2_drawingDuration { get; set; } = 5;
-    [UserSetting("P2 遗弃末世 咏唱危机 仅绘制咏唱危机·波动(扇形)")]
+    [UserSetting("P2 Forsaken Spell's Trouble - Only draw Spellwave (cones)")]
     public bool phase2sub2_spellwaveOnly { get; set; } = false;
-    [UserSetting("P2 遗弃末世 为塔的位置绘制辅助线")]
+    [UserSetting("P2 Forsaken - Draw helper lines to the tower spots")]
     public bool phase2sub2_towerAuxiliaryLines { get; set; } = false;
-    [UserSetting("P2 遗弃末世 辅助线的颜色")]
+    [UserSetting("P2 Forsaken - Colour of helper lines")]
     public ScriptColor phase2sub2_colourOfAuxiliaryLines { get; set; } = new() { V4 = new Vector4(0,1,1, 1) }; // Blue by default.
 
     [UserSetting("\n\n\n\n\n\n—————————— P3 ——————————")]
     public bool _______ { get; set; } = true;
-    [UserSetting("P3 按 PF 打法：冰封四角与踩塔按 G1/G2 分左右（以凯夫卡为北）\n" +
-        "勾选 = PF：\n" +
-        "  G1（MT H1 D1 D3）在左：MT+H1 西北、D1+D3 西南，踩左塔\n" +
-        "  G2（ST H2 D2 D4）在右：ST+H2 东北、D2+D4 东南，踩右塔\n" +
-        "不勾 = LPDU：\n" +
-        "  T+近战在左：MT+ST 西北、D1+D2 西南，踩左塔\n" +
-        "  H+远程在右：H1+H2 东北、D3+D4 东南，踩右塔")]
+    [UserSetting("P3 Use PF strat: Blizzard III corners and towers split left/right by G1/G2 (Kefka = north)\n" +
+        "Checked = PF:\n" +
+        "  G1 (MT H1 D1 D3) left: MT+H1 NW, D1+D3 SW, soak left tower\n" +
+        "  G2 (ST H2 D2 D4) right: ST+H2 NE, D2+D4 SE, soak right tower\n" +
+        "Unchecked = LPDU:\n" +
+        "  T + melee left: MT+ST NW, D1+D2 SW, soak left tower\n" +
+        "  H + ranged right: H1+H2 NE, D3+D4 SE, soak right tower")]
     public bool p3FollowPfStrats { get; set; } = false;
-    [UserSetting("P3 卡奥斯诅咒敕令绘图颜色")]
+    [UserSetting("P3 Chaos Damning Edict - Draw colour")]
     public ScriptColor CursedEdictColor { get; set; } = new ScriptColor { V4 = new Vector4(1.0f, 0.643f, 0f, 1.0f) };
-    [UserSetting("P3 卡奥斯诅咒敕令绘图深度（Imgui请调2以内）")]
+    [UserSetting("P3 Chaos Damning Edict - Draw intensity (keep it at 2 or below for ImGui)")]
     public static float CursedEdictWhiteVal { get; set; } = 4;
-    [UserSetting("P3B1 二运黑洞 指示线颜色")]
+    [UserSetting("P3B1 Black Holes - Colour of indicator lines")]
     public ScriptColor BhConnLineColor { get; set; } = new ScriptColor { V4 = new Vector4(1.0f, 1.0f, 0f, 1.0f) };
-    [UserSetting("P3B2 冰封 以凯夫卡所在方位为北")]
+    [UserSetting("P3B2 Blizzard III - Use Kefka's position as north")]
     public static bool BlizKefkaIsNorth { get; set; } = true;
 
     [UserSetting("\n\n\n\n\n\n—————————— P4 ——————————")]
     public bool ________ { get; set; } = true;
-    [UserSetting("P4 诅咒之嚎 类型指示 不绘制自身的诅咒之嚎")]
+    [UserSetting("P4 Cursed Shriek type indicator - Don't draw my own Cursed Shriek")]
     public bool phase4_disableCursedShriekOnMe { get; set; } = false;
-    [UserSetting("P4 混沌之炎与混沌之水 仅绘制自身的引导范围")]
+    [UserSetting("P4 Entropy & Dynamic Fluid - Only draw my own bait AoE")]
     public bool phase4_disableStrayBaitOnOthers { get; set; } = true;
-    [UserSetting("P4 真假预测播报\n(Off关闭 Echo默语 Party小队频道)")]
+    [UserSetting("P4 Real/fake prediction callout\n(Off = disabled, Echo = Echo channel, Party = party chat)")]
     public P4PlanMessageMode PlanMessageMode { get; set; } = P4PlanMessageMode.Off;
 
     [UserSetting("\n\n\n\n\n\n—————————— P5 ——————————")]
     public bool _________ { get; set; } = true;
-    [UserSetting("P5 地火 按 LPDU 打法\n" +
-        "勾选 = LPDU：全员一起走中间，最后再分散\n" +
-        "不勾 = 按职能分组：MT ST D1 D2 走中间，H1 左、H2 右、D3 上、D4 下")]
+    [UserSetting("P5 Exaflares - Use LPDU strat\n" +
+        "Checked = LPDU: everyone walks through the middle together, spread at the end\n" +
+        "Unchecked = by role: MT ST D1 D2 walk through the middle, H1 left, H2 right, D3 up, D4 down")]
     public bool p5FireFollowLpdu { get; set; } = false;
-    [UserSetting("P5 地火 步进圈不透明度（%，0~100）")]
+    [UserSetting("P5 Exaflares - Opacity of the exaflare circles (%, 0~100)")]
     public int p5FireOpacity { get; set; } = 30;
 
     #endregion
 
-    #region 调试
+    #region Debug
 
-    // 打开后所有指路按全队 8 人绘制（每人按自己的 buff / 点名 / 职能单独解算），
-    // 并显示 userControl: Debugging 的内部方法、输出 Usami 部分的调试信息
-    // 必须是 const：userControl: Debugging 是特性参数，只吃编译期常量
+    // When on, all guidance is drawn for all 8 players (each solved from their own buff / marker / role),
+    // internal methods with userControl: Debugging are shown, and Usami's section prints debug info
+    // Must be const: userControl: Debugging is an attribute argument and only takes compile-time constants
     public const bool Debugging = true;
 
-    /// <summary>指路箭头起点 Owner：正常取 PartyList[idx]，越界回退自己</summary>
+    /// <summary>Owner of the guidance arrow start: normally PartyList[idx], falls back to me if out of range</summary>
     private static uint GuidanceOwner(ScriptAccessory sa, int idx)
         => idx >= 0 && idx < sa.Data.PartyList.Count ? sa.Data.PartyList[idx] : sa.Data.Me;
 
     #endregion
 
-    #region 测试项
+    #region Tests
 
-    [ScriptMethod(name: "———————— 《测试项》 ————————", eventType: EventTypeEnum.NpcYell, eventCondition: ["HelloayaWorld:asdf"],
+    [ScriptMethod(name: "———————— [Tests] ————————", eventType: EventTypeEnum.NpcYell, eventCondition: ["HelloayaWorld:asdf"],
         userControl: Debugging)]
-    public void 测试项分割线(Event ev, ScriptAccessory sa)
+    public void Test_Separator(Event ev, ScriptAccessory sa)
     {
     }
 
-    [ScriptMethod(name: "测试项：打印当前阶段", eventType: EventTypeEnum.NpcYell, eventCondition: ["HelloayaWorld:asdf"],
+    [ScriptMethod(name: "Test: print current stage", eventType: EventTypeEnum.NpcYell, eventCondition: ["HelloayaWorld:asdf"],
         userControl: Debugging)]
-    public void 打印当前阶段(Event ev, ScriptAccessory sa)
+    public void PrintCurrentStage(Event ev, ScriptAccessory sa)
     {
-        sa.DebugMsg($"{_udmP3Param.当前阶段}");
+        sa.DebugMsg($"{_udmP3Param.CurrentStage}");
     }
 
-    [ScriptMethod(name: "测试项：展示优先级表格", eventType: EventTypeEnum.NpcYell, eventCondition: ["HelloayaWorld:asdf"],
+    [ScriptMethod(name: "Test: show priority table", eventType: EventTypeEnum.NpcYell, eventCondition: ["HelloayaWorld:asdf"],
         userControl: Debugging)]
-    public void 展示优先级表格(Event ev, ScriptAccessory sa)
+    public void ShowPriorityTable(Event ev, ScriptAccessory sa)
     {
 
-        var str = $"优先级字典：\n";
+        var str = $"Priority dict:\n";
         foreach (var pair in _pd.Priorities)
         {
             str += $"Key {pair.Key} Value {pair.Value}\n";
@@ -223,17 +223,17 @@ public class Dancing_Mad_Ultimate
         sa.DebugMsg($"\n{_pd.ShowPriorities()}");
     }
 
-    [ScriptMethod(name: "测试项：双Boss赋值", eventType: EventTypeEnum.NpcYell, eventCondition: ["HelloayaWorld:asdf"],
+    [ScriptMethod(name: "Test: assign both bosses", eventType: EventTypeEnum.NpcYell, eventCondition: ["HelloayaWorld:asdf"],
         userControl: Debugging)]
-    public void 双Boss赋值(Event ev, ScriptAccessory sa)
+    public void AssignBothBosses(Event ev, ScriptAccessory sa)
     {
-        _udmP3Param.ObjectId_卡奥斯 = sa.GetByDataId(19508u).First().GameObjectId;
-        _udmP3Param.ObjectId_艾克斯迪司 = sa.GetByDataId(19509u).First().GameObjectId;
+        _udmP3Param.ObjectId_Chaos = sa.GetByDataId(19508u).First().GameObjectId;
+        _udmP3Param.ObjectId_Exdeath = sa.GetByDataId(19509u).First().GameObjectId;
     }
 
-    #endregion 测试项
+    #endregion Tests
 
-    #region 初始化
+    #region Init
 
     public void Init(ScriptAccessory sa)
     {
@@ -246,7 +246,7 @@ public class Dancing_Mad_Ultimate
 
     #endregion
 
-    #region 通用（Cicero 灵视）
+    #region General (Cicero)
 
     #region Variables_And_Semaphores
 
@@ -258,29 +258,26 @@ public class Dancing_Mad_Ultimate
     Major Phase 1:
 
         Phases are separated by Graven Image.
-        阶段由众神之像分隔。
 
     Major Phase 2:
 
-        Phase 1 - (~,Forsaken 遗弃末世)
-        Phase 2 - [Forsaken 遗弃末世,Light of Judgment 制裁之光)
-        Phase 3 - [Light of Judgment 制裁之光,~)
+        Phase 1 - (~,Forsaken)
+        Phase 2 - [Forsaken,Light of Judgment)
+        Phase 3 - [Light of Judgment,~)
 
     Major Phase 3:
 
-        Phase 1 - (~,Bowels of Agony 深层痛楚)
-        Phase 2 - [Bowels of Agony 深层痛楚,Earthquake 地震)
-        Phase 3 - [Earthquake 地震,~)
+        Phase 1 - (~,Bowels of Agony)
+        Phase 2 - [Bowels of Agony,Earthquake)
+        Phase 3 - [Earthquake,~)
 
     Major Phase 4:
 
         No phase separation.
-        无阶段分隔。
 
     Major Phase 5:
 
         I'm retired! For now :D
-        我退休了!
 
     */
 
@@ -388,16 +385,16 @@ public class Dancing_Mad_Ultimate
 
     public enum PartyTestChannels {
 
-        不发送到任何频道,
-        默语频道_仅自己可见,
-        小队频道_所有队员可见
+        DoNotSend,
+        EchoChannel_VisibleOnlyToYou,
+        PartyChannel_VisibleToAllMembers
 
     }
 
     public enum AnimationBlockadeModes {
 
-        传统方法_改变透明施法者的可见性,
-        引擎方法_根据handle移除指定特效
+        LegacyMethod_ToggleVisibilityOfInvisibleCasters,
+        EngineMethod_RemoveSpecificVfxByHandle
 
     }
 
@@ -412,10 +409,10 @@ public class Dancing_Mad_Ultimate
 
     public enum Phase2Sub2_DrawingTypes {
 
-        默认,
-        全VFX,
-        作者推荐_圆形ImGui_其余VFX,
-        全ImGui
+        Default,
+        AllVfx,
+        AuthorRecommended_CirclesImGui_RestVfx,
+        AllImGui
 
     }
 
@@ -468,11 +465,11 @@ public class Dancing_Mad_Ultimate
 
         phase2sub3_trineCounter=0;
 
-        lock(_trine锁) {
+        lock(_trineLock) {
 
             _trines.Clear();
-            _trine落地=0;
-            _trine安全半场=null;
+            _trineLanded=0;
+            _trineSafeHalf=null;
 
         }
 
@@ -512,16 +509,16 @@ public class Dancing_Mad_Ultimate
 
     #region Global
 
-    [ScriptMethod(name: "———————— 《通用》 ————————", eventType: EventTypeEnum.NpcYell, eventCondition: ["HelloayaWorld:asdf"])]
-    public void 通用_分割线(Event ev, ScriptAccessory sa)
+    [ScriptMethod(name: "———————— [General] ————————", eventType: EventTypeEnum.NpcYell, eventCondition: ["HelloayaWorld:asdf"])]
+    public void General_Separator(Event ev, ScriptAccessory sa)
     {
     }
 
-    [ScriptMethod(name:"通用 小队排序测试",
+    [ScriptMethod(name:"General Party Order Test",
         eventType:EventTypeEnum.Chat,
         eventCondition:["Type:Echo"])]
 
-    public void 通用_小队排序测试(Event @event,ScriptAccessory accessory) {
+    public void General_PartyOrderTest(Event @event,ScriptAccessory accessory) {
 
         string processedText=(@event["Message"]).Trim().ToLower();
 
@@ -531,7 +528,7 @@ public class Dancing_Mad_Ultimate
 
         }
 
-        string text="请确认如下小队排序是否正确:\n";
+        string text="Please check that the party order below is correct:\n";
         string log=string.Empty;
         KodakkuAssist.Data.IGameObject? sourceObject=null;
         string[] roles=["MT",
@@ -563,7 +560,7 @@ public class Dancing_Mad_Ultimate
 
                 else {
 
-                    text+=$"{roles[i]}:{sourceICharacter.Name}。";
+                    text+=$"{roles[i]}:{sourceICharacter.Name}. ";
 
                     if(i<roles.Length-1) {
 
@@ -581,13 +578,13 @@ public class Dancing_Mad_Ultimate
 
         switch(partyTestChannel) {
 
-            case PartyTestChannels.不发送到任何频道: {
+            case PartyTestChannels.DoNotSend: {
 
                 break;
 
             }
 
-            case PartyTestChannels.默语频道_仅自己可见: {
+            case PartyTestChannels.EchoChannel_VisibleOnlyToYou: {
 
                 accessory.Method.SendChat($"/e \n{text}");
 
@@ -595,7 +592,7 @@ public class Dancing_Mad_Ultimate
 
             }
 
-            case PartyTestChannels.小队频道_所有队员可见: {
+            case PartyTestChannels.PartyChannel_VisibleToAllMembers: {
 
                 accessory.Method.SendChat($"/p \n{text}");
 
@@ -627,12 +624,12 @@ public class Dancing_Mad_Ultimate
 
     }
 
-    [ScriptMethod(name:"通用 呼啦啦爆炎 (数据收集1)",
+    [ScriptMethod(name:"General Flagrant Fire III (Data Collection 1)",
         eventType:EventTypeEnum.TargetIcon,
         eventCondition:["Id:regex:^(02A1|02A2|02A3|02A4|02A5|02A6)$"],
         userControl:false)]
 
-    public void 通用_呼啦啦爆炎_数据收集1(Event @event,ScriptAccessory accessory) {
+    public void General_FlagrantFireIII_DataCollection1(Event @event,ScriptAccessory accessory) {
 
         if(!convertObjectIdToDecimal(@event["TargetId"],out var targetId)) {
 
@@ -710,12 +707,12 @@ public class Dancing_Mad_Ultimate
 
     }
 
-    [ScriptMethod(name:"通用 呼啦啦爆炎 (数据收集2)",
+    [ScriptMethod(name:"General Flagrant Fire III (Data Collection 2)",
         eventType:EventTypeEnum.TargetIcon,
         eventCondition:["Id:regex:^(0080|007F)$"],
         userControl:false)]
 
-    public void 通用_呼啦啦爆炎_数据收集2(Event @event,ScriptAccessory accessory) {
+    public void General_FlagrantFireIII_DataCollection2(Event @event,ScriptAccessory accessory) {
 
         if(!convertObjectIdToDecimal(@event["TargetId"],out var targetId)) {
 
@@ -771,12 +768,12 @@ public class Dancing_Mad_Ultimate
 
     }
 
-    [ScriptMethod(name:"通用 呼啦啦爆炎 (范围)",
+    [ScriptMethod(name:"General Flagrant Fire III (AoE)",
         eventType:EventTypeEnum.TargetIcon,
         eventCondition:["Id:regex:^(0080|007F)$"],
         suppress:COMMON_INTERVAL)]
 
-    public void 通用_呼啦啦爆炎_范围(Event @event,ScriptAccessory accessory) {
+    public void General_FlagrantFireIII_Aoe(Event @event,ScriptAccessory accessory) {
 
         var currentProperties=accessory.Data.GetDefaultDrawProperties();
 
@@ -870,11 +867,11 @@ public class Dancing_Mad_Ultimate
 
     }
 
-    [ScriptMethod(name:"*通用 呼啦啦爆炎 (技能特效屏蔽,引擎方法)",
+    [ScriptMethod(name:"*General Flagrant Fire III (Hide VFX, engine method)",
         eventType:EventTypeEnum.VfxEvent,
         eventCondition:["Id:regex:^(128|127)$"])]
 
-    public void 通用_呼啦啦爆炎_技能特效屏蔽_引擎方法(Event @event,ScriptAccessory accessory) {
+    public void General_FlagrantFireIII_VfxBlock_EngineMethod(Event @event,ScriptAccessory accessory) {
 
         if(!blockFireIceThunderVfx) {
 
@@ -882,7 +879,7 @@ public class Dancing_Mad_Ultimate
 
         }
 
-        if(animationBlockadeMode!=AnimationBlockadeModes.引擎方法_根据handle移除指定特效) {
+        if(animationBlockadeMode!=AnimationBlockadeModes.EngineMethod_RemoveSpecificVfxByHandle) {
 
             return;
 
@@ -904,13 +901,13 @@ public class Dancing_Mad_Ultimate
 
     }
 
-    [ScriptMethod(name:"通用 呼啦啦爆炎 (数据清除)",
+    [ScriptMethod(name:"General Flagrant Fire III (Clear Data)",
         eventType:EventTypeEnum.ActionEffect,
         eventCondition:["ActionId:regex:^(47778|47779)$"],
         suppress:COMMON_INTERVAL,
         userControl:false)]
 
-    public void 通用_呼啦啦爆炎_数据清除(Event @event,ScriptAccessory accessory) {
+    public void General_FlagrantFireIII_DataClear(Event @event,ScriptAccessory accessory) {
 
         fakeFlagrantFire=false;
         flagrantFireObfuscationSemaphore.Reset();
@@ -920,11 +917,11 @@ public class Dancing_Mad_Ultimate
 
     }
 
-    [ScriptMethod(name:"通用 扩大大冰封 (范围)",
+    [ScriptMethod(name:"General Blizzard III Blowout (AoE)",
         eventType:EventTypeEnum.StartCasting,
         eventCondition:["ActionId:regex:^(47768|47774)$"])]
 
-    public void 通用_扩大大冰封_范围(Event @event,ScriptAccessory accessory) {
+    public void General_BlizzardIIIBlowout_Aoe(Event @event,ScriptAccessory accessory) {
 
         if(!convertObjectIdToDecimal(@event["SourceId"],out var sourceId)) {
 
@@ -954,11 +951,11 @@ public class Dancing_Mad_Ultimate
 
     }
 
-    [ScriptMethod(name:"*通用 扩大大冰封 (技能特效屏蔽,引擎方法)",
+    [ScriptMethod(name:"*General Blizzard III Blowout (Hide VFX, engine method)",
         eventType:EventTypeEnum.VfxEvent,
         eventCondition:["Id:737"])]
 
-    public void 通用_扩大大冰封_技能特效屏蔽_引擎方法(Event @event,ScriptAccessory accessory) {
+    public void General_BlizzardIIIBlowout_VfxBlock_EngineMethod(Event @event,ScriptAccessory accessory) {
 
         if(!blockFireIceThunderVfx) {
 
@@ -966,7 +963,7 @@ public class Dancing_Mad_Ultimate
 
         }
 
-        if(animationBlockadeMode!=AnimationBlockadeModes.引擎方法_根据handle移除指定特效) {
+        if(animationBlockadeMode!=AnimationBlockadeModes.EngineMethod_RemoveSpecificVfxByHandle) {
 
             return;
 
@@ -988,11 +985,11 @@ public class Dancing_Mad_Ultimate
 
     }
 
-    [ScriptMethod(name:"*通用 扩大大冰封 (技能特效屏蔽,传统方法)",
+    [ScriptMethod(name:"*General Blizzard III Blowout (Hide VFX, legacy method)",
         eventType:EventTypeEnum.StartCasting,
         eventCondition:["ActionId:regex:^(47768|47771)$"])]
 
-    public void 通用_扩大大冰封_技能特效屏蔽_传统方法(Event @event,ScriptAccessory accessory) {
+    public void General_BlizzardIIIBlowout_VfxBlock_LegacyMethod(Event @event,ScriptAccessory accessory) {
 
         if(!blockFireIceThunderVfx) {
 
@@ -1000,7 +997,7 @@ public class Dancing_Mad_Ultimate
 
         }
 
-        if(animationBlockadeMode!=AnimationBlockadeModes.传统方法_改变透明施法者的可见性) {
+        if(animationBlockadeMode!=AnimationBlockadeModes.LegacyMethod_ToggleVisibilityOfInvisibleCasters) {
 
             return;
 
@@ -1028,11 +1025,11 @@ public class Dancing_Mad_Ultimate
 
     }
 
-    [ScriptMethod(name:"通用 劈啪啪暴雷 (范围)",
+    [ScriptMethod(name:"General Thrumming Thunder III (AoE)",
         eventType:EventTypeEnum.StartCasting,
         eventCondition:["ActionId:regex:^(47775|47777)$"])]
 
-    public void 通用_劈啪啪暴雷_范围(Event @event,ScriptAccessory accessory) {
+    public void General_ThrummingThunderIII_Aoe(Event @event,ScriptAccessory accessory) {
 
         if(!convertObjectIdToDecimal(@event["SourceId"],out var sourceId)) {
 
@@ -1061,11 +1058,11 @@ public class Dancing_Mad_Ultimate
 
     }
 
-    [ScriptMethod(name:"*通用 劈啪啪暴雷 (技能特效屏蔽,引擎方法)",
+    [ScriptMethod(name:"*General Thrumming Thunder III (Hide VFX, engine method)",
         eventType:EventTypeEnum.VfxEvent,
         eventCondition:["Id:171"])]
 
-    public void 通用_劈啪啪暴雷_技能特效屏蔽_引擎方法(Event @event,ScriptAccessory accessory) {
+    public void General_ThrummingThunderIII_VfxBlock_EngineMethod(Event @event,ScriptAccessory accessory) {
 
         if(!blockFireIceThunderVfx) {
 
@@ -1073,7 +1070,7 @@ public class Dancing_Mad_Ultimate
 
         }
 
-        if(animationBlockadeMode!=AnimationBlockadeModes.引擎方法_根据handle移除指定特效) {
+        if(animationBlockadeMode!=AnimationBlockadeModes.EngineMethod_RemoveSpecificVfxByHandle) {
 
             return;
 
@@ -1095,11 +1092,11 @@ public class Dancing_Mad_Ultimate
 
     }
 
-    [ScriptMethod(name:"*通用 劈啪啪暴雷 (技能特效屏蔽,传统方法)",
+    [ScriptMethod(name:"*General Thrumming Thunder III (Hide VFX, legacy method)",
         eventType:EventTypeEnum.StartCasting,
         eventCondition:["ActionId:regex:^(47775|47776)$"])]
 
-    public void 通用_劈啪啪暴雷_技能特效屏蔽_传统方法(Event @event,ScriptAccessory accessory) {
+    public void General_ThrummingThunderIII_VfxBlock_LegacyMethod(Event @event,ScriptAccessory accessory) {
 
         if(!blockFireIceThunderVfx) {
 
@@ -1107,7 +1104,7 @@ public class Dancing_Mad_Ultimate
 
         }
 
-        if(animationBlockadeMode!=AnimationBlockadeModes.传统方法_改变透明施法者的可见性) {
+        if(animationBlockadeMode!=AnimationBlockadeModes.LegacyMethod_ToggleVisibilityOfInvisibleCasters) {
 
             return;
 
@@ -1139,20 +1136,20 @@ public class Dancing_Mad_Ultimate
 
     #endregion
 
-    #region P1 绘制（Cicero 灵视）
+    #region P1 Draws (Cicero)
 
     #region Major_Phase_1
 
-    [ScriptMethod(name: "———————— 《P1》 ————————", eventType: EventTypeEnum.NpcYell, eventCondition: ["HelloayaWorld:asdf"])]
-    public void P1_分割线(Event ev, ScriptAccessory sa)
+    [ScriptMethod(name: "———————— [P1] ————————", eventType: EventTypeEnum.NpcYell, eventCondition: ["HelloayaWorld:asdf"])]
+    public void P1_Separator(Event ev, ScriptAccessory sa)
     {
     }
 
-    [ScriptMethod(name:"P1 恶狠狠毁荡 (范围)",
+    [ScriptMethod(name:"P1 Revolting Ruin III (AoE)",
         eventType:EventTypeEnum.StartCasting,
         eventCondition:["ActionId:50179"])]
 
-    public void P1_恶狠狠毁荡_范围(Event @event,ScriptAccessory accessory) {
+    public void P1_RevoltingRuinIII_Aoe(Event @event,ScriptAccessory accessory) {
 
         if(majorPhase!=1) {
 
@@ -1198,11 +1195,11 @@ public class Dancing_Mad_Ultimate
 
     }
 
-    [ScriptMethod(name:"P1 超驱动 (范围)",
+    [ScriptMethod(name:"P1 Hyperdrive (AoE)",
         eventType:EventTypeEnum.StartCasting,
         eventCondition:["ActionId:50722"])]
 
-    public void P1_超驱动_范围(Event @event,ScriptAccessory accessory) {
+    public void P1_Hyperdrive_Aoe(Event @event,ScriptAccessory accessory) {
 
         if(majorPhase!=1) {
 
@@ -1230,11 +1227,11 @@ public class Dancing_Mad_Ultimate
 
     }
 
-    [ScriptMethod(name:"P1 连环环陷阱 (范围)",
+    [ScriptMethod(name:"P1 Double-trouble Trap (AoE)",
         eventType:EventTypeEnum.StatusAdd,
         eventCondition:["StatusID:5078"])]
 
-    public void P1_连环环陷阱_范围(Event @event,ScriptAccessory accessory) {
+    public void P1_DoubleTroubleTrap_Aoe(Event @event,ScriptAccessory accessory) {
 
         if(majorPhase!=1) {
 
@@ -1288,7 +1285,7 @@ public class Dancing_Mad_Ultimate
 
         var currentProperties=accessory.Data.GetDefaultDrawProperties();
 
-        currentProperties.Name=$"P1_连环环陷阱_范围_{targetId}";
+        currentProperties.Name=$"P1_DoubleTroubleTrap_Aoe_{targetId}";
         currentProperties.Scale=new(6);
         currentProperties.Owner=targetId;
         currentProperties.Color=accessory.Data.DefaultDangerColor;
@@ -1299,11 +1296,11 @@ public class Dancing_Mad_Ultimate
 
     }
 
-    [ScriptMethod(name:"P1 连环环陷阱 (击退指示)",
+    [ScriptMethod(name:"P1 Double-trouble Trap (Knockback Indicator)",
         eventType:EventTypeEnum.StatusAdd,
         eventCondition:["StatusID:5078"])]
 
-    public void P1_连环环陷阱_击退指示(Event @event,ScriptAccessory accessory) {
+    public void P1_DoubleTroubleTrap_KnockbackIndicator(Event @event,ScriptAccessory accessory) {
 
         if(majorPhase!=1) {
 
@@ -1357,7 +1354,7 @@ public class Dancing_Mad_Ultimate
                 continue;
             }
             var currentProperties=accessory.Data.GetDefaultDrawProperties();
-            currentProperties.Name=$"P1_连环环陷阱_击退指示_{targetId}_{partyIndex}";
+            currentProperties.Name=$"P1_DoubleTroubleTrap_KnockbackIndicator_{targetId}_{partyIndex}";
             currentProperties.Scale=new(2,14);
             currentProperties.Owner=GuidanceOwner(accessory,partyIndex);
             currentProperties.TargetObject=targetId;
@@ -1371,12 +1368,12 @@ public class Dancing_Mad_Ultimate
         }
     }
 
-    [ScriptMethod(name:"P1 连环环陷阱 (范围与击退指示清除)",
+    [ScriptMethod(name:"P1 Double-trouble Trap (Clear AoE & Knockback Indicator)",
         eventType:EventTypeEnum.StatusRemove,
         eventCondition:["StatusID:5078"],
         userControl:false)]
 
-    public void P1_连环环陷阱_范围与击退指示清除(Event @event,ScriptAccessory accessory) {
+    public void P1_DoubleTroubleTrap_ClearAoeAndKnockbackIndicator(Event @event,ScriptAccessory accessory) {
 
         if(majorPhase!=1) {
 
@@ -1390,17 +1387,17 @@ public class Dancing_Mad_Ultimate
 
         }
 
-        accessory.Method.RemoveDraw($"P1_连环环陷阱_范围_{targetId}");
-        accessory.Method.RemoveDraw($"P1_连环环陷阱_击退指示_{targetId}(_\\d)?");
+        accessory.Method.RemoveDraw($"P1_DoubleTroubleTrap_Aoe_{targetId}");
+        accessory.Method.RemoveDraw($"P1_DoubleTroubleTrap_KnockbackIndicator_{targetId}(_\\d)?");
 
     }
 
-    [ScriptMethod(name:"P1 众神之像 (阶段控制)",
+    [ScriptMethod(name:"P1 Graven Image (Phase Control)",
         eventType:EventTypeEnum.StartCasting,
         eventCondition:["ActionId:48370"],
         userControl:false)]
 
-    public void P1_众神之像_阶段控制(Event @event,ScriptAccessory accessory) {
+    public void P1_GravenImage_PhaseControl(Event @event,ScriptAccessory accessory) {
 
         if(majorPhase!=1) {
 
@@ -1418,11 +1415,11 @@ public class Dancing_Mad_Ultimate
 
     }
 
-    [ScriptMethod(name:"P1 众神之像1 波动弹 (击退指示)",
+    [ScriptMethod(name:"P1 Graven Image 1 Pulse Wave (Knockback Indicator)",
         eventType:EventTypeEnum.Tether,
         eventCondition:["Id:002D"])]
 
-    public void P1_众神之像1_波动弹_击退指示(Event @event,ScriptAccessory accessory) {
+    public void P1_GravenImage1_PulseWave_KnockbackIndicator(Event @event,ScriptAccessory accessory) {
 
         if(majorPhase!=1) {
 
@@ -1446,7 +1443,7 @@ public class Dancing_Mad_Ultimate
             return;
         }
         var currentProperties=accessory.Data.GetDefaultDrawProperties();
-        currentProperties.Name=$"P1_众神之像1_波动弹_击退指示_{targetId}";
+        currentProperties.Name=$"P1_GravenImage1_PulseWave_KnockbackIndicator_{targetId}";
         currentProperties.Scale=new(2,13);
         currentProperties.Owner=targetId;
         currentProperties.FixRotation=true;
@@ -1458,12 +1455,12 @@ public class Dancing_Mad_Ultimate
 
     }
 
-    [ScriptMethod(name:"P1 众神之像1 玄乎乎魔法 (数据收集)",
+    [ScriptMethod(name:"P1 Graven Image 1 Mystery Magic (Data Collection)",
         eventType:EventTypeEnum.StartCasting,
         eventCondition:["ActionId:47764"],
         userControl:false)]
 
-    public void P1_众神之像1_玄乎乎魔法_数据收集(Event @event,ScriptAccessory accessory) {
+    public void P1_GravenImage1_MysteryMagic_DataCollection(Event @event,ScriptAccessory accessory) {
 
         if(majorPhase!=1) {
 
@@ -1487,11 +1484,11 @@ public class Dancing_Mad_Ultimate
 
     }
 
-    [ScriptMethod(name:"P1 众神之像1 波动炮 (范围)",
+    [ScriptMethod(name:"P1 Graven Image 1 Wave Cannon (AoE)",
         eventType:EventTypeEnum.StartCasting,
         eventCondition:["ActionId:47764"])]
 
-    public void P1_众神之像1_波动炮_范围(Event @event,ScriptAccessory accessory) {
+    public void P1_GravenImage1_WaveCannon_Aoe(Event @event,ScriptAccessory accessory) {
 
         if(majorPhase!=1) {
 
@@ -1532,11 +1529,11 @@ public class Dancing_Mad_Ultimate
 
     }
 
-    [ScriptMethod(name:"P1 众神之像1 爆炸 (精确范围)",
+    [ScriptMethod(name:"P1 Graven Image 1 Explosion (Precise AoE)",
         eventType:EventTypeEnum.StartCasting,
         eventCondition:["ActionId:47786"])]
 
-    public void P1_众神之像1_爆炸_精确范围(Event @event,ScriptAccessory accessory) {
+    public void P1_GravenImage1_Explosion_PreciseAoe(Event @event,ScriptAccessory accessory) {
 
         if(majorPhase!=1) {
 
@@ -1575,11 +1572,11 @@ public class Dancing_Mad_Ultimate
 
     }
 
-    [ScriptMethod(name:"P1 众神之像2 重力弹 (范围)",
+    [ScriptMethod(name:"P1 Graven Image 2 Gravitas (AoE)",
         eventType:EventTypeEnum.Tether,
         eventCondition:["Id:002D"])]
 
-    public void P1_众神之像2_重力弹_范围(Event @event,ScriptAccessory accessory) {
+    public void P1_GravenImage2_Gravitas_Aoe(Event @event,ScriptAccessory accessory) {
 
         if(majorPhase!=1) {
 
@@ -1654,11 +1651,11 @@ public class Dancing_Mad_Ultimate
 
     }
 
-    [ScriptMethod(name:"P1 众神之像2 岩石弹 (范围)",
+    [ScriptMethod(name:"P1 Graven Image 2 Vitrophyre (AoE)",
         eventType:EventTypeEnum.Tether,
         eventCondition:["Id:002D"])]
 
-    public void P1_众神之像2_岩石弹_范围(Event @event,ScriptAccessory accessory) {
+    public void P1_GravenImage2_Vitrophyre_Aoe(Event @event,ScriptAccessory accessory) {
 
         if(majorPhase!=1) {
 
@@ -1730,12 +1727,12 @@ public class Dancing_Mad_Ultimate
 
     }
 
-    [ScriptMethod(name:"P1 众神之像2 恶狠狠毁荡 (阶段控制)",
+    [ScriptMethod(name:"P1 Graven Image 2 Revolting Ruin III (Phase Control)",
         eventType:EventTypeEnum.StartCasting,
         eventCondition:["ActionId:50179"],
         userControl:false)]
 
-    public void P1_众神之像2_恶狠狠毁荡_阶段控制(Event @event,ScriptAccessory accessory) {
+    public void P1_GravenImage2_RevoltingRuinIII_PhaseControl(Event @event,ScriptAccessory accessory) {
 
         if(majorPhase!=1) {
 
@@ -1753,11 +1750,11 @@ public class Dancing_Mad_Ultimate
 
     }
 
-    [ScriptMethod(name:"P1 众神之像2 重力波与扑杀的神气 (范围)",
+    [ScriptMethod(name:"P1 Graven Image 2 Gravitational Wave & Intemperate Will (AoE)",
         eventType:EventTypeEnum.ObjectEffect,
         eventCondition:["Id1:64"])]
 
-    public void P1_众神之像2_重力波与扑杀的神气_范围(Event @event,ScriptAccessory accessory) {
+    public void P1_GravenImage2_GravitationalWaveAndIntemperateWill_Aoe(Event @event,ScriptAccessory accessory) {
 
         if(majorPhase!=1) {
 
@@ -1824,11 +1821,11 @@ public class Dancing_Mad_Ultimate
 
     }
 
-    [ScriptMethod(name:"P1 众神之像3 睡魔的神气 (范围)",
+    [ScriptMethod(name:"P1 Graven Image 3 Idyllic Will (AoE)",
         eventType:EventTypeEnum.Tether,
         eventCondition:["Id:002D"])]
 
-    public void P1_众神之像3_睡魔的神气_范围(Event @event,ScriptAccessory accessory) {
+    public void P1_GravenImage3_IdyllicWill_Aoe(Event @event,ScriptAccessory accessory) {
 
         if(majorPhase!=1) {
 
@@ -1878,11 +1875,11 @@ public class Dancing_Mad_Ultimate
 
     }
 
-    [ScriptMethod(name:"P1 众神之像3 懒惰的神气与圣母颂 (面向指示)",
+    [ScriptMethod(name:"P1 Graven Image 3 Indolent Will & Ave Maria (Facing Indicator)",
         eventType:EventTypeEnum.ObjectEffect,
         eventCondition:["Id1:64"])]
 
-    public void P1_众神之像3_懒惰的神气与圣母颂_面向指示(Event @event,ScriptAccessory accessory) {
+    public void P1_GravenImage3_IndolentWillAndAveMaria_FacingIndicator(Event @event,ScriptAccessory accessory) {
 
         if(majorPhase!=1) {
 
@@ -1942,7 +1939,7 @@ public class Dancing_Mad_Ultimate
                 continue;
             }
             var currentProperties=accessory.Data.GetDefaultDrawProperties();
-            currentProperties.Name=$"P1_众神之像3_懒惰的神气与圣母颂_面向指示_{partyIndex}";
+            currentProperties.Name=$"P1_GravenImage3_IndolentWillAndAveMaria_FacingIndicator_{partyIndex}";
             currentProperties.Scale=new(1,3);
             currentProperties.Owner=GuidanceOwner(accessory,partyIndex);
             currentProperties.FixRotation=true;
@@ -1957,14 +1954,14 @@ public class Dancing_Mad_Ultimate
 
     #endregion
 
-    #region P1 指路（Coda，LPDU 攻略）
+    #region P1 Guidance (Coda, LPDU strat)
 
-    // LPDU P1：https://raidplan.io/plan/_5FyPYATLhNYkq8S ，传送箭头：https://raidplan.io/plan/saC2CjTaXmSApm6y
-    // 小队顺序 MT ST H1 H2 D1(M1) D2(M2) D3(R1) D4(R2)；场地标点 A/B/C/D、1/2/3/4 都在离场中 12m
+    // LPDU P1: https://raidplan.io/plan/_5FyPYATLhNYkq8S , Tele-trouncing arrows: https://raidplan.io/plan/saC2CjTaXmSApm6y
+    // Party order MT ST H1 H2 D1(M1) D2(M2) D3(R1) D4(R2); waymarks A/B/C/D and 1/2/3/4 are all 12m from the middle
 
-    #region 全局变量与初始化
+    #region Globals & Init
 
-    // P1 子阶段：1.0 开场，1.1 神像1，1.2 神像2（从神像1 的波动炮开始算），1.3 神像3，2.0 P2
+    // P1 sub-phases: 1.0 opener, 1.1 Graven Image 1, 1.2 Graven Image 2 (counted from Graven Image 1's Wave Cannon), 1.3 Graven Image 3, 2.0 P2
     private double _phase = 1.0;
     private int _p1StatueCount = 0;
 
@@ -1983,17 +1980,17 @@ public class Dancing_Mad_Ultimate
             _action47784GuideSent = false;
         }
 
-        lock (_p1危险区)
-            _p1危险区.Clear();
+        lock (_p1DangerZones)
+            _p1DangerZones.Clear();
 
-        lock (_g2锁)
+        lock (_g2Lock)
         {
-            _g2轮次 = 0;
-            _g2上次连线 = 0;
-            Array.Clear(_g2重力弹);
-            _g2安全左上右下 = null;
-            _g2半场刀安全侧 = 0;
-            _g2第一轮已指路 = false;
+            _g2Round = 0;
+            _g2LastTethers = 0;
+            Array.Clear(_g2Gravitas);
+            _g2SafeIsNwSe = null;
+            _g2CleaveSafeSide = 0;
+            _g2Round1Guided = false;
         }
 
         ResetStatue3ArrowState();
@@ -2003,7 +2000,7 @@ public class Dancing_Mad_Ultimate
 
     #endregion
 
-    #region 阶段控制
+    #region Phase Control
 
     [ScriptMethod(name: "Set Phase 1", eventType: EventTypeEnum.Chat, eventCondition: ["Type:Echo", "Message:KASP1"], userControl: false)]
     public void SetP1(Event evt, ScriptAccessory sa)
@@ -2020,14 +2017,14 @@ public class Dancing_Mad_Ultimate
     public void SetP3(Event evt, ScriptAccessory sa) => _phase = 3.0;
 
     [ScriptMethod(name: "Show Phase", eventType: EventTypeEnum.Chat, eventCondition: ["Type:Echo", "Message:phase"], userControl: false)]
-    public void ShowPhase(Event evt, ScriptAccessory sa) => sa.Debug($"当前 Phase={_phase}, P1StatueCount={_p1StatueCount}");
+    public void ShowPhase(Event evt, ScriptAccessory sa) => sa.Debug($"Current Phase={_phase}, P1StatueCount={_p1StatueCount}");
 
     [ScriptMethod(
-        name: "P1_众神之像_指路阶段控制",
+        name: "P1_GravenImage_GuidancePhaseControl",
         eventType: EventTypeEnum.StartCasting,
         eventCondition: ["ActionId:48370"],
         userControl: false)]
-    public void P1_众神之像_指路阶段控制(Event evt, ScriptAccessory sa)
+    public void P1_GravenImage_GuidancePhaseControl(Event evt, ScriptAccessory sa)
     {
         if (_phase >= 2.0)
             return;
@@ -2045,60 +2042,60 @@ public class Dancing_Mad_Ultimate
         if (IsPhase(_phase, 1.3))
             ResetStatue3ArrowState();
 
-        sa.Debug($"P1众神之像阶段控制：Count={_p1StatueCount}, Phase={_phase}");
+        sa.Debug($"P1 Graven Image phase control: Count={_p1StatueCount}, Phase={_phase}");
     }
 
     [ScriptMethod(
-        name: "P1结束_切换到P2",
+        name: "P1End_SwitchToP2",
         eventType: EventTypeEnum.StartCasting,
         eventCondition: ["ActionId:47804"],
         userControl: false)]
-    public void P1结束_切换到P2(Event evt, ScriptAccessory sa)
+    public void P1End_SwitchToP2(Event evt, ScriptAccessory sa)
     {
         if (!IsPhase(_phase, 1.3))
             return;
 
         _phase = 2.0;
 
-        sa.Debug($"P1结束检测到 47804，切换到 P2。Phase={_phase}");
+        sa.Debug($"P1 end: saw 47804, switching to P2. Phase={_phase}");
     }
 
     #endregion
 
-    #region P1 冰雷危险区（算最近安全点）
+    #region P1 Ice/Thunder Danger Zones (nearest safe spot)
 
-    // 真冰 47768/47774：40m 90° 扇形（两个分身各朝一个对角）；真雷 47775/47777：从施法者沿面向 40×10 直线
-    // 和 Cicero 部分画危险区用的是同一组 ID；记到读条结束（4.7s）后自动失效
-    private readonly record struct P1危险区(bool 是扇形, Vector2 原点, float 朝向, long 结束);
+    // Real ice 47768/47774: 40m 90° cone (the two clones each face one diagonal); real thunder 47775/47777: 40×10 line from the caster along its facing
+    // Same IDs as the danger zones drawn in Cicero's section; entries expire on their own once the cast ends (4.7s)
+    private readonly record struct P1DangerZone(bool IsCone, Vector2 Origin, float Facing, long EndTime);
 
-    private readonly List<P1危险区> _p1危险区 = new();
+    private readonly List<P1DangerZone> _p1DangerZones = new();
 
     [ScriptMethod(
-        name: "P1_记录冰雷危险区",
+        name: "P1_RecordIceThunderDangerZones",
         eventType: EventTypeEnum.StartCasting,
         eventCondition: ["ActionId:regex:^(47768|47774|47775|47777)$"],
         userControl: false)]
-    public void P1_记录冰雷危险区(Event evt, ScriptAccessory sa)
+    public void P1_RecordIceThunderDangerZones(Event evt, ScriptAccessory sa)
     {
         if (_phase >= 2.0)
             return;
 
         var src = evt.SourcePosition();
-        var zone = new P1危险区(evt.ActionId() is 47768 or 47774, new Vector2(src.X, src.Z), evt.SourceRotation(), Environment.TickCount64 + 5500);
+        var zone = new P1DangerZone(evt.ActionId() is 47768 or 47774, new Vector2(src.X, src.Z), evt.SourceRotation(), Environment.TickCount64 + 5500);
 
-        lock (_p1危险区)
+        lock (_p1DangerZones)
         {
-            _p1危险区.RemoveAll(z => z.结束 < Environment.TickCount64);
-            _p1危险区.Add(zone);
+            _p1DangerZones.RemoveAll(z => z.EndTime < Environment.TickCount64);
+            _p1DangerZones.Add(zone);
         }
     }
 
-    private static bool P1在危险区(P1危险区 z, Vector2 p, float margin)
+    private static bool P1InDangerZone(P1DangerZone z, Vector2 p, float margin)
     {
-        var d = p - z.原点;
-        var dir = new Vector2(MathF.Sin(z.朝向), MathF.Cos(z.朝向));
+        var d = p - z.Origin;
+        var dir = new Vector2(MathF.Sin(z.Facing), MathF.Cos(z.Facing));
 
-        if (z.是扇形)
+        if (z.IsCone)
         {
             float len = d.Length();
             if (len < margin)
@@ -2115,12 +2112,12 @@ public class Dancing_Mad_Ultimate
         return along > -margin && along < 40 + margin && side < 5 + margin;
     }
 
-    /// <summary>离 from 最近、场内 18m 以内、不在任何冰扇形/真雷直线里（留 1.5m）的点；没有危险区就原地</summary>
-    private Vector3 P1最近安全点(Vector3 from)
+    /// <summary>Closest point to from that is within 18m of the middle and outside every ice cone / real thunder line (1.5m margin); stays put if there are no danger zones</summary>
+    private Vector3 P1NearestSafeSpot(Vector3 from)
     {
-        List<P1危险区> zones;
-        lock (_p1危险区)
-            zones = _p1危险区.Where(z => z.结束 >= Environment.TickCount64).ToList();
+        List<P1DangerZone> zones;
+        lock (_p1DangerZones)
+            zones = _p1DangerZones.Where(z => z.EndTime >= Environment.TickCount64).ToList();
 
         var f = new Vector2(from.X, from.Z);
         Vector2? best = null;
@@ -2134,7 +2131,7 @@ public class Dancing_Mad_Ultimate
                     continue;
 
                 var p = new Vector2(100 + x, 100 + z);
-                if (zones.Any(zone => P1在危险区(zone, p, 1.5f)))
+                if (zones.Any(zone => P1InDangerZone(zone, p, 1.5f)))
                     continue;
 
                 float distance = Vector2.Distance(p, f);
@@ -2151,14 +2148,14 @@ public class Dancing_Mad_Ultimate
 
     #endregion
 
-    #region P1 神像1（火冰 + 波动炮）
+    #region P1 Graven Image 1 (Fire/Ice + Wave Cannon)
 
     private readonly object _iceFireLock = new();
 
-    // 实际危险对角：true = 左上右下（47768 真冰按面向，47771 假冰取反）
+    // Actual danger diagonal: true = NW/SE (47768 real ice follows its facing, 47771 fake ice is inverted)
     private bool? _iceDiagonalIsLeftUpRightDown = null;
 
-    // 神像1 被 002D 连线的一组：波动弹 47785 往南击退约 13m
+    // The Graven Image 1 group tethered by 002D: Pulse Wave 47785 knocks them about 13m south
     private readonly HashSet<uint> _waveCannonTargets = new();
 
     private readonly Dictionary<uint, Vector3> _action47784Targets = new();
@@ -2166,15 +2163,15 @@ public class Dancing_Mad_Ultimate
 
     private const uint RealIceAction = 47768;
 
-    // 波动炮排队：支援在西、DPS 在东，从场中往外 MT ST H1 H2 / M1 M2 R1 R2
-    private static readonly float[] 波动炮排队距离 = [2.25f, 6.81f, 11.45f, 16.25f];
+    // Wave Cannon conga: supports west, DPS east, from the middle outward MT ST H1 H2 / M1 M2 R1 R2
+    private static readonly float[] WaveCannonCongaDistance = [2.25f, 6.81f, 11.45f, 16.25f];
 
     [ScriptMethod(
-        name: "P1_冰爆_记录冰真假与方向",
+        name: "P1_Ice_RecordRealFakeAndDirection",
         eventType: EventTypeEnum.StartCasting,
         eventCondition: ["ActionId:regex:^(47768|47771)$"],
         userControl: false)]
-    public void P1_冰爆_记录冰真假与方向(Event evt, ScriptAccessory sa)
+    public void P1_Ice_RecordRealFakeAndDirection(Event evt, ScriptAccessory sa)
     {
         if (!IsPhase(_phase, 1.1))
             return;
@@ -2187,13 +2184,13 @@ public class Dancing_Mad_Ultimate
     }
 
     [ScriptMethod(
-        name: "P1_记录002D连线",
+        name: "P1_Record002DTethers",
         eventType: EventTypeEnum.Tether,
         eventCondition: ["Id:002D"],
         userControl: false)]
-    public void P1_记录002D连线(Event evt, ScriptAccessory sa)
+    public void P1_Record002DTethers(Event evt, ScriptAccessory sa)
     {
-        // 连线方向不固定：在小队里的那一端是玩家，另一端是神像
+        // Tether direction isn't fixed: the end that's in the party is the player, the other end is the statue
         bool sourceIsPlayer = sa.Data.PartyList.Contains(evt.SourceId());
         uint playerId = sourceIsPlayer ? evt.SourceId() : evt.TargetId();
         Vector3 statuePos = sourceIsPlayer ? evt.TargetPosition() : evt.SourcePosition();
@@ -2209,17 +2206,17 @@ public class Dancing_Mad_Ultimate
         }
 
         if (IsPhase(_phase, 1.2))
-            P1_神像2_记录连线(sa, playerId, statuePos);
+            P1_GravenImage2_RecordTethers(sa, playerId, statuePos);
     }
 
-    // 47764 玄乎乎魔法（神像1 第一次）：4.7s 读条；+2.6s 波动弹击退，+5.7s 呼啦啦爆炎，+10s 波动炮
-    // 火：0080 分摊 / 007F 分散，凯夫卡头上 02A1 = 假火要反着做（读 Cicero 部分记下的 stackFlagrantFireIcon / fakeFlagrantFire）
-    // 支援西、DPS 东，各去本半场的安全象限；被连线的人先站目标点正北 13m 等击退，落地再走到目标点
+    // 47764 Mystery Magic (Graven Image 1, first one): 4.7s cast; +2.6s Pulse Wave knockback, +5.7s Flagrant Fire III, +10s Wave Cannon
+    // Fire: 0080 stack / 007F spread, 02A1 over Kefka's head = fake fire, do the opposite (reads stackFlagrantFireIcon / fakeFlagrantFire recorded by Cicero's section)
+    // Supports west, DPS east, each to the safe quadrant of their half; tethered players first stand 13m north of their spot for the knockback, then walk to the spot after landing
     [ScriptMethod(
-        name: "P1_神像1_火冰指路",
+        name: "P1_GravenImage1_FireIceGuide",
         eventType: EventTypeEnum.StartCasting,
         eventCondition: ["ActionId:47764"])]
-    public void P1_神像1_火冰指路(Event evt, ScriptAccessory sa)
+    public void P1_GravenImage1_FireIceGuide(Event evt, ScriptAccessory sa)
     {
         if (!IsPhase(_phase, 1.1))
             return;
@@ -2239,11 +2236,11 @@ public class Dancing_Mad_Ultimate
 
             if (dangerLeftUpRightDown == null)
             {
-                sa.Debug("神像1 火冰指路失败：没有记录到冰方向。");
+                sa.Debug("Graven Image 1 fire/ice guide failed: no ice direction recorded.");
                 return;
             }
 
-            bool 分摊 = stackFlagrantFireIcon != fakeFlagrantFire;
+            bool isStackCall = stackFlagrantFireIcon != fakeFlagrantFire;
             var party = sa.Data.PartyList;
             int myIdx = sa.MyIndex();
 
@@ -2252,38 +2249,38 @@ public class Dancing_Mad_Ultimate
                 if (!Debugging && i != myIdx)
                     continue;
 
-                var final = P1神像1站位(i, dangerLeftUpRightDown.Value, 分摊);
+                var final = P1GravenImage1Spot(i, dangerLeftUpRightDown.Value, isStackCall);
                 uint finalDelay = 0;
 
                 if (knocked.Contains(party[i]))
                 {
-                    var preDp = sa.WaypointDp(P1神像1击退前站位(final), 2600, 0, $"P1_神像1_击退前_{i}");
+                    var preDp = sa.WaypointDp(P1GravenImage1PreKnockbackSpot(final), 2600, 0, $"P1_GravenImage1_PreKnockback_{i}");
                     preDp.Owner = GuidanceOwner(sa, i);
                     sa.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, preDp);
                     finalDelay = 2600;
                 }
 
-                var finalDp = sa.WaypointDp(final, 5700 - finalDelay, finalDelay, $"P1_神像1_火冰_{i}");
+                var finalDp = sa.WaypointDp(final, 5700 - finalDelay, finalDelay, $"P1_GravenImage1_FireIce_{i}");
                 finalDp.Owner = GuidanceOwner(sa, i);
                 sa.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, finalDp);
 
-                var congaPos = new Vector3(100 + (i < 4 ? -1 : 1) * 波动炮排队距离[i % 4], 0, 100);
-                var congaDp = sa.WaypointDp(congaPos, 4200, 5800, $"P1_神像1_波动炮排队_{i}");
+                var congaPos = new Vector3(100 + (i < 4 ? -1 : 1) * WaveCannonCongaDistance[i % 4], 0, 100);
+                var congaDp = sa.WaypointDp(congaPos, 4200, 5800, $"P1_GravenImage1_WaveCannonConga_{i}");
                 congaDp.Owner = GuidanceOwner(sa, i);
                 sa.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, congaDp);
             }
 
-            sa.Debug($"神像1 火冰：危险对角={(dangerLeftUpRightDown.Value ? "左上右下" : "左下右上")}, 分摊={分摊}, 被连线={string.Join(",", knocked.Select(id => PartyIndex(party, id)))}");
+            sa.Debug($"Graven Image 1 fire/ice: danger diagonal={(dangerLeftUpRightDown.Value ? "NW/SE" : "SW/NE")}, stack={isStackCall}, tethered={string.Join(",", knocked.Select(id => PartyIndex(party, id)))}");
         });
     }
 
-    /// <summary>神像1 火冰站位：分摊 = 半场四人同点；分散 = Boss 南北侧 / Boss 东西侧 / 安全区中间 / 墙边（MT ST H1 H2，DPS 同序）</summary>
-    private static Vector3 P1神像1站位(int idx, bool dangerLeftUpRightDown, bool 分摊)
+    /// <summary>Graven Image 1 fire/ice spots: stack = the four of each half on one spot; spread = N/S of boss / E/W of boss / middle of the safe spot / wall (MT ST H1 H2, DPS in the same order)</summary>
+    private static Vector3 P1GravenImage1Spot(int idx, bool dangerLeftUpRightDown, bool isStackCall)
     {
         float sx = idx < 4 ? -1 : 1;
         float sz = dangerLeftUpRightDown ? -sx : sx;
 
-        var (x, z) = 分摊
+        var (x, z) = isStackCall
             ? (7f, 7f)
             : (idx % 4) switch
             {
@@ -2296,8 +2293,8 @@ public class Dancing_Mad_Ultimate
         return new Vector3(100 + sx * x, 0, 100 + sz * z);
     }
 
-    /// <summary>被往南击退 13m 的人：先站目标点正北 13m，超出场内 17m 就往场中收</summary>
-    private static Vector3 P1神像1击退前站位(Vector3 final)
+    /// <summary>Players knocked 13m south: stand 13m north of the spot first, pulled toward the middle if that's more than 17m out</summary>
+    private static Vector3 P1GravenImage1PreKnockbackSpot(Vector3 final)
     {
         var p = new Vector2(final.X - 100, final.Z - 100 - 13);
         if (p.Length() > 17)
@@ -2305,13 +2302,13 @@ public class Dancing_Mad_Ultimate
         return new Vector3(100 + p.X, 0, 100 + p.Y);
     }
 
-    // 47784 波动炮：每组被点名的两人原地留塔，没被点的两人按「从场中往外」的顺序去接本组两座塔
+    // 47784 Wave Cannon: in each group the two targeted players drop their towers where they stand, the other two soak the group's two towers in middle-outward order
     [ScriptMethod(
-        name: "P1_冰爆_47784换位指路",
+        name: "P1_WaveCannon_47784SwapGuide",
         eventType: EventTypeEnum.ActionEffect,
         eventCondition: ["ActionId:47784"],
         userControl: false)]
-    public void P1_冰爆_47784换位指路(Event evt, ScriptAccessory sa)
+    public void P1_WaveCannon_47784SwapGuide(Event evt, ScriptAccessory sa)
     {
         if (!IsPhase(_phase, 1.1))
             return;
@@ -2358,36 +2355,36 @@ public class Dancing_Mad_Ultimate
                 if (pos == null)
                     continue;
 
-                var dp = sa.WaypointDp(pos.Value, 4500, 0, $"P1_冰爆_47784换位指路_{i}");
+                var dp = sa.WaypointDp(pos.Value, 4500, 0, $"P1_WaveCannon_47784SwapGuide_{i}");
                 dp.Owner = GuidanceOwner(sa, i);
                 sa.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
             }
 
-            sa.Debug($"47784换位指路：被点名={string.Join(",", snapshot.Keys.Select(x => PartyIndex(party, x)).OrderBy(x => x))}");
+            sa.Debug($"47784 swap guide: targeted={string.Join(",", snapshot.Keys.Select(x => PartyIndex(party, x)).OrderBy(x => x))}");
         });
     }
 
     #endregion
 
-    #region P1 神像2（重力弹 / 岩石弹 + 吃水洼）
+    #region P1 Graven Image 2 (Gravitas / Vitrophyre + Puddles)
 
-    // 两轮各 8 根 002D：中间神像 (102.5,22.5,27) 的是重力弹 47788 = 分摊，留 5m 水洼；侧边神像 (126,7,41.5) 的是岩石弹 47792 = 陨石
-    // 同一轮里一个职能全是分摊、另一个全是陨石
-    // 第 1 轮：连线 → +1.4s 扩大大冰封 47765（对角冰）→ +6.5s 重力弹 → +10.5s 岩石弹；全队站 A 点（北）标点边缘的安全对角那侧
-    // 第 2 轮：半场刀预兆 → 连线 → +3.9s 扑杀的神气 47794（半场刀）→ +8.5s 重力弹 → +12.5s 岩石弹；全队站 C 点（南）标点边缘的半场刀安全侧
-    // 重力弹结算后：陨石职能分散（G1 = MT H1 M1 R1 面向 Boss 时在左，G2 = ST H2 M2 R2 在右；T/近战最大近战，H/远程外侧），分摊职能去 Boss 脚下
-    private readonly object _g2锁 = new();
-    private int _g2轮次 = 0;
-    private long _g2上次连线 = 0;
-    private readonly bool?[] _g2重力弹 = new bool?[8];
-    private bool? _g2安全左上右下 = null;
-    private int _g2半场刀安全侧 = 0; // +1 东安全，-1 西安全，0 未知
-    private bool _g2第一轮已指路 = false;
+    // Two rounds of 8 002D tethers each: from the middle statue (102.5,22.5,27) = Gravitas 47788 = stack, leaves a 5m puddle; from the side statue (126,7,41.5) = Vitrophyre 47792 = meteor
+    // Within a round one role gets all the stacks, the other all the meteors
+    // Round 1: tethers → +1.4s Blizzard III Blowout 47765 (diagonal ice) → +6.5s Gravitas → +10.5s Vitrophyre; whole party at the edge of waymark A (north) on the safe diagonal's side
+    // Round 2: cleave tell → tethers → +3.9s Intemperate Will 47794 (half-room cleave) → +8.5s Gravitas → +12.5s Vitrophyre; whole party at the edge of waymark C (south) on the cleave's safe side
+    // After Gravitas resolves: the meteor role spreads (G1 = MT H1 M1 R1 on the left facing the boss, G2 = ST H2 M2 R2 on the right; T/melee at max melee, H/ranged further out), the stack role goes under the boss
+    private readonly object _g2Lock = new();
+    private int _g2Round = 0;
+    private long _g2LastTethers = 0;
+    private readonly bool?[] _g2Gravitas = new bool?[8];
+    private bool? _g2SafeIsNwSe = null;
+    private int _g2CleaveSafeSide = 0; // +1 = east safe, -1 = west safe, 0 = unknown
+    private bool _g2Round1Guided = false;
 
-    private static readonly Vector3 G2重力弹神像 = new(102.5f, 22.5f, 27f);
-    private static readonly Vector3 G2岩石弹神像 = new(126f, 7f, 41.5f);
+    private static readonly Vector3 GI2GravitasStatue = new(102.5f, 22.5f, 27f);
+    private static readonly Vector3 GI2VitrophyreStatue = new(126f, 7f, 41.5f);
 
-    private void P1_神像2_记录连线(ScriptAccessory sa, uint playerId, Vector3 statuePos)
+    private void P1_GravenImage2_RecordTethers(ScriptAccessory sa, uint playerId, Vector3 statuePos)
     {
         int idx = PartyIndex(sa.Data.PartyList, playerId);
         if (idx is < 0 or > 7)
@@ -2397,23 +2394,23 @@ public class Dancing_Mad_Ultimate
         bool newRound;
         int round;
 
-        lock (_g2锁)
+        lock (_g2Lock)
         {
-            newRound = now - _g2上次连线 > 3000;
+            newRound = now - _g2LastTethers > 3000;
             if (newRound)
             {
-                _g2轮次++;
-                Array.Clear(_g2重力弹);
+                _g2Round++;
+                Array.Clear(_g2Gravitas);
             }
 
-            _g2上次连线 = now;
-            round = _g2轮次;
-            _g2重力弹[idx] = Vector3.Distance(statuePos, G2重力弹神像) < 1 ? true
-                : Vector3.Distance(statuePos, G2岩石弹神像) < 1 ? false
+            _g2LastTethers = now;
+            round = _g2Round;
+            _g2Gravitas[idx] = Vector3.Distance(statuePos, GI2GravitasStatue) < 1 ? true
+                : Vector3.Distance(statuePos, GI2VitrophyreStatue) < 1 ? false
                 : null;
         }
 
-        // 第 2 轮没有冰读条可挂，连线到齐后直接指路
+        // Round 2 has no ice cast to hook onto, so guide as soon as all tethers are in
         if (newRound && round == 2)
         {
             Task.Run(async () =>
@@ -2421,35 +2418,35 @@ public class Dancing_Mad_Ultimate
                 await Task.Delay(150);
 
                 int side;
-                lock (_g2锁)
-                    side = _g2半场刀安全侧;
+                lock (_g2Lock)
+                    side = _g2CleaveSafeSide;
 
-                P1_神像2_分摊与陨石(sa, 2, new Vector3(100 + side * 1.5f, 0, 112), 8500, 4000);
+                P1_GravenImage2_StacksAndMeteors(sa, 2, new Vector3(100 + side * 1.5f, 0, 112), 8500, 4000);
             });
         }
     }
 
     [ScriptMethod(
-        name: "P1_神像2_记录安全对角",
+        name: "P1_GravenImage2_RecordSafeDiagonal",
         eventType: EventTypeEnum.StartCasting,
         eventCondition: ["ActionId:regex:^(47774|47768)$"],
         userControl: false)]
-    public void P1_神像2_记录安全对角(Event evt, ScriptAccessory sa)
+    public void P1_GravenImage2_RecordSafeDiagonal(Event evt, ScriptAccessory sa)
     {
         if (!IsPhase(_phase, 1.2))
             return;
 
-        lock (_g2锁)
-            _g2安全左上右下 = !IsLeftUpRightDownByRotation(evt.SourceRotation());
+        lock (_g2Lock)
+            _g2SafeIsNwSe = !IsLeftUpRightDownByRotation(evt.SourceRotation());
     }
 
-    // 半场刀预兆：ObjectEffect 64/128，大球在 (92,15,27) = 西半场挨打，(116,6.5,43) = 东半场挨打（同 Cicero 部分的画图）
+    // Cleave tell: ObjectEffect 64/128, big orb at (92,15,27) = west half gets hit, (116,6.5,43) = east half gets hit (same as the draw in Cicero's section)
     [ScriptMethod(
-        name: "P1_神像2_记录半场刀",
+        name: "P1_GravenImage2_RecordCleave",
         eventType: EventTypeEnum.ObjectEffect,
         eventCondition: ["Id1:64"],
         userControl: false)]
-    public void P1_神像2_记录半场刀(Event evt, ScriptAccessory sa)
+    public void P1_GravenImage2_RecordCleave(Event evt, ScriptAccessory sa)
     {
         if (!IsPhase(_phase, 1.2) || !string.Equals(evt["Id2"], "128"))
             return;
@@ -2461,27 +2458,27 @@ public class Dancing_Mad_Ultimate
 
         if (side != 0)
         {
-            lock (_g2锁)
-                _g2半场刀安全侧 = side;
+            lock (_g2Lock)
+                _g2CleaveSafeSide = side;
         }
     }
 
 
-    // 47765 扩大大冰封（第 1 轮）：4.7s 读条，+5.1s 重力弹，+9.1s 岩石弹
+    // 47765 Blizzard III Blowout (round 1): 4.7s cast, +5.1s Gravitas, +9.1s Vitrophyre
     [ScriptMethod(
-        name: "P1_神像2指路",
+        name: "P1_GravenImage2Guide",
         eventType: EventTypeEnum.StartCasting,
         eventCondition: ["ActionId:47765"])]
-    public void P1_神像2指路(Event evt, ScriptAccessory sa)
+    public void P1_GravenImage2Guide(Event evt, ScriptAccessory sa)
     {
         if (!IsPhase(_phase, 1.2))
             return;
 
-        lock (_g2锁)
+        lock (_g2Lock)
         {
-            if (_g2第一轮已指路)
+            if (_g2Round1Guided)
                 return;
-            _g2第一轮已指路 = true;
+            _g2Round1Guided = true;
         }
 
         Task.Run(async () =>
@@ -2489,23 +2486,23 @@ public class Dancing_Mad_Ultimate
             await Task.Delay(150);
 
             bool? safeLeftUpRightDown;
-            lock (_g2锁)
-                safeLeftUpRightDown = _g2安全左上右下;
+            lock (_g2Lock)
+                safeLeftUpRightDown = _g2SafeIsNwSe;
 
-            // 北边标点：安全对角是左上右下就站标点西侧，否则东侧
+            // North waymark: stand on its west side if the safe diagonal is NW/SE, otherwise on its east side
             float x = safeLeftUpRightDown switch { true => -1.2f, false => 1.2f, null => 0 };
-            P1_神像2_分摊与陨石(sa, 1, new Vector3(100 + x, 0, 88), 5100, 4000);
+            P1_GravenImage2_StacksAndMeteors(sa, 1, new Vector3(100 + x, 0, 88), 5100, 4000);
         });
     }
 
-    private void P1_神像2_分摊与陨石(ScriptAccessory sa, int round, Vector3 stackPos, uint stackMs, uint meteorMs)
+    private void P1_GravenImage2_StacksAndMeteors(ScriptAccessory sa, int round, Vector3 stackPos, uint stackMs, uint meteorMs)
     {
         bool? supportStack;
 
-        lock (_g2锁)
+        lock (_g2Lock)
         {
-            int supports = Enumerable.Range(0, 4).Count(i => _g2重力弹[i] == true);
-            int dps = Enumerable.Range(4, 4).Count(i => _g2重力弹[i] == true);
+            int supports = Enumerable.Range(0, 4).Count(i => _g2Gravitas[i] == true);
+            int dps = Enumerable.Range(4, 4).Count(i => _g2Gravitas[i] == true);
             supportStack = supports == dps ? null : supports > dps;
         }
 
@@ -2516,7 +2513,7 @@ public class Dancing_Mad_Ultimate
             if (!Debugging && i != myIdx)
                 continue;
 
-            var stackDp = sa.WaypointDp(stackPos, stackMs, 0, $"P1_神像2_第{round}轮分摊_{i}");
+            var stackDp = sa.WaypointDp(stackPos, stackMs, 0, $"P1_GravenImage2_Round{round}Stack_{i}");
             stackDp.Owner = GuidanceOwner(sa, i);
             sa.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, stackDp);
 
@@ -2524,16 +2521,16 @@ public class Dancing_Mad_Ultimate
                 continue;
 
             bool meteor = (i < 4) != supportStack.Value;
-            var nextDp = sa.WaypointDp(meteor ? P1神像2陨石站位(i, round) : ArenaCenter, meteorMs, stackMs, $"P1_神像2_第{round}轮散开_{i}");
+            var nextDp = sa.WaypointDp(meteor ? P1GravenImage2MeteorSpot(i, round) : ArenaCenter, meteorMs, stackMs, $"P1_GravenImage2_Round{round}Spread_{i}");
             nextDp.Owner = GuidanceOwner(sa, i);
             sa.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, nextDp);
         }
 
-        sa.Debug($"神像2 第{round}轮：分摊点={stackPos}, 分摊职能={(supportStack == null ? "未知" : supportStack.Value ? "支援" : "DPS")}");
+        sa.Debug($"Graven Image 2 round {round}: stack spot={stackPos}, stack role={(supportStack == null ? "Unknown" : supportStack.Value ? "Supports" : "DPS")}");
     }
 
-    /// <summary>陨石分散：G1 面向 Boss 在左（第 1 轮从北看 = 东，第 2 轮从南看 = 西），T/近战最大近战 7m，H/远程外侧偏向水洼那侧</summary>
-    private static Vector3 P1神像2陨石站位(int idx, int round)
+    /// <summary>Meteor spread: G1 on the left facing the boss (round 1 seen from north = east, round 2 seen from south = west), T/melee at max melee 7m, H/ranged further out toward the puddle side</summary>
+    private static Vector3 P1GravenImage2MeteorSpot(int idx, int round)
     {
         float g1 = idx % 2 == 0 ? 1 : -1;
         float side = round == 1 ? g1 : -g1;
@@ -2546,11 +2543,11 @@ public class Dancing_Mad_Ultimate
 
     #endregion
 
-    #region P1 神像3（箭头 + 固定点 + 最后火雷）
+    #region P1 Graven Image 3 (Arrows + Fixed Spots + Final Fire/Thunder)
 
     private readonly object _statue3ArrowLock = new();
 
-    // 每人身上各有两层箭头 buff，按玩家分开记（Debug 时全队都要解算）
+    // Everyone has two arrow buffs; tracked per player (in Debug the whole party is solved)
     private sealed class Statue3ArrowRecord
     {
         public int Count;
@@ -2566,17 +2563,17 @@ public class Dancing_Mad_Ultimate
     private const uint Statue3SmallArrowMinStatus = 0x130C;
     private const uint Statue3SmallArrowMaxStatus = 0x130F;
 
-    // 唰啦啦传送箭头：4876~4879（同向两层都是这组）+ 5079~5082（异向的「拐出去」那个），7s / 10s 两层
+    // Tele-portent arrows: 4876~4879 (both stacks are from this set when they point the same way) + 5079~5082 (the "turn-out" one when they differ), 7s / 10s stacks
     [ScriptMethod(
-        name: "P1_神像3_箭头指路",
+        name: "P1_GravenImage3_ArrowsGuide",
         eventType: EventTypeEnum.StatusAdd,
         eventCondition: ["StatusID:regex:^(4876|4877|4878|4879|5079|5080|5081|5082|130C|130D|130E|130F|13D7|13D8|13D9|13DA)$"])]
-    public void P1_神像3_箭头指路(Event evt, ScriptAccessory sa)
+    public void P1_GravenImage3_ArrowsGuide(Event evt, ScriptAccessory sa)
     {
         if (_phase >= 2.0)
             return;
 
-        // 箭头 buff 是神像3 专属；48370 阶段控制漏了就用它兜底切到 1.3
+        // Arrow buffs only exist in Graven Image 3; if the 48370 phase control was missed, fall back to 1.3 on them
         if (!IsPhase(_phase, 1.3))
         {
             _phase = 1.3;
@@ -2642,28 +2639,28 @@ public class Dancing_Mad_Ultimate
         Vector3 firstPos = RotateStatue3RelativePoint(plan.Dir4, plan.FirstRelative);
         Vector3 secondPos = RotateStatue3RelativePoint(plan.Dir4, plan.SecondRelative);
 
-        var firstDp = sa.WaypointDp(firstPos, 7500, 0, $"P1_神像3_箭头指路_第一段_{targetIdx}", new Vector4(0, 1, 0, 1));
+        var firstDp = sa.WaypointDp(firstPos, 7500, 0, $"P1_GravenImage3_ArrowsGuide_Part1_{targetIdx}", new Vector4(0, 1, 0, 1));
         firstDp.Owner = GuidanceOwner(sa, targetIdx);
 
-        var secondDp = sa.WaypointDp(secondPos, 3000, 7500, $"P1_神像3_箭头指路_第二段_{targetIdx}", new Vector4(0, 1, 0, 1));
+        var secondDp = sa.WaypointDp(secondPos, 3000, 7500, $"P1_GravenImage3_ArrowsGuide_Part2_{targetIdx}", new Vector4(0, 1, 0, 1));
         secondDp.Owner = GuidanceOwner(sa, targetIdx);
 
-        var previewDp = sa.WaypointFromToDp(firstPos, secondPos, 7500, 0, $"P1_神像3_箭头指路_第二段预览_{targetIdx}", new Vector4(1, 1, 1, 1));
+        var previewDp = sa.WaypointFromToDp(firstPos, secondPos, 7500, 0, $"P1_GravenImage3_ArrowsGuide_Part2Preview_{targetIdx}", new Vector4(1, 1, 1, 1));
 
         sa.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, firstDp);
         sa.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, secondDp);
         sa.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, previewDp);
 
-        sa.Debug($"神像3箭头：Index={targetIdx}, {plan.Callout}, First={firstPos}, Second={secondPos}");
+        sa.Debug($"Graven Image 3 arrows: Index={targetIdx}, {plan.Callout}, First={firstPos}, Second={secondPos}");
     }
 
-    // 神像3 连线（睡眠/魅惑都不管）全固定：北 MT 内/R1 外，西 ST 内/R2 外，东 M2 内/H2 外，南 M1 内/H1 外
-    // 连线后 3.3s 第三次陷阱击退，+9s 睡魔/圣母的神气结算；击退落地后再去固定点
+    // Graven Image 3 tethers (ignore sleep/confuse) are fully static: N MT in / R1 out, W ST in / R2 out, E M2 in / H2 out, S M1 in / H1 out
+    // 3.3s after the tethers comes the third trap knockback, +9s Idyllic Will / Ave Maria resolve; go to the fixed spot after landing from the knockback
     [ScriptMethod(
-        name: "P1_神像3_固定点指路",
+        name: "P1_GravenImage3_FixedSpotsGuide",
         eventType: EventTypeEnum.Tether,
         eventCondition: ["Id:002D"])]
-    public void P1_神像3_固定点指路(Event evt, ScriptAccessory sa)
+    public void P1_GravenImage3_FixedSpotsGuide(Event evt, ScriptAccessory sa)
     {
         if (!IsPhase(_phase, 1.3))
             return;
@@ -2682,13 +2679,13 @@ public class Dancing_Mad_Ultimate
                 return;
         }
 
-        var dp = sa.WaypointDp(P1神像3固定点(idx), 5000, 5000, $"P1_神像3_固定点_{idx}");
+        var dp = sa.WaypointDp(P1GravenImage3FixedSpot(idx), 5000, 5000, $"P1_GravenImage3_FixedSpot_{idx}");
         dp.Owner = GuidanceOwner(sa, idx);
         sa.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
     }
 
-    /// <summary>内 = Boss 最大近战 7.5m，外 = 箭头和墙之间 17m</summary>
-    private static Vector3 P1神像3固定点(int idx) => idx switch
+    /// <summary>In = boss max melee 7.5m, out = 17m, between the arrow and the wall</summary>
+    private static Vector3 P1GravenImage3FixedSpot(int idx) => idx switch
     {
         0 => new Vector3(100, 0, 92.5f),
         1 => new Vector3(92.5f, 0, 100),
@@ -2700,23 +2697,23 @@ public class Dancing_Mad_Ultimate
         _ => new Vector3(83, 0, 100),
     };
 
-    // 神像3 后的 47764 玄乎乎魔法：火（可能假）+ 真假雷直线 + 视线，+5.8s 一起结算
-    // 分摊：DPS 北、支援南，各自找离 Boss 6m 处最近的不在真雷线上的点；分散：原地，被真雷线罩住才挪到最近的安全点
+    // 47764 Mystery Magic after Graven Image 3: fire (maybe fake) + real/fake thunder lines + gaze, all resolve at +5.8s
+    // Stack: DPS north, supports south, each to the nearest point 6m from the boss that isn't on a real thunder line; spread: stay put, only move to the nearest safe spot if a real thunder line covers you
     // [ScriptMethod(
-    //     name: "P1_神像3_最后火雷指路",
+    //     name: "P1_GravenImage3_FinalFireThunderGuide",
     //     eventType: EventTypeEnum.StartCasting,
     //     eventCondition: ["ActionId:47764"])]
-    // public void P1_神像3_最后火雷指路(Event evt, ScriptAccessory sa)
+    // public void P1_GravenImage3_FinalFireThunderGuide(Event evt, ScriptAccessory sa)
     // {
     //     if (!IsPhase(_phase, 1.3))
     //         return;
 
     //     Task.Run(async () =>
     //     {
-    //         // 真雷 47775/47777 和 47764 同一帧读条，稍等它们进危险区列表
+    //         // Real thunder 47775/47777 casts on the same frame as 47764; wait a moment for them to enter the danger zone list
     //         await Task.Delay(300);
 
-    //         bool 分摊 = stackFlagrantFireIcon != fakeFlagrantFire;
+    //         bool isStackCall = stackFlagrantFireIcon != fakeFlagrantFire;
     //         var party = sa.Data.PartyList;
     //         int myIdx = sa.MyIndex();
 
@@ -2725,18 +2722,18 @@ public class Dancing_Mad_Ultimate
     //             if (!Debugging && i != myIdx)
     //                 continue;
 
-    //             Vector3? from = 分摊
+    //             Vector3? from = isStackCall
     //                 ? new Vector3(100, 0, i < 4 ? 106 : 94)
     //                 : sa.Data.Objects.SearchById(party[i])?.Position;
     //             if (from == null)
     //                 continue;
 
-    //             var dp = sa.WaypointDp(P1最近安全点(from.Value), 5300, 0, $"P1_神像3_最后火雷_{i}");
+    //             var dp = sa.WaypointDp(P1NearestSafeSpot(from.Value), 5300, 0, $"P1_GravenImage3_FinalFireThunder_{i}");
     //             dp.Owner = GuidanceOwner(sa, i);
     //             sa.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
     //         }
 
-    //         sa.Debug($"神像3 最后火雷：分摊={分摊}");
+    //         sa.Debug($"Graven Image 3 final fire/thunder: stack={isStackCall}");
     //     });
     // }
 
@@ -2751,11 +2748,11 @@ public class Dancing_Mad_Ultimate
 
     #endregion
 
-    #region 工具方法
+    #region Utilities
 
     private readonly record struct Statue3ArrowPlan(int Dir4, Vector2 FirstRelative, Vector2 SecondRelative, string Callout);
 
-    // 箭头朝向：0 北 1 西 2 南 3 东（两组 ID 同图标同朝向）
+    // Arrow facing: 0 N 1 W 2 S 3 E (both ID sets share icons and facings)
     private static int? GetStatue3ArrowDir4(uint statusId)
     {
         return statusId switch
@@ -2768,15 +2765,15 @@ public class Dancing_Mad_Ultimate
         };
     }
 
-    // LPDU 顺时针方框（方框边长 24m，正点和角上都有标点）：
-    // 两个同向箭头：先放所在边的正点，再往逆时针挪一格（6m）
-    // 两个不同向：放「正点顺时针一格 + 角」，拐出去的那个（5079~5082 组）放角上，先到期的先放
+    // LPDU clockwise box (box side 24m, waymarks on the cardinals and the corners):
+    // Two arrows the same way: drop on that side's cardinal first, then one step (6m) counterclockwise
+    // Two different arrows: drop on "one step clockwise of the cardinal + the corner"; the turn-out one (5079~5082 set) goes on the corner, whichever expires first is dropped first
     private static Statue3ArrowPlan GetStatue3ArrowPlan(bool sameBuff, bool smallIsShort, int smallDir4, int largeDir4)
     {
         if (sameBuff)
         {
             int side = (Math.Max(smallDir4, largeDir4) + 1) % 4;
-            return new Statue3ArrowPlan(side, new Vector2(0, -12), new Vector2(-6, -12), $"{CardinalDirText(side)}正点放两次");
+            return new Statue3ArrowPlan(side, new Vector2(0, -12), new Vector2(-6, -12), $"{CardinalDirText(side)} cardinal, drop both there");
         }
 
         int dir4 = (largeDir4 + 2) % 4;
@@ -2784,7 +2781,7 @@ public class Dancing_Mad_Ultimate
             dir4,
             smallIsShort ? new Vector2(6, -12) : new Vector2(12, -12),
             smallIsShort ? new Vector2(12, -12) : new Vector2(6, -12),
-            $"{DiagonalClockwiseDirText(dir4)}，{(smallIsShort ? "先边后角" : "先角后边")}");
+            $"{DiagonalClockwiseDirText(dir4)}, {(smallIsShort ? "side spot first, then corner" : "corner first, then side spot")}");
     }
 
     private static Vector3 RotateStatue3RelativePoint(int dir4, Vector2 relative)
@@ -2808,11 +2805,11 @@ public class Dancing_Mad_Ultimate
     {
         return ((dir4 % 4 + 4) % 4) switch
         {
-            0 => "上北",
-            1 => "左西",
-            2 => "下南",
-            3 => "右东",
-            _ => "未知",
+            0 => "North",
+            1 => "West",
+            2 => "South",
+            3 => "East",
+            _ => "Unknown",
         };
     }
 
@@ -2820,11 +2817,11 @@ public class Dancing_Mad_Ultimate
     {
         return ((dir4 % 4 + 4) % 4) switch
         {
-            0 => "右上",
-            1 => "左上",
-            2 => "左下",
-            3 => "右下",
-            _ => "未知",
+            0 => "NE",
+            1 => "NW",
+            2 => "SW",
+            3 => "SE",
+            _ => "Unknown",
         };
     }
 
@@ -2892,21 +2889,21 @@ public class Dancing_Mad_Ultimate
 
     #endregion
 
-    #region P2 绘制与指路（Cicero 灵视）
+    #region P2 Draws & Guidance (Cicero)
 
     #region Major_Phase_2
 
-    [ScriptMethod(name: "———————— 《P2》 ————————", eventType: EventTypeEnum.NpcYell, eventCondition: ["HelloayaWorld:asdf"])]
-    public void P2_分割线(Event ev, ScriptAccessory sa)
+    [ScriptMethod(name: "———————— [P2] ————————", eventType: EventTypeEnum.NpcYell, eventCondition: ["HelloayaWorld:asdf"])]
+    public void P2_Separator(Event ev, ScriptAccessory sa)
     {
     }
 
-    [ScriptMethod(name:"P2 (阶段控制)",
+    [ScriptMethod(name:"P2 (Phase Control)",
         eventType:EventTypeEnum.PlayActionTimeline,
         eventCondition:["Id:4565"],
         userControl:false)]
 
-    public void P2_阶段控制(Event @event,ScriptAccessory accessory) {
+    public void P2_PhaseControl(Event @event,ScriptAccessory accessory) {
 
         if(majorPhase!=1) {
 
@@ -2933,11 +2930,11 @@ public class Dancing_Mad_Ultimate
 
     }
 
-    [ScriptMethod(name:"P2 终末双腕 (范围)",
+    [ScriptMethod(name:"P2 Ultimate Embrace (AoE)",
         eventType:EventTypeEnum.StartCasting,
         eventCondition:["ActionId:49740"])]
 
-    public void P2_终末双腕_范围(Event @event,ScriptAccessory accessory) {
+    public void P2_UltimateEmbrace_Aoe(Event @event,ScriptAccessory accessory) {
 
         if(majorPhase!=2) {
 
@@ -2962,12 +2959,12 @@ public class Dancing_Mad_Ultimate
 
     }
 
-    [ScriptMethod(name:"P2 遗弃末世 (阶段控制)",
+    [ScriptMethod(name:"P2 Forsaken (Phase Control)",
         eventType:EventTypeEnum.StartCasting,
         eventCondition:["ActionId:47804"],
         userControl:false)]
 
-    public void P2_遗弃末世_阶段控制(Event @event,ScriptAccessory accessory) {
+    public void P2_Forsaken_PhaseControl(Event @event,ScriptAccessory accessory) {
 
         if(majorPhase!=2) {
 
@@ -2991,7 +2988,7 @@ public class Dancing_Mad_Ultimate
 
     }
 
-    // 固定搭档 MT+H1 / ST+H2 / M1+R1 / M2+R2：有分摊的两对是 A 组（第 1/2/3/8 轮进塔），另外两对是 B 组（第 4~7 轮）
+    // Fixed buddies MT+H1 / ST+H2 / M1+R1 / M2+R2: the two pairs with a stack are group A (towers on sets 1/2/3/8), the other two pairs are group B (sets 4~7)
     private bool groupPartyMembersAtBeginning(ScriptAccessory accessory) {
 
         int[][] group=[[0,2],
@@ -3019,12 +3016,12 @@ public class Dancing_Mad_Ultimate
 
     }
 
-    [ScriptMethod(name:"P2 遗弃末世 咏唱危机 (数据收集)",
+    [ScriptMethod(name:"P2 Forsaken Spell's Trouble (Data Collection)",
         eventType:EventTypeEnum.TargetIcon,
         eventCondition:["Id:regex:^(02CD|02CC|02CB)$"],
         userControl:false)]
 
-    public void P2_遗弃末世_咏唱危机_数据收集(Event @event,ScriptAccessory accessory) {
+    public void P2_Forsaken_SpellsTrouble_DataCollection(Event @event,ScriptAccessory accessory) {
 
         if(majorPhase!=2) {
 
@@ -3177,13 +3174,13 @@ public class Dancing_Mad_Ultimate
 
     }
 
-    // 塔出现：EnvControl Index 1~8，Flag 是 1 或 2（同一轮两座塔也可能不同，第 1 轮常是两个 1），只认 2 会漏塔导致整轮不指路
-    [ScriptMethod(name:"P2 遗弃末世 塔 (数据收集)",
+    // Towers spawning: EnvControl Index 1~8, Flag 1 or 2 (the two towers of one set can differ, set 1 is often both 1); only accepting 2 misses towers and kills the whole set's guidance
+    [ScriptMethod(name:"P2 Forsaken Towers (Data Collection)",
         eventType:EventTypeEnum.EnvControl,
         eventCondition:["Flag:regex:^(1|2)$"],
         userControl:false)]
 
-    public void P2_遗弃末世_塔_数据收集(Event @event,ScriptAccessory accessory) {
+    public void P2_Forsaken_Towers_DataCollection(Event @event,ScriptAccessory accessory) {
 
         if(majorPhase!=2) {
 
@@ -3303,12 +3300,12 @@ public class Dancing_Mad_Ultimate
 
     }
 
-    [ScriptMethod(name:"P2 遗弃末世 (指路,第1轮)",
+    [ScriptMethod(name:"P2 Forsaken (Guidance, Set 1)",
         eventType:EventTypeEnum.ActionEffect,
         eventCondition:["ActionId:47804"],
         suppress:COMMON_INTERVAL)]
 
-    public void P2_遗弃末世_指路_第1轮(Event @event,ScriptAccessory accessory) {
+    public void P2_Forsaken_Guide_Set1(Event @event,ScriptAccessory accessory) {
 
         if(majorPhase!=2) {
 
@@ -3342,15 +3339,15 @@ public class Dancing_Mad_Ultimate
         if(!signalled) {
             return;
         }
-        P2_遗弃末世_指路(1,accessory);
+        P2_Forsaken_Guide(1,accessory);
 
     }
 
-    [ScriptMethod(name:"P2 遗弃末世 (指路,第2轮到第8轮)",
+    [ScriptMethod(name:"P2 Forsaken (Guidance, Sets 2-8)",
         eventType:EventTypeEnum.ActionEffect,
         eventCondition:["ActionId:47806"])]
 
-    public void P2_遗弃末世_指路_第2轮到第8轮(Event @event,ScriptAccessory accessory) {
+    public void P2_Forsaken_Guide_Sets2To8(Event @event,ScriptAccessory accessory) {
 
         if(majorPhase!=2) {
 
@@ -3432,28 +3429,28 @@ public class Dancing_Mad_Ultimate
 
             phase2sub2_allThingsEndingSemaphore.Reset();
 
-            accessory.Method.RemoveDraw($"P2_遗弃末世_消灭之脚指路1_第{lastRound}轮(_\\d)?");
-            accessory.Method.RemoveDraw($"P2_遗弃末世_消灭之脚指路2_第{lastRound}轮");
-            accessory.Method.RemoveDraw($"P2_遗弃末世_消灭之脚指路3_第{lastRound}轮(_\\d)?");
-            accessory.Method.RemoveDraw($"P2_遗弃末世_指路辅助线1_第{lastRound}轮");
-            accessory.Method.RemoveDraw($"P2_遗弃末世_指路辅助线2_第{lastRound}轮");
-            accessory.Method.RemoveDraw($"P2_遗弃末世_指路_第{lastRound}轮(_\\d)?");
+            accessory.Method.RemoveDraw($"P2_Forsaken_AllThingsEndingGuide1_Set{lastRound}(_\\d)?");
+            accessory.Method.RemoveDraw($"P2_Forsaken_AllThingsEndingGuide2_Set{lastRound}");
+            accessory.Method.RemoveDraw($"P2_Forsaken_AllThingsEndingGuide3_Set{lastRound}(_\\d)?");
+            accessory.Method.RemoveDraw($"P2_Forsaken_GuideHelperLine1_Set{lastRound}");
+            accessory.Method.RemoveDraw($"P2_Forsaken_GuideHelperLine2_Set{lastRound}");
+            accessory.Method.RemoveDraw($"P2_Forsaken_Guide_Set{lastRound}(_\\d)?");
 
             if(lastRound==8) {
 
-                P2_遗弃末世_指路_末尾(accessory);
+                P2_Forsaken_Guide_Final(accessory);
 
                 return;
 
             }
 
-            P2_遗弃末世_指路(lastRound+1,accessory);
+            P2_Forsaken_Guide(lastRound+1,accessory);
 
         }
 
     }
 
-    private void P2_遗弃末世_指路_末尾(ScriptAccessory accessory) {
+    private void P2_Forsaken_Guide_Final(ScriptAccessory accessory) {
         int myIndex=accessory.Data.PartyList.IndexOf(accessory.Data.Me);
         var currentProperties=accessory.Data.GetDefaultDrawProperties();
         for(int partyIndex=0;partyIndex<8;++partyIndex) {
@@ -3461,7 +3458,7 @@ public class Dancing_Mad_Ultimate
                 continue;
             }
             currentProperties=accessory.Data.GetDefaultDrawProperties();
-            currentProperties.Name=$"P2_遗弃末世_消灭之脚指路1_末尾_{partyIndex}";
+            currentProperties.Name=$"P2_Forsaken_AllThingsEndingGuide1_Final_{partyIndex}";
             currentProperties.Scale=new(2);
             currentProperties.Owner=GuidanceOwner(accessory,partyIndex);
             currentProperties.TargetPosition=PHASE2_SUB2_RAW_TOWER_POSITION;
@@ -3472,7 +3469,7 @@ public class Dancing_Mad_Ultimate
         }
         currentProperties=accessory.Data.GetDefaultDrawProperties();
 
-        currentProperties.Name="P2_遗弃末世_消灭之脚指路2_末尾";
+        currentProperties.Name="P2_Forsaken_AllThingsEndingGuide2_Final";
         currentProperties.Scale=new(20);
         currentProperties.Radian=((float)(convertDegreesToRadians(5)));
         currentProperties.Position=ARENA_CENTER;
@@ -3484,14 +3481,14 @@ public class Dancing_Mad_Ultimate
 
         phase2sub2_allThingsEndingSemaphore.WaitOne(6375+COMMON_INTERVAL);
 
-        accessory.Method.RemoveDraw("P2_遗弃末世_消灭之脚指路1_末尾(_\\d)?");
-        accessory.Method.RemoveDraw("P2_遗弃末世_消灭之脚指路2_末尾");
+        accessory.Method.RemoveDraw("P2_Forsaken_AllThingsEndingGuide1_Final(_\\d)?");
+        accessory.Method.RemoveDraw("P2_Forsaken_AllThingsEndingGuide2_Final");
         for(int partyIndex=0;partyIndex<8;++partyIndex) {
             if(!Debugging&&partyIndex!=myIndex) {
                 continue;
             }
             currentProperties=accessory.Data.GetDefaultDrawProperties();
-            currentProperties.Name=$"P2_遗弃末世_消灭之脚指路3_末尾_{partyIndex}";
+            currentProperties.Name=$"P2_Forsaken_AllThingsEndingGuide3_Final_{partyIndex}";
             currentProperties.Scale=new(2);
             currentProperties.Owner=GuidanceOwner(accessory,partyIndex);
             currentProperties.ScaleMode|=ScaleMode.YByDistance;
@@ -3507,13 +3504,13 @@ public class Dancing_Mad_Ultimate
         }
     }
 
-    // ----- LPDU Buddies：https://raidplan.io/plan/142oXOZpPc_jh3dd ，精确站位：https://raidplan.io/plan/A0xlCay835pm5qxs -----
-    // 搭档 MT+H1 / ST+H2 / M1+R1 / M2+R2，有分摊的两对是 A 组，按 AAABBBBA 进塔；远程（H/R）站位固定，T/近战看搭档调整
-    // 站位都写在「本轮两座塔在南」的局部系里（x 东为正、z 南为正，相对场中）：面向 Boss 左塔（西南）= 扇形塔、右塔（东南）= 圆圈塔
-    private static readonly Vector2 P2左塔=new(-5.657f,5.657f);
-    private const float P2默认判定圈=6;
+    // ----- LPDU Buddies: https://raidplan.io/plan/142oXOZpPc_jh3dd , exact positions: https://raidplan.io/plan/A0xlCay835pm5qxs -----
+    // Buddies MT+H1 / ST+H2 / M1+R1 / M2+R2, the two pairs with a stack are group A, towers go AAABBBBA; ranged (H/R) spots are fixed, T/melee adjust around their buddy
+    // Spots are written in a local frame with "this set's two towers in the south" (x east positive, z south positive, relative to the middle): facing the boss, left tower (SW) = cone tower, right tower (SE) = circle tower
+    private static readonly Vector2 P2LeftTower=new(-5.657f,5.657f);
+    private const float P2DefaultHitbox=6;
 
-    private void P2_遗弃末世_指路(int currentRound,ScriptAccessory accessory) {
+    private void P2_Forsaken_Guide(int currentRound,ScriptAccessory accessory) {
 
         if(currentRound<1||currentRound>8) {
 
@@ -3529,15 +3526,15 @@ public class Dancing_Mad_Ultimate
 
         }
 
-        float hitbox=P2Boss判定圈(accessory);
+        float hitbox=P2BossHitbox(accessory);
 
-        // 每人按自己的分组、头顶图标、职能解算；Debug 时画全队
+        // Each player is solved from their own group, head icon and role; Debug draws the whole party
         var positions=new Dictionary<int,Vector3>();
         for(int partyIndex=0;partyIndex<8;++partyIndex) {
             if(!Debugging&&partyIndex!=myIndex) {
                 continue;
             }
-            var position=P2_遗弃末世_位置(currentRound,partyIndex,hitbox,accessory);
+            var position=P2_Forsaken_Position(currentRound,partyIndex,hitbox,accessory);
             if(position!=null) {
                 positions[partyIndex]=position.Value;
             }
@@ -3547,7 +3544,7 @@ public class Dancing_Mad_Ultimate
         }
         var currentProperties=accessory.Data.GetDefaultDrawProperties();
 
-        // 第 3/5/7 轮先引上一轮的过去/未来终结（第 1 轮没有）
+        // Sets 3/5/7 first bait the previous set's Past's/Future's End (set 1 has none)
         if(currentRound%2==1&&currentRound>1) {
 
             Vector3 baitPosition=PHASE2_SUB2_RAW_TOWER_POSITION;
@@ -3562,7 +3559,7 @@ public class Dancing_Mad_Ultimate
 
             foreach(var (partyIndex,myPosition) in positions) {
                 currentProperties=accessory.Data.GetDefaultDrawProperties();
-                currentProperties.Name=$"P2_遗弃末世_消灭之脚指路1_第{currentRound}轮_{partyIndex}";
+                currentProperties.Name=$"P2_Forsaken_AllThingsEndingGuide1_Set{currentRound}_{partyIndex}";
                 currentProperties.Scale=new(2);
                 currentProperties.Owner=GuidanceOwner(accessory,partyIndex);
                 currentProperties.TargetPosition=baitPosition;
@@ -3573,7 +3570,7 @@ public class Dancing_Mad_Ultimate
             }
             currentProperties=accessory.Data.GetDefaultDrawProperties();
 
-            currentProperties.Name=$"P2_遗弃末世_消灭之脚指路2_第{currentRound}轮";
+            currentProperties.Name=$"P2_Forsaken_AllThingsEndingGuide2_Set{currentRound}";
             currentProperties.Scale=new(20);
             currentProperties.Radian=((float)(convertDegreesToRadians(5)));
             currentProperties.Position=ARENA_CENTER;
@@ -3585,7 +3582,7 @@ public class Dancing_Mad_Ultimate
 
             foreach(var (partyIndex,myPosition) in positions) {
                 currentProperties=accessory.Data.GetDefaultDrawProperties();
-                currentProperties.Name=$"P2_遗弃末世_消灭之脚指路3_第{currentRound}轮_{partyIndex}";
+                currentProperties.Name=$"P2_Forsaken_AllThingsEndingGuide3_Set{currentRound}_{partyIndex}";
                 currentProperties.Scale=new(2);
                 currentProperties.Position=baitPosition;
                 currentProperties.TargetPosition=myPosition;
@@ -3595,21 +3592,21 @@ public class Dancing_Mad_Ultimate
                 accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Displacement,currentProperties);
             }
             phase2sub2_allThingsEndingSemaphore.WaitOne(6375+COMMON_INTERVAL);
-            accessory.Method.RemoveDraw($"P2_遗弃末世_消灭之脚指路1_第{currentRound}轮(_\\d)?");
-            accessory.Method.RemoveDraw($"P2_遗弃末世_消灭之脚指路2_第{currentRound}轮");
-            accessory.Method.RemoveDraw($"P2_遗弃末世_消灭之脚指路3_第{currentRound}轮(_\\d)?");
+            accessory.Method.RemoveDraw($"P2_Forsaken_AllThingsEndingGuide1_Set{currentRound}(_\\d)?");
+            accessory.Method.RemoveDraw($"P2_Forsaken_AllThingsEndingGuide2_Set{currentRound}");
+            accessory.Method.RemoveDraw($"P2_Forsaken_AllThingsEndingGuide3_Set{currentRound}(_\\d)?");
         }
 
         if(currentRound%2==0&&phase2sub2_spellwaveAuxiliaryLines) {
 
-            Vector2 cone=P2偶数轮左塔().cone;
-            Vector3[] fanPositions=[P2局部转世界(cone,currentRound),P2局部转世界(new Vector2(-cone.X,cone.Y),currentRound)];
+            Vector2 cone=P2EvenSetLeftTower().cone;
+            Vector3[] fanPositions=[P2LocalToWorld(cone,currentRound),P2LocalToWorld(new Vector2(-cone.X,cone.Y),currentRound)];
 
             for(int i=0;i<2;++i) {
 
                 currentProperties=accessory.Data.GetDefaultDrawProperties();
 
-                currentProperties.Name=$"P2_遗弃末世_指路辅助线{i+1}_第{currentRound}轮";
+                currentProperties.Name=$"P2_Forsaken_GuideHelperLine{i+1}_Set{currentRound}";
                 currentProperties.Scale=new(0.5f);
                 currentProperties.Position=fanPositions[i];
                 currentProperties.Color=phase2sub2_colourOfAuxiliaryLines.V4.WithW(1);
@@ -3623,7 +3620,7 @@ public class Dancing_Mad_Ultimate
 
         foreach(var (partyIndex,myPosition) in positions) {
             currentProperties=accessory.Data.GetDefaultDrawProperties();
-            currentProperties.Name=$"P2_遗弃末世_指路_第{currentRound}轮_{partyIndex}";
+            currentProperties.Name=$"P2_Forsaken_Guide_Set{currentRound}_{partyIndex}";
             currentProperties.Scale=new(2);
             currentProperties.Owner=GuidanceOwner(accessory,partyIndex);
             currentProperties.TargetPosition=myPosition;
@@ -3634,7 +3631,7 @@ public class Dancing_Mad_Ultimate
         }
     }
 
-    private Vector3? P2_遗弃末世_位置(int currentRound,int myIndex,float hitbox,ScriptAccessory accessory) {
+    private Vector3? P2_Forsaken_Position(int currentRound,int myIndex,float hitbox,ScriptAccessory accessory) {
 
         bool towerIsGroupA=phase2sub2_isGroupARound[currentRound];
         List<int> towerGroup=towerIsGroupA?phase2sub2_groupA:phase2sub2_groupB;
@@ -3648,8 +3645,8 @@ public class Dancing_Mad_Ultimate
         }
 
         Vector2? relative=(currentRound%2==1)
-            ?P2奇数轮站位(myIndex,inTower,currentRound==1)
-            :P2偶数轮站位(myIndex,inTower,towerGroup,hitbox);
+            ?P2OddSetSpot(myIndex,inTower,currentRound==1)
+            :P2EvenSetSpot(myIndex,inTower,towerGroup,hitbox);
 
         if(enableDebugLogging) {
 
@@ -3662,23 +3659,23 @@ public class Dancing_Mad_Ultimate
 
         }
 
-        return relative==null?null:P2局部转世界(relative.Value,currentRound);
+        return relative==null?null:P2LocalToWorld(relative.Value,currentRound);
 
     }
 
-    // 局部系是塔在南，原来的离散方位以塔在北为 0，所以多转半圈
-    private Vector3 P2局部转世界(Vector2 relative,int currentRound) {
+    // The local frame has the towers in the south, the old discrete regions had towers-in-the-north as 0, so rotate an extra half turn
+    private Vector3 P2LocalToWorld(Vector2 relative,int currentRound) {
 
         return rotatePosition(new Vector3(100+relative.X,0,100+relative.Y),ARENA_CENTER,Math.PI/4*phase2sub2_discretizedTowerGap[currentRound]+Math.PI);
 
     }
 
-    // 奇数轮（2 分摊 1 扇形 1 圆圈，分摊 5m）：
-    // 扇形塔 = 支援的分摊（塔内靠 Boss）+ 扇形（塔最南略偏右）；圆圈塔 = DPS 的分摊（塔左侧最大近战）+ 圆圈（塔最东）
-    // 搭档两人都是分摊：远程留本职能那边，T/近战换到另一边
-    // PF 打法只改第 1 轮：分摊跟搭档进塔（搭档扇形 → 扇形塔，搭档圆圈 → 圆圈塔），之后各轮同 LPDU
-    // 闲人固定：T 在 Boss 判定圈内、扇形塔前（吃支援分摊），H 在扇形人正南引扇形；DPS 两人在两塔中间靠圆圈塔吃 DPS 分摊
-    private Vector2? P2奇数轮站位(int idx,bool inTower,bool firstRound) {
+    // Odd sets (2 stacks 1 cone 1 circle, stack 5m):
+    // Cone tower = supports' stack (in the tower, boss side) + cone (southmost point of the tower, slightly right); circle tower = DPS stack (max melee on the tower's left) + circle (eastmost point of the tower)
+    // Both buddies have stacks: the ranged stays on their own role's side, T/melee swaps to the other side
+    // PF strat only changes set 1: stacks take the tower with their buddy (buddy cone → cone tower, buddy circle → circle tower), later sets same as LPDU
+    // Helpers are fixed: T inside the boss hitbox in front of the cone tower (takes the supports' stack), H directly south of the cone player to bait the cone; the two DPS between the towers, toward the circle tower, take the DPS stack
+    private Vector2? P2OddSetSpot(int idx,bool inTower,bool firstRound) {
 
         if(!inTower) {
 
@@ -3699,7 +3696,7 @@ public class Dancing_Mad_Ultimate
 
             case Phase2Sub2_IconTypes.STACK: {
 
-                // idx^2 = 固定搭档（0↔2、1↔3、4↔6、5↔7）
+                // idx^2 = fixed buddy (0↔2, 1↔3, 4↔6, 5↔7)
                 var buddy=phase2sub2_iconType[idx^2];
                 bool coneTower=isSupporter(idx);
 
@@ -3726,13 +3723,13 @@ public class Dancing_Mad_Ultimate
 
     }
 
-    // 偶数轮（2 扇形 2 圆圈）：每座塔前扇形后圆圈
-    // H+近战进左塔、远程+T 进右塔，近战和 H 同图标时近战与 T 对调
-    // 闲人固定：T 西北 / 近战东北站 Boss 外判定圈引分身（四个分身点名最近的 4 人 = 两个扇形 + 这两人），
-    // H / 远程站扇形人外侧引扇形，扇形往东西两边打出去
-    private Vector2? P2偶数轮站位(int idx,bool inTower,List<int> towerGroup,float hitbox) {
+    // Even sets (2 cones 2 circles): each tower has the cone in front and the circle behind
+    // H + melee take the left tower, ranged + T the right tower; if melee and H have the same icon, melee swaps with T
+    // Helpers are fixed: T NW / melee NE on the boss's outer hitbox ring to bait the clones (the four clones target the closest 4 = the two cones + these two),
+    // H / ranged stand outside the cone players to bait the cones, which fire out east and west
+    private Vector2? P2EvenSetSpot(int idx,bool inTower,List<int> towerGroup,float hitbox) {
 
-        var (cone,circle,baiter)=P2偶数轮左塔();
+        var (cone,circle,baiter)=P2EvenSetLeftTower();
 
         if(!inTower) {
 
@@ -3765,35 +3762,35 @@ public class Dancing_Mad_Ultimate
     }
 
     /// <summary>
-    /// 偶数轮左塔（塔心距场中 8m、半径 4m，往里收 0.4m）：以两塔中间面向 Boss 为 12 点，
-    /// 扇形点在塔的 1 点钟（往场内收），圆圈点过塔心在对面 7 点钟（往外）；右塔由调用方镜像成 11 点 / 5 点。
-    /// 引扇形点 = 扇形点正西 5.5m（咏唱危机·散碎 47809 圆圈 5m + 0.5m 容错），扇形往西打出去
+    /// Even-set left tower (tower center 8m from the middle, radius 4m, pulled in 0.4m): with the midpoint of the two towers facing the boss as 12 o'clock,
+    /// the cone spot is at the tower's 1 o'clock (pulled toward the middle), the circle spot is across the tower center at 7 o'clock (outward); the caller mirrors it to 11 / 5 o'clock for the right tower.
+    /// Cone bait spot = 5.5m due west of the cone spot (Spellscatter 47809 circle 5m + 0.5m margin), the cone fires out west
     /// </summary>
-    private static (Vector2 cone,Vector2 circle,Vector2 baiter) P2偶数轮左塔() {
+    private static (Vector2 cone,Vector2 circle,Vector2 baiter) P2EvenSetLeftTower() {
 
         const float towerRadius=3.6f,clock=MathF.PI/6,baitDistance=5+0.5f;
 
         var offset=new Vector2(MathF.Sin(clock),-MathF.Cos(clock))*towerRadius;
-        var cone=P2左塔+offset;
+        var cone=P2LeftTower+offset;
 
-        return (cone,P2左塔-offset,cone-new Vector2(baitDistance,0));
+        return (cone,P2LeftTower-offset,cone-new Vector2(baitDistance,0));
 
     }
 
-    // P2 凯夫卡（19506）判定圈半径；读不到或不在合理范围就按 6m
-    private static float P2Boss判定圈(ScriptAccessory accessory) {
+    // P2 Kefka (19506) hitbox radius; fall back to 6m if it can't be read or is out of range
+    private static float P2BossHitbox(ScriptAccessory accessory) {
 
         float radius=accessory.GetByDataId(19506u).FirstOrDefault()?.HitboxRadius??0;
-        return radius is > 4.5f and < 11f?radius:P2默认判定圈;
+        return radius is > 4.5f and < 11f?radius:P2DefaultHitbox;
 
     }
 
-    [ScriptMethod(name:"P2 遗弃末世 消灭之脚 数据收集",
+    [ScriptMethod(name:"P2 Forsaken All Things Ending Data Collection",
         eventType:EventTypeEnum.StartCasting,
         eventCondition:["ActionId:regex:^(47836|47837)$"],
         userControl:false)]
 
-    public void P2_遗弃末世_消灭之脚_数据收集(Event @event,ScriptAccessory accessory) {
+    public void P2_Forsaken_AllThingsEnding_DataCollection(Event @event,ScriptAccessory accessory) {
 
         if(majorPhase!=2) {
 
@@ -3834,19 +3831,19 @@ public class Dancing_Mad_Ultimate
 
         switch(phase2sub2_drawingType) {
 
-            case Phase2Sub2_DrawingTypes.默认: {
+            case Phase2Sub2_DrawingTypes.Default: {
 
                 return DrawModeEnum.Default;
 
             }
 
-            case Phase2Sub2_DrawingTypes.全VFX: {
+            case Phase2Sub2_DrawingTypes.AllVfx: {
 
                 return DrawModeEnum.Vfx;
 
             }
 
-            case Phase2Sub2_DrawingTypes.作者推荐_圆形ImGui_其余VFX: {
+            case Phase2Sub2_DrawingTypes.AuthorRecommended_CirclesImGui_RestVfx: {
 
                 if(currentType==DrawTypeEnum.Circle) {
 
@@ -3862,7 +3859,7 @@ public class Dancing_Mad_Ultimate
 
             }
 
-            case Phase2Sub2_DrawingTypes.全ImGui: {
+            case Phase2Sub2_DrawingTypes.AllImGui: {
 
                 return DrawModeEnum.Imgui;
 
@@ -3878,11 +3875,11 @@ public class Dancing_Mad_Ultimate
 
     }
 
-    [ScriptMethod(name:"P2 遗弃末世 咏唱危机 (范围)",
+    [ScriptMethod(name:"P2 Forsaken Spell's Trouble (AoE)",
         eventType:EventTypeEnum.EnvControl,
         eventCondition:["Flag:8"])]
 
-    public void P2_遗弃末世_咏唱危机_范围(Event @event,ScriptAccessory accessory) {
+    public void P2_Forsaken_SpellsTrouble_Aoe(Event @event,ScriptAccessory accessory) {
 
         if(majorPhase!=2) {
 
@@ -4035,11 +4032,11 @@ public class Dancing_Mad_Ultimate
 
     }
 
-    [ScriptMethod(name:"P2 遗弃末世 (塔辅助线)",
+    [ScriptMethod(name:"P2 Forsaken (Tower Helper Lines)",
         eventType:EventTypeEnum.EnvControl,
         eventCondition:["Flag:regex:^(1|2)$"])]
 
-    public void P2_遗弃末世_塔辅助线(Event @event,ScriptAccessory accessory) {
+    public void P2_Forsaken_TowerHelperLines(Event @event,ScriptAccessory accessory) {
 
         if(!phase2sub2_towerAuxiliaryLines) {
 
@@ -4101,11 +4098,11 @@ public class Dancing_Mad_Ultimate
 
     }
 
-    [ScriptMethod(name:"P2 遗弃末世 过去终结与未来终结 (引导范围)",
+    [ScriptMethod(name:"P2 Forsaken Past's End & Future's End (Bait AoE)",
         eventType:EventTypeEnum.StartCasting,
         eventCondition:["ActionId:regex:^(47826|47827)$"])]
 
-    public void P2_遗弃末世_过去终结与未来终结_引导范围(Event @event,ScriptAccessory accessory) {
+    public void P2_Forsaken_PastAndFuturesEnd_BaitAoe(Event @event,ScriptAccessory accessory) {
 
         if(majorPhase!=2) {
 
@@ -4144,12 +4141,12 @@ public class Dancing_Mad_Ultimate
 
     }
 
-    [ScriptMethod(name:"P2 遗弃末世 过去终结与未来终结 (数据收集)",
+    [ScriptMethod(name:"P2 Forsaken Past's End & Future's End (Data Collection)",
         eventType:EventTypeEnum.StartCasting,
         eventCondition:["ActionId:regex:^(47826|47827)$"],
         userControl:false)]
 
-    public void P2_遗弃末世_过去终结与未来终结_数据收集(Event @event,ScriptAccessory accessory) {
+    public void P2_Forsaken_PastAndFuturesEnd_DataCollection(Event @event,ScriptAccessory accessory) {
 
         if(majorPhase!=2) {
 
@@ -4185,11 +4182,11 @@ public class Dancing_Mad_Ultimate
 
     }
 
-    [ScriptMethod(name:"P2 遗弃末世 消灭之脚 (引导范围)",
+    [ScriptMethod(name:"P2 Forsaken All Things Ending (Bait AoE)",
         eventType:EventTypeEnum.StartCasting,
         eventCondition:["ActionId:regex:^(47826|47827)$"])]
 
-    public void P2_遗弃末世_消灭之脚_引导范围(Event @event,ScriptAccessory accessory) {
+    public void P2_Forsaken_AllThingsEnding_BaitAoe(Event @event,ScriptAccessory accessory) {
 
         if(majorPhase!=2) {
 
@@ -4235,11 +4232,11 @@ public class Dancing_Mad_Ultimate
 
     }
 
-    [ScriptMethod(name:"P2 遗弃末世 消灭之脚 (范围)",
+    [ScriptMethod(name:"P2 Forsaken All Things Ending (AoE)",
         eventType:EventTypeEnum.StartCasting,
         eventCondition:["ActionId:regex:^(47836|47837)$"])]
 
-    public void P2_遗弃末世_消灭之脚_范围(Event @event,ScriptAccessory accessory) {
+    public void P2_Forsaken_AllThingsEnding_Aoe(Event @event,ScriptAccessory accessory) {
 
         if(majorPhase!=2) {
 
@@ -4283,12 +4280,12 @@ public class Dancing_Mad_Ultimate
 
     }
 
-    [ScriptMethod(name:"P2 遗弃末世后 制裁之光 (阶段控制)",
+    [ScriptMethod(name:"P2 Post-Forsaken Light of Judgment (Phase Control)",
         eventType:EventTypeEnum.StartCasting,
         eventCondition:["ActionId:47805"],
         userControl:false)]
 
-    public void P2_遗弃末世后_制裁之光_阶段控制(Event @event,ScriptAccessory accessory) {
+    public void P2_PostForsaken_LightOfJudgment_PhaseControl(Event @event,ScriptAccessory accessory) {
 
         if(majorPhase!=2) {
 
@@ -4312,11 +4309,11 @@ public class Dancing_Mad_Ultimate
 
     }
 
-    [ScriptMethod(name:"P2 遗弃末世后 破坏之翼 (单翼范围)",
+    [ScriptMethod(name:"P2 Post-Forsaken Wings of Destruction (Single Wing AoE)",
         eventType:EventTypeEnum.StartCasting,
         eventCondition:["ActionId:regex:^(47821|47822)$"])]
 
-    public void P2_遗弃末世后_破坏之翼_单翼范围(Event @event,ScriptAccessory accessory) {
+    public void P2_PostForsaken_WingsOfDestruction_SingleWingAoe(Event @event,ScriptAccessory accessory) {
 
         if(majorPhase!=2) {
 
@@ -4359,11 +4356,11 @@ public class Dancing_Mad_Ultimate
 
     }
 
-    [ScriptMethod(name:"P2 遗弃末世后 破坏之翼 (双翼范围)",
+    [ScriptMethod(name:"P2 Post-Forsaken Wings of Destruction (Double Wing AoE)",
         eventType:EventTypeEnum.StartCasting,
         eventCondition:["ActionId:50311"])]
 
-    public void P2_遗弃末世后_破坏之翼_双翼范围(Event @event,ScriptAccessory accessory) {
+    public void P2_PostForsaken_WingsOfDestruction_DoubleWingAoe(Event @event,ScriptAccessory accessory) {
 
         if(majorPhase!=2) {
 
@@ -4407,11 +4404,11 @@ public class Dancing_Mad_Ultimate
 
     }
 
-    [ScriptMethod(name:"P2 遗弃末世后 异三角 (数据收集与范围)",
+    [ScriptMethod(name:"P2 Post-Forsaken Trine (Data Collection & AoE)",
         eventType:EventTypeEnum.ObjectChanged,
         eventCondition:["DataId:regex:^(2015154|2015155)$"])]
 
-    public void P2_遗弃末世后_异三角_数据收集与范围(Event @event,ScriptAccessory accessory) {
+    public void P2_PostForsaken_Trine_DataCollectionAndAoe(Event @event,ScriptAccessory accessory) {
 
         if(majorPhase!=2) {
 
@@ -4533,37 +4530,37 @@ public class Dancing_Mad_Ultimate
 
     }
 
-    // ----- LPDU 异三角：https://raidplan.io/plan/apkh6ytq72w8pt3v（Party N CW, Tanks NW CCW）-----
-    // 7 个三角按 3/1/3 三组落地，各组落地约 11.8s 后在三个尖角爆 6m 圆（47840）；场中那个总在第 3 组
-    // 外圈 6 个位置固定：第 k 个（从北顺时针 0~5）质心在方位 60k+10.9°、距场中 15.28m，尖角在 (60k°,10m)、(60k°,20m)、(60k+30°,17.32m)
-    //   西北那个外观朝向和爆炸对不上，所以外圈按位置算，不看 DataId；场中那个看 DataId：2015154 尖朝东，2015155 尖朝西
-    // 全员先在场中，破坏之翼半场刀（47821/47822）时站安全半场；第 1 组爆炸后：
-    //   人群进「从北开始顺时针」第一个第 1 组三角，坦克进「从西北开始逆时针」第一个第 1 组三角
-    //   ST 远：坦克三角的场边；MT 近：场中三角的缺口（两个尖角之间、距场中 7.5m），
-    //   选两侧外圈三角都不在第 3 组、离坦克三角最近的缺口，旁边有第 2 组三角就先在坦克三角内侧等它爆完
-    // 远近死刑 47823（7m）在第 3 组爆炸时点名最近/最远
-    private readonly object _trine锁=new();
+    // ----- LPDU Trines: https://raidplan.io/plan/apkh6ytq72w8pt3v (Party N CW, Tanks NW CCW) -----
+    // 7 triangles land in 3 sets of 3/1/3; ~11.8s after each set lands, 6m circles explode on its three points (47840); the middle one is always in set 3
+    // The 6 outer positions are fixed: the k-th (0~5 clockwise from north) has its centroid at bearing 60k+10.9°, 15.28m from the middle, points at (60k°,10m), (60k°,20m), (60k+30°,17.32m)
+    //   The NW one's look doesn't match its explosion, so the outer ones are computed from position, not DataId; the middle one uses DataId: 2015154 points east, 2015155 points west
+    // Everyone starts in the middle and stands on the safe half for the Wings of Destruction cleave (47821/47822); after set 1 explodes:
+    //   the party goes into the first set-1 triangle "clockwise from north", the tanks into the first set-1 triangle "counterclockwise from NW"
+    //   ST far: the arena edge of the tank triangle; MT near: a gap of the middle triangle (between two points, 7.5m from the middle),
+    //   picking the gap whose neighbouring outer triangles aren't in set 3 and that's closest to the tank triangle; if a set-2 triangle is next to it, wait inside the tank triangle until it blows up
+    // Near/far tankbuster 47823 (7m) targets the closest/farthest when set 3 explodes
+    private readonly object _trineLock=new();
     private readonly List<(Vector3 pos,uint dataId)> _trines=new();
-    private long _trine落地=0;
-    private float? _trine安全半场=null; // 半场刀安全侧的游戏朝向（弧度）
+    private long _trineLanded=0;
+    private float? _trineSafeHalf=null; // Game rotation (radians) of the cleave's safe side
 
-    // 相对第 1 组落地（日志实测）
-    private const int TRINE_第1组爆炸=11785,TRINE_第2组爆炸=13835,TRINE_死刑=16370;
+    // Relative to set 1 landing (measured from logs)
+    private const int TRINE_Set1Explosion=11785,TRINE_Set2Explosion=13835,TRINE_Tankbuster=16370;
 
-    private static Vector3 Trine点(float bearingDegrees,float radius) {
+    private static Vector3 TrinePoint(float bearingDegrees,float radius) {
 
         float rad=bearingDegrees*MathF.PI/180;
         return new Vector3(100+radius*MathF.Sin(rad),0,100-radius*MathF.Cos(rad));
 
     }
 
-    // 47821 打 Boss 面向 +90°、47822 打 -90°（同上面单翼范围的画法），安全侧取反
-    [ScriptMethod(name:"P2 异三角 破坏之翼 (数据收集)",
+    // 47821 hits boss facing +90°, 47822 hits -90° (same as the single wing draw above), the safe side is the opposite
+    [ScriptMethod(name:"P2 Trine Wings of Destruction (Data Collection)",
         eventType:EventTypeEnum.StartCasting,
         eventCondition:["ActionId:regex:^(47821|47822)$"],
         userControl:false)]
 
-    public void P2_异三角_破坏之翼_数据收集(Event @event,ScriptAccessory accessory) {
+    public void P2_Trine_WingsOfDestruction_DataCollection(Event @event,ScriptAccessory accessory) {
 
         if(majorPhase!=2||phase!=3) {
 
@@ -4571,19 +4568,19 @@ public class Dancing_Mad_Ultimate
 
         }
 
-        lock(_trine锁) {
+        lock(_trineLock) {
 
-            _trine安全半场=@event.SourceRotation()+(@event.ActionId()==47821?-1:1)*MathF.PI/2;
+            _trineSafeHalf=@event.SourceRotation()+(@event.ActionId()==47821?-1:1)*MathF.PI/2;
 
         }
 
     }
 
-    [ScriptMethod(name:"P2 异三角 (指路)",
+    [ScriptMethod(name:"P2 Trine (Guidance)",
         eventType:EventTypeEnum.ObjectChanged,
         eventCondition:["DataId:regex:^(2015154|2015155)$","Operate:Add"])]
 
-    public void P2_异三角_指路(Event @event,ScriptAccessory accessory) {
+    public void P2_Trine_Guide(Event @event,ScriptAccessory accessory) {
 
         if(majorPhase!=2||phase!=3) {
 
@@ -4595,7 +4592,7 @@ public class Dancing_Mad_Ultimate
         long landed;
         float? safeSide;
 
-        lock(_trine锁) {
+        lock(_trineLock) {
 
             if(_trines.Count>=7) {
 
@@ -4605,7 +4602,7 @@ public class Dancing_Mad_Ultimate
 
             if(_trines.Count==0) {
 
-                _trine落地=Environment.TickCount64;
+                _trineLanded=Environment.TickCount64;
 
             }
 
@@ -4618,8 +4615,8 @@ public class Dancing_Mad_Ultimate
             }
 
             trines=[.._trines];
-            landed=_trine落地;
-            safeSide=_trine安全半场;
+            landed=_trineLanded;
+            safeSide=_trineSafeHalf;
 
         }
 
@@ -4639,7 +4636,7 @@ public class Dancing_Mad_Ultimate
 
         if(set1.Count!=3||center.dataId==0) {
 
-            accessory.Log.Debug($"P2 异三角：布局不认识，不指路。{string.Join(" ",trines)}");
+            accessory.Log.Debug($"P2 Trine: unknown layout, no guidance.{string.Join(" ",trines)}");
             return;
 
         }
@@ -4648,7 +4645,7 @@ public class Dancing_Mad_Ultimate
         int tankRing=set1.Max();
         float tankBearing=60*tankRing+10.9f;
 
-        // 场中三角的缺口在尖角对面：尖朝东（2015154）尖角 90/210/330°，缺口 270/30/150°
+        // The middle triangle's gaps are opposite its points: pointing east (2015154) points at 90/210/330°, gaps at 270/30/150°
         int[] gaps=center.dataId==2015154?[270,30,150]:[90,210,330];
         int[] flanks(int gap)=>[(gap-30)/60%6,(gap+30)/60%6];
         int gap=gaps.Where(g=>!flanks(g).Any(set3.Contains))
@@ -4657,16 +4654,16 @@ public class Dancing_Mad_Ultimate
         bool nearWaits=set2.Any(flanks(gap).Contains);
 
         Vector3 mid=safeSide is { } a?new Vector3(100+3*MathF.Sin(a),0,100+3*MathF.Cos(a)):ARENA_CENTER;
-        Vector3 partySpot=Trine点(60*partyRing+10.9f,15.28f);
-        Vector3 farSpot=Trine点(tankBearing,19);
-        Vector3 nearWait=Trine点(tankBearing,11);
-        Vector3 nearSpot=Trine点(gap,7.5f);
+        Vector3 partySpot=TrinePoint(60*partyRing+10.9f,15.28f);
+        Vector3 farSpot=TrinePoint(tankBearing,19);
+        Vector3 nearWait=TrinePoint(tankBearing,11);
+        Vector3 nearSpot=TrinePoint(gap,7.5f);
 
         long now=Environment.TickCount64;
         uint until(int ms)=>(uint)Math.Max(0,landed+ms-now);
-        uint boom1=until(TRINE_第1组爆炸),boom2=until(TRINE_第2组爆炸),end=until(TRINE_死刑)+300;
+        uint boom1=until(TRINE_Set1Explosion),boom2=until(TRINE_Set2Explosion),end=until(TRINE_Tankbuster)+300;
 
-        accessory.Log.Debug($"P2 异三角：第1组={string.Join(",",set1)} 第2组={string.Join(",",set2)} 第3组={string.Join(",",set3)}+场中{center.dataId}，人群={partyRing} 坦克={tankRing} 近死刑缺口={gap}°{(nearWaits?"（先等第2组）":"")}");
+        accessory.Log.Debug($"P2 Trine: set 1={string.Join(",",set1)} set 2={string.Join(",",set2)} set 3={string.Join(",",set3)}+middle:{center.dataId}, party={partyRing} tanks={tankRing} near-TB gap={gap}°{(nearWaits?" (wait for set 2 first)":"")}");
 
         int myIndex=accessory.Data.PartyList.IndexOf(accessory.Data.Me);
 
@@ -4680,21 +4677,21 @@ public class Dancing_Mad_Ultimate
 
             Vector3 target=i switch { 0 => nearWaits?nearWait:nearSpot, 1 => farSpot, _ => partySpot };
 
-            var dp=accessory.WaypointDp(mid,boom1,0,$"P2_异三角_场中_{i}");
+            var dp=accessory.WaypointDp(mid,boom1,0,$"P2_Trine_Middle_{i}");
             dp.Owner=GuidanceOwner(accessory,i);
             accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Displacement,dp);
 
-            dp=accessory.WaypointFromToDp(mid,target,boom1,0,$"P2_异三角_预览_{i}",new Vector4(1,1,1,1));
+            dp=accessory.WaypointFromToDp(mid,target,boom1,0,$"P2_Trine_Preview_{i}",new Vector4(1,1,1,1));
             accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Displacement,dp);
 
             uint toTarget=i==0&&nearWaits?boom2:end;
-            dp=accessory.WaypointDp(target,toTarget-boom1,boom1,$"P2_异三角_三角_{i}");
+            dp=accessory.WaypointDp(target,toTarget-boom1,boom1,$"P2_Trine_Triangle_{i}");
             dp.Owner=GuidanceOwner(accessory,i);
             accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Displacement,dp);
 
             if(i==0&&nearWaits) {
 
-                dp=accessory.WaypointDp(nearSpot,end-boom2,boom2,$"P2_异三角_缺口_{i}");
+                dp=accessory.WaypointDp(nearSpot,end-boom2,boom2,$"P2_Trine_Gap_{i}");
                 dp.Owner=GuidanceOwner(accessory,i);
                 accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Displacement,dp);
 
@@ -4708,16 +4705,16 @@ public class Dancing_Mad_Ultimate
 
     #endregion
 
-    #region P3 绘制（Cicero 灵视）
+    #region P3 Draws (Cicero)
 
     #region Major_Phase_3
 
-    [ScriptMethod(name:"P3 (阶段控制)",
+    [ScriptMethod(name:"P3 (Phase Control)",
         eventType:EventTypeEnum.PlayActionTimeline,
         eventCondition:["Id:3218"],
         userControl:false)]
 
-    public void P3_阶段控制(Event @event,ScriptAccessory accessory) {
+    public void P3_PhaseControl(Event @event,ScriptAccessory accessory) {
 
         if(majorPhase!=2) {
 
@@ -4748,7 +4745,7 @@ public class Dancing_Mad_Ultimate
 
     #endregion
 
-    #region P3 绘制与指路（Usami）
+    #region P3 Draws & Guidance (Usami)
 
     private const string DebugVersion = "a";
     private int _runId = 0;
@@ -4759,30 +4756,30 @@ public class Dancing_Mad_Ultimate
     private UDMP3Params _udmP3Param = new UDMP3Params();
     private PriorityDict _pd = new PriorityDict();
 
-    // LPDU 一运站位距离（以风水晶为北）：风/火/水水晶外侧要躲开场中艾克斯迪司 14.8m 的暴雷钢铁
-    private const float 一运外圈距离 = 15.5f;
-    private const float 一运远程距离 = 16f;
+    // LPDU P3A spot distances (wind crystal = north): the spots outside the wind/fire/water crystals must dodge middle Exdeath's 14.8m Thunder III chariot
+    private const float P3AOuterRingDistance = 15.5f;
+    private const float P3ARangedDistance = 16f;
 
-    // LPDU 二运接线站位：卡奥斯（全程场中）最大近战、黑洞方向顺时针转，把线拉成 U 形；最后一根线站场边让激光朝外
-    private const float 接线站位半径 = 6f;
-    private const float 接线站位顺时针角度 = 65f;
-    private const float 最后一根线站位半径 = 17f;
-    private const float 最后一根线顺时针角度 = 45f;
+    // LPDU P3B tether spots: at Chaos's (always in the middle) max melee, rotated clockwise from the black hole's direction, pulling the tether into a U; the last tether stands at the edge so the laser points out
+    private const float TetherSpotRadius = 6f;
+    private const float TetherSpotCwAngle = 65f;
+    private const float LastTetherSpotRadius = 17f;
+    private const float LastTetherCwAngle = 45f;
 
     private void Init_Usami(ScriptAccessory sa)
     {
         _runId++;
-        sa.DebugMsg($"脚本 {Name} v{Version}{DebugVersion} 完成初始化，_runId {_runId}");
+        sa.DebugMsg($"Script {Name} v{Version}{DebugVersion} initialized, _runId {_runId}");
 
-        _pd.Init(sa, "初始化");
+        _pd.Init(sa, "Init");
 
         _udmP3Param.Reset(sa);
         sa.Method.RemoveDraw(".*");
         sa.Method.ClearFrameworkUpdateAction(this);
     }
 
-    /// <summary>需要指路的人：Debug 时全队，否则只有自己</summary>
-    private static IEnumerable<int> 指路对象(ScriptAccessory sa)
+    /// <summary>Players to guide: whole party in Debug, otherwise only me</summary>
+    private static IEnumerable<int> GuidedPlayers(ScriptAccessory sa)
     {
         var myIndex = sa.GetMyIndex();
         for (var i = 0; i < Math.Min(8, sa.Data.PartyList.Count); i++)
@@ -4790,70 +4787,70 @@ public class Dancing_Mad_Ultimate
                 yield return i;
     }
 
-    /// <summary>全队指路时只有自己那份播报</summary>
-    private static bool 是自己(ScriptAccessory sa, int idx) => idx == sa.GetMyIndex();
+    /// <summary>When guiding the whole party, only my own share gets callouts</summary>
+    private static bool IsMe(ScriptAccessory sa, int idx) => idx == sa.GetMyIndex();
 
-    [ScriptMethod(name: "———————— 《P3》 ————————", eventType: EventTypeEnum.NpcYell, eventCondition: ["HelloayaWorld:asdf"])]
-    public void P3_分割线(Event ev, ScriptAccessory sa)
+    [ScriptMethod(name: "———————— [P3] ————————", eventType: EventTypeEnum.NpcYell, eventCondition: ["HelloayaWorld:asdf"])]
+    public void P3_Separator(Event ev, ScriptAccessory sa)
     {
     }
 
-    [ScriptMethod(name: "P3_分P_重构", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:47842"],
+    [ScriptMethod(name: "P3_Subphase_DefinitionOfInsanity", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:47842"],
         userControl: Debugging)]
-    public void P3_分P_重构(Event ev, ScriptAccessory sa)
+    public void P3_Subphase_DefinitionOfInsanity(Event ev, ScriptAccessory sa)
     {
-        _udmP3Param.当前阶段 = 3000;
-        sa.DebugMsg($"当前阶段为：P3 重构 {_udmP3Param.当前阶段}");
+        _udmP3Param.CurrentStage = 3000;
+        sa.DebugMsg($"Current stage: P3 Definition of Insanity {_udmP3Param.CurrentStage}");
     }
 
-    [ScriptMethod(name: "*P3B_重构时恢复凯夫卡透明度", eventType: EventTypeEnum.StartCasting,
+    [ScriptMethod(name: "*P3B_RestoreKefkaOpacityOnDefinitionOfInsanity", eventType: EventTypeEnum.StartCasting,
         eventCondition: ["ActionId:regex:^(47842)$"], userControl: Debugging)]
-    public void P3B_重构时恢复凯夫卡透明度(Event ev, ScriptAccessory sa)
+    public void P3B_RestoreKefkaOpacityOnDefinitionOfInsanity(Event ev, ScriptAccessory sa)
     {
         var obj = sa.GetById(ev.SourceId);
         sa.AlphaModify(obj, 1f, currentAlpha => currentAlpha <= 0.8f);
     }
 
-    [ScriptMethod(name: "P3_获得艾克斯迪司ObjId", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:49891"],
+    [ScriptMethod(name: "P3_GetExdeathObjId", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:49891"],
         userControl: Debugging)]
-    public void P3_获得艾克斯迪司ObjId(Event ev, ScriptAccessory sa)
+    public void P3_GetExdeathObjId(Event ev, ScriptAccessory sa)
     {
-        _udmP3Param.ObjectId_艾克斯迪司 = ev.SourceId;
-        sa.DebugMsg($"{_udmP3Param.ObjectId_艾克斯迪司:X8}");
+        _udmP3Param.ObjectId_Exdeath = ev.SourceId;
+        sa.DebugMsg($"{_udmP3Param.ObjectId_Exdeath:X8}");
 
-        // 顺便恢复透明度
+        // Restore opacity while we're at it
         var obj = sa.GetById(ev.SourceId);
         sa.AlphaModify(obj, 1f, currentAlpha => currentAlpha <= 0.8f);
     }
 
-    [ScriptMethod(name: "P3_获得卡奥斯ObjId", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:49890"],
+    [ScriptMethod(name: "P3_GetChaosObjId", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:49890"],
         userControl: Debugging)]
-    public void P3_获得卡奥斯ObjId(Event ev, ScriptAccessory sa)
+    public void P3_GetChaosObjId(Event ev, ScriptAccessory sa)
     {
-        _udmP3Param.ObjectId_卡奥斯 = ev.SourceId;
-        sa.DebugMsg($"{_udmP3Param.ObjectId_卡奥斯:X8}");
+        _udmP3Param.ObjectId_Chaos = ev.SourceId;
+        sa.DebugMsg($"{_udmP3Param.ObjectId_Chaos:X8}");
 
-        // 顺便恢复透明度
+        // Restore opacity while we're at it
         var obj = sa.GetById(ev.SourceId);
         sa.AlphaModify(obj, 1f, currentAlpha => currentAlpha <= 0.8f);
     }
 
-    [ScriptMethod(name: "*P3_防火墙_屏蔽无效目标", eventType: EventTypeEnum.ActionEffect, eventCondition: ["ActionId:49890"],
+    [ScriptMethod(name: "*P3_Firewall_BlockInvalidTargets", eventType: EventTypeEnum.ActionEffect, eventCondition: ["ActionId:49890"],
         userControl: true)]
-    public void P3_防火墙_屏蔽无效目标(Event ev, ScriptAccessory sa)
+    public void P3_Firewall_BlockInvalidTargets(Event ev, ScriptAccessory sa)
     {
         if (!p3FirewallBlockInvalidTargets) return;
-        if (_udmP3Param.防火墙已开启) return;
+        if (_udmP3Param.FirewallEnabled) return;
 
-        _udmP3Param.防火墙已开启 = true;
-        _udmP3Param.判断防火墙目标Framework = sa.Method.RegistFrameworkUpdateAction(Action);
+        _udmP3Param.FirewallEnabled = true;
+        _udmP3Param.FirewallTargetFramework = sa.Method.RegistFrameworkUpdateAction(Action);
         const uint chaos_buff = 4192;
         const uint exdeath_buff = 4194;
 
-        const int 应战卡奥斯 = 1;
-        const int 应战艾克斯迪司 = 2;
-        const int 应战双人 = 3;
-        const int 没有应战 = 4;
+        const int FightingChaos = 1;
+        const int FightingExdeath = 2;
+        const int FightingBoth = 3;
+        const int FightingNone = 4;
 
         void Action()
         {
@@ -4862,51 +4859,51 @@ public class Dancing_Mad_Ultimate
 
             int currentState = (myObject.HasStatus(chaos_buff), myObject.HasStatus(exdeath_buff)) switch
             {
-                (true, false) => 应战卡奥斯,
-                (false, true) => 应战艾克斯迪司,
-                (false, false) => 没有应战,
-                _ => 应战双人
+                (true, false) => FightingChaos,
+                (false, true) => FightingExdeath,
+                (false, false) => FightingNone,
+                _ => FightingBoth
             };
 
             if (sa.GetMyIndex() <= 1)
             {
-                // 坦克职业不参与
-                currentState = 应战双人;
+                // Tank jobs don't take part
+                currentState = FightingBoth;
             }
 
-            if (currentState == _udmP3Param.上一次防火墙状态 && _udmP3Param.上一次防火墙状态 != 0) return;
-            _udmP3Param.上一次防火墙状态 = currentState;
+            if (currentState == _udmP3Param.LastFirewallState && _udmP3Param.LastFirewallState != 0) return;
+            _udmP3Param.LastFirewallState = currentState;
 
             switch (currentState)
             {
-                case 应战卡奥斯:
-                    sa.SetTargetable(sa.GetById(_udmP3Param.ObjectId_卡奥斯), true);
-                    sa.SetTargetable(sa.GetById(_udmP3Param.ObjectId_艾克斯迪司), false);
+                case FightingChaos:
+                    sa.SetTargetable(sa.GetById(_udmP3Param.ObjectId_Chaos), true);
+                    sa.SetTargetable(sa.GetById(_udmP3Param.ObjectId_Exdeath), false);
                     break;
-                case 应战艾克斯迪司:
-                    sa.SetTargetable(sa.GetById(_udmP3Param.ObjectId_卡奥斯), false);
-                    sa.SetTargetable(sa.GetById(_udmP3Param.ObjectId_艾克斯迪司), true);
+                case FightingExdeath:
+                    sa.SetTargetable(sa.GetById(_udmP3Param.ObjectId_Chaos), false);
+                    sa.SetTargetable(sa.GetById(_udmP3Param.ObjectId_Exdeath), true);
                     break;
                 default:
-                    sa.SetTargetable(sa.GetById(_udmP3Param.ObjectId_卡奥斯), true);
-                    sa.SetTargetable(sa.GetById(_udmP3Param.ObjectId_艾克斯迪司), true);
+                    sa.SetTargetable(sa.GetById(_udmP3Param.ObjectId_Chaos), true);
+                    sa.SetTargetable(sa.GetById(_udmP3Param.ObjectId_Exdeath), true);
                     break;
             };
         }
     }
 
-    [ScriptMethod(name: "P3_狂暴前解除防火墙", eventType: EventTypeEnum.ActionEffect,
+    [ScriptMethod(name: "P3_DisableFirewallBeforeEnrage", eventType: EventTypeEnum.ActionEffect,
         eventCondition: ["ActionId:47878", "TargetIndex:1"], userControl: Debugging)]
-    public void P3_狂暴前解除防火墙(Event ev, ScriptAccessory sa)
+    public void P3_DisableFirewallBeforeEnrage(Event ev, ScriptAccessory sa)
     {
-        sa.SetTargetable(sa.GetById(_udmP3Param.ObjectId_卡奥斯), true);
-        sa.SetTargetable(sa.GetById(_udmP3Param.ObjectId_艾克斯迪司), true);
-        _udmP3Param.防火墙已开启 = false;
+        sa.SetTargetable(sa.GetById(_udmP3Param.ObjectId_Chaos), true);
+        sa.SetTargetable(sa.GetById(_udmP3Param.ObjectId_Exdeath), true);
+        _udmP3Param.FirewallEnabled = false;
     }
 
-    [ScriptMethod(name: "P3_根据Buff判断MTST", eventType: EventTypeEnum.StatusAdd, eventCondition: ["StatusID:regex:^(419[24])$"],
+    [ScriptMethod(name: "P3_DetermineMtStByBuff", eventType: EventTypeEnum.StatusAdd, eventCondition: ["StatusID:regex:^(419[24])$"],
         userControl: Debugging)]
-    public void P3_根据Buff判断MTST(Event ev, ScriptAccessory sa)
+    public void P3_DetermineMtStByBuff(Event ev, ScriptAccessory sa)
     {
         const uint chaos_buff = 4192;
         const uint exdeath_buff = 4194;
@@ -4916,43 +4913,43 @@ public class Dancing_Mad_Ultimate
 
         var statusId = ev.StatusId;
 
-        _udmP3Param.拉艾克斯迪司的是MT = idx switch
+        _udmP3Param.MtTanksExdeath = idx switch
         {
             0 => statusId == exdeath_buff,
             1 => statusId == chaos_buff
         };
         sa.DebugMsg(
-            $"{sa.GetPlayerJobByIndex(idx)} 获得 {statusId}，拉艾克斯迪司的是 {(_udmP3Param.拉艾克斯迪司的是MT ? "MT" : "ST")}");
+            $"{sa.GetPlayerJobByIndex(idx)} got {statusId}, Exdeath tank is {(_udmP3Param.MtTanksExdeath ? "MT" : "ST")}");
     }
 
-    #region P3A 深层痛楚 通用部分
+    #region P3A Bowels of Agony Common
 
-    [ScriptMethod(name: "=============《P3A 深层痛楚》=============", eventType: EventTypeEnum.NpcYell, eventCondition: ["HelloayaWorld:asdf"],
+    [ScriptMethod(name: "============= [P3A Bowels of Agony] =============", eventType: EventTypeEnum.NpcYell, eventCondition: ["HelloayaWorld:asdf"],
         userControl: true)]
-    public void P3A_分割线(Event ev, ScriptAccessory sa)
+    public void P3A_Separator(Event ev, ScriptAccessory sa)
     {
     }
 
-    [ScriptMethod(name: "P3A_一运分P_深层痛楚", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:47858"],
+    [ScriptMethod(name: "P3A_SubphaseStart_BowelsOfAgony", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:47858"],
         userControl: Debugging)]
-    public void P3A_一运分P_深层痛楚(Event ev, ScriptAccessory sa)
+    public void P3A_SubphaseStart_BowelsOfAgony(Event ev, ScriptAccessory sa)
     {
-        _pd.Init(sa, "P3一运");
+        _pd.Init(sa, "P3A");
         _pd.AddPriorities([1, 2, 3, 4, 5, 6, 7, 8]);
-        _udmP3Param.当前阶段 = 3100;
-        sa.DebugMsg($"当前阶段为：P3 一运 深层痛楚 {_udmP3Param.当前阶段}");
+        _udmP3Param.CurrentStage = 3100;
+        sa.DebugMsg($"Current stage: P3A Bowels of Agony {_udmP3Param.CurrentStage}");
     }
 
-    [ScriptMethod(name: "P3A_状态添加记录", eventType: EventTypeEnum.StatusAdd,
+    [ScriptMethod(name: "P3A_RecordStatusAdded", eventType: EventTypeEnum.StatusAdd,
         eventCondition: ["StatusID:regex:^(160[0123])$", "SourceId:E0000000"],
         userControl: Debugging)]
-    public void P3A_状态添加(Event ev, ScriptAccessory sa)
+    public void P3A_StatusAdded(Event ev, ScriptAccessory sa)
     {
-        if (_udmP3Param.当前阶段 != 3100) return;
-        const uint 混沌之炎 = 1600;
-        const uint 混沌之水 = 1601;
-        const uint 混沌之风 = 1602;
-        const uint 混沌之逆风 = 1603;
+        if (_udmP3Param.CurrentStage != 3100) return;
+        const uint Entropy = 1600;
+        const uint DynamicFluid = 1601;
+        const uint Headwind = 1602;
+        const uint Tailwind = 1603;
 
         lock (_pd)
         {
@@ -4960,128 +4957,128 @@ public class Dancing_Mad_Ultimate
             var playerIdx = sa.GetPlayerIdIndex((uint)ev.TargetId);
             var priVal = ev.StatusId switch
             {
-                混沌之炎 => 100,
-                混沌之水 => 200,
-                混沌之风 => 10,
-                混沌之逆风 => 20,
+                Entropy => 100,
+                DynamicFluid => 200,
+                Headwind => 10,
+                Tailwind => 20,
                 _ => 0
             };
 
             _pd.AddPriority(playerIdx, priVal);
-            _udmP3Param.一运状态记录次数++;
-            sa.DebugMsg($"记录到状态 {statusId} / {priVal} 于角色 {Role[playerIdx]}");
+            _udmP3Param.P3AStatusRecordCount++;
+            sa.DebugMsg($"Recorded status {statusId} / {priVal} on {Role[playerIdx]}");
 
-            if (_udmP3Param.一运状态记录完毕())
-                _udmP3Param.一运状态记录.Set();
+            if (_udmP3Param.P3AStatusRecordDone())
+                _udmP3Param.P3AStatusRecord.Set();
 
-            if (statusId != 混沌之炎) return;
+            if (statusId != Entropy) return;
             var statusTime = ev.DurationMilliseconds();
-            _udmP3Param.是长火 = statusTime > 30000;
+            _udmP3Param.IsLongFire = statusTime > 30000;
         }
     }
 
-    [ScriptMethod(name: "P3A_水晶生成记录", eventType: EventTypeEnum.ObjectChanged,
+    [ScriptMethod(name: "P3A_RecordCrystalSpawns", eventType: EventTypeEnum.ObjectChanged,
         eventCondition: ["Operate:Add", "DataId:regex:^(201529[012])$"],
         userControl: Debugging)]
-    public void P3A_水晶生成记录(Event ev, ScriptAccessory sa)
+    public void P3A_RecordCrystalSpawns(Event ev, ScriptAccessory sa)
     {
-        if (_udmP3Param.当前阶段 != 3100) return;
-        const uint 火水晶 = 2015290;
-        const uint 水水晶 = 2015291;
-        const uint 风水晶 = 2015292;
+        if (_udmP3Param.CurrentStage != 3100) return;
+        const uint FireCrystal = 2015290;
+        const uint WaterCrystal = 2015291;
+        const uint WindCrystal = 2015292;
 
         var region = ev.SourcePosition.GetRadian(Center).RadianToRegion(4);
         var dataId = ev.DataId();
 
         switch (dataId)
         {
-            case 火水晶:
-                _udmP3Param.火水晶方位 = region;
+            case FireCrystal:
+                _udmP3Param.FireCrystalRegion = region;
                 break;
-            case 水水晶:
-                _udmP3Param.水水晶方位 = region;
+            case WaterCrystal:
+                _udmP3Param.WaterCrystalRegion = region;
                 break;
-            case 风水晶:
-                _udmP3Param.风水晶方位 = region;
+            case WindCrystal:
+                _udmP3Param.WindCrystalRegion = region;
                 break;
         }
-        sa.DebugMsg($"记录到水晶 {dataId} 于方位 {region}");
+        sa.DebugMsg($"Recorded crystal {dataId} at region {region}");
 
-        if (!_udmP3Param.水晶状态记录完毕()) return;
-        _udmP3Param.无水晶方位 = 6 - _udmP3Param.火水晶方位 - _udmP3Param.水水晶方位 - _udmP3Param.风水晶方位;
-        _udmP3Param.一运水晶记录.Set();
+        if (!_udmP3Param.CrystalRecordDone()) return;
+        _udmP3Param.EmptyCrystalRegion = 6 - _udmP3Param.FireCrystalRegion - _udmP3Param.WaterCrystalRegion - _udmP3Param.WindCrystalRegion;
+        _udmP3Param.P3ACrystalRecord.Set();
     }
 
-    [ScriptMethod(name: "P3A_暴雷死刑范围", eventType: EventTypeEnum.StartCasting,
+    [ScriptMethod(name: "P3A_ThunderTankbuster_Aoe", eventType: EventTypeEnum.StartCasting,
         eventCondition: ["ActionId:47881"], userControl: true)]
-    public void P3A_暴雷死刑范围(Event ev, ScriptAccessory sa)
+    public void P3A_ThunderTankbuster_Aoe(Event ev, ScriptAccessory sa)
     {
-        var dp = sa.DrawCircle(ev.SourceId, 0, 8000, $"靠近死刑", 5f, sa.Data.DefaultDangerColor.WithW(2f), draw: false);
+        var dp = sa.DrawCircle(ev.SourceId, 0, 8000, $"NearestTankbuster", 5f, sa.Data.DefaultDangerColor.WithW(2f), draw: false);
         dp.SetOwnersDistanceOrder(true, 1);
         sa.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Circle, dp);
     }
 
-    [ScriptMethod(name: "P3A_暴雷死刑目标连线", eventType: EventTypeEnum.StartCasting,
+    [ScriptMethod(name: "P3A_ThunderTankbuster_TargetTether", eventType: EventTypeEnum.StartCasting,
         eventCondition: ["ActionId:47881"], userControl: true)]
-    public void P3A_暴雷死刑目标连线(Event ev, ScriptAccessory sa)
+    public void P3A_ThunderTankbuster_TargetTether(Event ev, ScriptAccessory sa)
     {
         var color = new Vector4(0.1f, 1f, 1f, 1f);
-        var dp = sa.DrawLine(ev.SourceId, 0, 0, 8000, $"艾克斯迪司与死刑目标连线", 0, 1, 40, color, byY: true, draw: false);
+        var dp = sa.DrawLine(ev.SourceId, 0, 0, 8000, $"ExdeathTankbusterTargetLine", 0, 1, 40, color, byY: true, draw: false);
         dp.TargetResolvePattern = PositionResolvePatternEnum.PlayerNearestOrder;
         dp.TargetOrderIndex = 1;
         sa.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Line, dp);
     }
 
-    // 47881 暴雷死刑：最近目标两段。谁吃、要不要无敌全吃按队伍减伤表，所以只提示不指路
-    [ScriptMethod(name: "P3A_暴雷死刑通用提示", eventType: EventTypeEnum.StartCasting,
+    // 47881 Thunder III tankbuster: closest target, two hits. Who takes it and whether to invuln both depends on the party's mit plan, so callout only, no guidance
+    [ScriptMethod(name: "P3A_ThunderTankbuster_GeneralCallout", eventType: EventTypeEnum.StartCasting,
         eventCondition: ["ActionId:47881"], userControl: true)]
-    public void P3A_暴雷死刑通用提示(Event ev, ScriptAccessory sa)
+    public void P3A_ThunderTankbuster_GeneralCallout(Event ev, ScriptAccessory sa)
     {
-        sa.Method.TextInfo($"艾克斯迪司 靠近死刑", 3000);
-        sa.Method.TTS($"艾克斯迪司 靠近死刑", 3);
+        sa.Method.TextInfo($"Exdeath tankbuster on closest", 3000);
+        sa.Method.TTS($"Exdeath tankbuster on closest", 3);
     }
 
-    [ScriptMethod(name: "P3A_经纬聚爆", eventType: EventTypeEnum.StartCasting,
+    [ScriptMethod(name: "P3A_Implosion", eventType: EventTypeEnum.StartCasting,
         eventCondition: ["ActionId:regex:^(47869|47870)$"], userControl: true)]
-    public void P3A_经纬聚爆第一段(Event ev, ScriptAccessory sa)
+    public void P3A_Implosion_Part1(Event ev, ScriptAccessory sa)
     {
-        const uint 纬度聚爆 = 47870;    // 先打左右
-        const uint 经度聚爆 = 47869;    // 先打上下
-        _udmP3Param.绘制经纬聚爆范围 = true;
-        _udmP3Param.经纬聚爆第二段绘制完毕 = false;
-        _udmP3Param.经纬聚爆先打左右 = ev.ActionId == 纬度聚爆;
-        _udmP3Param.ObjectId_卡奥斯 = ev.SourceId;
+        const uint LatitudinalImplosion = 47870;    // Sides first
+        const uint LongitudinalImplosion = 47869;    // Front/back first
+        _udmP3Param.ImplosionAoeActive = true;
+        _udmP3Param.ImplosionPart2Drawn = false;
+        _udmP3Param.ImplosionSidesFirst = ev.ActionId == LatitudinalImplosion;
+        _udmP3Param.ObjectId_Chaos = ev.SourceId;
 
-        // 第一轮
-        sa.DrawFan(ev.SourceId, 0, 10000, $"第一轮前左", 90f.DegToRad(), (_udmP3Param.经纬聚爆先打左右 ? 90f : 0f).DegToRad(), 60, 0, sa.Data.DefaultDangerColor.WithW(2f));
-        sa.DrawFan(ev.SourceId, 0, 10000, $"第一轮后右", 90f.DegToRad(), (_udmP3Param.经纬聚爆先打左右 ? -90f : 180f).DegToRad(), 60, 0, sa.Data.DefaultDangerColor.WithW(2f));
+        // Round 1
+        sa.DrawFan(ev.SourceId, 0, 10000, $"ImplosionRound1_FrontLeft", 90f.DegToRad(), (_udmP3Param.ImplosionSidesFirst ? 90f : 0f).DegToRad(), 60, 0, sa.Data.DefaultDangerColor.WithW(2f));
+        sa.DrawFan(ev.SourceId, 0, 10000, $"ImplosionRound1_BackRight", 90f.DegToRad(), (_udmP3Param.ImplosionSidesFirst ? -90f : 180f).DegToRad(), 60, 0, sa.Data.DefaultDangerColor.WithW(2f));
     }
 
-    [ScriptMethod(name: "P3A_经纬聚爆第二段与删除绘图", eventType: EventTypeEnum.ActionEffect,
+    [ScriptMethod(name: "P3A_Implosion_Part2AndClear", eventType: EventTypeEnum.ActionEffect,
         eventCondition: ["ActionId:regex:^(47871)$"], suppress: 500, userControl: true)]
-    public void P3A_经纬聚爆第二段与删除绘图(Event ev, ScriptAccessory sa)
+    public void P3A_Implosion_Part2AndClear(Event ev, ScriptAccessory sa)
     {
-        if (!_udmP3Param.绘制经纬聚爆范围) return;
+        if (!_udmP3Param.ImplosionAoeActive) return;
 
-        if (_udmP3Param.经纬聚爆第二段绘制完毕)
-            sa.Method.RemoveDraw($"第二轮[前左|后右]");
+        if (_udmP3Param.ImplosionPart2Drawn)
+            sa.Method.RemoveDraw($"ImplosionRound2_(FrontLeft|BackRight)");
         else
         {
-            sa.Method.RemoveDraw($"第一轮[前左|后右]");
-            _udmP3Param.经纬聚爆第二段绘制完毕 = true;
-            sa.DrawFan(_udmP3Param.ObjectId_卡奥斯, 0, 10000, $"第二轮前左", 90f.DegToRad(), (!_udmP3Param.经纬聚爆先打左右 ? 90f : 0f).DegToRad(), 60, 0, sa.Data.DefaultDangerColor.WithW(2f));
-            sa.DrawFan(_udmP3Param.ObjectId_卡奥斯, 0, 10000, $"第二轮后右", 90f.DegToRad(), (!_udmP3Param.经纬聚爆先打左右 ? -90f : 180f).DegToRad(), 60, 0, sa.Data.DefaultDangerColor.WithW(2f));
+            sa.Method.RemoveDraw($"ImplosionRound1_(FrontLeft|BackRight)");
+            _udmP3Param.ImplosionPart2Drawn = true;
+            sa.DrawFan(_udmP3Param.ObjectId_Chaos, 0, 10000, $"ImplosionRound2_FrontLeft", 90f.DegToRad(), (!_udmP3Param.ImplosionSidesFirst ? 90f : 0f).DegToRad(), 60, 0, sa.Data.DefaultDangerColor.WithW(2f));
+            sa.DrawFan(_udmP3Param.ObjectId_Chaos, 0, 10000, $"ImplosionRound2_BackRight", 90f.DegToRad(), (!_udmP3Param.ImplosionSidesFirst ? -90f : 180f).DegToRad(), 60, 0, sa.Data.DefaultDangerColor.WithW(2f));
         }
     }
 
-    #region P3A 深层痛楚 范围与指路（Cicero 灵视）
+    #region P3A Bowels of Agony AoE & Guidance (Cicero)
 
-    [ScriptMethod(name:"P3 深层痛楚 (阶段控制)",
+    [ScriptMethod(name:"P3 Bowels of Agony (Phase Control)",
         eventType:EventTypeEnum.StartCasting,
         eventCondition:["ActionId:47858"],
         userControl:false)]
 
-    public void P3_深层痛楚_阶段控制(Event @event,ScriptAccessory accessory) {
+    public void P3_BowelsOfAgony_PhaseControl(Event @event,ScriptAccessory accessory) {
 
         if(majorPhase!=3) {
 
@@ -5105,12 +5102,12 @@ public class Dancing_Mad_Ultimate
 
     }
 
-    [ScriptMethod(name:"P3 深层痛楚 水晶 (数据收集)",
+    [ScriptMethod(name:"P3 Bowels of Agony Crystals (Data Collection)",
         eventType:EventTypeEnum.ObjectChanged,
         eventCondition:["DataId:regex:^(2015290|2015291|2015292)$"],
         userControl:false)]
 
-    public void P3_深层痛楚_水晶_数据收集(Event @event,ScriptAccessory accessory) {
+    public void P3_BowelsOfAgony_Crystals_DataCollection(Event @event,ScriptAccessory accessory) {
 
         if(majorPhase!=3) {
 
@@ -5184,11 +5181,11 @@ public class Dancing_Mad_Ultimate
 
     }
 
-    [ScriptMethod(name:"P3 深层痛楚 混沌之炎 (范围)",
+    [ScriptMethod(name:"P3 Bowels of Agony Entropy (AoE)",
         eventType:EventTypeEnum.StatusAdd,
         eventCondition:["StatusID:1600"])]
 
-    public void P3_深层痛楚_混沌之炎_范围(Event @event,ScriptAccessory accessory) {
+    public void P3_BowelsOfAgony_Entropy_Aoe(Event @event,ScriptAccessory accessory) {
 
         if(majorPhase!=3) {
 
@@ -5267,7 +5264,7 @@ public class Dancing_Mad_Ultimate
 
         var currentProperties=accessory.Data.GetDefaultDrawProperties();
 
-        currentProperties.Name=$"P3_深层痛楚_混沌之炎_范围_{targetId}";
+        currentProperties.Name=$"P3_BowelsOfAgony_Entropy_Aoe_{targetId}";
         currentProperties.Scale=new(5);
         currentProperties.Owner=targetId;
         currentProperties.Color=accessory.Data.DefaultDangerColor;
@@ -5278,12 +5275,12 @@ public class Dancing_Mad_Ultimate
 
     }
 
-    [ScriptMethod(name:"P3 深层痛楚 烈焰 (范围)",
+    [ScriptMethod(name:"P3 Bowels of Agony Inferno (AoE)",
         eventType:EventTypeEnum.StatusAdd,
         eventCondition:["StatusID:1600","SourceId:E0000000"],
         suppress:COMMON_INTERVAL)]
 
-    public void P3_深层痛楚_烈焰_范围(Event @event,ScriptAccessory accessory) {
+    public void P3_BowelsOfAgony_Inferno_Aoe(Event @event,ScriptAccessory accessory) {
 
         if(majorPhase!=3) {
 
@@ -5358,7 +5355,7 @@ public class Dancing_Mad_Ultimate
 
         var currentProperties=accessory.Data.GetDefaultDrawProperties();
 
-        currentProperties.Name=$"P3_深层痛楚_烈焰_范围_2";
+        currentProperties.Name=$"P3_BowelsOfAgony_Inferno_Aoe_2";
         currentProperties.Scale=new(10);
         currentProperties.InnerScale=new(5);
         currentProperties.Radian=float.Pi*2;
@@ -5373,7 +5370,7 @@ public class Dancing_Mad_Ultimate
 
         currentProperties=accessory.Data.GetDefaultDrawProperties();
 
-        currentProperties.Name=$"P3_深层痛楚_烈焰_范围_1";
+        currentProperties.Name=$"P3_BowelsOfAgony_Inferno_Aoe_1";
         currentProperties.Scale=new(10);
         currentProperties.InnerScale=new(5);
         currentProperties.Radian=float.Pi*2;
@@ -5388,12 +5385,12 @@ public class Dancing_Mad_Ultimate
 
     }
 
-    [ScriptMethod(name:"P3 深层痛楚 混沌之炎与烈焰 (范围清除)",
+    [ScriptMethod(name:"P3 Bowels of Agony Entropy & Inferno (Clear AoE)",
         eventType:EventTypeEnum.StatusRemove,
         eventCondition:["StatusID:1600"],
         userControl:false)]
 
-    public void P3_深层痛楚_混沌之炎与烈焰_范围清除(Event @event,ScriptAccessory accessory) {
+    public void P3_BowelsOfAgony_EntropyAndInferno_ClearAoe(Event @event,ScriptAccessory accessory) {
 
         if(majorPhase!=3) {
 
@@ -5413,13 +5410,13 @@ public class Dancing_Mad_Ultimate
 
         }
 
-        accessory.Method.RemoveDraw($"P3_深层痛楚_混沌之炎_范围_{targetId}");
+        accessory.Method.RemoveDraw($"P3_BowelsOfAgony_Entropy_Aoe_{targetId}");
 
         lock(phase3sub2_fireCrystalSemaphore) {
 
             if(phase3sub2_infernoCounter>=1) {
 
-                accessory.Method.RemoveDraw($"P3_深层痛楚_烈焰_范围_{phase3sub2_infernoCounter}");
+                accessory.Method.RemoveDraw($"P3_BowelsOfAgony_Inferno_Aoe_{phase3sub2_infernoCounter}");
 
                 --phase3sub2_infernoCounter;
 
@@ -5429,11 +5426,11 @@ public class Dancing_Mad_Ultimate
 
     }
 
-    [ScriptMethod(name:"P3 深层痛楚 混沌之水 (范围)",
+    [ScriptMethod(name:"P3 Bowels of Agony Dynamic Fluid (AoE)",
         eventType:EventTypeEnum.StatusAdd,
         eventCondition:["StatusID:1601"])]
 
-    public void P3_深层痛楚_混沌之水_范围(Event @event,ScriptAccessory accessory) {
+    public void P3_BowelsOfAgony_DynamicFluid_Aoe(Event @event,ScriptAccessory accessory) {
 
         if(majorPhase!=3) {
 
@@ -5512,7 +5509,7 @@ public class Dancing_Mad_Ultimate
 
         var currentProperties=accessory.Data.GetDefaultDrawProperties();
 
-        currentProperties.Name=$"P3_深层痛楚_混沌之水_范围_{targetId}";
+        currentProperties.Name=$"P3_BowelsOfAgony_DynamicFluid_Aoe_{targetId}";
         currentProperties.Scale=new(10);
         currentProperties.InnerScale=new(5);
         currentProperties.Radian=float.Pi*2;
@@ -5525,12 +5522,12 @@ public class Dancing_Mad_Ultimate
 
     }
 
-    [ScriptMethod(name:"P3 深层痛楚 海啸 (范围)",
+    [ScriptMethod(name:"P3 Bowels of Agony Tsunami (AoE)",
         eventType:EventTypeEnum.StatusAdd,
         eventCondition:["StatusID:1601","SourceId:E0000000"],
         suppress:COMMON_INTERVAL)]
 
-    public void P3_深层痛楚_海啸_范围(Event @event,ScriptAccessory accessory) {
+    public void P3_BowelsOfAgony_Tsunami_Aoe(Event @event,ScriptAccessory accessory) {
 
         if(majorPhase!=3) {
 
@@ -5605,7 +5602,7 @@ public class Dancing_Mad_Ultimate
 
         var currentProperties=accessory.Data.GetDefaultDrawProperties();
 
-        currentProperties.Name=$"P3_深层痛楚_海啸_范围_2";
+        currentProperties.Name=$"P3_BowelsOfAgony_Tsunami_Aoe_2";
         currentProperties.Scale=new(5);
         currentProperties.Position=phase3sub2_waterCrystalPosition;
         currentProperties.CentreResolvePattern=PositionResolvePatternEnum.PlayerNearestOrder;
@@ -5618,7 +5615,7 @@ public class Dancing_Mad_Ultimate
 
         currentProperties=accessory.Data.GetDefaultDrawProperties();
 
-        currentProperties.Name=$"P3_深层痛楚_海啸_范围_1";
+        currentProperties.Name=$"P3_BowelsOfAgony_Tsunami_Aoe_1";
         currentProperties.Scale=new(5);
         currentProperties.Position=phase3sub2_waterCrystalPosition;
         currentProperties.CentreResolvePattern=PositionResolvePatternEnum.PlayerNearestOrder;
@@ -5631,12 +5628,12 @@ public class Dancing_Mad_Ultimate
 
     }
 
-    [ScriptMethod(name:"P3 深层痛楚 混沌之水与海啸 (范围清除)",
+    [ScriptMethod(name:"P3 Bowels of Agony Dynamic Fluid & Tsunami (Clear AoE)",
         eventType:EventTypeEnum.StatusRemove,
         eventCondition:["StatusID:1601"],
         userControl:false)]
 
-    public void P3_深层痛楚_混沌之水与海啸_范围清除(Event @event,ScriptAccessory accessory) {
+    public void P3_BowelsOfAgony_DynamicFluidAndTsunami_ClearAoe(Event @event,ScriptAccessory accessory) {
 
         if(majorPhase!=3) {
 
@@ -5656,13 +5653,13 @@ public class Dancing_Mad_Ultimate
 
         }
 
-        accessory.Method.RemoveDraw($"P3_深层痛楚_混沌之水_范围_{targetId}");
+        accessory.Method.RemoveDraw($"P3_BowelsOfAgony_DynamicFluid_Aoe_{targetId}");
 
         lock(phase3sub2_waterCrystalSemaphore) {
 
             if(phase3sub2_tsunamiCounter>=1) {
 
-                accessory.Method.RemoveDraw($"P3_深层痛楚_海啸_范围_{phase3sub2_tsunamiCounter}");
+                accessory.Method.RemoveDraw($"P3_BowelsOfAgony_Tsunami_Aoe_{phase3sub2_tsunamiCounter}");
 
                 --phase3sub2_tsunamiCounter;
 
@@ -5672,11 +5669,11 @@ public class Dancing_Mad_Ultimate
 
     }
 
-    [ScriptMethod(name:"P3 深层痛楚 本影爆碎 (引导指示)",
+    [ScriptMethod(name:"P3 Bowels of Agony Umbra Smash (Bait Indicator)",
         eventType:EventTypeEnum.StartCasting,
         eventCondition:["ActionId:regex:^(47870|47869)$"])]
 
-    public void P3_深层痛楚_本影爆碎_引导指示(Event @event,ScriptAccessory accessory) {
+    public void P3_BowelsOfAgony_UmbraSmash_BaitIndicator(Event @event,ScriptAccessory accessory) {
 
         if(majorPhase!=3) {
 
@@ -5698,7 +5695,7 @@ public class Dancing_Mad_Ultimate
 
         var currentProperties=accessory.Data.GetDefaultDrawProperties();
 
-        currentProperties.Name="P3_深层痛楚_本影爆碎_引导指示1";
+        currentProperties.Name="P3_BowelsOfAgony_UmbraSmash_BaitIndicator1";
         currentProperties.Scale=new(2);
         currentProperties.Owner=sourceId;
         currentProperties.TargetResolvePattern=PositionResolvePatternEnum.PlayerFarestOrder;
@@ -5712,7 +5709,7 @@ public class Dancing_Mad_Ultimate
 
         currentProperties=accessory.Data.GetDefaultDrawProperties();
 
-        currentProperties.Name="P3_深层痛楚_本影爆碎_引导指示2";
+        currentProperties.Name="P3_BowelsOfAgony_UmbraSmash_BaitIndicator2";
         currentProperties.Scale=new(20);
         currentProperties.Owner=sourceId;
         currentProperties.CentreResolvePattern=PositionResolvePatternEnum.PlayerFarestOrder;
@@ -5725,12 +5722,12 @@ public class Dancing_Mad_Ultimate
 
     }
 
-    [ScriptMethod(name:"P3 深层痛楚 本影爆碎 (引导指示清除)",
+    [ScriptMethod(name:"P3 Bowels of Agony Umbra Smash (Clear Bait Indicator)",
         eventType:EventTypeEnum.StartCasting,
         eventCondition:["ActionId:47872"],
         userControl:false)]
 
-    public void P3_深层痛楚_本影爆碎_引导指示清除(Event @event,ScriptAccessory accessory) {
+    public void P3_BowelsOfAgony_UmbraSmash_ClearBaitIndicator(Event @event,ScriptAccessory accessory) {
 
         if(majorPhase!=3) {
 
@@ -5738,16 +5735,16 @@ public class Dancing_Mad_Ultimate
 
         }
 
-        accessory.Method.RemoveDraw("P3_深层痛楚_本影爆碎_引导指示1");
-        accessory.Method.RemoveDraw("P3_深层痛楚_本影爆碎_引导指示2");
+        accessory.Method.RemoveDraw("P3_BowelsOfAgony_UmbraSmash_BaitIndicator1");
+        accessory.Method.RemoveDraw("P3_BowelsOfAgony_UmbraSmash_BaitIndicator2");
 
     }
 
-    [ScriptMethod(name:"P3 深层痛楚 本影爆碎 (落点指示)",
+    [ScriptMethod(name:"P3 Bowels of Agony Umbra Smash (Landing Indicator)",
         eventType:EventTypeEnum.StartCasting,
         eventCondition:["ActionId:47872"])]
 
-    public void P3_深层痛楚_本影爆碎_落点指示(Event @event,ScriptAccessory accessory) {
+    public void P3_BowelsOfAgony_UmbraSmash_LandingIndicator(Event @event,ScriptAccessory accessory) {
 
         if(majorPhase!=3) {
 
@@ -5803,11 +5800,11 @@ public class Dancing_Mad_Ultimate
 
     }
 
-    [ScriptMethod(name:"P3 深层痛楚 究极冲击波 (数据收集)",
+    [ScriptMethod(name:"P3 Bowels of Agony Ultima Blaster (Data Collection)",
         eventType:EventTypeEnum.ActionEffect,
         eventCondition:["ActionId:47843"])]
 
-    public void P3_深层痛楚_究极冲击波_数据收集(Event @event,ScriptAccessory accessory) {
+    public void P3_BowelsOfAgony_UltimaBlaster_DataCollection(Event @event,ScriptAccessory accessory) {
 
         if(majorPhase!=3) {
 
@@ -5939,11 +5936,11 @@ public class Dancing_Mad_Ultimate
 
     }
 
-    [ScriptMethod(name:"P3 深层痛楚 究极冲击波 (范围)",
+    [ScriptMethod(name:"P3 Bowels of Agony Ultima Blaster (AoE)",
         eventType:EventTypeEnum.TargetIcon,
         eventCondition:["Id:regex:^(0150|0151|0152|0153|01B5|01B6|01B7|01B8)$"])]
 
-    public void P3_深层痛楚_究极冲击波_范围(Event @event,ScriptAccessory accessory) {
+    public void P3_BowelsOfAgony_UltimaBlaster_Aoe(Event @event,ScriptAccessory accessory) {
 
         if(majorPhase!=3) {
 
@@ -5998,11 +5995,11 @@ public class Dancing_Mad_Ultimate
 
     }
 
-    [ScriptMethod(name:"P3 深层痛楚 究极冲击波 (指路)",
+    [ScriptMethod(name:"P3 Bowels of Agony Ultima Blaster (Guidance)",
         eventType:EventTypeEnum.TargetIcon,
         eventCondition:["Id:regex:^(0150|0151|0152|0153|01B5|01B6|01B7|01B8)$"])]
 
-    public void P3_深层痛楚_究极冲击波_指路(Event @event,ScriptAccessory accessory) {
+    public void P3_BowelsOfAgony_UltimaBlaster_Guide(Event @event,ScriptAccessory accessory) {
 
         if(majorPhase!=3) {
 
@@ -6051,7 +6048,7 @@ public class Dancing_Mad_Ultimate
 
         Vector3 myPosition=rotatePosition(new Vector3(100,0,81),ARENA_CENTER,Math.PI/4*discretizedPosition);
 
-        // LPDU：与预兆（冲锋）顺逆相反，1 号在冲锋起点对面、往玩家前进方向偏半格
+        // LPDU: opposite rotation to the tell (charge); #1 is across from the charge start, shifted half a step in the players' direction of travel
         if(phase3sub2_baitClockwise) {
 
             myPosition=rotatePosition(myPosition,ARENA_CENTER,Math.PI/8);
@@ -6065,7 +6062,7 @@ public class Dancing_Mad_Ultimate
         }
 
         var currentProperties=accessory.Data.GetDefaultDrawProperties();
-        currentProperties.Name=$"P3_深层痛楚_究极冲击波_指路_{targetId}";
+        currentProperties.Name=$"P3_BowelsOfAgony_UltimaBlaster_Guide_{targetId}";
         currentProperties.Scale=new(2);
         currentProperties.Owner=targetId;
         currentProperties.TargetPosition=myPosition;
@@ -6080,28 +6077,28 @@ public class Dancing_Mad_Ultimate
 
     #endregion
 
-    #endregion P3A 深层痛楚 通用部分
+    #endregion P3A Bowels of Agony Common
 
-    #region P3A1 一水火 3100
+    #region P3A1 Fire & Water 1 3100
 
-    [ScriptMethod(name: "———————— 《P3A1 一水火》 ————————", eventType: EventTypeEnum.NpcYell, eventCondition: ["HelloayaWorld:asdf"],
+    [ScriptMethod(name: "———————— [P3A1 Fire & Water 1] ————————", eventType: EventTypeEnum.NpcYell, eventCondition: ["HelloayaWorld:asdf"],
         userControl: true)]
-    public void P3A1_一水火分割线(Event ev, ScriptAccessory sa)
+    public void P3A1_FireWater1Separator(Event ev, ScriptAccessory sa)
     {
     }
 
-    [ScriptMethod(name: "P3A_暴雷钢铁", eventType: EventTypeEnum.StartCasting,
+    [ScriptMethod(name: "P3A_ThunderChariot", eventType: EventTypeEnum.StartCasting,
         eventCondition: ["ActionId:47890"], userControl: true)]
-    public void P3A_暴雷钢铁(Event ev, ScriptAccessory sa)
+    public void P3A_ThunderChariot(Event ev, ScriptAccessory sa)
     {
-        if (_udmP3Param.当前阶段 != 3100) return;
-        _udmP3Param.ObjectId_艾克斯迪司 = ev.SourceId;
-        sa.DrawCircle(ev.SourceId, 0, 7000, $"P3A_暴雷钢铁 暴雷钢铁", 14.8f, sa.Data.DefaultDangerColor.WithW(2f), byTime: true);
+        if (_udmP3Param.CurrentStage != 3100) return;
+        _udmP3Param.ObjectId_Exdeath = ev.SourceId;
+        sa.DrawCircle(ev.SourceId, 0, 7000, $"P3A_ThunderChariot ThunderChariot", 14.8f, sa.Data.DefaultDangerColor.WithW(2f), byTime: true);
     }
 
-    [ScriptMethod(name: "*P3A_移除暴雷连线", eventType: EventTypeEnum.VfxEvent,
+    [ScriptMethod(name: "*P3A_RemoveThunderTether", eventType: EventTypeEnum.VfxEvent,
         eventCondition: ["Type:Channeling", "Id:64"], userControl: true)]
-    public async void P3A_移除暴雷连线(Event ev, ScriptAccessory sa)
+    public async void P3A_RemoveThunderTether(Event ev, ScriptAccessory sa)
     {
         if (!p3aRemoveThunderTether) return;
         var runId = _runId;
@@ -6112,129 +6109,129 @@ public class Dancing_Mad_Ultimate
         sa.WriteVisible(obj, true);
     }
 
-    [ScriptMethod(name: "P3A_深层痛楚判定", eventType: EventTypeEnum.ActionEffect,
+    [ScriptMethod(name: "P3A_BowelsOfAgonyResolve", eventType: EventTypeEnum.ActionEffect,
         eventCondition: ["ActionId:47858"], suppress: 10000,
         userControl: Debugging)]
-    public void P3A_深层痛楚判定(Event ev, ScriptAccessory sa)
+    public void P3A_BowelsOfAgonyResolve(Event ev, ScriptAccessory sa)
     {
-        if (_udmP3Param.当前阶段 != 3100) return;
-        if (!_udmP3Param.一运状态记录.WaitOne(2000)) return;
-        sa.DebugMsg($"一运状态记录完毕");
-        if (!_udmP3Param.一运水晶记录.WaitOne(2000)) return;
-        sa.DebugMsg($"一运水晶记录完毕");
+        if (_udmP3Param.CurrentStage != 3100) return;
+        if (!_udmP3Param.P3AStatusRecord.WaitOne(2000)) return;
+        sa.DebugMsg($"P3A statuses recorded");
+        if (!_udmP3Param.P3ACrystalRecord.WaitOne(2000)) return;
+        sa.DebugMsg($"P3A crystals recorded");
 
-        _udmP3Param.一运状态记录.Reset();
-        _udmP3Param.一运水晶记录.Reset();
+        _udmP3Param.P3AStatusRecord.Reset();
+        _udmP3Param.P3ACrystalRecord.Reset();
 
-        _udmP3Param.成员分组(sa, _pd);
-        sa.DebugMsg($"成员分组完毕");
+        _udmP3Param.GroupMembers(sa, _pd);
+        sa.DebugMsg($"Party grouped");
 
-        _udmP3Param.一水火准备.Set();
+        _udmP3Param.FireWater1Ready.Set();
     }
 
-    [ScriptMethod(name: "P3A_第一轮水火范围", eventType: EventTypeEnum.ActionEffect,
+    [ScriptMethod(name: "P3A_FireWaterRound1Aoe", eventType: EventTypeEnum.ActionEffect,
     eventCondition: ["ActionId:47858"], suppress: 10000,
     userControl: true)]
-    public async void P3A_第一轮水火范围(Event ev, ScriptAccessory sa)
+    public async void P3A_FireWaterRound1Aoe(Event ev, ScriptAccessory sa)
     {
         var runId = _runId;
 
-        if (_udmP3Param.当前阶段 != 3100) return;
+        if (_udmP3Param.CurrentStage != 3100) return;
         await Task.Delay(8000);
         if (runId != _runId) return;
-        if (_udmP3Param.当前阶段 != 3100) return;
+        if (_udmP3Param.CurrentStage != 3100) return;
 
-        DrawWaterFireRange(sa, _udmP3Param.一水火指路与绘图时间);
+        DrawWaterFireRange(sa, _udmP3Param.FireWater1GuideAndDrawTime);
     }
 
-    [ScriptMethod(name: "P3A_一水火指路", eventType: EventTypeEnum.ActionEffect,
+    [ScriptMethod(name: "P3A_FireWater1Guide", eventType: EventTypeEnum.ActionEffect,
         eventCondition: ["ActionId:47858"], suppress: 10000,
         userControl: true)]
-    public async void P3A_一水火指路(Event ev, ScriptAccessory sa)
+    public async void P3A_FireWater1Guide(Event ev, ScriptAccessory sa)
     {
         var runId = _runId;
-        if (_udmP3Param.当前阶段 != 3100) return;
-        if (!_udmP3Param.一水火准备.WaitOne(2000)) return;
+        if (_udmP3Param.CurrentStage != 3100) return;
+        if (!_udmP3Param.FireWater1Ready.WaitOne(2000)) return;
 
-        sa.DebugMsg($"开始");
+        sa.DebugMsg($"Start");
         await Task.Delay(8000);
         if (runId != _runId) return;
 
-        foreach (var idx in 指路对象(sa))
-            执行水火指路逻辑(sa, idx, _udmP3Param.一水火指路与绘图时间);
-        _udmP3Param.一水火准备.Reset();
+        foreach (var idx in GuidedPlayers(sa))
+            RunFireWaterGuideLogic(sa, idx, _udmP3Param.FireWater1GuideAndDrawTime);
+        _udmP3Param.FireWater1Ready.Reset();
     }
 
-    [ScriptMethod(name: "P3A_第二轮水火范围", eventType: EventTypeEnum.StartCasting,
+    [ScriptMethod(name: "P3A_FireWaterRound2Aoe", eventType: EventTypeEnum.StartCasting,
         eventCondition: ["ActionId:regex:^(47869|47870)$"], suppress: 10000, userControl: true)]
-    public void P3A_第二轮水火范围(Event ev, ScriptAccessory sa)
+    public void P3A_FireWaterRound2Aoe(Event ev, ScriptAccessory sa)
     {
-        if (_udmP3Param.当前阶段 != 3102 && _udmP3Param.当前阶段 != 3110) return;
-        DrawWaterFireRange(sa, _udmP3Param.二水火指路与绘图时间);
+        if (_udmP3Param.CurrentStage != 3102 && _udmP3Param.CurrentStage != 3110) return;
+        DrawWaterFireRange(sa, _udmP3Param.FireWater2GuideAndDrawTime);
     }
 
     private void DrawWaterFireRange(ScriptAccessory sa, int destroyTime)
     {
-        // 通用绘图范围
-        if (_udmP3Param.当前轮为火())
+        // Shared AoE draws
+        if (_udmP3Param.IsFireRound())
         {
-            DrawGroupCircle(sa, _udmP3Param.火组, "DrawWaterFireRange 火组", sa.Data.DefaultDangerColor, 5, destroyTime);
+            DrawGroupCircle(sa, _udmP3Param.FireGroup, "DrawWaterFireRange FireGroup", sa.Data.DefaultDangerColor, 5, destroyTime);
             DrawNearDonut(sa, sa.Data.DefaultDangerColor, destroyTime + 3000);
         }
         else
         {
-            DrawGroupDonut(sa, _udmP3Param.水组, "DrawWaterFireRange 水组", sa.Data.DefaultDangerColor, destroyTime);
+            DrawGroupDonut(sa, _udmP3Param.WaterGroup, "DrawWaterFireRange WaterGroup", sa.Data.DefaultDangerColor, destroyTime);
             DrawNearCircle(sa, sa.Data.DefaultDangerColor, destroyTime + 3000);
         }
     }
 
-    /// <summary>以某水晶方向为基准：离场中 dist 米，再绕场中逆时针转 deg 度（负数为顺时针）</summary>
-    private Vector3 水晶方向点(int crystalRegion, float dist, float deg = 0)
+    /// <summary>Based on a crystal's direction: dist meters from the middle, then rotated deg degrees counterclockwise around the middle (negative = clockwise)</summary>
+    private Vector3 CrystalDirectionPoint(int crystalRegion, float dist, float deg = 0)
     {
-        var crystal = _udmP3Param.基于水晶旋转(CrystalBasePos, crystalRegion);
+        var crystal = _udmP3Param.RotateFromCrystal(CrystalBasePos, crystalRegion);
         return crystal.RotateAndExtend(Center, deg.DegToRad(), dist - crystal.GetLength(Center));
     }
 
-    private void 位置指路(ScriptAccessory sa, int idx, Vector3 pos, string tip, int destroyTime)
+    private void PositionGuide(ScriptAccessory sa, int idx, Vector3 pos, string tip, int destroyTime)
     {
-        sa.DrawGuidance(GuidanceOwner(sa, idx), pos, 0, destroyTime, $"P3 位置指路 {idx}", sa.Data.DefaultSafeColor);
-        if (!是自己(sa, idx)) return;
+        sa.DrawGuidance(GuidanceOwner(sa, idx), pos, 0, destroyTime, $"P3 PositionGuide {idx}", sa.Data.DefaultSafeColor);
+        if (!IsMe(sa, idx)) return;
         sa.Method.TextInfo(tip, 3000);
         sa.Method.TTS(tip, 3);
     }
 
-    // LPDU 水火站位（以风水晶为北，西 = 逆时针侧）：远程在火水晶外，治疗在水水晶，T 与近战在风水晶外；
-    // 火的那一轮带火的近战往西偏 20°、带火的 T 往东偏 25°，其余叠在风水晶外
-    private void 执行水火指路逻辑(ScriptAccessory sa, int idx, int destroyTime)
+    // LPDU fire/water spots (wind crystal = north, west = counterclockwise side): ranged outside the fire crystal, healers at the water crystal, T and melee outside the wind crystal;
+    // in the fire round, melee with fire shift 20° west and the T with fire 25° east, everyone else stacks outside the wind crystal
+    private void RunFireWaterGuideLogic(ScriptAccessory sa, int idx, int destroyTime)
     {
         var p = _udmP3Param;
-        var 有火 = p.当前轮为火() && p.查询组序(p.火组, idx) >= 0;
+        var hasFire = p.IsFireRound() && p.QueryGroupOrder(p.FireGroup, idx) >= 0;
         var (pos, tip) = idx switch
         {
-            6 or 7 => (水晶方向点(p.火水晶方位, 一运远程距离), "火水晶外"),
-            2 or 3 => 治疗水火站位(idx),
-            4 or 5 when 有火 => (水晶方向点(p.风水晶方位, 一运外圈距离, 20f), "风水晶外 西侧放火"),
-            _ when 有火 => (水晶方向点(p.风水晶方位, 一运外圈距离, -25f), "风水晶外 东侧放火"),
-            _ => (水晶方向点(p.风水晶方位, 一运外圈距离), "风水晶外 集合"),
+            6 or 7 => (CrystalDirectionPoint(p.FireCrystalRegion, P3ARangedDistance), "Outside fire crystal"),
+            2 or 3 => HealerFireWaterSpot(idx),
+            4 or 5 when hasFire => (CrystalDirectionPoint(p.WindCrystalRegion, P3AOuterRingDistance, 20f), "Outside wind crystal, drop fire west"),
+            _ when hasFire => (CrystalDirectionPoint(p.WindCrystalRegion, P3AOuterRingDistance, -25f), "Outside wind crystal, drop fire east"),
+            _ => (CrystalDirectionPoint(p.WindCrystalRegion, P3AOuterRingDistance), "Outside wind crystal, stack"),
         };
-        sa.DrawGuidance(GuidanceOwner(sa, idx), pos, 0, destroyTime, $"P3A 水火指路 {idx}", sa.Data.DefaultSafeColor);
-        if (!是自己(sa, idx)) return;
-        sa.Method.TextInfo($"前往 {tip}", 6000);
+        sa.DrawGuidance(GuidanceOwner(sa, idx), pos, 0, destroyTime, $"P3A FireWaterGuide {idx}", sa.Data.DefaultSafeColor);
+        if (!IsMe(sa, idx)) return;
+        sa.Method.TextInfo($"Go: {tip}", 6000);
         sa.Method.TTS(tip, 3);
     }
 
-    // 第一轮场中有暴雷钢铁，两奶在水水晶外沿场边分开（H2 靠风水晶侧、H1 靠空角侧）；
-    // 第二轮沿半径分开（H1 在水水晶、H2 在场中偏水水晶 4m）
-    private (Vector3, string) 治疗水火站位(int idx)
+    // Round 1 has the Thunder III chariot in the middle, so the two healers split along the wall outside the water crystal (H2 on the wind crystal side, H1 on the empty side);
+    // round 2 they split along the radius (H1 at the water crystal, H2 4m from the middle toward the water crystal)
+    private (Vector3, string) HealerFireWaterSpot(int idx)
     {
         var p = _udmP3Param;
-        if (p.当前阶段 != 3100)
+        if (p.CurrentStage != 3100)
             return idx == 2
-                ? (水晶方向点(p.水水晶方位, 14f), "水水晶")
-                : (水晶方向点(p.水水晶方位, 4f), "场中偏水水晶");
-        var 风在逆时针侧 = p.风水晶方位 == (p.水水晶方位 + 1) % 4;
-        var deg = (idx == 3 ? 25f : -20f) * (风在逆时针侧 ? 1 : -1);
-        return (水晶方向点(p.水水晶方位, 一运远程距离, deg), idx == 3 ? "水水晶外 靠风水晶侧" : "水水晶外 靠空角侧");
+                ? (CrystalDirectionPoint(p.WaterCrystalRegion, 14f), "Water crystal")
+                : (CrystalDirectionPoint(p.WaterCrystalRegion, 4f), "Middle, toward water crystal");
+        var windIsCcwSide = p.WindCrystalRegion == (p.WaterCrystalRegion + 1) % 4;
+        var deg = (idx == 3 ? 25f : -20f) * (windIsCcwSide ? 1 : -1);
+        return (CrystalDirectionPoint(p.WaterCrystalRegion, P3ARangedDistance, deg), idx == 3 ? "Outside water crystal, wind side" : "Outside water crystal, empty side");
     }
     void DrawFacingArrow(ScriptAccessory sa, int idx, int dir, bool isSupport, string name, int destroyTime)
     {
@@ -6249,24 +6246,24 @@ public class Dancing_Mad_Ultimate
         ScriptAccessory sa, List<KeyValuePair<int, int>> group, string name, Vector4 color, float scale, int destroyTime)
     {
         for (var i = 0; i < group.Count; i++)
-            sa.DrawCircle(sa.Data.PartyList[group[i].Key], 0, destroyTime, $"{name}钢铁{i + 1}", scale, color);
+            sa.DrawCircle(sa.Data.PartyList[group[i].Key], 0, destroyTime, $"{name}Chariot{i + 1}", scale, color);
     }
 
     private void DrawGroupDonut(
         ScriptAccessory sa, List<KeyValuePair<int, int>> group, string name, Vector4 color, int destroyTime)
     {
         for (var i = 0; i < group.Count; i++)
-            sa.DrawDonut(sa.Data.PartyList[group[i].Key], 0, destroyTime, $"{name}月环{i + 1}", 10, 5, color);
+            sa.DrawDonut(sa.Data.PartyList[group[i].Key], 0, destroyTime, $"{name}Donut{i + 1}", 10, 5, color);
     }
 
     private void DrawNearCircle(ScriptAccessory sa, Vector4 color, int destroyTime)
     {
         var crystalPos = new Vector3(109.9f, 0, 109.9f);
-        crystalPos = _udmP3Param.基于水晶旋转(crystalPos, _udmP3Param.水水晶方位);
+        crystalPos = _udmP3Param.RotateFromCrystal(crystalPos, _udmP3Param.WaterCrystalRegion);
 
         for (int i = 0; i < 2; i++)
         {
-            var dp = sa.DrawCircle(crystalPos, 0, destroyTime, $"DrawNearCircle 水水晶钢铁{i + 1}", 5f, color, draw: false);
+            var dp = sa.DrawCircle(crystalPos, 0, destroyTime, $"DrawNearCircle WaterCrystalChariot{i + 1}", 5f, color, draw: false);
             dp.SetOwnersDistanceOrder(true, (uint)(i + 1));
             sa.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Circle, dp);
         }
@@ -6275,240 +6272,240 @@ public class Dancing_Mad_Ultimate
     private void DrawNearDonut(ScriptAccessory sa, Vector4 color, int destroyTime)
     {
         var crystalPos = new Vector3(109.9f, 0, 109.9f);
-        crystalPos = _udmP3Param.基于水晶旋转(crystalPos, _udmP3Param.火水晶方位);
+        crystalPos = _udmP3Param.RotateFromCrystal(crystalPos, _udmP3Param.FireCrystalRegion);
 
         for (int i = 0; i < 2; i++)
         {
-            var dp = sa.DrawDonut(crystalPos, 0, destroyTime, $"DrawNearCircle 火水晶月环{i + 1}", 10f, 5f, color, draw: false);
+            var dp = sa.DrawDonut(crystalPos, 0, destroyTime, $"DrawNearCircle FireCrystalDonut{i + 1}", 10f, 5f, color, draw: false);
             dp.SetOwnersDistanceOrder(true, (uint)(i + 1));
             sa.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Donut, dp);
         }
     }
 
-    #endregion P3A1 一水火 3100
+    #endregion P3A1 Fire & Water 1 3100
 
-    #region P3A1 暴雷死刑 3101 3102
+    #region P3A1 Thunder III Tankbuster 3101 3102
 
-    [ScriptMethod(name: "P3A_暴雷死刑阶段推进", eventType: EventTypeEnum.StartCasting,
+    [ScriptMethod(name: "P3A_ThunderTankbuster_AdvancePhase", eventType: EventTypeEnum.StartCasting,
         eventCondition: ["ActionId:47881"], userControl: Debugging)]
-    public void P3A_暴雷死刑阶段推进(Event ev, ScriptAccessory sa)
+    public void P3A_ThunderTankbuster_AdvancePhase(Event ev, ScriptAccessory sa)
     {
-        if (_udmP3Param.当前阶段 != 3100) return;
-        _udmP3Param.当前阶段 = 3101;
-        sa.DebugMsg($"暴雷死刑，一水火结束");
+        if (_udmP3Param.CurrentStage != 3100) return;
+        _udmP3Param.CurrentStage = 3101;
+        sa.DebugMsg($"Thunder III tankbuster, Fire & Water 1 done");
     }
 
-    [ScriptMethod(name: "P3A_暴雷死刑后阶段推进", eventType: EventTypeEnum.ActionEffect,
+    [ScriptMethod(name: "P3A_PostThunderTankbuster_AdvancePhase", eventType: EventTypeEnum.ActionEffect,
         eventCondition: ["ActionId:47884"], suppress: 10000, userControl: Debugging)]
-    public void P3A_暴雷死刑后阶段推进(Event ev, ScriptAccessory sa)
+    public void P3A_PostThunderTankbuster_AdvancePhase(Event ev, ScriptAccessory sa)
     {
-        if (_udmP3Param.当前阶段 != 3101) return;
-        _udmP3Param.当前阶段 = 3102;
+        if (_udmP3Param.CurrentStage != 3101) return;
+        _udmP3Param.CurrentStage = 3102;
     }
 
-    #endregion P3A1 暴雷死刑 3101 3102
+    #endregion P3A1 Thunder III Tankbuster 3101 3102
 
-    #region P3A1 二水火 3110
+    #region P3A1 Fire & Water 2 3110
 
-    [ScriptMethod(name: "———————— 《P3A1 二水火》 ————————", eventType: EventTypeEnum.NpcYell, eventCondition: ["HelloayaWorld:asdf"],
+    [ScriptMethod(name: "———————— [P3A1 Fire & Water 2] ————————", eventType: EventTypeEnum.NpcYell, eventCondition: ["HelloayaWorld:asdf"],
         userControl: true)]
-    public void P3A1_二水火分割线(Event ev, ScriptAccessory sa)
+    public void P3A1_FireWater2Separator(Event ev, ScriptAccessory sa)
     {
     }
 
-    [ScriptMethod(name: "P3A_二水火阶段推进", eventType: EventTypeEnum.StartCasting,
+    [ScriptMethod(name: "P3A_FireWater2_AdvancePhase", eventType: EventTypeEnum.StartCasting,
         eventCondition: ["ActionId:regex:^(47869|47870)$"], suppress: 10000, userControl: Debugging)]
-    public void P3A_二水火阶段推进(Event ev, ScriptAccessory sa)
+    public void P3A_FireWater2_AdvancePhase(Event ev, ScriptAccessory sa)
     {
-        if (_udmP3Param.当前阶段 != 3102) return;
-        _udmP3Param.当前阶段 = 3110;
-        sa.DebugMsg($"二水火开始，转阶段 {_udmP3Param.当前阶段}");
+        if (_udmP3Param.CurrentStage != 3102) return;
+        _udmP3Param.CurrentStage = 3110;
+        sa.DebugMsg($"Fire & Water 2 started, stage -> {_udmP3Param.CurrentStage}");
     }
 
-    [ScriptMethod(name: "P3A_二水火指路", eventType: EventTypeEnum.StartCasting,
+    [ScriptMethod(name: "P3A_FireWater2Guide", eventType: EventTypeEnum.StartCasting,
         eventCondition: ["ActionId:regex:^(47869|47870)$"], suppress: 10000, userControl: true)]
-    public void P3A_二水火指路(Event ev, ScriptAccessory sa)
+    public void P3A_FireWater2Guide(Event ev, ScriptAccessory sa)
     {
-        if (_udmP3Param.当前阶段 != 3102 && _udmP3Param.当前阶段 != 3110) return;
-        sa.DebugMsg($"开始");
-        foreach (var idx in 指路对象(sa))
-            执行水火指路逻辑(sa, idx, _udmP3Param.二水火指路与绘图时间);
+        if (_udmP3Param.CurrentStage != 3102 && _udmP3Param.CurrentStage != 3110) return;
+        sa.DebugMsg($"Start");
+        foreach (var idx in GuidedPlayers(sa))
+            RunFireWaterGuideLogic(sa, idx, _udmP3Param.FireWater2GuideAndDrawTime);
     }
 
-    [ScriptMethod(name: "P3A_二水火结束阶段推进", eventType: EventTypeEnum.ActionEffect,
+    [ScriptMethod(name: "P3A_FireWater2End_AdvancePhase", eventType: EventTypeEnum.ActionEffect,
         eventCondition: ["ActionId:regex:^(4786[01])$"], suppress: 10000, userControl: Debugging)]
-    public void P3A_二水火结束阶段推进(Event ev, ScriptAccessory sa)
+    public void P3A_FireWater2End_AdvancePhase(Event ev, ScriptAccessory sa)
     {
-        if (_udmP3Param.当前阶段 != 3110) return;
-        _udmP3Param.当前阶段 = 3111;
-        sa.DebugMsg($"二水火结束，转阶段 {_udmP3Param.当前阶段}");
+        if (_udmP3Param.CurrentStage != 3110) return;
+        _udmP3Param.CurrentStage = 3111;
+        sa.DebugMsg($"Fire & Water 2 done, stage -> {_udmP3Param.CurrentStage}");
     }
 
-    [ScriptMethod(name: "P3A_二水火结束指路", eventType: EventTypeEnum.ActionEffect,
+    [ScriptMethod(name: "P3A_FireWater2EndGuide", eventType: EventTypeEnum.ActionEffect,
         eventCondition: ["ActionId:regex:^(4786[01])$"], suppress: 10000, userControl: true)]
-    public void P3A_二水火结束(Event ev, ScriptAccessory sa)
+    public void P3A_FireWater2End(Event ev, ScriptAccessory sa)
     {
-        if (_udmP3Param.当前阶段 != 3110 && _udmP3Param.当前阶段 != 3111) return;
+        if (_udmP3Param.CurrentStage != 3110 && _udmP3Param.CurrentStage != 3111) return;
 
         /*
-         * 混沌之水月环 混沌之水 47862
-         * 混沌之水引发的钢铁 海啸 47861
-         * 混沌之火钢铁 混沌之炎 47859
-         * 混沌之火引发的月环 烈焰 47860
-         * 混沌之风引发的分摊 龙卷风 47864
+         * Stray Spray donut: Stray Spray 47862
+         * Chariot from Stray Spray: Tsunami 47861
+         * Stray Flames chariot: Stray Flames 47859
+         * Donut from Stray Flames: Inferno 47860
+         * Stack from Stray Gusts: Cyclone 47864
          */
 
-        // LPDU：二水火结束后 D3 去空角场边引超级跳，其余非 T 去风水晶集合
-        sa.DebugMsg($"二水火结束，当前阶段 {_udmP3Param.当前阶段}");
-        var windPos = 水晶方向点(_udmP3Param.风水晶方位, 14f);
-        foreach (var idx in 指路对象(sa))
+        // LPDU: after Fire & Water 2, D3 goes to the empty side's wall to bait the jump, everyone else except the tanks stacks at the wind crystal
+        sa.DebugMsg($"Fire & Water 2 done, current stage {_udmP3Param.CurrentStage}");
+        var windPos = CrystalDirectionPoint(_udmP3Param.WindCrystalRegion, 14f);
+        foreach (var idx in GuidedPlayers(sa))
         {
             if (idx == 6)
-                位置指路(sa, idx, 水晶方向点(_udmP3Param.无水晶方位, 一运外圈距离), "去空角场边 引导超级跳", 6500);
+                PositionGuide(sa, idx, CrystalDirectionPoint(_udmP3Param.EmptyCrystalRegion, P3AOuterRingDistance), "Empty side wall, bait the jump", 6500);
             else if (idx >= 2)
-                位置指路(sa, idx, windPos, "风水晶集合", 6500);
+                PositionGuide(sa, idx, windPos, "Stack at wind crystal", 6500);
         }
     }
 
-    #endregion P3A1 二水火 3110
+    #endregion P3A1 Fire & Water 2 3110
 
-    #region P3A1 真空波 3111
+    #region P3A1 Vacuum Wave 3111
 
-    [ScriptMethod(name: "———————— 《P3A1 真空波》 ————————", eventType: EventTypeEnum.NpcYell, eventCondition: ["HelloayaWorld:asdf"],
+    [ScriptMethod(name: "———————— [P3A1 Vacuum Wave] ————————", eventType: EventTypeEnum.NpcYell, eventCondition: ["HelloayaWorld:asdf"],
         userControl: true)]
-    public void P3A1_真空波分割线(Event ev, ScriptAccessory sa)
+    public void P3A1_VacuumWaveSeparator(Event ev, ScriptAccessory sa)
     {
     }
 
-    [ScriptMethod(name: "P3A_真空波", eventType: EventTypeEnum.StartCasting,
+    [ScriptMethod(name: "P3A_VacuumWave", eventType: EventTypeEnum.StartCasting,
         eventCondition: ["ActionId:regex:^(47891)$"], userControl: true)]
-    public void P3A_真空波(Event ev, ScriptAccessory sa)
+    public void P3A_VacuumWave(Event ev, ScriptAccessory sa)
     {
-        if (_udmP3Param.当前阶段 != 3111) return;
-        sa.DebugMsg($"开始");
+        if (_udmP3Param.CurrentStage != 3111) return;
+        sa.DebugMsg($"Start");
 
-        foreach (var idx in 指路对象(sa))
-            执行真空波指路逻辑(sa, idx);
+        foreach (var idx in GuidedPlayers(sa))
+            RunVacuumWaveGuideLogic(sa, idx);
     }
 
-    [ScriptMethod(name: "*P3A_真空波读条期间卡奥斯透明", eventType: EventTypeEnum.StartCasting,
+    [ScriptMethod(name: "*P3A_ChaosTransparentDuringVacuumWave", eventType: EventTypeEnum.StartCasting,
         eventCondition: ["ActionId:regex:^(47891)$"], userControl: true)]
-    public async void P3A_真空波读条期间卡奥斯透明(Event ev, ScriptAccessory sa)
+    public async void P3A_ChaosTransparentDuringVacuumWave(Event ev, ScriptAccessory sa)
     {
         if (!p3aChaosTransparentDuringVacuumWave) return;
 
-        if (_udmP3Param.当前阶段 != 3111) return;
-        sa.DebugMsg($"执行");
+        if (_udmP3Param.CurrentStage != 3111) return;
+        sa.DebugMsg($"Run");
 
         var runId = _runId;
-        var obj = sa.GetById(_udmP3Param.ObjectId_卡奥斯);
+        var obj = sa.GetById(_udmP3Param.ObjectId_Chaos);
         sa.AlphaModify(obj, 0.3f);
         await Task.Delay(8000);
         if (runId != _runId) return;
         sa.AlphaModify(obj, 1f);
     }
 
-    [ScriptMethod(name: "P3A_真空波指引线", eventType: EventTypeEnum.StartCasting,
+    [ScriptMethod(name: "P3A_VacuumWaveGuideLines", eventType: EventTypeEnum.StartCasting,
         eventCondition: ["ActionId:regex:^(47891)$"], userControl: true)]
-    public void P3A_真空波指引线(Event ev, ScriptAccessory sa)
+    public void P3A_VacuumWaveGuideLines(Event ev, ScriptAccessory sa)
     {
-        if (_udmP3Param.当前阶段 != 3111) return;
-        DrawStaticGuideLineVw(sa, _udmP3Param.真空波指路时间);
+        if (_udmP3Param.CurrentStage != 3111) return;
+        DrawStaticGuideLineVw(sa, _udmP3Param.VacuumWaveGuideTime);
     }
 
-    [ScriptMethod(name: "P3A_真空波后分摊", eventType: EventTypeEnum.ActionEffect,
+    [ScriptMethod(name: "P3A_PostVacuumWaveStacks", eventType: EventTypeEnum.ActionEffect,
         eventCondition: ["ActionId:regex:^(47891)$"], suppress: 10000, userControl: true)]
-    public void P3A_真空波后分摊(Event ev, ScriptAccessory sa)
+    public void P3A_PostVacuumWaveStacks(Event ev, ScriptAccessory sa)
     {
-        if (_udmP3Param.当前阶段 != 3111) return;
-        sa.DebugMsg($"击退后分摊");
+        if (_udmP3Param.CurrentStage != 3111) return;
+        sa.DebugMsg($"Stacks after knockback");
 
-        // LPDU 同职能两两分摊：MT+ST、H1+H2、D1+D2、D3+D4
-        foreach (var idx in 指路对象(sa))
-            sa.DrawCircle(sa.Data.PartyList[idx ^ 1], 0, 4000, $"真空波分摊 {idx}", 6, sa.Data.DefaultSafeColor);
+        // LPDU role pair stacks: MT+ST, H1+H2, D1+D2, D3+D4
+        foreach (var idx in GuidedPlayers(sa))
+            sa.DrawCircle(sa.Data.PartyList[idx ^ 1], 0, 4000, $"VacuumWaveStack {idx}", 6, sa.Data.DefaultSafeColor);
     }
 
-    // LPDU 真空波：同职能两两站一条线，一前一后。角度从艾克斯迪司看向场中算，正数 = 东（逆时针）
-    // T 西 20°、近战东 20°、治疗西 50°、远程东 45°；(角度, 离艾克斯迪司距离)
-    private static readonly (float deg, float dist)[] 真空波站位 =
+    // LPDU Vacuum Wave: role pairs stand in a line, one in front of the other. Angles measured from Exdeath toward the middle, positive = east (counterclockwise)
+    // T 20° west, melee 20° east, healers 50° west, ranged 45° east; (angle, distance from Exdeath)
+    private static readonly (float deg, float dist)[] VacuumWaveSpots =
         [(-20f, 4f), (-20f, 6f), (-50f, 6.5f), (-50f, 8f), (20f, 4f), (20f, 5.5f), (45f, 7.5f), (45f, 6f)];
 
-    private void 执行真空波指路逻辑(ScriptAccessory sa, int myIndex)
+    private void RunVacuumWaveGuideLogic(ScriptAccessory sa, int myIndex)
     {
-        var (deg, dist) = 真空波站位[myIndex];
-        Vector3 bossPos = sa.GetById(_udmP3Param.ObjectId_艾克斯迪司).Position;
+        var (deg, dist) = VacuumWaveSpots[myIndex];
+        Vector3 bossPos = sa.GetById(_udmP3Param.ObjectId_Exdeath).Position;
         var guidePos = bossPos.RotateAndExtend(Center, 0, -dist).RotateAndExtend(bossPos, deg.DegToRad());
-        sa.DrawGuidance(GuidanceOwner(sa, myIndex), guidePos, 0, _udmP3Param.真空波指路时间, $"执行真空波指路逻辑 指路 {myIndex}", sa.Data.DefaultSafeColor);
+        sa.DrawGuidance(GuidanceOwner(sa, myIndex), guidePos, 0, _udmP3Param.VacuumWaveGuideTime, $"VacuumWaveGuide Guide {myIndex}", sa.Data.DefaultSafeColor);
 
-        // 面向指示：混沌之风背对、混沌之逆风面向
-        var needBack = _udmP3Param.需要背对(_pd.Priorities[myIndex]);
-        var needBackStr = needBack ? "背对" : "面向";
-        DrawFacingArrow(sa, myIndex, 0, false, $"执行真空波指路逻辑 面向辅助自身", _udmP3Param.真空波指路时间);
+        // Facing indicator: Headwind = back to the boss, Tailwind = face the boss
+        var needBack = _udmP3Param.NeedFaceAway(_pd.Priorities[myIndex]);
+        var needBackStr = needBack ? "Back to" : "Face";
+        DrawFacingArrow(sa, myIndex, 0, false, $"VacuumWaveGuide FacingSelf", _udmP3Param.VacuumWaveGuideTime);
 
-        var dp = sa.DrawLine(GuidanceOwner(sa, myIndex), _udmP3Param.ObjectId_艾克斯迪司, 0, _udmP3Param.真空波指路时间, $"执行真空波指路逻辑 面向辅助正确面向 {myIndex}",
+        var dp = sa.DrawLine(GuidanceOwner(sa, myIndex), _udmP3Param.ObjectId_Exdeath, 0, _udmP3Param.VacuumWaveGuideTime, $"VacuumWaveGuide FacingCorrect {myIndex}",
             needBack ? 180f.DegToRad() : 0, 1f, 4.5f, sa.Data.DefaultSafeColor, draw: false);
         sa.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Arrow, dp);
 
-        if (!是自己(sa, myIndex)) return;
-        sa.Method.TextInfo($"目标圈内 {needBackStr} 艾克斯迪司 击退", 4000);
-        sa.Method.TTS($"{needBackStr}Boss击退", 3);
+        if (!IsMe(sa, myIndex)) return;
+        sa.Method.TextInfo($"Inside hitbox, {needBackStr} Exdeath for knockback", 4000);
+        sa.Method.TTS($"{needBackStr} boss, knockback", 3);
     }
 
     private void DrawStaticGuideLineVw(ScriptAccessory sa, int destroyTime)
     {
         var myIndex = sa.GetMyIndex();
-        Vector3 bossPos = sa.GetById(_udmP3Param.ObjectId_艾克斯迪司).Position;
+        Vector3 bossPos = sa.GetById(_udmP3Param.ObjectId_Exdeath).Position;
         var baseRadian = 180f.DegToRad() + bossPos.GetRadian(Center);
 
-        // 四条线依次是 T、治疗、近战、远程（与 真空波站位 的角度一致）
+        // The four lines are T, healers, melee, ranged in order (same angles as VacuumWaveSpots)
         List<float> biasDeg = [-20, -50, 20, 45];
         var myLine = myIndex switch { 0 or 1 => 0, 2 or 3 => 1, 4 or 5 => 2, _ => 3 };
         for (int i = 0; i < 4; i++)
         {
-            var dp = sa.DrawLine(bossPos, 0, 0, destroyTime, $"DrawStaticGuideLineVw 指引线{i}",
+            var dp = sa.DrawLine(bossPos, 0, 0, destroyTime, $"DrawStaticGuideLineVw Line{i}",
                 baseRadian + biasDeg[i].DegToRad(), 20f, 50f, sa.Data.DefaultSafeColor, draw: false);
             dp.Color = i == myLine ? sa.Data.DefaultSafeColor : sa.Data.DefaultDangerColor;
             sa.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Line, dp);
         }
     }
 
-    #endregion P3A1 真空波 3111
+    #endregion P3A1 Vacuum Wave 3111
 
-    #region P3B 地震 通用部分
+    #region P3B Earthquake Common
 
-    [ScriptMethod(name: "=============《P3B 地震》=============", eventType: EventTypeEnum.NpcYell, eventCondition: ["HelloayaWorld:asdf"],
+    [ScriptMethod(name: "============= [P3B Earthquake] =============", eventType: EventTypeEnum.NpcYell, eventCondition: ["HelloayaWorld:asdf"],
         userControl: true)]
-    public void P3B_分割线(Event ev, ScriptAccessory sa)
+    public void P3B_Separator(Event ev, ScriptAccessory sa)
     {
     }
 
-    [ScriptMethod(name: "P3B_二运分P_地震", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:50545"],
+    [ScriptMethod(name: "P3B_SubphaseStart_Earthquake", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:50545"],
         userControl: Debugging)]
-    public void P3A_二运分P_地震(Event ev, ScriptAccessory sa)
+    public void P3B_SubphaseStart_Earthquake(Event ev, ScriptAccessory sa)
     {
-        _pd.Init(sa, "P3二运");
+        _pd.Init(sa, "P3B");
         _pd.AddPriorities([1, 2, 3, 4, 5, 6, 7, 8]);
-        _udmP3Param.当前阶段 = 3200;
+        _udmP3Param.CurrentStage = 3200;
 
-        sa.DebugMsg($"当前阶段为：P3 二运 地震 {_udmP3Param.当前阶段}");
+        sa.DebugMsg($"Current stage: P3B Earthquake {_udmP3Param.CurrentStage}");
     }
 
-    [ScriptMethod(name: "*P3B_黑洞、冰封期间双Boss透明", eventType: EventTypeEnum.StartCasting,
+    [ScriptMethod(name: "*P3B_BossesTransparentDuringBlackHolesAndBlizzard", eventType: EventTypeEnum.StartCasting,
         eventCondition: ["ActionId:regex:^(47867)$"], userControl: true)]
-    public void P3B_黑洞期间双Boss透明(Event ev, ScriptAccessory sa)
+    public void P3B_BossesTransparentDuringBlackHoles(Event ev, ScriptAccessory sa)
     {
         if (!p3bBossesTransparentDuringBlackHole) return;
 
-        const uint 黑洞 = 47867;
-        var obj1 = sa.GetById(_udmP3Param.ObjectId_卡奥斯);
-        var obj2 = sa.GetById(_udmP3Param.ObjectId_艾克斯迪司);
+        const uint bhEntry = 47867;
+        var obj1 = sa.GetById(_udmP3Param.ObjectId_Chaos);
+        var obj2 = sa.GetById(_udmP3Param.ObjectId_Exdeath);
         sa.AlphaModify(obj1, 0.3f);
-        sa.AlphaModify(obj2, ev.ActionId == 黑洞 ? 0.75f : 0.3f);
+        sa.AlphaModify(obj2, ev.ActionId == bhEntry ? 0.75f : 0.3f);
     }
 
-    [ScriptMethod(name: "*P3B_凯夫卡上桌透明化", eventType: EventTypeEnum.StartCasting,
+    [ScriptMethod(name: "*P3B_GiantKefkaTransparent", eventType: EventTypeEnum.StartCasting,
         eventCondition: ["ActionId:regex:^(4784[67]|4785[235])$"], userControl: true)]
-    public async void P3B_凯夫卡上桌透明化(Event ev, ScriptAccessory sa)
+    public async void P3B_GiantKefkaTransparent(Event ev, ScriptAccessory sa)
     {
         if (!p3bKefkaTransparent) return;
         var runId = _runId;
@@ -6519,65 +6516,65 @@ public class Dancing_Mad_Ultimate
         sa.AlphaModify(obj, 1f);
     }
 
-    [ScriptMethod(name: "*P3B_卡奥斯非技能期间透明化", eventType: EventTypeEnum.StartCasting,
+    [ScriptMethod(name: "*P3B_ChaosTransparentWhenIdle", eventType: EventTypeEnum.StartCasting,
         eventCondition: ["ActionId:regex:^(47867|47869|47870)$"], userControl: true)]
-    public async void P3B_卡奥斯非技能期间透明化(Event ev, ScriptAccessory sa)
+    public async void P3B_ChaosTransparentWhenIdle(Event ev, ScriptAccessory sa)
     {
         if (!p3bChaosTransparent) return;
-        if (_udmP3Param.当前阶段 != 3200) return;
+        if (_udmP3Param.CurrentStage != 3200) return;
 
-        const uint 诅咒敕令 = 47867;
-        var awaitTime = ev.ActionId == 诅咒敕令 ? 5000 : 7500;
+        const uint DamningEdict = 47867;
+        var awaitTime = ev.ActionId == DamningEdict ? 5000 : 7500;
 
         var runId = _runId;
-        var obj = sa.GetById(_udmP3Param.ObjectId_卡奥斯);
+        var obj = sa.GetById(_udmP3Param.ObjectId_Chaos);
         sa.AlphaModify(obj, 1f, currentAlpha => currentAlpha <= 0.8f);
         await Task.Delay(awaitTime);
         if (runId != _runId) return;
         sa.AlphaModify(obj, 0.5f, currentAlpha => currentAlpha >= 0.8f);
     }
 
-    [ScriptMethod(name: "*P3B_艾克斯迪司非技能期间透明化", eventType: EventTypeEnum.StartCasting,
+    [ScriptMethod(name: "*P3B_ExdeathTransparentWhenIdle", eventType: EventTypeEnum.StartCasting,
         eventCondition: ["ActionId:regex:^(47881)$"], userControl: true)]
-    public async void P3B_艾克斯迪司非技能期间透明化(Event ev, ScriptAccessory sa)
+    public async void P3B_ExdeathTransparentWhenIdle(Event ev, ScriptAccessory sa)
     {
         if (!p3bExdeathTransparent) return;
-        if (_udmP3Param.当前阶段 != 3200) return;
+        if (_udmP3Param.CurrentStage != 3200) return;
 
         var runId = _runId;
-        var obj = sa.GetById(_udmP3Param.ObjectId_艾克斯迪司);
+        var obj = sa.GetById(_udmP3Param.ObjectId_Exdeath);
         sa.AlphaModify(obj, 1f, currentAlpha => currentAlpha <= 0.8f);
         await Task.Delay(5000);
         if (runId != _runId) return;
         sa.AlphaModify(obj, 0.75f, currentAlpha => currentAlpha >= 0.8f);
     }
 
-    [ScriptMethod(name: "P3B_响亮亮耳光范围与指路", eventType: EventTypeEnum.StartCasting,
+    [ScriptMethod(name: "P3B_SlapHappy_AoeAndGuide", eventType: EventTypeEnum.StartCasting,
         eventCondition: ["ActionId:regex:^(4784[67])$"], userControl: true)]
-    public void P3B_响亮亮耳光范围与指路(Event ev, ScriptAccessory sa)
+    public void P3B_SlapHappy_AoeAndGuide(Event ev, ScriptAccessory sa)
     {
-        if (_udmP3Param.当前阶段 != 3200) return;
+        if (_udmP3Param.CurrentStage != 3200) return;
 
-        const uint 右手接分摊 = 47846;
-        const uint 左手接职能 = 47847;
+        const uint RightSlapsThenStack = 47846;
+        const uint LeftSlapsThenRoleStacks = 47847;
         var aid = ev.ActionId;
         var actionStr = aid switch
         {
-            右手接分摊 => "右手接分摊",
-            左手接职能 => "左手接职能",
+            RightSlapsThenStack => "Right slaps, party stack",
+            LeftSlapsThenRoleStacks => "Left slaps, role stacks",
         };
 
-        var isStack = aid == 右手接分摊;
+        var isStack = aid == RightSlapsThenStack;
 
-        _udmP3Param.凯夫卡方位 = _udmP3Param.巨大凯夫卡方位获取(sa, true);
-        var (attackRegion, safeRegion) = _udmP3Param.巨大凯夫卡半场刀方向(sa, aid == 右手接分摊);
+        _udmP3Param.KefkaRegion = _udmP3Param.GetGiantKefkaRegion(sa, true);
+        var (attackRegion, safeRegion) = _udmP3Param.GiantKefkaCleaveDirection(sa, aid == RightSlapsThenStack);
 
-        // 画半场刀与钢铁范围
-        sa.DrawCircle(Center, 0, 8000, $"[P3B_响亮亮耳光] 场中钢铁", 6f, sa.Data.DefaultDangerColor.WithW(2f));
+        // Draw the cleave and the chariot
+        sa.DrawCircle(Center, 0, 8000, $"[P3B_SlapHappy] MiddleChariot", 6f, sa.Data.DefaultDangerColor.WithW(2f));
         var biasCenter = (Center - new Vector3(0, 0, 3.8f)).RotateAndExtend(Center, -45f.DegToRad() * safeRegion);
-        sa.DrawRect(biasCenter, Center, 0, 7000, $"[P3B_响亮亮耳光] 半场刀", 0, 60f, 60f, sa.Data.DefaultDangerColor.WithW(2f));
+        sa.DrawRect(biasCenter, Center, 0, 7000, $"[P3B_SlapHappy] Cleave", 0, 60f, 60f, sa.Data.DefaultDangerColor.WithW(2f));
 
-        // 画分摊或职能线
+        // Draw the party stack line or the role lines
         List<float> biasDeg = [0, -45f, 45f]; // H T D
         var lineCount = isStack ? 1 : 3;
         static int RoleOf(int idx) => idx switch
@@ -6590,7 +6587,7 @@ public class Dancing_Mad_Ultimate
         for (int i = 0; i < lineCount; i++)
         {
             var guidePos = biasCenter.RotateAndExtend(Center, biasDeg[i].DegToRad(), 3.5f);
-            var dp = sa.DrawLine(Center, guidePos, 0, 8000, $"响亮亮耳光 指引线{i}",
+            var dp = sa.DrawLine(Center, guidePos, 0, 8000, $"SlapHappy Line{i}",
                 0, 20f, 50f, sa.Data.DefaultSafeColor, draw: false);
             dp.Color = i switch
             {
@@ -6600,125 +6597,125 @@ public class Dancing_Mad_Ultimate
             };
             sa.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Line, dp);
 
-            foreach (var idx in 指路对象(sa))
+            foreach (var idx in GuidedPlayers(sa))
                 if (RoleOf(idx) == i || isStack)
-                    sa.DrawGuidance(GuidanceOwner(sa, idx), guidePos, 0, 8000, $"响亮亮耳光 指路 {idx}", sa.Data.DefaultSafeColor);
+                    sa.DrawGuidance(GuidanceOwner(sa, idx), guidePos, 0, 8000, $"SlapHappy Guide {idx}", sa.Data.DefaultSafeColor);
         }
 
         sa.DebugMsg($"{actionStr}");
-        sa.Method.TextInfo($"响亮亮耳光 {actionStr}", 3000);
+        sa.Method.TextInfo($"Slap Happy: {actionStr}", 3000);
         sa.Method.TTS($"{actionStr}", 3);
     }
 
-    [ScriptMethod(name: "P3B_诅咒敕令半场刀", eventType: EventTypeEnum.StartCasting,
+    [ScriptMethod(name: "P3B_DamningEdict_Cleave", eventType: EventTypeEnum.StartCasting,
         eventCondition: ["ActionId:regex:^(47873)$"], userControl: true)]
-    public void P3B_诅咒敕令半场刀(Event ev, ScriptAccessory sa)
+    public void P3B_DamningEdict_Cleave(Event ev, ScriptAccessory sa)
     {
-        sa.DrawRect(ev.SourceId, 800, 4200, $"诅咒敕令半场刀", 0, 80, 30, CursedEdictColor.V4.WithW(CursedEdictWhiteVal), byTime: true);
+        sa.DrawRect(ev.SourceId, 800, 4200, $"DamningEdictCleave", 0, 80, 30, CursedEdictColor.V4.WithW(CursedEdictWhiteVal), byTime: true);
     }
 
-    [ScriptMethod(name: "P3B_本色出演的我辣尾", eventType: EventTypeEnum.StartCasting,
+    [ScriptMethod(name: "P3B_LookUponMeAndDespair", eventType: EventTypeEnum.StartCasting,
         eventCondition: ["ActionId:regex:^(47854)$"], userControl: true)]
-    public void P3B_本色出演的我辣尾(Event ev, ScriptAccessory sa)
+    public void P3B_LookUponMeAndDespair(Event ev, ScriptAccessory sa)
     {
-        var dp = sa.DrawRect(ev.SourceId, 0, 5000, $"本色出演的我辣尾", 0, 16, 100, sa.Data.DefaultDangerColor.WithW(2f),
+        var dp = sa.DrawRect(ev.SourceId, 0, 5000, $"LookUponMeAndDespair", 0, 16, 100, sa.Data.DefaultDangerColor.WithW(2f),
             draw: false);
         dp.Offset = new Vector3(0, 0, 40);
         sa.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Rect, dp);
     }
 
-    [ScriptMethod(name: "P3B_白洞抬血提示", eventType: EventTypeEnum.StartCasting,
+    [ScriptMethod(name: "P3B_WhiteHole_HealUpCallout", eventType: EventTypeEnum.StartCasting,
         eventCondition: ["ActionId:regex:^(48486)$"], userControl: true)]
-    public void P3B_白洞抬血提示(Event ev, ScriptAccessory sa)
+    public void P3B_WhiteHole_HealUpCallout(Event ev, ScriptAccessory sa)
     {
         if (sa.GetMyIndex() is not 2 and not 3) return;
-        sa.Method.TextInfo($"抬满全队！", 3000, true);
-        sa.Method.TTS($"抬满全队", 3);
+        sa.Method.TextInfo($"Heal everyone to full!", 3000, true);
+        sa.Method.TTS($"Heal everyone to full", 3);
     }
 
-    [ScriptMethod(name: "P3B_追踪巨大凯夫卡", eventType: EventTypeEnum.PlayActionTimeline,
+    [ScriptMethod(name: "P3B_TrackGiantKefka", eventType: EventTypeEnum.PlayActionTimeline,
         eventCondition: ["Id:7748", "SourceDataId:19504"], userControl: true)]
-    public void P3B_追踪巨大凯夫卡(Event ev, ScriptAccessory sa)
+    public void P3B_TrackGiantKefka(Event ev, ScriptAccessory sa)
     {
-        if (_udmP3Param.当前阶段 != 3200) return;
-        var region = _udmP3Param.巨大凯夫卡方位获取(sa, false);
+        if (_udmP3Param.CurrentStage != 3200) return;
+        var region = _udmP3Param.GetGiantKefkaRegion(sa, false);
         var kefkaPos = new Vector3(100, 0, 120);
         kefkaPos = kefkaPos.RotateAndExtend(Center, region * 45f.DegToRad());
         var color = new Vector4(0.1f, 1f, 1f, 1f);
-        sa.DrawConnection(sa.Data.Me, kefkaPos, 0, 3000, $"跟踪巨大凯夫卡", color);
-        sa.Method.TextInfo($"凯夫卡重新出现了！", 1000);
+        sa.DrawConnection(sa.Data.Me, kefkaPos, 0, 3000, $"TrackGiantKefka", color);
+        sa.Method.TextInfo($"Kefka is back!", 1000);
     }
 
-    #endregion P3B 地震 通用部分
+    #endregion P3B Earthquake Common
 
-    #region P3B1 黑洞 3200
+    #region P3B1 Black Holes 3200
 
-    [ScriptMethod(name: "———————— 《P3B1 黑洞》 ————————", eventType: EventTypeEnum.NpcYell, eventCondition: ["HelloayaWorld:asdf"],
+    [ScriptMethod(name: "———————— [P3B1 Black Holes] ————————", eventType: EventTypeEnum.NpcYell, eventCondition: ["HelloayaWorld:asdf"],
         userControl: true)]
-    public void P3B1_分割线(Event ev, ScriptAccessory sa)
+    public void P3B1_Separator(Event ev, ScriptAccessory sa)
     {
     }
 
-    // 地震 debuff 决定接线身份（LPDU 不标点）：3004/3005/3006 第一/二/三目标，1604 混沌之泥土
-    // 每组 DPS 接凯夫卡顺时针第 1 个黑洞、支援第 2 个、带泥的人第 3 个：
-    // 110/120/130 = 第一目标 DPS/支援/带泥，210/220/230 = 第二目标同理，310/320 = 第三目标 DPS/支援
-    [ScriptMethod(name: "P3B1_按debuff记录接线身份", eventType: EventTypeEnum.StatusAdd,
+    // The Earthquake debuffs decide the tether roles (LPDU uses no markers): 3004/3005/3006 First/Second/Third in Line, 1604 Accretion
+    // In each line group, DPS take the 1st black hole clockwise from Kefka, supports the 2nd, the Accretion player the 3rd:
+    // 110/120/130 = First in Line DPS/support/Accretion, 210/220/230 = Second in Line likewise, 310/320 = Third in Line DPS/support
+    [ScriptMethod(name: "P3B1_RecordTetherRolesByDebuff", eventType: EventTypeEnum.StatusAdd,
         eventCondition: ["StatusID:regex:^(300[456]|1604)$"], userControl: Debugging)]
-    public void P3B1_按debuff记录接线身份(Event ev, ScriptAccessory sa)
+    public void P3B1_RecordTetherRolesByDebuff(Event ev, ScriptAccessory sa)
     {
-        const uint 混沌之泥土 = 1604;
-        const uint 第一目标 = 3004;
-        if (_udmP3Param.当前阶段 != 3200) return;
+        const uint Accretion = 1604;
+        const uint FirstInLine = 3004;
+        if (_udmP3Param.CurrentStage != 3200) return;
         lock (_pd)
         {
-            if (_udmP3Param.黑洞已出现) return;
+            if (_udmP3Param.BlackHoleAppeared) return;
 
             var tidx = sa.GetPlayerIdIndex((uint)ev.TargetId);
             if (tidx is < 0 or >= 8) return;
 
-            if (ev.StatusId == 混沌之泥土)
-                _udmP3Param.有泥[tidx] = true;
+            if (ev.StatusId == Accretion)
+                _udmP3Param.HasAccretion[tidx] = true;
             else
-                _udmP3Param.接线顺位[tidx] = (int)(ev.StatusId - 第一目标) + 1;
+                _udmP3Param.TetherOrder[tidx] = (int)(ev.StatusId - FirstInLine) + 1;
 
-            var line = _udmP3Param.接线顺位[tidx];
+            var line = _udmP3Param.TetherOrder[tidx];
             if (line == 0) return;
-            var slot = _udmP3Param.有泥[tidx] ? 30 : tidx <= 3 ? 20 : 10;
+            var slot = _udmP3Param.HasAccretion[tidx] ? 30 : tidx <= 3 ? 20 : 10;
             _pd.Priorities[tidx] = (tidx + 1) + line * 100 + slot;
-            sa.DebugMsg($"{sa.GetPlayerJobByIndex(tidx)} 第{line}目标{(_udmP3Param.有泥[tidx] ? " 带泥" : "")} == {_pd.Priorities[tidx]}");
+            sa.DebugMsg($"{sa.GetPlayerJobByIndex(tidx)} #{line} in line{(_udmP3Param.HasAccretion[tidx] ? " +Accretion" : "")} == {_pd.Priorities[tidx]}");
         }
     }
 
-    [ScriptMethod(name: "P3B1_黑洞轮数增加", eventType: EventTypeEnum.AddCombatant,
+    [ScriptMethod(name: "P3B1_IncrementBlackHoleRound", eventType: EventTypeEnum.AddCombatant,
         eventCondition: ["DataId:19512"], userControl: Debugging, suppress: 5000)]
-    public void P3B1_黑洞轮数增加(Event ev, ScriptAccessory sa)
+    public void P3B1_IncrementBlackHoleRound(Event ev, ScriptAccessory sa)
     {
-        if (!_udmP3Param.黑洞已出现)
+        if (!_udmP3Param.BlackHoleAppeared)
         {
-            _udmP3Param.黑洞已出现 = true;
-            sa.DebugMsg($"接线身份记录完毕");
+            _udmP3Param.BlackHoleAppeared = true;
+            sa.DebugMsg($"Tether roles recorded");
             sa.DebugMsg($"{_pd.ShowPriorities()}");
         }
-        _udmP3Param.黑洞字典.Clear();
-        _udmP3Param.黑洞轮数++;
-        sa.DebugMsg($"当前阶段 {_udmP3Param.当前阶段}，清除黑洞字典 {_udmP3Param.黑洞字典.Count}");
-        _udmP3Param.黑洞轮数增加完毕.Set();
+        _udmP3Param.BlackHoleDict.Clear();
+        _udmP3Param.BlackHoleRound++;
+        sa.DebugMsg($"Current stage {_udmP3Param.CurrentStage}, cleared black hole dict {_udmP3Param.BlackHoleDict.Count}");
+        _udmP3Param.BlackHoleRoundIncremented.Set();
     }
 
-    [ScriptMethod(name: "P3B1_凯夫卡方位获取", eventType: EventTypeEnum.AddCombatant,
+    [ScriptMethod(name: "P3B1_GetKefkaRegion", eventType: EventTypeEnum.AddCombatant,
         eventCondition: ["DataId:19512"], userControl: Debugging, suppress: 5000)]
-    public void P3B1_凯夫卡方位获取(Event ev, ScriptAccessory sa)
+    public void P3B1_GetKefkaRegion(Event ev, ScriptAccessory sa)
     {
-        _udmP3Param.凯夫卡方位 = _udmP3Param.巨大凯夫卡方位获取(sa, true);
-        _udmP3Param.凯夫卡方位获取完毕.Set();
+        _udmP3Param.KefkaRegion = _udmP3Param.GetGiantKefkaRegion(sa, true);
+        _udmP3Param.KefkaRegionAcquired.Set();
     }
 
-    [ScriptMethod(name: "P3B1_外黑洞获取", eventType: EventTypeEnum.AddCombatant,
+    [ScriptMethod(name: "P3B1_GetOuterBlackHoles", eventType: EventTypeEnum.AddCombatant,
         eventCondition: ["DataId:19512"], userControl: Debugging)]
-    public void P3B1_外黑洞获取(Event ev, ScriptAccessory sa)
+    public void P3B1_GetOuterBlackHoles(Event ev, ScriptAccessory sa)
     {
-        if (!_udmP3Param.黑洞轮数增加完毕.WaitOne(2000)) return;
-        if (!_udmP3Param.凯夫卡方位获取完毕.WaitOne(2000)) return;
+        if (!_udmP3Param.BlackHoleRoundIncremented.WaitOne(2000)) return;
+        if (!_udmP3Param.KefkaRegionAcquired.WaitOne(2000)) return;
 
         lock (_pd)
         {
@@ -6727,221 +6724,221 @@ public class Dancing_Mad_Ultimate
             if (obj == null) return;
             var pos = obj.Position;
 
-            // 黑洞距离场中 17
+            // Black holes are 17 from the middle
             if (Vector3.Distance(pos, Center) < 16.5f) return;
 
-            // A顺计数
+            // count CW from A
             var region = pos.GetRadian(Center).RadianToRegion(8, 4, isDiagDiv: true, isCw: true) % 8;
-            var relativeRegion = (region + 8 - _udmP3Param.凯夫卡方位) % 8;
+            var relativeRegion = (region + 8 - _udmP3Param.KefkaRegion) % 8;
 
-            _udmP3Param.黑洞字典.TryAdd(sid,
-                (round: _udmP3Param.黑洞轮数, region: region, relativeRegion: relativeRegion, hasTether: false));
-            var count = _udmP3Param.黑洞字典.Count;
-            sa.DebugMsg($"获取到方位 {region} 相对方位 {relativeRegion} 的黑洞 #{count}");
+            _udmP3Param.BlackHoleDict.TryAdd(sid,
+                (round: _udmP3Param.BlackHoleRound, region: region, relativeRegion: relativeRegion, hasTether: false));
+            var count = _udmP3Param.BlackHoleDict.Count;
+            sa.DebugMsg($"Got region {region} relative region {relativeRegion} black hole #{count}");
 
-            if (_udmP3Param.黑洞字典.Count < 3) return;
+            if (_udmP3Param.BlackHoleDict.Count < 3) return;
 
-            // 判断是否有线
+            // Check whether there's a tether
             uint tetherId = 0x54;
-            foreach (var 黑洞 in _udmP3Param.黑洞字典.ToList())
+            foreach (var bhEntry in _udmP3Param.BlackHoleDict.ToList())
             {
-                var bc = sa.GetById(黑洞.Key);
+                var bc = sa.GetById(bhEntry.Key);
                 if (bc == null) continue;
-                var valueTuple = _udmP3Param.黑洞字典[黑洞.Key];
+                var valueTuple = _udmP3Param.BlackHoleDict[bhEntry.Key];
                 var tetherCount = sa.GetTetherSource((IBattleChara)bc, tetherId).Count;
                 valueTuple.hasTether = tetherCount > 0;
-                _udmP3Param.黑洞字典[黑洞.Key] = valueTuple;
+                _udmP3Param.BlackHoleDict[bhEntry.Key] = valueTuple;
                 sa.DebugMsg(
-                    $"方位 {黑洞.Value.region} 相对方位 {黑洞.Value.relativeRegion} 的黑洞 0x{bc.GameObjectId:X8} {(tetherCount > 0 ? "有" : "没")}线");
+                    $"Region {bhEntry.Value.region} relative region {bhEntry.Value.relativeRegion} black hole 0x{bc.GameObjectId:X8} {(tetherCount > 0 ? "has" : "no")} tether");
             }
 
-            排序黑洞字典();
-            _udmP3Param.外黑洞获取完毕.Set();
-            _udmP3Param.黑洞轮数增加完毕.Reset();
-            _udmP3Param.凯夫卡方位获取完毕.Reset();
+            SortBlackHoleDict();
+            _udmP3Param.OuterBlackHolesAcquired.Set();
+            _udmP3Param.BlackHoleRoundIncremented.Reset();
+            _udmP3Param.KefkaRegionAcquired.Reset();
         }
     }
 
-    [ScriptMethod(name: "P3B1_接线任务准备_每轮初始", eventType: EventTypeEnum.AddCombatant,
+    [ScriptMethod(name: "P3B1_PrepareTetherTasks_RoundStart", eventType: EventTypeEnum.AddCombatant,
         eventCondition: ["DataId:19512"], userControl: Debugging, suppress: 5000)]
-    public void P3B1_接线任务准备_每轮初始(Event ev, ScriptAccessory sa)
+    public void P3B1_PrepareTetherTasks_RoundStart(Event ev, ScriptAccessory sa)
     {
-        if (!_udmP3Param.外黑洞获取完毕.WaitOne(2000)) return;
+        if (!_udmP3Param.OuterBlackHolesAcquired.WaitOne(2000)) return;
         lock (_udmP3Param)
-            _udmP3Param.黑洞接线任务准备.Reset();
-        清理接线Framework(sa);
-        _udmP3Param.玩家正在接线 = false;
+            _udmP3Param.BlackHoleTetherTasksReady.Reset();
+        CleanupTetherFramework(sa);
+        _udmP3Param.PlayerIsTethering = false;
 
-        // 第一轮黑洞起始，第一目标 DPS
-        // 第二轮黑洞起始，第一目标 DPS / 支援 / 带泥
-        // 第三轮黑洞起始，第二目标 DPS / 支援 / 带泥
-        // 第四轮黑洞起始，第三目标 DPS / 支援
+        // Black hole round 1 start: First in Line DPS
+        // Black hole round 2 start: First in Line DPS / support / Accretion
+        // Black hole round 3 start: Second in Line DPS / support / Accretion
+        // Black hole round 4 start: Third in Line DPS / support
 
-        var currentTasks = 获取本轮黑洞接线任务(sa, _udmP3Param.黑洞轮数, _udmP3Param.黑洞喷射轮数);
+        var currentTasks = GetRoundBlackHoleTetherTasks(sa, _udmP3Param.BlackHoleRound, _udmP3Param.BlackHoleEffectRound);
         lock (_udmP3Param)
         {
-            _udmP3Param.当前黑洞接线任务 = currentTasks;
-            _udmP3Param.黑洞接线任务版本++;
-            _udmP3Param.外黑洞获取完毕.Reset();
-            _udmP3Param.黑洞接线任务准备.Set();
+            _udmP3Param.CurrentBlackHoleTetherTasks = currentTasks;
+            _udmP3Param.BlackHoleTetherTaskVersion++;
+            _udmP3Param.OuterBlackHolesAcquired.Reset();
+            _udmP3Param.BlackHoleTetherTasksReady.Set();
         }
     }
 
-    [ScriptMethod(name: "P3B1_黑洞接线范围绘图_每轮初始", eventType: EventTypeEnum.AddCombatant,
+    [ScriptMethod(name: "P3B1_BlackHoleTetherAoe_RoundStart", eventType: EventTypeEnum.AddCombatant,
         eventCondition: ["DataId:19512"], userControl: true, suppress: 5000)]
-    public void P3B1_黑洞接线范围绘图_每轮初始(Event ev, ScriptAccessory sa)
+    public void P3B1_BlackHoleTetherAoe_RoundStart(Event ev, ScriptAccessory sa)
     {
-        if (!等待黑洞接线任务(sa, ref _udmP3Param.黑洞接线范围绘图已消费版本,
-                "P3B1_黑洞接线范围绘图_每轮初始", out var tasks)) return;
+        if (!WaitForBlackHoleTetherTasks(sa, ref _udmP3Param.BlackHoleTetherAoeConsumedVersion,
+                "P3B1_BlackHoleTetherAoe_RoundStart", out var tasks)) return;
         foreach (var task in tasks)
-            绘制黑洞接线范围(sa, task);
+            DrawBlackHoleTetherAoe(sa, task);
     }
 
-    [ScriptMethod(name: "P3B1_黑洞接线TTS_每轮初始", eventType: EventTypeEnum.AddCombatant,
+    [ScriptMethod(name: "P3B1_BlackHoleTetherTts_RoundStart", eventType: EventTypeEnum.AddCombatant,
         eventCondition: ["DataId:19512"], userControl: true, suppress: 5000)]
-    public void P3B1_黑洞接线TTS_每轮初始(Event ev, ScriptAccessory sa)
+    public void P3B1_BlackHoleTetherTts_RoundStart(Event ev, ScriptAccessory sa)
     {
-        if (!等待黑洞接线任务(sa, ref _udmP3Param.黑洞接线TTS已消费版本,
-                "P3B1_黑洞接线TTS_每轮初始", out var tasks)) return;
+        if (!WaitForBlackHoleTetherTasks(sa, ref _udmP3Param.BlackHoleTetherTtsConsumedVersion,
+                "P3B1_BlackHoleTetherTts_RoundStart", out var tasks)) return;
         bool ttsHinted = false;
         foreach (var task in tasks)
-            ttsHinted |= 播报黑洞接线TTS(sa, task.playerIdx, ttsHinted);
+            ttsHinted |= SpeakBlackHoleTetherTts(sa, task.playerIdx, ttsHinted);
     }
 
-    [ScriptMethod(name: "P3B1_黑洞接线指路_每轮初始", eventType: EventTypeEnum.AddCombatant,
+    [ScriptMethod(name: "P3B1_BlackHoleTetherGuide_RoundStart", eventType: EventTypeEnum.AddCombatant,
         eventCondition: ["DataId:19512"], userControl: true, suppress: 5000)]
-    public void P3B1_黑洞接线指路_每轮初始(Event ev, ScriptAccessory sa)
+    public void P3B1_BlackHoleTetherGuide_RoundStart(Event ev, ScriptAccessory sa)
     {
-        if (!等待黑洞接线任务(sa, ref _udmP3Param.黑洞接线指路已消费版本,
-                "P3B1_黑洞接线指路_每轮初始", out var tasks)) return;
-        if (_udmP3Param.黑洞喷射轮数 >= 10) return;
+        if (!WaitForBlackHoleTetherTasks(sa, ref _udmP3Param.BlackHoleTetherGuideConsumedVersion,
+                "P3B1_BlackHoleTetherGuide_RoundStart", out var tasks)) return;
+        if (_udmP3Param.BlackHoleEffectRound >= 10) return;
         foreach (var task in tasks)
-            挂载玩家向黑洞方位接线指路(sa, task);
-        执行接线Framework(sa, tasks);
+            MountTetherGuideTowardBlackHole(sa, task);
+        RunTetherFramework(sa, tasks);
     }
 
-    [ScriptMethod(name: "P3B1_接线任务准备_中途", eventType: EventTypeEnum.ActionEffect,
+    [ScriptMethod(name: "P3B1_PrepareTetherTasks_MidRound", eventType: EventTypeEnum.ActionEffect,
         eventCondition: ["ActionId:47868", "TargetIndex:1"], userControl: Debugging, suppress: 2500)]
-    public void P3B1_接线任务准备_中途(Event ev, ScriptAccessory sa)
+    public void P3B1_PrepareTetherTasks_MidRound(Event ev, ScriptAccessory sa)
     {
         lock (_udmP3Param)
-            _udmP3Param.黑洞接线任务准备.Reset();
-        // 删掉上一轮的连线
-        清理接线Framework(sa);
+            _udmP3Param.BlackHoleTetherTasksReady.Reset();
+        // Remove the previous round's tethers
+        CleanupTetherFramework(sa);
 
-        sa.Method.RemoveDraw($"绘制黑洞接线 R{_udmP3Param.黑洞轮数} T{_udmP3Param.黑洞喷射轮数}.*");
-        _udmP3Param.黑洞喷射轮数++;
-        if (_udmP3Param.黑洞轮数 is 1 or 4)
+        sa.Method.RemoveDraw($"DrawBlackHoleTether R{_udmP3Param.BlackHoleRound} T{_udmP3Param.BlackHoleEffectRound}.*");
+        _udmP3Param.BlackHoleEffectRound++;
+        if (_udmP3Param.BlackHoleRound is 1 or 4)
         {
-            翻转黑洞有线状态();
-            排序黑洞字典();
+            FlipBlackHoleTetherState();
+            SortBlackHoleDict();
         }
 
-        var currentTasks = 获取本轮黑洞接线任务(sa, _udmP3Param.黑洞轮数, _udmP3Param.黑洞喷射轮数);
+        var currentTasks = GetRoundBlackHoleTetherTasks(sa, _udmP3Param.BlackHoleRound, _udmP3Param.BlackHoleEffectRound);
         lock (_udmP3Param)
         {
-            _udmP3Param.当前黑洞接线任务 = currentTasks;
-            _udmP3Param.黑洞接线任务版本++;
-            _udmP3Param.黑洞接线任务准备.Set();
+            _udmP3Param.CurrentBlackHoleTetherTasks = currentTasks;
+            _udmP3Param.BlackHoleTetherTaskVersion++;
+            _udmP3Param.BlackHoleTetherTasksReady.Set();
         }
     }
 
-    [ScriptMethod(name: "P3B1_黑洞接线范围绘图_中途", eventType: EventTypeEnum.ActionEffect,
+    [ScriptMethod(name: "P3B1_BlackHoleTetherAoe_MidRound", eventType: EventTypeEnum.ActionEffect,
         eventCondition: ["ActionId:47868", "TargetIndex:1"], userControl: true, suppress: 2500)]
-    public void P3B1_黑洞接线范围绘图_中途(Event ev, ScriptAccessory sa)
+    public void P3B1_BlackHoleTetherAoe_MidRound(Event ev, ScriptAccessory sa)
     {
-        if (!等待黑洞接线任务(sa, ref _udmP3Param.黑洞接线范围绘图已消费版本,
-                "P3B1_黑洞接线范围绘图_中途", out var tasks)) return;
+        if (!WaitForBlackHoleTetherTasks(sa, ref _udmP3Param.BlackHoleTetherAoeConsumedVersion,
+                "P3B1_BlackHoleTetherAoe_MidRound", out var tasks)) return;
         foreach (var task in tasks)
-            绘制黑洞接线范围(sa, task);
+            DrawBlackHoleTetherAoe(sa, task);
     }
 
-    [ScriptMethod(name: "P3B1_黑洞接线TTS_中途", eventType: EventTypeEnum.ActionEffect,
+    [ScriptMethod(name: "P3B1_BlackHoleTetherTts_MidRound", eventType: EventTypeEnum.ActionEffect,
         eventCondition: ["ActionId:47868", "TargetIndex:1"], userControl: true, suppress: 2500)]
-    public void P3B1_黑洞接线TTS_中途(Event ev, ScriptAccessory sa)
+    public void P3B1_BlackHoleTetherTts_MidRound(Event ev, ScriptAccessory sa)
     {
-        if (!等待黑洞接线任务(sa, ref _udmP3Param.黑洞接线TTS已消费版本,
-                "P3B1_黑洞接线TTS_中途", out var tasks)) return;
+        if (!WaitForBlackHoleTetherTasks(sa, ref _udmP3Param.BlackHoleTetherTtsConsumedVersion,
+                "P3B1_BlackHoleTetherTts_MidRound", out var tasks)) return;
         bool ttsHinted = false;
         foreach (var task in tasks)
-            ttsHinted |= 播报黑洞接线TTS(sa, task.playerIdx, ttsHinted);
+            ttsHinted |= SpeakBlackHoleTetherTts(sa, task.playerIdx, ttsHinted);
 
-        if (ttsHinted || !_udmP3Param.玩家正在接线) return;
-        _udmP3Param.玩家正在接线 = false;
-        sa.Method.TextInfo($"回到人群", 2000);
-        sa.Method.TTS($"回到人群", 3);
+        if (ttsHinted || !_udmP3Param.PlayerIsTethering) return;
+        _udmP3Param.PlayerIsTethering = false;
+        sa.Method.TextInfo($"Back to the group", 2000);
+        sa.Method.TTS($"Back to the group", 3);
     }
 
-    [ScriptMethod(name: "P3B1_黑洞接线指路_中途", eventType: EventTypeEnum.ActionEffect,
+    [ScriptMethod(name: "P3B1_BlackHoleTetherGuide_MidRound", eventType: EventTypeEnum.ActionEffect,
         eventCondition: ["ActionId:47868", "TargetIndex:1"], userControl: true, suppress: 2500)]
-    public void P3B1_黑洞接线指路_中途(Event ev, ScriptAccessory sa)
+    public void P3B1_BlackHoleTetherGuide_MidRound(Event ev, ScriptAccessory sa)
     {
-        if (!等待黑洞接线任务(sa, ref _udmP3Param.黑洞接线指路已消费版本,
-                "P3B1_黑洞接线指路_中途", out var tasks)) return;
-        if (_udmP3Param.黑洞喷射轮数 >= 10) return;
+        if (!WaitForBlackHoleTetherTasks(sa, ref _udmP3Param.BlackHoleTetherGuideConsumedVersion,
+                "P3B1_BlackHoleTetherGuide_MidRound", out var tasks)) return;
+        if (_udmP3Param.BlackHoleEffectRound >= 10) return;
         foreach (var task in tasks)
-            挂载玩家向黑洞方位接线指路(sa, task);
-        执行接线Framework(sa, tasks);
+            MountTetherGuideTowardBlackHole(sa, task);
+        RunTetherFramework(sa, tasks);
     }
 
-    private bool 播报黑洞接线TTS(ScriptAccessory sa, int playerIdx, bool ttsHinted)
+    private bool SpeakBlackHoleTetherTts(ScriptAccessory sa, int playerIdx, bool ttsHinted)
     {
         var myIndex = sa.GetMyIndex();
         if (playerIdx == myIndex)
         {
             if (ttsHinted) return true;
-            sa.Method.TextInfo($"去接线", 2000);
-            sa.Method.TTS($"去接线", 3);
-            _udmP3Param.玩家正在接线 = true;
+            sa.Method.TextInfo($"Take tether", 2000);
+            sa.Method.TTS($"Take tether", 3);
+            _udmP3Param.PlayerIsTethering = true;
             return true;
         }
         return false;
     }
 
-    private bool 等待黑洞接线任务(ScriptAccessory sa, ref int consumedVersion, string caller,
+    private bool WaitForBlackHoleTetherTasks(ScriptAccessory sa, ref int consumedVersion, string caller,
         out List<(int playerIdx, List<int> realRegions, List<ulong> blackHoles, string name)> tasks)
     {
         tasks = [];
         for (var i = 0; i < 40; i++)
         {
-            if (!_udmP3Param.黑洞接线任务准备.WaitOne(50)) continue;
+            if (!_udmP3Param.BlackHoleTetherTasksReady.WaitOne(50)) continue;
             lock (_udmP3Param)
             {
-                if (_udmP3Param.黑洞接线任务版本 <= consumedVersion)
+                if (_udmP3Param.BlackHoleTetherTaskVersion <= consumedVersion)
                 {
-                    _udmP3Param.黑洞接线任务准备.Reset();
+                    _udmP3Param.BlackHoleTetherTasksReady.Reset();
                     continue;
                 }
-                consumedVersion = _udmP3Param.黑洞接线任务版本;
-                tasks = _udmP3Param.当前黑洞接线任务.ToList();
+                consumedVersion = _udmP3Param.BlackHoleTetherTaskVersion;
+                tasks = _udmP3Param.CurrentBlackHoleTetherTasks.ToList();
                 return true;
             }
         }
-        sa.DebugMsg($"等待黑洞接线任务超时");
+        sa.DebugMsg($"Timed out waiting for black hole tether tasks");
         return false;
     }
 
-    private void 翻转黑洞有线状态()
+    private void FlipBlackHoleTetherState()
     {
-        foreach (var 黑洞 in _udmP3Param.黑洞字典.ToList())
+        foreach (var bhEntry in _udmP3Param.BlackHoleDict.ToList())
         {
-            var valueTuple = 黑洞.Value;
+            var valueTuple = bhEntry.Value;
             valueTuple.hasTether = !valueTuple.hasTether;
-            _udmP3Param.黑洞字典[黑洞.Key] = valueTuple;
+            _udmP3Param.BlackHoleDict[bhEntry.Key] = valueTuple;
         }
     }
 
-    private void 排序黑洞字典()
+    private void SortBlackHoleDict()
     {
-        _udmP3Param.黑洞字典 = _udmP3Param.黑洞字典
+        _udmP3Param.BlackHoleDict = _udmP3Param.BlackHoleDict
             .OrderByDescending(kvp => kvp.Value.hasTether)
             .ThenBy(kvp => kvp.Value.relativeRegion)
             .ToDictionary(kvp => kvp.Key, kvp => kvp.Value);
     }
 
-    private List<int> 筛选本轮接线玩家(ScriptAccessory sa, int bhRound, int bhEffectRound)
+    private List<int> FilterRoundTetherPlayers(ScriptAccessory sa, int bhRound, int bhEffectRound)
     {
-        // 第 i 个接线身份接本轮排序后的第 i 个黑洞（凯夫卡顺时针）
+        // The i-th tether role takes the i-th black hole in this round's order (clockwise from Kefka)
         List<int> markFeatureList = (bhRound, bhEffectRound) switch
         {
             (1, 0) => [110],
@@ -6960,12 +6957,12 @@ public class Dancing_Mad_Ultimate
         var isKnownNoop = (bhRound, bhEffectRound) is (1, 2) or (2, 5) or (3, 8) or (4, 10);
         if (markFeatureList.Count == 0 && !isKnownNoop)
         {
-            sa.DebugMsg($"输入值错误 ({bhRound} {bhEffectRound})");
+            sa.DebugMsg($"Bad input ({bhRound} {bhEffectRound})");
         }
         return markFeatureList;
     }
 
-    private KeyValuePair<int, int> 按接线身份找玩家(ScriptAccessory sa, int markFeature)
+    private KeyValuePair<int, int> FindPlayerByTetherRole(ScriptAccessory sa, int markFeature)
     {
         var matchedPlayers = _pd.Priorities
             .Where(kvp => kvp.Value / 10 * 10 == markFeature)
@@ -6981,23 +6978,23 @@ public class Dancing_Mad_Ultimate
         return myIndexInMatchedPlayersList >= 0 ? matchedPlayers[myIndexInMatchedPlayersList] : matchedPlayers[0];
     }
 
-    private List<(int playerIdx, List<int> realRegions, List<ulong> blackHoles, string name)> 获取本轮黑洞接线任务(ScriptAccessory sa, int bhRound, int bhEffectRound)
+    private List<(int playerIdx, List<int> realRegions, List<ulong> blackHoles, string name)> GetRoundBlackHoleTetherTasks(ScriptAccessory sa, int bhRound, int bhEffectRound)
     {
-        var markFeatureList = 筛选本轮接线玩家(sa, bhRound, bhEffectRound);
+        var markFeatureList = FilterRoundTetherPlayers(sa, bhRound, bhEffectRound);
         var tasks = new List<(int playerIdx, List<int> realRegions, List<ulong> blackHoles, string name)>();
 
         for (int i = 0; i < markFeatureList.Count; i++)
         {
             var markFeature = markFeatureList[i];
-            // 黑洞字典已在生成时排好序
-            var bh = _udmP3Param.黑洞字典.ElementAt(i);
+            // The black hole dict is already sorted when it's built
+            var bh = _udmP3Param.BlackHoleDict.ElementAt(i);
             var blackHoles = new List<ulong> { bh.Key };
             var realRegions = new List<int> { bh.Value.region };
 
-            var player = 按接线身份找玩家(sa, markFeature);
+            var player = FindPlayerByTetherRole(sa, markFeature);
             if (player.Key < 0)
             {
-                sa.DebugMsg($"未找到接线身份 {markFeature} 对应玩家");
+                sa.DebugMsg($"No player found for tether role {markFeature}");
                 continue;
             }
 
@@ -7005,86 +7002,86 @@ public class Dancing_Mad_Ultimate
             var taskName = $"R{bhRound} T{bhEffectRound} {player.Key} {regionStr}";
             tasks.Add((player.Key, realRegions, blackHoles, taskName));
             sa.DebugMsg(
-                $"{taskName} | 玩家 {sa.GetPlayerJobByIndex(player.Key)}({player.Key}) | 特征 {markFeature} | 方位 {regionStr} | 黑洞 {string.Join(",", blackHoles.Select(x => x.ToString("X8")))}");
+                $"{taskName} | player {sa.GetPlayerJobByIndex(player.Key)}({player.Key}) | key {markFeature} | region {regionStr} | black holes {string.Join(",", blackHoles.Select(x => x.ToString("X8")))}");
         }
 
-        sa.DebugMsg($"R{bhRound} T{bhEffectRound} 共 {tasks.Count} 个任务");
+        sa.DebugMsg($"R{bhRound} T{bhEffectRound} total {tasks.Count} tasks");
         return tasks;
     }
 
-    private bool 黑洞接线任务属于自己(ScriptAccessory sa,
+    private bool BlackHoleTetherTaskIsMine(ScriptAccessory sa,
         (int playerIdx, List<int> realRegions, List<ulong> blackHoles, string name) task)
     {
         return Debugging || sa.GetMyIndex() == task.playerIdx;
     }
 
-    private void 绘制黑洞接线范围(ScriptAccessory sa,
+    private void DrawBlackHoleTetherAoe(ScriptAccessory sa,
         (int playerIdx, List<int> realRegions, List<ulong> blackHoles, string name) task)
     {
-        if (!黑洞接线任务属于自己(sa, task)) return;
+        if (!BlackHoleTetherTaskIsMine(sa, task)) return;
         var color = BhConnLineColor.V4;
 
         for (int i = 0; i < task.blackHoles.Count; i++)
         {
-            var dp = sa.DrawLine(task.blackHoles[i], 0, 0, 7000, $"绘制黑洞接线 {task.name} L{task.realRegions[i]}",
+            var dp = sa.DrawLine(task.blackHoles[i], 0, 0, 7000, $"DrawBlackHoleTether {task.name} L{task.realRegions[i]}",
                 0, 1, 40, color, byY: true, draw: false);
             dp.TargetResolvePattern = PositionResolvePatternEnum.TetherTarget;
             sa.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Line, dp);
 
-            var dp2 = sa.DrawRect(task.blackHoles[i], 0, 0, 7000, $"绘制黑洞接线 {task.name} R{task.realRegions[i]}",
+            var dp2 = sa.DrawRect(task.blackHoles[i], 0, 0, 7000, $"DrawBlackHoleTether {task.name} R{task.realRegions[i]}",
                 0, 6, 40, sa.Data.DefaultDangerColor, draw: false);
             dp2.TargetResolvePattern = PositionResolvePatternEnum.TetherTarget;
             sa.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Rect, dp2);
         }
 
-        sa.DebugMsg($"{sa.GetPlayerJobByIndex(task.playerIdx)} 接真实方位 {string.Join(",", task.realRegions)} 的黑洞");
+        sa.DebugMsg($"{sa.GetPlayerJobByIndex(task.playerIdx)} takes real region {string.Join(",", task.realRegions)} black hole");
     }
 
-    private void 挂载玩家向黑洞方位接线指路(ScriptAccessory sa,
+    private void MountTetherGuideTowardBlackHole(ScriptAccessory sa,
         (int playerIdx, List<int> realRegions, List<ulong> blackHoles, string name) task)
     {
-        if (!黑洞接线任务属于自己(sa, task)) return;
-        var 最后一根 = _udmP3Param.黑洞轮数 == 4 && _udmP3Param.黑洞喷射轮数 == 9;
-        var guidePos = 计算接线站位(task.realRegions[0], 最后一根);
+        if (!BlackHoleTetherTaskIsMine(sa, task)) return;
+        var isLastTether = _udmP3Param.BlackHoleRound == 4 && _udmP3Param.BlackHoleEffectRound == 9;
+        var guidePos = CalcTetherSpot(task.realRegions[0], isLastTether);
 
-        挂载接线Framework(sa, guidePos, task);
+        MountTetherFramework(sa, guidePos, task);
 
-        sa.DebugMsg($"{sa.GetPlayerJobByIndex(task.playerIdx)} 接真实方位 {string.Join(",", task.realRegions)} 的黑洞");
+        sa.DebugMsg($"{sa.GetPlayerJobByIndex(task.playerIdx)} takes real region {string.Join(",", task.realRegions)} black hole");
     }
 
-    private void 挂载接线Framework(ScriptAccessory sa, Vector3 guidePos,
+    private void MountTetherFramework(ScriptAccessory sa, Vector3 guidePos,
         (int playerIdx, List<int> realRegions, List<ulong> blackHoles, string name) task)
     {
         // task
-        // -- playerIdx：需接线的玩家
-        // -- realRegions：需接线黑洞所在方位
-        // -- blackHoles：需接线黑洞 ObjId
-        // -- name：任务名称 $"R{bhRound} T{bhEffectRound} {player.Key} {regionStr}
-        // ---- bhRound：黑洞轮数
-        // ---- bhEffectRound：黑洞喷射轮数
-        // ---- player.Key：同 playerIdx
-        // ---- regionStr：需接线黑洞所在方位的集合，即 realRegions 的 Join
+        // -- playerIdx: the player who needs to take the tether
+        // -- realRegions: regions of the black holes to tether
+        // -- blackHoles: ObjIds of the black holes to tether
+        // -- name: task name $"R{bhRound} T{bhEffectRound} {player.Key} {regionStr}
+        // ---- bhRound: black hole round
+        // ---- bhEffectRound: black hole firing round
+        // ---- player.Key: same as playerIdx
+        // ---- regionStr: the set of regions of the black holes to tether, i.e. the Join of realRegions
 
-        // 绘图指路条件：task.blackHoles 中的黑洞产生的线都被接到
-        // 每有一根线，需一个 fwElement 进行控制
+        // Draw the guidance once every tether from the black holes in task.blackHoles has been taken
+        // Each tether needs one fwElement to control it
         // fwElement
-        // -- Name：Framework 的 Name，计划用 {player.Key} {blackHoles[i]}
-        // -- PlayerIndex：需接线 Player 的 Index
-        // -- BlackHoleId：需接线的黑洞源
-        // -- PlayerObjId：需接线 Player 的 ObjectId
-        // -- FwHandle：用于挂载 sa.Method.RegistFrameworkUpdateAction(Action)
-        // -- Tethered：若成功接上线则为 true
-        // -- GuidePos：接到线/接全线后的指路位置
+        // -- Name: the Framework's Name, planned as {player.Key} {blackHoles[i]}
+        // -- PlayerIndex: Index of the player who needs to take the tether
+        // -- BlackHoleId: the source black hole of the tether
+        // -- PlayerObjId: ObjectId of the player who needs to take the tether
+        // -- FwHandle: handle from sa.Method.RegistFrameworkUpdateAction(Action)
+        // -- Tethered: true once the tether has been taken
+        // -- GuidePos: guide position after taking the tether / all tethers
 
-        // List 中一个 Framework 去控制每个黑洞
-        // 外部一个 Framework 检查 List 中的元素是否都是 tethered，然后画指路线
+        // One Framework in the List controls each black hole
+        // One outer Framework checks whether every element in the List is tethered, then draws the guide line
 
         for (int i = 0; i < task.blackHoles.Count; i++)
         {
             ulong playerObjId = sa.Data.PartyList[task.playerIdx];
             bool tethered = false;
 
-            var fwElement = new 接线Framework元素
+            var fwElement = new TetherFrameworkElement
             {
                 Name = $"{task.playerIdx} {task.blackHoles[i]}",
                 TaskName = task.name,
@@ -7096,175 +7093,175 @@ public class Dancing_Mad_Ultimate
                 GuidePos = guidePos
             };
 
-            _udmP3Param.接线FrameworkList.Add(fwElement);
+            _udmP3Param.TetherFrameworkList.Add(fwElement);
             sa.DebugMsg(
-                $"{fwElement.TaskName} | {sa.GetPlayerJobByIndex(fwElement.PlayerIndex)}({fwElement.PlayerIndex}) 玩家 {fwElement.PlayerObjId:X8} | 黑洞 {fwElement.BlackHoleId:X8} | 真实方位 {task.realRegions[i]} | 元素 {fwElement.Name}");
+                $"{fwElement.TaskName} | {sa.GetPlayerJobByIndex(fwElement.PlayerIndex)}({fwElement.PlayerIndex}) player {fwElement.PlayerObjId:X8} | black holes {fwElement.BlackHoleId:X8} | real region {task.realRegions[i]} | elements {fwElement.Name}");
         }
     }
 
-    private void 执行接线Framework(ScriptAccessory sa,
+    private void RunTetherFramework(ScriptAccessory sa,
         List<(int playerIdx, List<int> realRegions, List<ulong> blackHoles, string name)> tasks)
     {
-        // 筛选出本轮相关的线元素
-        List<接线Framework元素> 当前接线任务Fws = _udmP3Param.接线FrameworkList.ToList();
-        if (当前接线任务Fws.Count == 0) return;
+        // Filter out the tether elements for this round
+        List<TetherFrameworkElement> curTetherTaskFws = _udmP3Param.TetherFrameworkList.ToList();
+        if (curTetherTaskFws.Count == 0) return;
         sa.DebugMsg(
-            $"本轮任务 {tasks.Count} 个，接线元素 {当前接线任务Fws.Count} 个：{string.Join(" | ", tasks.Select(task => $"{task.name}:{task.blackHoles.Count}"))}");
+            $"Round tasks {tasks.Count}, tether elements {curTetherTaskFws.Count}: {string.Join(" | ", tasks.Select(task => $"{task.name}:{task.blackHoles.Count}"))}");
 
-        Dictionary<string, bool> 去站位指路绘制状态 = tasks.ToDictionary(task => task.name, _ => false);
-        Dictionary<string, bool> 上一次任务接线完成状态 = tasks.ToDictionary(task => task.name, _ => false);
-        string 去站位指路绘图名(string taskName) => $"绘制黑洞接线 {taskName} G去站位";
+        Dictionary<string, bool> goToSpotGuideDrawState = tasks.ToDictionary(task => task.name, _ => false);
+        Dictionary<string, bool> lastTaskTetheredState = tasks.ToDictionary(task => task.name, _ => false);
+        string goToSpotDrawName(string taskName) => $"DrawBlackHoleTether {taskName} G-GoToSpot";
 
-        _udmP3Param.当前接线任务Framework = sa.Method.RegistFrameworkUpdateAction(Action);
+        _udmP3Param.curTetherTaskFramework = sa.Method.RegistFrameworkUpdateAction(Action);
         void Action()
         {
-            foreach (var fw in 当前接线任务Fws)
+            foreach (var fw in curTetherTaskFws)
             {
                 var bh = sa.GetById(fw.BlackHoleId);
                 if (bh == null)
                 {
-                    if (fw.上一次黑洞存在状态)
+                    if (fw.lastBlackHoleExistState)
                     {
-                        sa.DebugMsg($"{fw.TaskName} | {fw.Name} 黑洞 {fw.BlackHoleId:X8} 当前取不到");
-                        fw.上一次黑洞存在状态 = false;
+                        sa.DebugMsg($"{fw.TaskName} | {fw.Name} black hole {fw.BlackHoleId:X8} not available right now");
+                        fw.lastBlackHoleExistState = false;
                     }
                     continue;
                 }
-                if (!fw.上一次黑洞存在状态)
+                if (!fw.lastBlackHoleExistState)
                 {
-                    sa.DebugMsg($"{fw.TaskName} | {fw.Name} 黑洞 {fw.BlackHoleId:X8} 已重新取到");
-                    fw.上一次黑洞存在状态 = true;
+                    sa.DebugMsg($"{fw.TaskName} | {fw.Name} black hole {fw.BlackHoleId:X8} available again");
+                    fw.lastBlackHoleExistState = true;
                 }
-                var 当前接线目标 = sa.GetTetherSource((IBattleChara)bh, 0x54);
-                var 当前接线目标列表 = string.Join(",", 当前接线目标.Select(x => x.ToString("X8")));
-                if (当前接线目标列表 != fw.上一次接线目标列表)
+                var curTetherTarget = sa.GetTetherSource((IBattleChara)bh, 0x54);
+                var curTetherTargetList = string.Join(",", curTetherTarget.Select(x => x.ToString("X8")));
+                if (curTetherTargetList != fw.lastTetherTargetList)
                 {
-                    var 当前接线目标Job列表 = string.Join(",", 当前接线目标.Select(x => sa.GetPlayerJobById((uint)x)));
+                    var curTetherTargetJobList = string.Join(",", curTetherTarget.Select(x => sa.GetPlayerJobById((uint)x)));
                     sa.DebugMsg(
-                        $"{fw.TaskName} | {fw.Name} 线目标变化：{(当前接线目标列表 == "" ? "无" : 当前接线目标列表)} | {当前接线目标Job列表}");
-                    fw.上一次接线目标列表 = 当前接线目标列表;
+                        $"{fw.TaskName} | {fw.Name} tether target changed: {(curTetherTargetList == "" ? "none" : curTetherTargetList)} | {curTetherTargetJobList}");
+                    fw.lastTetherTargetList = curTetherTargetList;
                 }
-                var 刚才已接到线 = fw.Tethered;
-                var 当前已接到线 = 当前接线目标.Contains(fw.PlayerObjId);
-                fw.Tethered = 当前已接到线;
+                var justGotTether = fw.Tethered;
+                var curHasTether = curTetherTarget.Contains(fw.PlayerObjId);
+                fw.Tethered = curHasTether;
 
-                if (当前已接到线)
+                if (curHasTether)
                 {
-                    // 如果接到线了，就不需要画去接这根线的指路，清空上一次去接线的相关绘图。
-                    if (!fw.去接线指路已绘制 && 刚才已接到线) continue;
-                    if (fw.上一次去接线指路绘图名 != "")
-                        sa.Method.RemoveDraw(fw.上一次去接线指路绘图名);
-                    sa.DebugMsg($"{fw.TaskName} | {fw.Name} 接到线了，目标 {fw.PlayerObjId:X8}/{sa.GetPlayerJobByIndex(fw.PlayerIndex)}");
-                    fw.去接线指路已绘制 = false;
-                    fw.上一次接线目标 = 0;
-                    fw.上一次去接线指路绘图名 = "";
+                    // If we got the tether, there's no need to draw the guide to take it; clear the previous go-to-tether draws.
+                    if (!fw.goToTetherGuideDrawn && justGotTether) continue;
+                    if (fw.lastGoToTetherDrawName != "")
+                        sa.Method.RemoveDraw(fw.lastGoToTetherDrawName);
+                    sa.DebugMsg($"{fw.TaskName} | {fw.Name} got the tether, target {fw.PlayerObjId:X8}/{sa.GetPlayerJobByIndex(fw.PlayerIndex)}");
+                    fw.goToTetherGuideDrawn = false;
+                    fw.lastTetherTarget = 0;
+                    fw.lastGoToTetherDrawName = "";
                     continue;
                 }
 
-                if (当前接线目标.Count != 1)
+                if (curTetherTarget.Count != 1)
                 {
-                    // 如果这根线没有处在“明确连到一个玩家”的状态（没有玩家给你连了），则清空“去接线”与“去站位”绘图
-                    if (去站位指路绘制状态.GetValueOrDefault(fw.TaskName))
+                    // If this tether isn't "clearly attached to one player" (nobody has it), clear the "go take tether" and "go to spot" draws
+                    if (goToSpotGuideDrawState.GetValueOrDefault(fw.TaskName))
                     {
-                        sa.Method.RemoveDraw(去站位指路绘图名(fw.TaskName));
-                        去站位指路绘制状态[fw.TaskName] = false;
-                        sa.DebugMsg($"{fw.TaskName} | {fw.Name} 线目标数量 {当前接线目标.Count}，移除去站位指路");
+                        sa.Method.RemoveDraw(goToSpotDrawName(fw.TaskName));
+                        goToSpotGuideDrawState[fw.TaskName] = false;
+                        sa.DebugMsg($"{fw.TaskName} | {fw.Name} tether target count {curTetherTarget.Count}, removing go-to-spot guide");
                     }
-                    if (!fw.去接线指路已绘制) continue;
-                    if (fw.上一次去接线指路绘图名 != "")
-                        sa.Method.RemoveDraw(fw.上一次去接线指路绘图名);
-                    sa.DebugMsg($"{fw.TaskName} | {fw.Name} 线目标数量 {当前接线目标.Count}，移除去接线指路");
-                    fw.去接线指路已绘制 = false;
-                    fw.上一次接线目标 = 0;
-                    fw.上一次去接线指路绘图名 = "";
+                    if (!fw.goToTetherGuideDrawn) continue;
+                    if (fw.lastGoToTetherDrawName != "")
+                        sa.Method.RemoveDraw(fw.lastGoToTetherDrawName);
+                    sa.DebugMsg($"{fw.TaskName} | {fw.Name} tether target count {curTetherTarget.Count}, removing go-to-tether guide");
+                    fw.goToTetherGuideDrawn = false;
+                    fw.lastTetherTarget = 0;
+                    fw.lastGoToTetherDrawName = "";
                     continue;
                 }
 
-                // 如果这根线连着错误的玩家
-                var 当前接线目标ObjId = 当前接线目标[0];
-                if (fw.去接线指路已绘制 && 当前接线目标ObjId == fw.上一次接线目标) continue;
-                if (去站位指路绘制状态.GetValueOrDefault(fw.TaskName))
+                // If this tether is attached to the wrong player
+                var curTetherTargetObjId = curTetherTarget[0];
+                if (fw.goToTetherGuideDrawn && curTetherTargetObjId == fw.lastTetherTarget) continue;
+                if (goToSpotGuideDrawState.GetValueOrDefault(fw.TaskName))
                 {
-                    sa.Method.RemoveDraw(去站位指路绘图名(fw.TaskName));
-                    去站位指路绘制状态[fw.TaskName] = false;
-                    sa.DebugMsg($"{fw.TaskName} | {fw.Name} 线被错误目标 {当前接线目标ObjId:X8}/{sa.GetPlayerJobById((uint)当前接线目标ObjId)} 接到，移除去站位指路");
+                    sa.Method.RemoveDraw(goToSpotDrawName(fw.TaskName));
+                    goToSpotGuideDrawState[fw.TaskName] = false;
+                    sa.DebugMsg($"{fw.TaskName} | {fw.Name} tether taken by wrong target {curTetherTargetObjId:X8}/{sa.GetPlayerJobById((uint)curTetherTargetObjId)}, removing go-to-spot guide");
                 }
-                if (fw.上一次去接线指路绘图名 != "")
-                    sa.Method.RemoveDraw(fw.上一次去接线指路绘图名);
+                if (fw.lastGoToTetherDrawName != "")
+                    sa.Method.RemoveDraw(fw.lastGoToTetherDrawName);
 
-                // 顺利来到这里：当前没接到线，黑洞明确有线连着玩家，这根线连着错误的玩家
-                var 当前去接线指路绘图名 = $"{fw.去接线指路绘图名前缀} {当前接线目标ObjId:X8}";
+                // Getting here means: we don't have the tether, the black hole clearly has a tether on a player, and it's the wrong player
+                var curGoToTetherDrawName = $"{fw.goToTetherDrawNamePrefix} {curTetherTargetObjId:X8}";
                 sa.DebugMsg(
-                    $"{fw.TaskName} | {fw.Name} 快去接线：{sa.GetPlayerJobByIndex(fw.PlayerIndex)}({fw.PlayerObjId:X8}) -> {sa.GetPlayerJobById((uint)当前接线目标ObjId)}({当前接线目标ObjId:X8})");
-                sa.DrawGuidance(fw.PlayerObjId, 当前接线目标ObjId, 0, 7000, 当前去接线指路绘图名, sa.Data.DefaultSafeColor);
-                fw.去接线指路已绘制 = true;
-                fw.上一次接线目标 = 当前接线目标ObjId;
-                fw.上一次去接线指路绘图名 = 当前去接线指路绘图名;
+                    $"{fw.TaskName} | {fw.Name} go take the tether: {sa.GetPlayerJobByIndex(fw.PlayerIndex)}({fw.PlayerObjId:X8}) -> {sa.GetPlayerJobById((uint)curTetherTargetObjId)}({curTetherTargetObjId:X8})");
+                sa.DrawGuidance(fw.PlayerObjId, curTetherTargetObjId, 0, 7000, curGoToTetherDrawName, sa.Data.DefaultSafeColor);
+                fw.goToTetherGuideDrawn = true;
+                fw.lastTetherTarget = curTetherTargetObjId;
+                fw.lastGoToTetherDrawName = curGoToTetherDrawName;
             }
 
-            foreach (var taskFws in 当前接线任务Fws.GroupBy(fw => fw.TaskName))
+            foreach (var taskFws in curTetherTaskFws.GroupBy(fw => fw.TaskName))
             {
-                // 使用 groupby 将所有线元素进行分组，若一人接两根，会有 R1 T1 5 0,2 这种同名 TaskName 的情况
+                // groupby all the tether elements; if one player takes two tethers you get same-named TaskNames like R1 T1 5 0,2
                 var taskName = taskFws.Key;
                 var allTethered = taskFws.All(fw => fw.Tethered);
-                if (allTethered != 上一次任务接线完成状态.GetValueOrDefault(taskName))
+                if (allTethered != lastTaskTetheredState.GetValueOrDefault(taskName))
                 {
                     sa.DebugMsg(
-                        $"{taskName} 接线完成状态变化：{allTethered} | {string.Join(",", taskFws.Select(fw => $"{fw.Name}={fw.Tethered}"))}");
-                    上一次任务接线完成状态[taskName] = allTethered;
+                        $"{taskName} tether done state changed: {allTethered} | {string.Join(",", taskFws.Select(fw => $"{fw.Name}={fw.Tethered}"))}");
+                    lastTaskTetheredState[taskName] = allTethered;
                 }
                 if (!allTethered)
                 {
-                    if (!去站位指路绘制状态.GetValueOrDefault(taskName)) continue;
-                    sa.Method.RemoveDraw(去站位指路绘图名(taskName));
-                    去站位指路绘制状态[taskName] = false;
-                    sa.DebugMsg($"{taskName} 未全接到，移除去站位指路");
+                    if (!goToSpotGuideDrawState.GetValueOrDefault(taskName)) continue;
+                    sa.Method.RemoveDraw(goToSpotDrawName(taskName));
+                    goToSpotGuideDrawState[taskName] = false;
+                    sa.DebugMsg($"{taskName} not all tethered, removing go-to-spot guide");
                     continue;
                 }
 
-                if (去站位指路绘制状态.GetValueOrDefault(taskName)) continue;
+                if (goToSpotGuideDrawState.GetValueOrDefault(taskName)) continue;
                 foreach (var fw in taskFws)
-                    sa.Method.RemoveDraw($"绘制黑洞接线 {taskName} G去接线 {fw.Name}.*");
+                    sa.Method.RemoveDraw($"DrawBlackHoleTether {taskName} G-GoToTether {fw.Name}.*");
 
                 var guideFw = taskFws.First();
-                sa.DebugMsg($"去站位吧 {taskName} | 玩家 {sa.GetPlayerJobByIndex(guideFw.PlayerIndex)}({guideFw.PlayerObjId:X8}) | GuidePos {guideFw.GuidePos}");
-                // $"绘制黑洞接线 {taskName} G去站位";
-                sa.DrawGuidance(guideFw.PlayerObjId, guideFw.GuidePos, 0, 7000, 去站位指路绘图名(taskName), sa.Data.DefaultSafeColor);
-                去站位指路绘制状态[taskName] = true;
+                sa.DebugMsg($"Go to spot {taskName} | player {sa.GetPlayerJobByIndex(guideFw.PlayerIndex)}({guideFw.PlayerObjId:X8}) | GuidePos {guideFw.GuidePos}");
+                // $"DrawBlackHoleTether {taskName} G-GoToSpot";
+                sa.DrawGuidance(guideFw.PlayerObjId, guideFw.GuidePos, 0, 7000, goToSpotDrawName(taskName), sa.Data.DefaultSafeColor);
+                goToSpotGuideDrawState[taskName] = true;
             }
         }
     }
 
-    private void 清理接线Framework(ScriptAccessory sa)
+    private void CleanupTetherFramework(ScriptAccessory sa)
     {
-        foreach (var fw in _udmP3Param.接线FrameworkList)
+        foreach (var fw in _udmP3Param.TetherFrameworkList)
         {
             if (fw.FwHandle != "")
                 sa.Method.UnregistFrameworkUpdateAction(fw.FwHandle);
         }
-        _udmP3Param.接线FrameworkList.Clear();
+        _udmP3Param.TetherFrameworkList.Clear();
 
-        if (_udmP3Param.当前接线任务Framework != "")
-            sa.Method.UnregistFrameworkUpdateAction(_udmP3Param.当前接线任务Framework);
-        _udmP3Param.当前接线任务Framework = "";
+        if (_udmP3Param.curTetherTaskFramework != "")
+            sa.Method.UnregistFrameworkUpdateAction(_udmP3Param.curTetherTaskFramework);
+        _udmP3Param.curTetherTaskFramework = "";
     }
 
-    /// <summary>接线后的站位：从黑洞方向顺时针转，站在卡奥斯（场中）最大近战；最后一根线站场边让激光朝外</summary>
-    private Vector3 计算接线站位(int realRegion, bool 最后一根)
+    /// <summary>Spot after taking the tether: rotate clockwise from the black hole's direction and stand at Chaos's (middle) max melee; the last tether stands at the edge so the laser points out</summary>
+    private Vector3 CalcTetherSpot(int realRegion, bool isLastTether)
     {
         var bhpos = BlackHoleBasePos.RotateAndExtend(Center, realRegion * -45f.DegToRad());
-        var (deg, r) = 最后一根 ? (最后一根线顺时针角度, 最后一根线站位半径) : (接线站位顺时针角度, 接线站位半径);
+        var (deg, r) = isLastTether ? (LastTetherCwAngle, LastTetherSpotRadius) : (TetherSpotCwAngle, TetherSpotRadius);
         return bhpos.RotateAndExtend(Center, -deg.DegToRad(), r - bhpos.GetLength(Center));
     }
 
-    #region P3B1 黑洞 范围（Cicero 灵视）
+    #region P3B1 Black Holes AoE (Cicero)
 
-    [ScriptMethod(name:"P3 地震 (阶段控制)",
+    [ScriptMethod(name:"P3 Earthquake (Phase Control)",
         eventType:EventTypeEnum.StartCasting,
         eventCondition:["ActionId:50546"],
         userControl:false)]
 
-    public void P3_地震_阶段控制(Event @event,ScriptAccessory accessory) {
+    public void P3_Earthquake_PhaseControl(Event @event,ScriptAccessory accessory) {
 
         if(majorPhase!=3) {
 
@@ -7288,11 +7285,11 @@ public class Dancing_Mad_Ultimate
 
     }
 
-    [ScriptMethod(name:"P3 地震 黑洞 (碰撞箱范围)",
+    [ScriptMethod(name:"P3 Earthquake Black Hole (Hitbox AoE)",
         eventType:EventTypeEnum.AddCombatant,
         eventCondition:["DataId:19512"])]
 
-    public void P3_地震_黑洞_碰撞箱范围(Event @event,ScriptAccessory accessory) {
+    public void P3_Earthquake_BlackHole_HitboxAoe(Event @event,ScriptAccessory accessory) {
 
         if(majorPhase!=3) {
 
@@ -7314,7 +7311,7 @@ public class Dancing_Mad_Ultimate
 
         var currentProperties=accessory.Data.GetDefaultDrawProperties();
 
-        currentProperties.Name=$"P3_地震_黑洞_碰撞箱范围_{sourceId}";
+        currentProperties.Name=$"P3_Earthquake_BlackHole_HitboxAoe_{sourceId}";
         currentProperties.Scale=new(2);
         currentProperties.Owner=sourceId;
         currentProperties.Color=colourOfExtremelyDangerousAttacks.V4.WithW(1);
@@ -7324,12 +7321,12 @@ public class Dancing_Mad_Ultimate
 
     }
 
-    [ScriptMethod(name:"P3 地震 黑洞 (碰撞箱范围清除)",
+    [ScriptMethod(name:"P3 Earthquake Black Hole (Clear Hitbox AoE)",
         eventType:EventTypeEnum.RemoveCombatant,
         eventCondition:["DataId:19512"],
         userControl:false)]
 
-    public void P3_地震_黑洞_碰撞箱范围清除(Event @event,ScriptAccessory accessory) {
+    public void P3_Earthquake_BlackHole_ClearHitboxAoe(Event @event,ScriptAccessory accessory) {
 
         if(majorPhase!=3) {
 
@@ -7343,15 +7340,15 @@ public class Dancing_Mad_Ultimate
 
         }
 
-        accessory.Method.RemoveDraw($"P3_地震_黑洞_碰撞箱范围_{sourceId}");
+        accessory.Method.RemoveDraw($"P3_Earthquake_BlackHole_HitboxAoe_{sourceId}");
 
     }
 
-    [ScriptMethod(name:"P3 地震 黑洞 (连线范围)",
+    [ScriptMethod(name:"P3 Earthquake Black Hole (Tether AoE)",
         eventType:EventTypeEnum.VfxEvent,
         eventCondition:["Id:84"])]
 
-    public void P3_地震_黑洞_连线范围(Event @event,ScriptAccessory accessory) {
+    public void P3_Earthquake_BlackHole_TetherAoe(Event @event,ScriptAccessory accessory) {
 
         if(majorPhase!=3) {
 
@@ -7387,14 +7384,14 @@ public class Dancing_Mad_Ultimate
 
             int lastDrawing=phase3sub3_blackHoleDrawingCounter.GetOrAdd(sourceId,0);
 
-            accessory.Method.RemoveDraw($"P3_地震_黑洞_连线范围_{sourceId}_{lastDrawing}");
+            accessory.Method.RemoveDraw($"P3_Earthquake_BlackHole_TetherAoe_{sourceId}_{lastDrawing}");
 
             Interlocked.Increment(ref lastDrawing);
             phase3sub3_blackHoleDrawingCounter[sourceId]=lastDrawing;
 
             var currentProperties=accessory.Data.GetDefaultDrawProperties();
 
-            currentProperties.Name=$"P3_地震_黑洞_连线范围_{sourceId}_{lastDrawing}";
+            currentProperties.Name=$"P3_Earthquake_BlackHole_TetherAoe_{sourceId}_{lastDrawing}";
             currentProperties.Scale=new(6,125);
             currentProperties.Owner=sourceId;
             currentProperties.TargetObject=targetId;
@@ -7407,12 +7404,12 @@ public class Dancing_Mad_Ultimate
 
     }
 
-    [ScriptMethod(name:"P3 地震 黑洞 (连线范围清除1)",
+    [ScriptMethod(name:"P3 Earthquake Black Hole (Clear Tether AoE 1)",
         eventType:EventTypeEnum.ActionEffect,
         eventCondition:["ActionId:47868"],
         userControl:false)]
 
-    public void P3_地震_黑洞_连线范围清除1(Event @event,ScriptAccessory accessory) {
+    public void P3_Earthquake_BlackHole_ClearTetherAoe1(Event @event,ScriptAccessory accessory) {
 
         if(majorPhase!=3) {
 
@@ -7438,7 +7435,7 @@ public class Dancing_Mad_Ultimate
 
             if(!(new List<int>{4,5,6,7,8,9,13,14,15,16,17,18}.Contains(phase3sub3_nothingnessCounter))) {
 
-                accessory.Method.RemoveDraw(@$"^P3_地震_黑洞_连线范围_{sourceId}_.*$");
+                accessory.Method.RemoveDraw(@$"^P3_Earthquake_BlackHole_TetherAoe_{sourceId}_.*$");
 
                 phase3sub3_blackHoleDrawingCounter.TryRemove(sourceId,out _);
 
@@ -7448,12 +7445,12 @@ public class Dancing_Mad_Ultimate
 
     }
 
-    [ScriptMethod(name:"P3 地震 黑洞 (连线范围清除2)",
+    [ScriptMethod(name:"P3 Earthquake Black Hole (Clear Tether AoE 2)",
         eventType:EventTypeEnum.RemoveCombatant,
         eventCondition:["DataId:19512"],
         userControl:false)]
 
-    public void P3_地震_黑洞_连线范围清除2(Event @event,ScriptAccessory accessory) {
+    public void P3_Earthquake_BlackHole_ClearTetherAoe2(Event @event,ScriptAccessory accessory) {
 
         if(majorPhase!=3) {
 
@@ -7469,7 +7466,7 @@ public class Dancing_Mad_Ultimate
 
         lock(phase3sub3_blackHoleDrawingCounter) {
 
-            accessory.Method.RemoveDraw(@$"^P3_地震_黑洞_连线范围_{sourceId}_.*$");
+            accessory.Method.RemoveDraw(@$"^P3_Earthquake_BlackHole_TetherAoe_{sourceId}_.*$");
 
             phase3sub3_blackHoleDrawingCounter.TryRemove(sourceId,out _);
 
@@ -7479,197 +7476,197 @@ public class Dancing_Mad_Ultimate
 
     #endregion
 
-    #endregion P3B1 黑洞 3200
+    #endregion P3B1 Black Holes 3200
 
-    #region P3B2 冰封 3210
+    #region P3B2 Blizzard III 3210
 
-    [ScriptMethod(name: "———————— 《P3B2 冰封》 ————————", eventType: EventTypeEnum.NpcYell, eventCondition: ["HelloayaWorld:asdf"],
+    [ScriptMethod(name: "———————— [P3B2 Blizzard III] ————————", eventType: EventTypeEnum.NpcYell, eventCondition: ["HelloayaWorld:asdf"],
         userControl: true)]
-    public void P3B2_分割线(Event ev, ScriptAccessory sa)
+    public void P3B2_Separator(Event ev, ScriptAccessory sa)
     {
     }
 
-    [ScriptMethod(name: "P3B2_冰封_转阶段", eventType: EventTypeEnum.StartCasting,
+    [ScriptMethod(name: "P3B2_Blizzard_SwitchPhase", eventType: EventTypeEnum.StartCasting,
         eventCondition: ["ActionId:47887"], userControl: Debugging)]
-    public void P3B2_冰封_转阶段(Event ev, ScriptAccessory sa)
+    public void P3B2_Blizzard_SwitchPhase(Event ev, ScriptAccessory sa)
     {
-        _udmP3Param.当前阶段 = 3210;
-        sa.DebugMsg($"当前阶段为：P3B2 二运 冰封 {_udmP3Param.当前阶段}");
-        _udmP3Param.凯夫卡方位 = _udmP3Param.巨大凯夫卡方位获取(sa, false);
-        _udmP3Param.冰封北方位 = BlizKefkaIsNorth ? _udmP3Param.凯夫卡方位 : (_udmP3Param.凯夫卡方位 + 4) % 8;
-        _udmP3Param.西塔方位 = (_udmP3Param.冰封北方位 + 2) % 8;
-        _udmP3Param.东塔方位 = (_udmP3Param.冰封北方位 - 2 + 8) % 8;
-        _udmP3Param.凯夫卡方位获取完毕.Set();
-        sa.DebugMsg($"冰封北方位 继承自 凯夫卡方位 {_udmP3Param.凯夫卡方位} C逆");
+        _udmP3Param.CurrentStage = 3210;
+        sa.DebugMsg($"Current stage: P3B2 Blizzard III {_udmP3Param.CurrentStage}");
+        _udmP3Param.KefkaRegion = _udmP3Param.GetGiantKefkaRegion(sa, false);
+        _udmP3Param.BlizzardNorthRegion = BlizKefkaIsNorth ? _udmP3Param.KefkaRegion : (_udmP3Param.KefkaRegion + 4) % 8;
+        _udmP3Param.WestTowerRegion = (_udmP3Param.BlizzardNorthRegion + 2) % 8;
+        _udmP3Param.EastTowerRegion = (_udmP3Param.BlizzardNorthRegion - 2 + 8) % 8;
+        _udmP3Param.KefkaRegionAcquired.Set();
+        sa.DebugMsg($"Blizzard north region inherited from Kefka region {_udmP3Param.KefkaRegion} CCW from C");
     }
 
-    [ScriptMethod(name: "P3B2_冰封_引导路径", eventType: EventTypeEnum.StartCasting,
+    [ScriptMethod(name: "P3B2_Blizzard_BaitPath", eventType: EventTypeEnum.StartCasting,
         eventCondition: ["ActionId:47887"], userControl: true)]
-    public void P3B2_冰封_引导路径一(Event ev, ScriptAccessory sa)
+    public void P3B2_Blizzard_BaitPath1(Event ev, ScriptAccessory sa)
     {
-        if (_udmP3Param.冰封北方位 == -1)
+        if (_udmP3Param.BlizzardNorthRegion == -1)
         {
-            if (!_udmP3Param.凯夫卡方位获取完毕.WaitOne(2000)) return;
-            _udmP3Param.凯夫卡方位获取完毕.Reset();
+            if (!_udmP3Param.KefkaRegionAcquired.WaitOne(2000)) return;
+            _udmP3Param.KefkaRegionAcquired.Reset();
         }
 
-        if (_udmP3Param.当前阶段 != 3210) return;
-        _udmP3Param.绘制冰封引导路径 = true;
+        if (_udmP3Param.CurrentStage != 3210) return;
+        _udmP3Param.DrawBlizzardBaitPath = true;
 
-        foreach (var myIndex in 指路对象(sa))
+        foreach (var myIndex in GuidedPlayers(sa))
         {
-            // LPDU 第一次引导：支援在北（凯夫卡侧）、DPS 在南
+            // LPDU first bait: supports north (Kefka side), DPS south
             var initPos = myIndex <= 3 ? new Vector3(100, 0, 110f) : new Vector3(100, 0, 90f);
-            initPos = _udmP3Param.基于凯夫卡旋转(initPos, _udmP3Param.冰封北方位);
+            initPos = _udmP3Param.RotateFromKefka(initPos, _udmP3Param.BlizzardNorthRegion);
 
-            var targetPos = 冰封第二枚黄圈位置(myIndex);
-            if (是自己(sa, myIndex))
-                _udmP3Param.第二枚黄圈引导位置 = targetPos;
+            var targetPos = BlizzardSecondPuddlePos(myIndex);
+            if (IsMe(sa, myIndex))
+                _udmP3Param.SecondPuddleBaitPos = targetPos;
 
             var owner = GuidanceOwner(sa, myIndex);
-            sa.DrawGuidance(owner, initPos, 0, 3000, $"冰封路径一 黄圈 1 {myIndex}", sa.Data.DefaultSafeColor);
-            sa.DrawGuidance(initPos, targetPos, 0, 3000, $"冰封路径一 黄圈 1->2 {myIndex}", sa.Data.DefaultDangerColor);
-            sa.DrawGuidance(owner, targetPos, 3000, 3000, $"冰封路径一 黄圈 2 {myIndex}", sa.Data.DefaultSafeColor);
+            sa.DrawGuidance(owner, initPos, 0, 3000, $"BlizzardPath1 Puddle 1 {myIndex}", sa.Data.DefaultSafeColor);
+            sa.DrawGuidance(initPos, targetPos, 0, 3000, $"BlizzardPath1 Puddle 1->2 {myIndex}", sa.Data.DefaultDangerColor);
+            sa.DrawGuidance(owner, targetPos, 3000, 3000, $"BlizzardPath1 Puddle 2 {myIndex}", sa.Data.DefaultSafeColor);
         }
     }
 
     /// <summary>
-    /// 冰封分左右（以凯夫卡为北，西 = 左）。四角和踩塔同侧：支援在北侧两角、DPS 在南侧两角。
-    /// LPDU：T+近战在西（MT+ST 西北、D1+D2 西南），H+远程在东（H1+H2 东北、D3+D4 东南）。
-    /// PF：G1（MT H1 D1 D3）在西（MT+H1 西北、D1+D3 西南），G2（ST H2 D2 D4）在东（ST+H2 东北、D2+D4 东南）。
+    /// Blizzard III left/right split (Kefka = north, west = left). Corners and towers are on the same side: supports in the two north corners, DPS in the two south corners.
+    /// LPDU: T + melee west (MT+ST NW, D1+D2 SW), H + ranged east (H1+H2 NE, D3+D4 SE).
+    /// PF: G1 (MT H1 D1 D3) west (MT+H1 NW, D1+D3 SW), G2 (ST H2 D2 D4) east (ST+H2 NE, D2+D4 SE).
     /// </summary>
-    private bool 冰封在西侧(int myIndex)
+    private bool BlizzardOnWestSide(int myIndex)
         => p3FollowPfStrats ? myIndex is 0 or 2 or 4 or 6 : myIndex is 0 or 1 or 4 or 5;
 
-    /// <summary>冰封第二枚黄圈的引导位置：支援去北侧斜角、DPS 去南侧斜角，左右按 冰封在西侧</summary>
-    private Vector3 冰封第二枚黄圈位置(int myIndex)
+    /// <summary>Bait spot for Blizzard III's second yellow puddle: supports to the north diagonal, DPS to the south diagonal, left/right by BlizzardOnWestSide</summary>
+    private Vector3 BlizzardSecondPuddlePos(int myIndex)
     {
-        // 基准点在凯夫卡方向，逆时针为正：西北 45°、东北 -45°、西南 135°、东南 -135°
-        var rotDeg = (myIndex <= 3 ? 45f : 135f) * (冰封在西侧(myIndex) ? 1 : -1);
+        // Reference point toward Kefka, counterclockwise positive: NW 45°, NE -45°, SW 135°, SE -135°
+        var rotDeg = (myIndex <= 3 ? 45f : 135f) * (BlizzardOnWestSide(myIndex) ? 1 : -1);
         var targetPos = new Vector3(100, 0, 114.14f).RotateAndExtend(Center, rotDeg.DegToRad());
-        return _udmP3Param.基于凯夫卡旋转(targetPos, _udmP3Param.冰封北方位);
+        return _udmP3Param.RotateFromKefka(targetPos, _udmP3Param.BlizzardNorthRegion);
     }
 
-    [ScriptMethod(name: "P3B2_冰封_引导路径二", eventType: EventTypeEnum.TargetIcon,
+    [ScriptMethod(name: "P3B2_Blizzard_BaitPath2", eventType: EventTypeEnum.TargetIcon,
         eventCondition: ["Id:00A1"], userControl: Debugging)]
-    public void P3B2_冰封_引导路径二(Event ev, ScriptAccessory sa)
+    public void P3B2_Blizzard_BaitPath2(Event ev, ScriptAccessory sa)
     {
-        if (_udmP3Param.当前阶段 != 3210) return;
-        if (!_udmP3Param.绘制冰封引导路径) return;
-        _udmP3Param.是第一次分摊 = !_udmP3Param.是第一次分摊;
+        if (_udmP3Param.CurrentStage != 3210) return;
+        if (!_udmP3Param.DrawBlizzardBaitPath) return;
+        _udmP3Param.IsFirstStack = !_udmP3Param.IsFirstStack;
 
         var targetIdx = sa.GetPlayerIdIndex((uint)ev.TargetId);
-        _udmP3Param.分摊点TN = targetIdx <= 3;
-        foreach (var myIndex in 指路对象(sa))
+        _udmP3Param.StackSpotIsTN = targetIdx <= 3;
+        foreach (var myIndex in GuidedPlayers(sa))
         {
-            if (_udmP3Param.需要踩塔(myIndex))
-                绘制冰封踩塔路径(sa, myIndex);
+            if (_udmP3Param.NeedSoakTower(myIndex))
+                DrawBlizzardTowerPath(sa, myIndex);
             else
-                绘制冰封分摊路径(sa, myIndex);
+                DrawBlizzardStackPath(sa, myIndex);
         }
     }
 
-    private int 获得踩塔方位(int myIndex)
-        => 冰封在西侧(myIndex) ? _udmP3Param.西塔方位 : _udmP3Param.东塔方位;
+    private int GetTowerRegion(int myIndex)
+        => BlizzardOnWestSide(myIndex) ? _udmP3Param.WestTowerRegion : _udmP3Param.EastTowerRegion;
 
-    private void 绘制冰封踩塔路径(ScriptAccessory sa, int idx)
+    private void DrawBlizzardTowerPath(ScriptAccessory sa, int idx)
     {
         Vector3 stackPos = Center;
         var owner = GuidanceOwner(sa, idx);
-        var towerRegion = 获得踩塔方位(idx);
+        var towerRegion = GetTowerRegion(idx);
         Vector3 towerPos = new Vector3(100, 0, 110).RotateAndExtend(Center, towerRegion * 45f.DegToRad());
 
-        // 凯夫卡一定先跺右脚出西塔，如果是踩塔，东塔玩家需要延迟指路，西塔玩家直接去
-        bool towerDelay = towerRegion == (BlizKefkaIsNorth ? _udmP3Param.东塔方位 : _udmP3Param.西塔方位);
+        // Kefka always stomps his right foot first, spawning the west tower; when soaking, the east tower players get delayed guidance, the west tower players go straight away
+        bool towerDelay = towerRegion == (BlizKefkaIsNorth ? _udmP3Param.EastTowerRegion : _udmP3Param.WestTowerRegion);
 
-        if (_udmP3Param.是第一次分摊)
+        if (_udmP3Param.IsFirstStack)
         {
-            sa.DrawGuidance(冰封第二枚黄圈位置(idx), towerPos, 0, 3000, $"冰封路径二 黄圈 2->塔 {idx}", sa.Data.DefaultDangerColor);
-            sa.DrawCircle(towerPos, 3000, towerDelay ? 3500 : 2500, $"冰封路径二 塔范围 {towerRegion}", 5f, sa.Data.DefaultSafeColor);
-            sa.DrawGuidance(owner, towerPos, 3000, towerDelay ? 3500 : 2500, $"冰封路径二 黄圈 塔 {idx}", sa.Data.DefaultSafeColor);
-            sa.DrawGuidance(towerPos, stackPos, 3000, towerDelay ? 3500 : 2500, $"冰封路径二 踩塔->分摊 {idx}", sa.Data.DefaultDangerColor);
+            sa.DrawGuidance(BlizzardSecondPuddlePos(idx), towerPos, 0, 3000, $"BlizzardPath2 Puddle 2->Tower {idx}", sa.Data.DefaultDangerColor);
+            sa.DrawCircle(towerPos, 3000, towerDelay ? 3500 : 2500, $"BlizzardPath2 TowerAoe {towerRegion}", 5f, sa.Data.DefaultSafeColor);
+            sa.DrawGuidance(owner, towerPos, 3000, towerDelay ? 3500 : 2500, $"BlizzardPath2 Puddle Tower {idx}", sa.Data.DefaultSafeColor);
+            sa.DrawGuidance(towerPos, stackPos, 3000, towerDelay ? 3500 : 2500, $"BlizzardPath2 Tower->Stack {idx}", sa.Data.DefaultDangerColor);
         }
         else
         {
             sa.DrawCircle(towerPos, towerDelay ? 1000 : 0, towerDelay ? 3000 : 4000,
-                $"冰封路径二 塔范围 {towerRegion}", 6f, sa.Data.DefaultSafeColor);
+                $"BlizzardPath2 TowerAoe {towerRegion}", 6f, sa.Data.DefaultSafeColor);
             sa.DrawGuidance(owner, towerPos, towerDelay ? 1000 : 0, towerDelay ? 3000 : 4000,
-                $"冰封路径二 塔 第二轮 {idx}", sa.Data.DefaultSafeColor);
+                $"BlizzardPath2 Tower Round2 {idx}", sa.Data.DefaultSafeColor);
         }
 
     }
 
-    private void 绘制冰封分摊路径(ScriptAccessory sa, int idx)
+    private void DrawBlizzardStackPath(ScriptAccessory sa, int idx)
     {
         Vector3 stackPos = Center;
         var owner = GuidanceOwner(sa, idx);
-        var towerRegion = 获得踩塔方位(idx);
+        var towerRegion = GetTowerRegion(idx);
         Vector3 towerPos = new Vector3(100, 0, 110).RotateAndExtend(Center, towerRegion * 45f.DegToRad());
-        bool towerDelay = towerRegion == (BlizKefkaIsNorth ? _udmP3Param.东塔方位 : _udmP3Param.西塔方位);
+        bool towerDelay = towerRegion == (BlizKefkaIsNorth ? _udmP3Param.EastTowerRegion : _udmP3Param.WestTowerRegion);
 
-        if (_udmP3Param.是第一次分摊)
+        if (_udmP3Param.IsFirstStack)
         {
-            sa.DrawGuidance(冰封第二枚黄圈位置(idx), stackPos, 0, 3000, $"冰封路径二 黄圈 2->分摊 {idx}", sa.Data.DefaultDangerColor);
-            sa.DrawGuidance(owner, stackPos, 3000, towerDelay ? 3500 : 2500, $"冰封路径二 黄圈 分摊 {idx}", sa.Data.DefaultSafeColor);
-            sa.DrawGuidance(stackPos, towerPos, 3000, towerDelay ? 3500 : 2500, $"冰封路径二 分摊->踩塔 {idx}", sa.Data.DefaultDangerColor);
+            sa.DrawGuidance(BlizzardSecondPuddlePos(idx), stackPos, 0, 3000, $"BlizzardPath2 Puddle 2->Stack {idx}", sa.Data.DefaultDangerColor);
+            sa.DrawGuidance(owner, stackPos, 3000, towerDelay ? 3500 : 2500, $"BlizzardPath2 Puddle Stack {idx}", sa.Data.DefaultSafeColor);
+            sa.DrawGuidance(stackPos, towerPos, 3000, towerDelay ? 3500 : 2500, $"BlizzardPath2 Stack->Tower {idx}", sa.Data.DefaultDangerColor);
         }
         else
         {
-            sa.DrawGuidance(owner, stackPos, towerDelay ? 1000 : 0, towerDelay ? 3000 : 4000, $"冰封路径二 分摊 第二轮 {idx}", sa.Data.DefaultSafeColor);
+            sa.DrawGuidance(owner, stackPos, towerDelay ? 1000 : 0, towerDelay ? 3000 : 4000, $"BlizzardPath2 Stack Round2 {idx}", sa.Data.DefaultSafeColor);
         }
     }
 
-    [ScriptMethod(name: "P3B2_轰击/顶起", eventType: EventTypeEnum.ActionEffect,
+    [ScriptMethod(name: "P3B2_KnockDown/BigBang", eventType: EventTypeEnum.ActionEffect,
         eventCondition: ["ActionId:47875", "TargetIndex:1"], userControl: true)]
-    public void P3B2_轰击旋风(Event ev, ScriptAccessory sa)
+    public void P3B2_KnockDownSpots(Event ev, ScriptAccessory sa)
     {
-        if (_udmP3Param.当前阶段 != 3210) return;
-        if (Vector3.Distance(_udmP3Param.第一次轰击位置, ev.TargetPosition) > 80)
-            _udmP3Param.第一次轰击位置 = ev.TargetPosition;
+        if (_udmP3Param.CurrentStage != 3210) return;
+        if (Vector3.Distance(_udmP3Param.FirstKnockDownPos, ev.TargetPosition) > 80)
+            _udmP3Param.FirstKnockDownPos = ev.TargetPosition;
         else
         {
-            sa.DrawCircle(ev.TargetPosition, 0, 15000, $"轰击旋风1", 6, sa.Data.DefaultDangerColor.WithW(2f));
-            sa.DrawCircle(_udmP3Param.第一次轰击位置, 0, 15000, $"轰击旋风2", 6, sa.Data.DefaultDangerColor.WithW(2f));
+            sa.DrawCircle(ev.TargetPosition, 0, 15000, $"KnockDownSpot1", 6, sa.Data.DefaultDangerColor.WithW(2f));
+            sa.DrawCircle(_udmP3Param.FirstKnockDownPos, 0, 15000, $"KnockDownSpot2", 6, sa.Data.DefaultDangerColor.WithW(2f));
 
-            // 顺便恢复透明度
-            var obj1 = sa.GetById(_udmP3Param.ObjectId_卡奥斯);
+            // Restore opacity while we're at it
+            var obj1 = sa.GetById(_udmP3Param.ObjectId_Chaos);
             sa.AlphaModify(obj1, 1f, currentAlpha => currentAlpha <= 0.8f);
-            var obj2 = sa.GetById(_udmP3Param.ObjectId_艾克斯迪司);
+            var obj2 = sa.GetById(_udmP3Param.ObjectId_Exdeath);
             sa.AlphaModify(obj2, 1f, currentAlpha => currentAlpha <= 0.8f);
         }
 
     }
 
-    [ScriptMethod(name: "P3B2_顶起删除轰击旋风", eventType: EventTypeEnum.ActionEffect,
+    [ScriptMethod(name: "P3B2_BigBang_ClearKnockDownSpots", eventType: EventTypeEnum.ActionEffect,
         eventCondition: ["ActionId:47878", "TargetIndex:1"], userControl: Debugging)]
-    public void P3B2_顶起删除轰击旋风(Event ev, ScriptAccessory sa)
+    public void P3B2_BigBang_ClearKnockDownSpots(Event ev, ScriptAccessory sa)
     {
-        sa.Method.RemoveDraw($"轰击旋风.*");
-        _udmP3Param.当前阶段 = 3300;
+        sa.Method.RemoveDraw($"KnockDownSpot.*");
+        _udmP3Param.CurrentStage = 3300;
     }
 
-    [ScriptMethod(name: "P3B2_冰封移动提示", eventType: EventTypeEnum.StartCasting,
+    [ScriptMethod(name: "P3B2_BlizzardMoveCallout", eventType: EventTypeEnum.StartCasting,
         eventCondition: ["ActionId:47889"], userControl: true)]
-    public async void P3B2_冰封移动提示(Event ev, ScriptAccessory sa)
+    public async void P3B2_BlizzardMoveCallout(Event ev, ScriptAccessory sa)
     {
-        if (_udmP3Param.当前阶段 != 3210) return;
+        if (_udmP3Param.CurrentStage != 3210) return;
 
         var runId = _runId;
         await Task.Delay(1000);
         if (runId != _runId) return;
-        if (_udmP3Param.当前阶段 != 3210) return;
+        if (_udmP3Param.CurrentStage != 3210) return;
 
-        sa.Method.TextInfo($"远离场中 动动动", 3000);
-        sa.Method.TTS($"远离场中 动动动", 3);
+        sa.Method.TextInfo($"Away from middle, move!", 3000);
+        sa.Method.TTS($"Away from middle, move!", 3);
     }
 
-    #region P3B2 轰击 范围（Cicero 灵视）
+    #region P3B2 Knock Down AoE (Cicero)
 
-    [ScriptMethod(name:"P3 地震 轰击 (范围)",
+    [ScriptMethod(name:"P3 Earthquake Knock Down (AoE)",
         eventType:EventTypeEnum.TargetIcon,
         eventCondition:["Id:00A1"])]
 
-    public void P3_地震_轰击_范围(Event @event,ScriptAccessory accessory) {
+    public void P3_Earthquake_KnockDown_Aoe(Event @event,ScriptAccessory accessory) {
 
         if(majorPhase!=3) {
 
@@ -7773,25 +7770,25 @@ public class Dancing_Mad_Ultimate
 
     #endregion
 
-    #endregion P3B2 冰封 3210
+    #endregion P3B2 Blizzard III 3210
 
     #endregion
 
-    #region P4 绘制（Cicero 灵视）
+    #region P4 Draws (Cicero)
 
     #region Major_Phase_4
 
-    [ScriptMethod(name: "———————— 《P4》 ————————", eventType: EventTypeEnum.NpcYell, eventCondition: ["HelloayaWorld:asdf"])]
-    public void P4_分割线(Event ev, ScriptAccessory sa)
+    [ScriptMethod(name: "———————— [P4] ————————", eventType: EventTypeEnum.NpcYell, eventCondition: ["HelloayaWorld:asdf"])]
+    public void P4_Separator(Event ev, ScriptAccessory sa)
     {
     }
 
-    [ScriptMethod(name:"P4 (阶段控制)",
+    [ScriptMethod(name:"P4 (Phase Control)",
         eventType:EventTypeEnum.PlayActionTimeline,
         eventCondition:["Id:7747"],
         userControl:false)]
 
-    public void P4_阶段控制(Event @event,ScriptAccessory accessory) {
+    public void P4_PhaseControl(Event @event,ScriptAccessory accessory) {
 
         if(majorPhase!=3) {
 
@@ -7818,12 +7815,12 @@ public class Dancing_Mad_Ultimate
 
     }
 
-    [ScriptMethod(name:"P4 新生艾克斯迪司 (数据收集)",
+    [ScriptMethod(name:"P4 Neo Exdeath (Data Collection)",
         eventType:EventTypeEnum.StatusAdd,
         eventCondition:["StatusID:2056"],
         userControl:false)]
 
-    public void P4_新生艾克斯迪司_数据收集(Event @event,ScriptAccessory accessory) {
+    public void P4_NeoExdeath_DataCollection(Event @event,ScriptAccessory accessory) {
 
         if(majorPhase!=4) {
 
@@ -7875,12 +7872,12 @@ public class Dancing_Mad_Ultimate
 
     }
 
-    [ScriptMethod(name:"P4 卡奥斯 (数据收集)",
+    [ScriptMethod(name:"P4 Chaos (Data Collection)",
         eventType:EventTypeEnum.StatusAdd,
         eventCondition:["StatusID:2056"],
         userControl:false)]
 
-    public void P4_卡奥斯_数据收集(Event @event,ScriptAccessory accessory) {
+    public void P4_Chaos_DataCollection(Event @event,ScriptAccessory accessory) {
 
         if(majorPhase!=4) {
 
@@ -7932,11 +7929,11 @@ public class Dancing_Mad_Ultimate
 
     }
 
-    [ScriptMethod(name:"P4 诅咒之嚎 (类型指示)",
+    [ScriptMethod(name:"P4 Cursed Shriek (Type Indicator)",
         eventType:EventTypeEnum.StatusAdd,
         eventCondition:["StatusID:5543"])]
 
-    public void P4_诅咒之嚎_类型指示(Event @event,ScriptAccessory accessory) {
+    public void P4_CursedShriek_TypeIndicator(Event @event,ScriptAccessory accessory) {
 
         if(majorPhase!=4) {
 
@@ -8010,7 +8007,7 @@ public class Dancing_Mad_Ultimate
 
             currentProperties=accessory.Data.GetDefaultDrawProperties();
 
-            currentProperties.Name=$"P4_诅咒之嚎_类型指示1_{targetId}";
+            currentProperties.Name=$"P4_CursedShriek_TypeIndicator1_{targetId}";
             currentProperties.Scale=new(0.125f,6);
             currentProperties.Owner=targetId;
             currentProperties.FixRotation=true;
@@ -8023,7 +8020,7 @@ public class Dancing_Mad_Ultimate
 
             currentProperties=accessory.Data.GetDefaultDrawProperties();
 
-            currentProperties.Name=$"P4_诅咒之嚎_类型指示2_{targetId}";
+            currentProperties.Name=$"P4_CursedShriek_TypeIndicator2_{targetId}";
             currentProperties.Scale=new(0.125f,6);
             currentProperties.Owner=targetId;
             currentProperties.FixRotation=true;
@@ -8040,7 +8037,7 @@ public class Dancing_Mad_Ultimate
 
             currentProperties=accessory.Data.GetDefaultDrawProperties();
 
-            currentProperties.Name=$"P4_诅咒之嚎_类型指示1_{targetId}";
+            currentProperties.Name=$"P4_CursedShriek_TypeIndicator1_{targetId}";
             currentProperties.Scale=new(0.125f,2);
             currentProperties.Owner=targetId;
             currentProperties.FixRotation=true;
@@ -8053,7 +8050,7 @@ public class Dancing_Mad_Ultimate
 
             currentProperties=accessory.Data.GetDefaultDrawProperties();
 
-            currentProperties.Name=$"P4_诅咒之嚎_类型指示2_{targetId}";
+            currentProperties.Name=$"P4_CursedShriek_TypeIndicator2_{targetId}";
             currentProperties.Scale=new(0.125f,4);
             currentProperties.Owner=targetId;
             currentProperties.FixRotation=true;
@@ -8068,11 +8065,11 @@ public class Dancing_Mad_Ultimate
 
     }
 
-    [ScriptMethod(name:"P4 诅咒之嚎 (面向指示)",
+    [ScriptMethod(name:"P4 Cursed Shriek (Facing Indicator)",
         eventType:EventTypeEnum.StatusAdd,
         eventCondition:["StatusID:5543"])]
 
-    public void P4_诅咒之嚎_面向指示(Event @event,ScriptAccessory accessory) {
+    public void P4_CursedShriek_FacingIndicator(Event @event,ScriptAccessory accessory) {
 
         if(majorPhase!=4) {
 
@@ -8132,7 +8129,7 @@ public class Dancing_Mad_Ultimate
                 continue;
             }
             var currentProperties=accessory.Data.GetDefaultDrawProperties();
-            currentProperties.Name=$"P4_诅咒之嚎_面向指示_{targetId}_{partyIndex}";
+            currentProperties.Name=$"P4_CursedShriek_FacingIndicator_{targetId}_{partyIndex}";
             currentProperties.Scale=new(1,3);
             currentProperties.Owner=GuidanceOwner(accessory,partyIndex);
             currentProperties.TargetObject=targetId;
@@ -8149,12 +8146,12 @@ public class Dancing_Mad_Ultimate
         }
     }
 
-    [ScriptMethod(name:"P4 诅咒之嚎 (指示清除)",
+    [ScriptMethod(name:"P4 Cursed Shriek (Clear Indicators)",
         eventType:EventTypeEnum.StatusRemove,
         eventCondition:["StatusID:5543"],
         userControl:false)]
 
-    public void P4_诅咒之嚎_指示清除(Event @event,ScriptAccessory accessory) {
+    public void P4_CursedShriek_ClearIndicators(Event @event,ScriptAccessory accessory) {
 
         if(majorPhase!=4) {
 
@@ -8174,17 +8171,17 @@ public class Dancing_Mad_Ultimate
 
         }
 
-        accessory.Method.RemoveDraw($"P4_诅咒之嚎_类型指示1_{targetId}");
-        accessory.Method.RemoveDraw($"P4_诅咒之嚎_类型指示2_{targetId}");
-        accessory.Method.RemoveDraw($"P4_诅咒之嚎_面向指示_{targetId}(_\\d)?");
+        accessory.Method.RemoveDraw($"P4_CursedShriek_TypeIndicator1_{targetId}");
+        accessory.Method.RemoveDraw($"P4_CursedShriek_TypeIndicator2_{targetId}");
+        accessory.Method.RemoveDraw($"P4_CursedShriek_FacingIndicator_{targetId}(_\\d)?");
 
     }
 
-    [ScriptMethod(name:"P4 叉形闪电 (范围)",
+    [ScriptMethod(name:"P4 Forked Lightning (AoE)",
         eventType:EventTypeEnum.StatusAdd,
         eventCondition:["StatusID:5544"])]
 
-    public void P4_叉形闪电_范围(Event @event,ScriptAccessory accessory) {
+    public void P4_ForkedLightning_Aoe(Event @event,ScriptAccessory accessory) {
 
         if(majorPhase!=4) {
 
@@ -8244,7 +8241,7 @@ public class Dancing_Mad_Ultimate
 
         var currentProperties=accessory.Data.GetDefaultDrawProperties();
 
-        currentProperties.Name=$"P4_叉形闪电_范围_{targetId}";
+        currentProperties.Name=$"P4_ForkedLightning_Aoe_{targetId}";
         currentProperties.Scale=new(8);
         currentProperties.Owner=targetId;
         currentProperties.Delay=delay;
@@ -8266,12 +8263,12 @@ public class Dancing_Mad_Ultimate
 
     }
 
-    [ScriptMethod(name:"P4 叉形闪电 (范围清除)",
+    [ScriptMethod(name:"P4 Forked Lightning (Clear AoE)",
         eventType:EventTypeEnum.StatusRemove,
         eventCondition:["StatusID:5544"],
         userControl:false)]
 
-    public void P4_叉形闪电_范围清除(Event @event,ScriptAccessory accessory) {
+    public void P4_ForkedLightning_ClearAoe(Event @event,ScriptAccessory accessory) {
 
         if(majorPhase!=4) {
 
@@ -8291,15 +8288,15 @@ public class Dancing_Mad_Ultimate
 
         }
 
-        accessory.Method.RemoveDraw($"P4_叉形闪电_范围_{targetId}");
+        accessory.Method.RemoveDraw($"P4_ForkedLightning_Aoe_{targetId}");
 
     }
 
-    [ScriptMethod(name:"P4 水属性压缩 (范围)",
+    [ScriptMethod(name:"P4 Compressed Water (AoE)",
         eventType:EventTypeEnum.StatusAdd,
         eventCondition:["StatusID:5545"])]
 
-    public void P4_水属性压缩_范围(Event @event,ScriptAccessory accessory) {
+    public void P4_CompressedWater_Aoe(Event @event,ScriptAccessory accessory) {
 
         if(majorPhase!=4) {
 
@@ -8359,7 +8356,7 @@ public class Dancing_Mad_Ultimate
 
         var currentProperties=accessory.Data.GetDefaultDrawProperties();
 
-        currentProperties.Name=$"P4_水属性压缩_范围_{targetId}";
+        currentProperties.Name=$"P4_CompressedWater_Aoe_{targetId}";
         currentProperties.Scale=new(8);
         currentProperties.Owner=targetId;
         currentProperties.Delay=delay;
@@ -8381,12 +8378,12 @@ public class Dancing_Mad_Ultimate
 
     }
 
-    [ScriptMethod(name:"P4 水属性压缩 (范围清除)",
+    [ScriptMethod(name:"P4 Compressed Water (Clear AoE)",
         eventType:EventTypeEnum.StatusRemove,
         eventCondition:["StatusID:5545"],
         userControl:false)]
 
-    public void P4_水属性压缩_范围清除(Event @event,ScriptAccessory accessory) {
+    public void P4_CompressedWater_ClearAoe(Event @event,ScriptAccessory accessory) {
 
         if(majorPhase!=4) {
 
@@ -8406,15 +8403,15 @@ public class Dancing_Mad_Ultimate
 
         }
 
-        accessory.Method.RemoveDraw($"P4_水属性压缩_范围_{targetId}");
+        accessory.Method.RemoveDraw($"P4_CompressedWater_Aoe_{targetId}");
 
     }
 
-    [ScriptMethod(name:"P4 混沌之炎 (引导范围)",
+    [ScriptMethod(name:"P4 Entropy (Bait AoE)",
         eventType:EventTypeEnum.StatusAdd,
         eventCondition:["StatusID:5547"])]
 
-    public void P4_混沌之炎_引导范围(Event @event,ScriptAccessory accessory) {
+    public void P4_Entropy_BaitAoe(Event @event,ScriptAccessory accessory) {
 
         if(majorPhase!=4) {
 
@@ -8488,7 +8485,7 @@ public class Dancing_Mad_Ultimate
 
             currentProperties=accessory.Data.GetDefaultDrawProperties();
 
-            currentProperties.Name=$"P4_混沌之炎_引导范围_{targetId}";
+            currentProperties.Name=$"P4_Entropy_BaitAoe_{targetId}";
             currentProperties.Scale=new(6);
             currentProperties.Owner=targetId;
             currentProperties.Color=accessory.Data.DefaultDangerColor;
@@ -8503,7 +8500,7 @@ public class Dancing_Mad_Ultimate
 
             currentProperties=accessory.Data.GetDefaultDrawProperties();
 
-            currentProperties.Name=$"P4_混沌之炎_引导范围_{targetId}";
+            currentProperties.Name=$"P4_Entropy_BaitAoe_{targetId}";
             currentProperties.Scale=new(40);
             currentProperties.InnerScale=new(6);
             currentProperties.Radian=float.Pi*2;
@@ -8518,12 +8515,12 @@ public class Dancing_Mad_Ultimate
 
     }
 
-    [ScriptMethod(name:"P4 混沌之炎 (引导范围清除)",
+    [ScriptMethod(name:"P4 Entropy (Clear Bait AoE)",
         eventType:EventTypeEnum.StatusRemove,
         eventCondition:["StatusID:5547"],
         userControl:false)]
 
-    public void P4_混沌之炎_引导范围清除(Event @event,ScriptAccessory accessory) {
+    public void P4_Entropy_ClearBaitAoe(Event @event,ScriptAccessory accessory) {
 
         if(majorPhase!=4) {
 
@@ -8543,15 +8540,15 @@ public class Dancing_Mad_Ultimate
 
         }
 
-        accessory.Method.RemoveDraw($"P4_混沌之炎_引导范围_{targetId}");
+        accessory.Method.RemoveDraw($"P4_Entropy_BaitAoe_{targetId}");
 
     }
 
-    [ScriptMethod(name:"P4 混沌之水 (引导范围)",
+    [ScriptMethod(name:"P4 Dynamic Fluid (Bait AoE)",
         eventType:EventTypeEnum.StatusAdd,
         eventCondition:["StatusID:5548"])]
 
-    public void P4_混沌之水_引导范围(Event @event,ScriptAccessory accessory) {
+    public void P4_DynamicFluid_BaitAoe(Event @event,ScriptAccessory accessory) {
 
         if(majorPhase!=4) {
 
@@ -8625,7 +8622,7 @@ public class Dancing_Mad_Ultimate
 
             currentProperties=accessory.Data.GetDefaultDrawProperties();
 
-            currentProperties.Name=$"P4_混沌之水_引导范围_{targetId}";
+            currentProperties.Name=$"P4_DynamicFluid_BaitAoe_{targetId}";
             currentProperties.Scale=new(40);
             currentProperties.InnerScale=new(6);
             currentProperties.Radian=float.Pi*2;
@@ -8642,7 +8639,7 @@ public class Dancing_Mad_Ultimate
 
             currentProperties=accessory.Data.GetDefaultDrawProperties();
 
-            currentProperties.Name=$"P4_混沌之水_引导范围_{targetId}";
+            currentProperties.Name=$"P4_DynamicFluid_BaitAoe_{targetId}";
             currentProperties.Scale=new(6);
             currentProperties.Owner=targetId;
             currentProperties.Color=accessory.Data.DefaultDangerColor;
@@ -8655,12 +8652,12 @@ public class Dancing_Mad_Ultimate
 
     }
 
-    [ScriptMethod(name:"P4 混沌之水 (引导范围清除)",
+    [ScriptMethod(name:"P4 Dynamic Fluid (Clear Bait AoE)",
         eventType:EventTypeEnum.StatusRemove,
         eventCondition:["StatusID:5548"],
         userControl:false)]
 
-    public void P4_混沌之水_引导范围清除(Event @event,ScriptAccessory accessory) {
+    public void P4_DynamicFluid_ClearBaitAoe(Event @event,ScriptAccessory accessory) {
 
         if(majorPhase!=4) {
 
@@ -8680,15 +8677,15 @@ public class Dancing_Mad_Ultimate
 
         }
 
-        accessory.Method.RemoveDraw($"P4_混沌之水_引导范围_{targetId}");
+        accessory.Method.RemoveDraw($"P4_DynamicFluid_BaitAoe_{targetId}");
 
     }
 
-    [ScriptMethod(name:"P4 混沌之炎 (范围)",
+    [ScriptMethod(name:"P4 Stray Flames (AoE)",
         eventType:EventTypeEnum.StartCasting,
         eventCondition:["ActionId:regex:^(47906|47907)$"])]
 
-    public void P4_混沌之炎_范围(Event @event,ScriptAccessory accessory) {
+    public void P4_StrayFlames_Aoe(Event @event,ScriptAccessory accessory) {
 
         if(majorPhase!=4) {
 
@@ -8742,11 +8739,11 @@ public class Dancing_Mad_Ultimate
 
     }
 
-    [ScriptMethod(name:"P4 混沌之水 (范围)",
+    [ScriptMethod(name:"P4 Stray Spray (AoE)",
         eventType:EventTypeEnum.StartCasting,
         eventCondition:["ActionId:regex:^(47908|47909)$"])]
 
-    public void P4_混沌之水_范围(Event @event,ScriptAccessory accessory) {
+    public void P4_StraySpray_Aoe(Event @event,ScriptAccessory accessory) {
 
         if(majorPhase!=4) {
 
@@ -8800,12 +8797,12 @@ public class Dancing_Mad_Ultimate
 
     }
 
-    [ScriptMethod(name:"P4 超越死亡与亚拉戈领域 (数据收集)",
+    [ScriptMethod(name:"P4 Beyond Death & Allagan Field (Data Collection)",
         eventType:EventTypeEnum.StatusAdd,
         eventCondition:["StatusID:regex:^(1382|454|5464)$"],
         userControl:false)]
 
-    public void P4_超越死亡与亚拉戈领域_数据收集(Event @event,ScriptAccessory accessory) {
+    public void P4_BeyondDeathAndAllaganField_DataCollection(Event @event,ScriptAccessory accessory) {
 
         if(majorPhase!=4) {
 
@@ -8877,12 +8874,12 @@ public class Dancing_Mad_Ultimate
 
     }
 
-    [ScriptMethod(name:"P4 生者之伤与死者之伤 (数据收集)",
+    [ScriptMethod(name:"P4 White Wound & Black Wound (Data Collection)",
         eventType:EventTypeEnum.StatusAdd,
         eventCondition:["StatusID:regex:^(5541|5542|4887|4888)$"],
         userControl:false)]
 
-    public void P4_生者之伤与死者之伤_数据收集(Event @event,ScriptAccessory accessory) {
+    public void P4_WhiteAndBlackWound_DataCollection(Event @event,ScriptAccessory accessory) {
 
         if(majorPhase!=4) {
 
@@ -8960,11 +8957,11 @@ public class Dancing_Mad_Ultimate
 
     }
 
-    [ScriptMethod(name:"P4 生死之境 (范围)",
+    [ScriptMethod(name:"P4 Edge of Death (AoE)",
         eventType:EventTypeEnum.StartCasting,
         eventCondition:["ActionId:50070"])]
 
-    public void P4_生死之境_范围(Event @event,ScriptAccessory accessory) {
+    public void P4_EdgeOfDeath_Aoe(Event @event,ScriptAccessory accessory) {
 
         if(majorPhase!=4) {
 
@@ -8989,11 +8986,11 @@ public class Dancing_Mad_Ultimate
 
     }
 
-    [ScriptMethod(name:"P4 生者黑暗光与死者黑暗光 (安全区范围)",
+    [ScriptMethod(name:"P4 White Antilight & Black Antilight (Safe Zone)",
         eventType:EventTypeEnum.StartCasting,
         eventCondition:["ActionId:regex:^(50068|50069)$"])]
 
-    public void P4_生者黑暗光与死者黑暗光_安全区范围(Event @event,ScriptAccessory accessory) {
+    public void P4_WhiteAndBlackAntilight_SafeZone(Event @event,ScriptAccessory accessory) {
 
         if(majorPhase!=4) {
 
@@ -9078,7 +9075,7 @@ public class Dancing_Mad_Ultimate
 
     #endregion
 
-    #region P4 指路（RyougiMio）
+    #region P4 Guidance (RyougiMio)
 
     #region State
 
@@ -9805,8 +9802,8 @@ public class Dancing_Mad_Ultimate
     {
         switch (color)
         {
-            case P4HalfColor.Blue: return "蓝";
-            case P4HalfColor.Purple: return "紫";
+            case P4HalfColor.Blue: return "Blue";
+            case P4HalfColor.Purple: return "Purple";
             default: return "-";
         }
     }
@@ -10100,7 +10097,7 @@ public class Dancing_Mad_Ultimate
         return P4ArenaCenter + direction * distance;
     }
 
-    // LPDU：分摊支援北 / DPS 南，分散支援西 / DPS 东（RaidPlan guufe9q559evt7pj Set #1、#4）
+    // LPDU: stacks supports north / DPS south, spreads supports west / DPS east (RaidPlan guufe9q559evt7pj Set #1, #4)
     private static P4ClockDirection RoleDefaultClock(bool isThunder, int partyIndex)
     {
         if (IsTnPartyIndex(partyIndex))
@@ -10126,15 +10123,15 @@ public class Dancing_Mad_Ultimate
 
     private static string P4MoveCallText(int state)
     {
-        if (state == P4StateTrue) return "停停停";
-        if (state == P4StateFalse) return "动动动";
+        if (state == P4StateTrue) return "Stop!";
+        if (state == P4StateFalse) return "Keep moving!";
         return null;
     }
 
     private static string P4PetrifyCallText(int state, bool isSelf)
     {
-        if (state == P4StateTrue) return isSelf ? "你是背对石化" : "背对石化";
-        if (state == P4StateFalse) return isSelf ? "你是正对石化" : "正对石化";
+        if (state == P4StateTrue) return isSelf ? "Your gaze: look away" : "Look away from gaze";
+        if (state == P4StateFalse) return isSelf ? "Your gaze: look at" : "Look at gaze";
         return null;
     }
 
@@ -10180,8 +10177,8 @@ public class Dancing_Mad_Ultimate
     {
         switch (call)
         {
-            case P4ElementCall.FireSteel: return "火钢铁 中间集合稍后散开";
-            case P4ElementCall.WaterMoon: return "水月环 中间集合稍后不动";
+            case P4ElementCall.FireSteel: return "Fire out: stack middle, then spread";
+            case P4ElementCall.WaterMoon: return "Water in: stack middle, then stay";
             default: return null;
         }
     }
@@ -10190,8 +10187,8 @@ public class Dancing_Mad_Ultimate
     {
         switch (call)
         {
-            case P4ElementCall.FireSteel: return "火钢铁";
-            case P4ElementCall.WaterMoon: return "水月环";
+            case P4ElementCall.FireSteel: return "Fire out";
+            case P4ElementCall.WaterMoon: return "Water in";
             default: return "-";
         }
     }
@@ -10285,7 +10282,7 @@ public class Dancing_Mad_Ultimate
             }
             catch (Exception ex)
             {
-                DebugEcho(accessory, $"P4链式阶段{step}延迟执行失败：{ex.Message}");
+                DebugEcho(accessory, $"P4 chain stage{step}Delayed run failed: {ex.Message}");
             }
         });
     }
@@ -10325,7 +10322,7 @@ public class Dancing_Mad_Ultimate
             }
             catch (Exception ex)
             {
-                DebugEcho(accessory, $"P4 5546 TTS延迟执行失败：{ex.Message}");
+                DebugEcho(accessory, $"P4 5546 delayed TTS failed: {ex.Message}");
             }
         });
     }
@@ -10357,7 +10354,7 @@ public class Dancing_Mad_Ultimate
             }
             catch (Exception ex)
             {
-                DebugEcho(accessory, $"P4小队频道提示发送失败：{ex.Message}");
+                DebugEcho(accessory, $"P4 party chat callout failed: {ex.Message}");
             }
         });
     }
@@ -10863,7 +10860,7 @@ public class Dancing_Mad_Ultimate
         if (myIndex >= 0 && myIndex < 8)
         {
             var hasThunderState = TryGetP4ThunderState(records, myIndex, out var isThunder);
-            var parts = new List<string> { isThunder ? "钢铁" : "分摊" };
+            var parts = new List<string> { isThunder ? "Spread" : "Stack" };
             if (TryGetP4AccelCall(records, myIndex, out var accelCall))
                 parts.Add(accelCall);
             Alert(string.Join(" ", parts.Where(p => !string.IsNullOrWhiteSpace(p))));
@@ -10898,7 +10895,7 @@ public class Dancing_Mad_Ultimate
         });
     }
 
-    /// <summary>partyIndex 为空时画给自己；图名带下标，Debug 全队时不互相覆盖</summary>
+    /// <summary>Draws for me when partyIndex is null; draw names carry the index so the whole-party Debug draws don't overwrite each other</summary>
     private void DrawP4SelfGuide(ScriptAccessory accessory, string guideName, Vector3 target, int duration, int delay = 0, int partyIndex = -1)
     {
         if (partyIndex < 0)
@@ -10906,7 +10903,7 @@ public class Dancing_Mad_Ultimate
         DrawGuide(accessory, $"{guideName}_{partyIndex}", target, duration, delay, partyIndex: partyIndex);
     }
 
-    // 5543 诅咒之嚎（石化）LPDU：只指两个持有者去 Boss 脚下（场中），闲人不管。RaidPlan guufe9q559evt7pj Set #2 / #5
+    // 5543 Cursed Shriek (petrify) LPDU: only guide the two holders under the boss (middle), ignore everyone else. RaidPlan guufe9q559evt7pj Set #2 / #5
     private void ExecuteP4PetrifyGroup(ScriptAccessory accessory, P4BuffGroup group, int duration, string drawName)
     {
         var petrifies = group.Records.Where(r => r.StatusId == 5543).ToList();
@@ -10915,7 +10912,7 @@ public class Dancing_Mad_Ultimate
 
         var myIndex = GetMyIndex(accessory);
         if (holders.Contains(myIndex))
-            Alert("石化去场中");
+            Alert("Shriek: go under boss");
 
         foreach (var i in holders)
         {
@@ -10935,7 +10932,7 @@ public class Dancing_Mad_Ultimate
         if (kind == P4BuffGroupKind.F)
             _p4FElementCall = call;
 
-        var text = call == P4ElementCall.FireSteel ? "场中集合钢铁" : call == P4ElementCall.WaterMoon ? "场中集合月环" : null;
+        var text = call == P4ElementCall.FireSteel ? "Stack middle, then out" : call == P4ElementCall.WaterMoon ? "Stack middle, then in" : null;
         if (!string.IsNullOrWhiteSpace(text))
             QTTS(text);
 
@@ -11092,7 +11089,7 @@ public class Dancing_Mad_Ultimate
             dangers = rects.Concat(fans).ToList();
         }
 
-        // LPDU 最终：全队集合在同一个安全点（RaidPlan guufe9q559evt7pj Set #6.2）。月环贴近场中，钢铁站出 Boss 判定圈
+        // LPDU final: the whole party stacks on one safe spot (RaidPlan guufe9q559evt7pj Set #6.2). Donut = hug the middle, chariot = stand outside the boss hitbox
         var distance = call == P4ElementCall.WaterMoon ? 3.0f : 8.0f;
         var safeClocks = P4FinalHalfClocks
             .Where(clock => IsPointSafeForDangers(P4ClockPoint(newTwelveDirection, clock, distance), dangers))
@@ -11276,45 +11273,45 @@ public class Dancing_Mad_Ultimate
     {
         return TryGetPartyMemberClassJobRowId(accessory, partyIndex, out var rowId)
             ? JobShortName(rowId)
-            : "未知职业";
+            : "Unknown job";
     }
 
     private static string JobShortName(uint classJobRowId)
     {
         switch (classJobRowId)
         {
-            case 1: return "剑术";
-            case 2: return "格斗";
-            case 3: return "斧术";
-            case 4: return "枪术";
-            case 5: return "弓术";
-            case 6: return "幻术";
-            case 7: return "咒术";
-            case 19: return "骑士";
-            case 20: return "武僧";
-            case 21: return "战士";
-            case 22: return "龙骑";
-            case 23: return "诗人";
-            case 24: return "白魔";
-            case 25: return "黑魔";
-            case 26: return "秘术";
-            case 27: return "召唤";
-            case 28: return "学者";
-            case 29: return "双剑";
-            case 30: return "忍者";
-            case 31: return "机工";
-            case 32: return "暗骑";
-            case 33: return "占星";
-            case 34: return "武士";
-            case 35: return "赤魔";
-            case 36: return "青魔";
-            case 37: return "绝枪";
-            case 38: return "舞者";
-            case 39: return "钐镰";
-            case 40: return "贤者";
-            case 41: return "蝰蛇";
-            case 42: return "绘灵";
-            default: return "未知";
+            case 1: return "GLA";
+            case 2: return "PGL";
+            case 3: return "MRD";
+            case 4: return "LNC";
+            case 5: return "ARC";
+            case 6: return "CNJ";
+            case 7: return "THM";
+            case 19: return "PLD";
+            case 20: return "MNK";
+            case 21: return "WAR";
+            case 22: return "DRG";
+            case 23: return "BRD";
+            case 24: return "WHM";
+            case 25: return "BLM";
+            case 26: return "ACN";
+            case 27: return "SMN";
+            case 28: return "SCH";
+            case 29: return "ROG";
+            case 30: return "NIN";
+            case 31: return "MCH";
+            case 32: return "DRK";
+            case 33: return "AST";
+            case 34: return "SAM";
+            case 35: return "RDM";
+            case 36: return "BLU";
+            case 37: return "GNB";
+            case 38: return "DNC";
+            case 39: return "RPR";
+            case 40: return "SGE";
+            case 41: return "VPR";
+            case 42: return "PCT";
+            default: return "Unknown";
         }
     }
 
@@ -11322,38 +11319,38 @@ public class Dancing_Mad_Ultimate
     {
         switch (classJobRowId)
         {
-            case 1: return "剑术师";
-            case 2: return "格斗家";
-            case 3: return "斧术师";
-            case 4: return "枪术师";
-            case 5: return "弓箭手";
-            case 6: return "幻术师";
-            case 7: return "咒术师";
-            case 19: return "骑士";
-            case 20: return "武僧";
-            case 21: return "战士";
-            case 22: return "龙骑士";
-            case 23: return "吟游诗人";
-            case 24: return "白魔法师";
-            case 25: return "黑魔法师";
-            case 26: return "秘术师";
-            case 27: return "召唤师";
-            case 28: return "学者";
-            case 29: return "双剑师";
-            case 30: return "忍者";
-            case 31: return "机工士";
-            case 32: return "暗黑骑士";
-            case 33: return "占星术士";
-            case 34: return "武士";
-            case 35: return "赤魔法师";
-            case 36: return "青魔法师";
-            case 37: return "绝枪战士";
-            case 38: return "舞者";
-            case 39: return "钐镰客";
-            case 40: return "贤者";
-            case 41: return "蝰蛇剑士";
-            case 42: return "绘灵法师";
-            default: return "未知职业";
+            case 1: return "Gladiator";
+            case 2: return "Pugilist";
+            case 3: return "Marauder";
+            case 4: return "Lancer";
+            case 5: return "Archer";
+            case 6: return "Conjurer";
+            case 7: return "Thaumaturge";
+            case 19: return "Paladin";
+            case 20: return "Monk";
+            case 21: return "Warrior";
+            case 22: return "Dragoon";
+            case 23: return "Bard";
+            case 24: return "White Mage";
+            case 25: return "Black Mage";
+            case 26: return "Arcanist";
+            case 27: return "Summoner";
+            case 28: return "Scholar";
+            case 29: return "Rogue";
+            case 30: return "Ninja";
+            case 31: return "Machinist";
+            case 32: return "Dark Knight";
+            case 33: return "Astrologian";
+            case 34: return "Samurai";
+            case 35: return "Red Mage";
+            case 36: return "Blue Mage";
+            case 37: return "Gunbreaker";
+            case 38: return "Dancer";
+            case 39: return "Reaper";
+            case 40: return "Sage";
+            case 41: return "Viper";
+            case 42: return "Pictomancer";
+            default: return "Unknown job";
         }
     }
 
@@ -11372,7 +11369,7 @@ public class Dancing_Mad_Ultimate
     {
         if (!enableDebugLogging) return;
 
-        DebugEcho(accessory, $"P4一运结算 fourthParam={fourthParam} sourceSide={FormatP4Side(sourceSide)} left={FormatP4Color(leftColor)} right={FormatP4Color(rightColor)} new12={FormatPosition(newTwelveDirection)} L1={FormatPosition(l1)} R1={FormatPosition(r1)}");
+        DebugEcho(accessory, $"P4 part-1 resolve fourthParam={fourthParam} sourceSide={FormatP4Side(sourceSide)} left={FormatP4Color(leftColor)} right={FormatP4Color(rightColor)} new12={FormatPosition(newTwelveDirection)} L1={FormatPosition(l1)} R1={FormatPosition(r1)}");
 
         for (var i = 0; i < 8; i++)
         {
@@ -11444,14 +11441,14 @@ public class Dancing_Mad_Ultimate
         {
             var target = targets[myIndex];
             DrawGuide(accessory, $"{P4DrawPrefix}_P4_Chain_Move_Guide_{myIndex}", target, P4ChainGuideDurationMs);
-            DebugEcho(accessory, $"P4循环移动指路已画：round={round} my={PartyPriorityLabel(myIndex)} clock={FormatP4Clock(clocks[myIndex])} target={FormatPosition(target)} duration={P4ChainGuideDurationMs}ms");
+            DebugEcho(accessory, $"P4 loop move guide drawn: round={round} my={PartyPriorityLabel(myIndex)} clock={FormatP4Clock(clocks[myIndex])} target={FormatPosition(target)} duration={P4ChainGuideDurationMs}ms");
 
             if (!string.IsNullOrWhiteSpace(moveCalls[myIndex]))
                 ScheduleP4SelfTtsAtRemaining3(accessory, generation, round, myIndex, moveCallStates[myIndex], moveCallRemaining[myIndex], moveCalls[myIndex]);
         }
         else
         {
-            DebugEcho(accessory, $"P4循环移动指路未画：round={round} myIndex={myIndex}");
+            DebugEcho(accessory, $"P4 loop move guide not drawn: round={round} myIndex={myIndex}");
         }
 
         SendP4PartyCallouts(accessory, partyMessages, generation, round);
@@ -11681,7 +11678,7 @@ public class Dancing_Mad_Ultimate
         accessory.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Rect, dp);
     }
 
-    // 指路风格跟 P1~P3 一致：绿色箭头（WaypointDp，默认安全色）
+    // Guidance style matches P1~P3: green arrow (WaypointDp, default safe colour)
     private void DrawGuide(ScriptAccessory accessory, string name, Vector3 targetPosition, int duration, int delay = 0, int partyIndex = -1)
     {
         var dp = accessory.WaypointDp(targetPosition, (uint)duration, (uint)Math.Max(0, delay), name);
@@ -11693,7 +11690,7 @@ public class Dancing_Mad_Ultimate
 
     #region Mechanisms
 
-    [ScriptMethod(name: "P4开始", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:49884"], userControl: false)]
+    [ScriptMethod(name: "P4 Start", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:49884"], userControl: false)]
     public void P4_Start(Event @event, ScriptAccessory accessory)
     {
         _acc = accessory;
@@ -11701,7 +11698,7 @@ public class Dancing_Mad_Ultimate
         ResetMechanic(accessory);
     }
 
-    [ScriptMethod(name: "P4 2056真伪窗口", eventType: EventTypeEnum.StatusAdd, eventCondition: ["StatusID:2056"], userControl: false)]
+    [ScriptMethod(name: "P4 2056 Real/Fake Window", eventType: EventTypeEnum.StatusAdd, eventCondition: ["StatusID:2056"], userControl: false)]
     public void P4_StatusTruthWindow(Event @event, ScriptAccessory accessory)
     {
         _acc = accessory;
@@ -11758,7 +11755,7 @@ public class Dancing_Mad_Ultimate
         ScheduleP4LaterGroupsIfReady(accessory);
     }
 
-    [ScriptMethod(name: "P4 状态变量赋值", eventType: EventTypeEnum.StatusAdd, eventCondition: ["StatusID:regex:^(554[1-8]|454|1382|4887|4888|5464)$"], userControl: false)]
+    [ScriptMethod(name: "P4 Status Variable Assignment", eventType: EventTypeEnum.StatusAdd, eventCondition: ["StatusID:regex:^(554[1-8]|454|1382|4887|4888|5464)$"], userControl: false)]
     public void P4_TrackedStatusAdd(Event @event, ScriptAccessory accessory)
     {
         _acc = accessory;
@@ -11862,7 +11859,7 @@ public class Dancing_Mad_Ultimate
         }
     }
 
-    [ScriptMethod(name: "P4 50070后续循环开始", eventType: EventTypeEnum.ActionEffect, eventCondition: ["ActionId:50070"], userControl: false)]
+    [ScriptMethod(name: "P4 50070 Follow-up Loop Start", eventType: EventTypeEnum.ActionEffect, eventCondition: ["ActionId:50070"], userControl: false)]
     public void P4_ChainStartActionEffect(Event @event, ScriptAccessory accessory)
     {
         _acc = accessory;
@@ -11873,7 +11870,7 @@ public class Dancing_Mad_Ultimate
         ScheduleP4LaterGroupsIfReady(accessory);
     }
 
-    [ScriptMethod(name: "P4 后续状态移除推进", eventType: EventTypeEnum.StatusRemove, eventCondition: ["StatusID:regex:^554[3-8]$"], userControl: false)]
+    [ScriptMethod(name: "P4 Follow-up Status Removal Advance", eventType: EventTypeEnum.StatusRemove, eventCondition: ["StatusID:regex:^554[3-8]$"], userControl: false)]
     public void P4_TrackedStatusRemove(Event @event, ScriptAccessory accessory)
     {
         _acc = accessory;
@@ -11893,7 +11890,7 @@ public class Dancing_Mad_Ultimate
             return;
     }
 
-    [ScriptMethod(name: "P4 后续危险范围捕获", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:regex:^(47777|47775|47768|47774)$"], userControl: false)]
+    [ScriptMethod(name: "P4 Follow-up Danger Zone Capture", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:regex:^(47777|47775|47768|47774)$"], userControl: false)]
     public void P4_LaterDangerStartCasting(Event @event, ScriptAccessory accessory)
     {
         _acc = accessory;
@@ -11939,7 +11936,7 @@ public class Dancing_Mad_Ultimate
             TryDrawP4FinalSafe(accessory, _generation);
     }
 
-    [ScriptMethod(name: "P4 一运半场指路", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:regex:^(50068|50069)$"], userControl: false)]
+    [ScriptMethod(name: "P4 Part 1 Half-Arena Guidance", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:regex:^(50068|50069)$"], userControl: false)]
     public void P4_FirstMechanicGuide(Event @event, ScriptAccessory accessory)
     {
         _acc = accessory;
@@ -11995,7 +11992,7 @@ public class Dancing_Mad_Ultimate
 
             if (fourthParam != 1121 && fourthParam != 1122)
             {
-                DebugEcho(accessory, $"P4一运结算跳过：第四次19510/2056未就绪 param={fourthParam} target={FormatPosition(_p4FourthTargetPosition)}");
+                DebugEcho(accessory, $"P4 part-1 resolve skipped: 4th 19510/2056 not ready param={fourthParam} target={FormatPosition(_p4FourthTargetPosition)}");
                 return;
             }
 
@@ -12006,7 +12003,7 @@ public class Dancing_Mad_Ultimate
 
             if (!TryNormalizeFromCenter(midpoint, out newTwelveDirection))
             {
-                DebugEcho(accessory, $"P4一运结算跳过：50068/50069中点无效 blue50069={FormatPosition(blueSourcePosition)} purple50068={FormatPosition(purpleSourcePosition)} mid={FormatPosition(midpoint)}");
+                DebugEcho(accessory, $"P4 part-1 resolve skipped: 50068/50069 midpoint invalid blue50069={FormatPosition(blueSourcePosition)} purple50068={FormatPosition(purpleSourcePosition)} mid={FormatPosition(midpoint)}");
                 return;
             }
 
@@ -12084,16 +12081,16 @@ public class Dancing_Mad_Ultimate
             {
                 var targetPosition = mySide == P4HalfSide.Right ? r1 : l1;
                 DrawGuide(accessory, $"{P4DrawPrefix}_P4_First_Guide_{myIndex}", targetPosition, P4GuideDurationMs);
-                DebugEcho(accessory, $"P4一运指路已画：my={PartyPriorityLabel(myIndex)} side={FormatP4Side(mySide)} color={FormatP4Color(colors[myIndex])} target={FormatPosition(targetPosition)} duration={P4GuideDurationMs}ms");
+                DebugEcho(accessory, $"P4 part-1 guide drawn: my={PartyPriorityLabel(myIndex)} side={FormatP4Side(mySide)} color={FormatP4Color(colors[myIndex])} target={FormatPosition(targetPosition)} duration={P4GuideDurationMs}ms");
             }
             else
             {
-                DebugEcho(accessory, $"P4一运指路未画：my={PartyPriorityLabel(myIndex)} side={FormatP4Side(mySide)} color={FormatP4Color(colors[myIndex])}");
+                DebugEcho(accessory, $"P4 part-1 guide not drawn: my={PartyPriorityLabel(myIndex)} side={FormatP4Side(mySide)} color={FormatP4Color(colors[myIndex])}");
             }
         }
         else
         {
-            DebugEcho(accessory, $"P4一运指路未画：myIndex={myIndex} partyCount={accessory.Data.PartyList.Count}");
+            DebugEcho(accessory, $"P4 part-1 guide not drawn: myIndex={myIndex} partyCount={accessory.Data.PartyList.Count}");
         }
 
         DebugP4Resolve(accessory, states, sides, colors, fourthParam, blueSide, leftColor, rightColor, newTwelveDirection, l1, r1);
@@ -12103,21 +12100,21 @@ public class Dancing_Mad_Ultimate
 
     #endregion
 
-    #region P5 绘制（Cicero 灵视）
+    #region P5 Draws (Cicero)
 
     #region Major_Phase_5
 
-    [ScriptMethod(name: "———————— 《P5》 ————————", eventType: EventTypeEnum.NpcYell, eventCondition: ["HelloayaWorld:asdf"])]
-    public void P5_分割线(Event ev, ScriptAccessory sa)
+    [ScriptMethod(name: "———————— [P5] ————————", eventType: EventTypeEnum.NpcYell, eventCondition: ["HelloayaWorld:asdf"])]
+    public void P5_Separator(Event ev, ScriptAccessory sa)
     {
     }
 
-    [ScriptMethod(name:"P5 (阶段控制)",
+    [ScriptMethod(name:"P5 (Phase Control)",
         eventType:EventTypeEnum.Targetable,
         eventCondition:["DataId:19511"],
         userControl:false)]
 
-    public void P5_阶段控制(Event @event,ScriptAccessory accessory) {
+    public void P5_PhaseControl(Event @event,ScriptAccessory accessory) {
 
         if(majorPhase!=4) {
 
@@ -12144,11 +12141,11 @@ public class Dancing_Mad_Ultimate
 
     }
 
-    [ScriptMethod(name:"P5 癫狂交响曲 神圣 (范围)",
+    [ScriptMethod(name:"P5 Maddening Orchestra Holy (AoE)",
         eventType:EventTypeEnum.StartCasting,
         eventCondition:["ActionId:47952"])]
 
-    public void P5_癫狂交响曲_神圣_范围(Event @event,ScriptAccessory accessory) {
+    public void P5_MaddeningOrchestra_Holy_Aoe(Event @event,ScriptAccessory accessory) {
 
         if(majorPhase!=5) {
 
@@ -12197,11 +12194,11 @@ public class Dancing_Mad_Ultimate
 
     }
 
-    [ScriptMethod(name:"P5 癫狂交响曲 核爆与混沌核爆 (范围)",
+    [ScriptMethod(name:"P5 Maddening Orchestra Flare & Chaotic Flare (AoE)",
         eventType:EventTypeEnum.StartCasting,
         eventCondition:["ActionId:47952"])]
 
-    public void P5_癫狂交响曲_核爆与混沌核爆_范围(Event @event,ScriptAccessory accessory) {
+    public void P5_MaddeningOrchestra_FlareAndChaoticFlare_Aoe(Event @event,ScriptAccessory accessory) {
 
         if(majorPhase!=5) {
 
@@ -12269,11 +12266,11 @@ public class Dancing_Mad_Ultimate
 
     }
 
-    [ScriptMethod(name:"P5 癫狂交响曲 顺手加个神圣 (范围)",
+    [ScriptMethod(name:"P5 Maddening Orchestra Extra Holy (AoE)",
         eventType:EventTypeEnum.StatusAdd,
         eventCondition:["StatusID:5351"])]
 
-    public void P5_癫狂交响曲_顺手加个神圣_范围(Event @event,ScriptAccessory accessory) {
+    public void P5_MaddeningOrchestra_ExtraHoly_Aoe(Event @event,ScriptAccessory accessory) {
 
         if(majorPhase!=5) {
 
@@ -12333,7 +12330,7 @@ public class Dancing_Mad_Ultimate
 
         var currentProperties=accessory.Data.GetDefaultDrawProperties();
 
-        currentProperties.Name=$"P5_癫狂交响曲_顺手加个神圣_范围_{targetId}";
+        currentProperties.Name=$"P5_MaddeningOrchestra_ExtraHoly_Aoe_{targetId}";
         currentProperties.Scale=new(6);
         currentProperties.Owner=targetId;
         currentProperties.Color=colourOfDirectionIndicators.V4.WithW(1);
@@ -12344,12 +12341,12 @@ public class Dancing_Mad_Ultimate
 
     }
 
-    [ScriptMethod(name:"P5 癫狂交响曲 顺手加个神圣 (范围清除)",
+    [ScriptMethod(name:"P5 Maddening Orchestra Extra Holy (Clear AoE)",
         eventType:EventTypeEnum.StatusRemove,
         eventCondition:["StatusID:5351"],
         userControl:false)]
 
-    public void P5_癫狂交响曲_顺手加个神圣_范围清除(Event @event,ScriptAccessory accessory) {
+    public void P5_MaddeningOrchestra_ExtraHoly_ClearAoe(Event @event,ScriptAccessory accessory) {
 
         if(majorPhase!=5) {
 
@@ -12369,15 +12366,15 @@ public class Dancing_Mad_Ultimate
 
         }
 
-        accessory.Method.RemoveDraw($"P5_癫狂交响曲_顺手加个神圣_范围_{targetId}");
+        accessory.Method.RemoveDraw($"P5_MaddeningOrchestra_ExtraHoly_Aoe_{targetId}");
 
     }
 
-    [ScriptMethod(name:"P5 癫狂交响曲 顺手加个核爆 (范围)",
+    [ScriptMethod(name:"P5 Maddening Orchestra Extra Flare (AoE)",
         eventType:EventTypeEnum.StatusAdd,
         eventCondition:["StatusID:5350"])]
 
-    public void P5_癫狂交响曲_顺手加个核爆_范围(Event @event,ScriptAccessory accessory) {
+    public void P5_MaddeningOrchestra_ExtraFlare_Aoe(Event @event,ScriptAccessory accessory) {
 
         if(majorPhase!=5) {
 
@@ -12437,7 +12434,7 @@ public class Dancing_Mad_Ultimate
 
         var currentProperties=accessory.Data.GetDefaultDrawProperties();
 
-        currentProperties.Name=$"P5_癫狂交响曲_顺手加个核爆_范围_{targetId}";
+        currentProperties.Name=$"P5_MaddeningOrchestra_ExtraFlare_Aoe_{targetId}";
         currentProperties.Scale=new(25);
         currentProperties.Owner=targetId;
         currentProperties.Color=accessory.Data.DefaultDangerColor;
@@ -12448,12 +12445,12 @@ public class Dancing_Mad_Ultimate
 
     }
 
-    [ScriptMethod(name:"P5 癫狂交响曲 顺手加个核爆 (范围清除)",
+    [ScriptMethod(name:"P5 Maddening Orchestra Extra Flare (Clear AoE)",
         eventType:EventTypeEnum.StatusRemove,
         eventCondition:["StatusID:5350"],
         userControl:false)]
 
-    public void P5_癫狂交响曲_顺手加个核爆_范围清除(Event @event,ScriptAccessory accessory) {
+    public void P5_MaddeningOrchestra_ExtraFlare_ClearAoe(Event @event,ScriptAccessory accessory) {
 
         if(majorPhase!=5) {
 
@@ -12473,7 +12470,7 @@ public class Dancing_Mad_Ultimate
 
         }
 
-        accessory.Method.RemoveDraw($"P5_癫狂交响曲_顺手加个核爆_范围_{targetId}");
+        accessory.Method.RemoveDraw($"P5_MaddeningOrchestra_ExtraFlare_Aoe_{targetId}");
 
     }
 
@@ -12481,7 +12478,7 @@ public class Dancing_Mad_Ultimate
 
     #endregion
 
-    #region P5 绘制与指路（Errer）
+    #region P5 Draws & Guidance (Errer)
 
     public enum FireSafeStrategy { Center, Up, Down, Left, Right }
 
@@ -12496,8 +12493,8 @@ public class Dancing_Mad_Ultimate
     private const DrawModeEnum DM = DrawModeEnum.Default;
     private const int TowerGuideDurationMs = 6500;
     private const int TowerAssignMaxWaitMs = 2500;
-    private const int AdvanceDrawMs = 1500;     // 地火步进圈在读条结束前多久开始画
-    private const float FloodMaxDist = 8f;      // 洪水交点离场中超过这个距离视为无效组
+    private const int AdvanceDrawMs = 1500;     // How long before the cast ends to start drawing the exaflare circles
+    private const float FloodMaxDist = 8f;      // A Flood intersection further than this from the middle is treated as an invalid group
     private const float FireCircleRadius = 6f;
     private const float FireStepDistance = 7f;
     private const int FireStepCount = 7;
@@ -12508,7 +12505,7 @@ public class Dancing_Mad_Ultimate
     private const int FireHitIntervalMs = 513;
     private const int FireWaveIntervalMs = 2500;
     private const int FireGuideDurationMs = 18000;
-    private const int FireSequenceGapMs = 10000;  // 超过此间隔视为新序列，允许重新初始化
+    private const int FireSequenceGapMs = 10000;  // Beyond this gap it's a new sequence and may be re-initialized
     private const int FireInitialPointDurationMs = 10000;
     private const float FireRouteOffset = 5f;
     private const float FireDiagonalComponentOffset = 2.5f;
@@ -12532,11 +12529,11 @@ public class Dancing_Mad_Ultimate
     private const int TowerAssignPollMs = 100;
 
     private int _fireCount;
-    private int _fireDrawGen;   // 全局只增不减，新旧绘图名永不重叠
+    private int _fireDrawGen;   // Only ever increases, so old and new draw names never overlap
     private bool _fireGuideInitialized;
 
-    // 安全点方向按职能下标取（FireAutoStrategies，勾了 LPDU 打法则全员 Center），不同人路线不同；
-    // 每种方向一条轨道，各自记相位、画路线，指路箭头画给走这条轨道的人
+    // The safe spot direction comes from the role index (FireAutoStrategies, everyone Center if the LPDU strat is checked), so routes differ per player;
+    // one track per direction, each with its own phases and route, the guide arrow drawn for whoever walks that track
     private sealed class FireGuideTrack
     {
         public FireSafeStrategy Strategy;
@@ -12544,7 +12541,7 @@ public class Dancing_Mad_Ultimate
         public int LeftCol;
         public int RightCol;
         public Vector3 SafeCenter = new(100f, 0f, 100f);
-        public int Gen;     // 当前这段指路的绘图代号，见 ClearFireTrackDraws
+        public int Gen;     // Draw code of the current guide segment, see ClearFireTrackDraws
         public bool InitialPointDrawn;
         public bool RouteCompleted;
         public bool FirstHalfDrawn;
@@ -12553,7 +12550,7 @@ public class Dancing_Mad_Ultimate
     }
 
     private readonly List<FireGuideTrack> _fireTracks = new();
-    // 当前正在处理的轨道；只在 _fireLock 内切换
+    // Track currently being processed; only switched inside _fireLock
     private FireGuideTrack _curFire = new();
     private int _fireCandidateLeftCol { get => _curFire.LeftCol; set => _curFire.LeftCol = value; }
     private int _fireCandidateRightCol { get => _curFire.RightCol; set => _curFire.RightCol = value; }
@@ -12563,8 +12560,8 @@ public class Dancing_Mad_Ultimate
     private bool _fireFirstHalfDrawn { get => _curFire.FirstHalfDrawn; set => _curFire.FirstHalfDrawn = value; }
     private List<int> _fireGuideCols => _curFire.Cols;
     private List<int> _fireGuideRels => _curFire.Rels;
-    // 框架每方法一线程且无序列化，47931(初始化)与47932(步进)会并发变更火状态，
-    // 迟到的 47931 会 Clear 掉已记录的相位导致 n 索引错位、误选路线分支，故加锁串行化。
+    // The framework runs each method on its own thread with no serialization, so 47931 (init) and 47932 (step) mutate the fire state concurrently;
+    // a late 47931 would Clear the recorded phases, shifting the n index and picking the wrong route branch, so it's serialized with a lock.
     private readonly object _fireLock = new object();
     private DateTime _lastFireActivityTime = DateTime.MinValue;
 
@@ -12590,7 +12587,7 @@ public class Dancing_Mad_Ultimate
     private int _towerMechanicSeq;
     private int _towerRound;
 
-    // ── 洪水2穿1：每4个读条为一组，异向配对 ──
+    // ── Flood 2-then-1: every 4 casts are one group, paired by opposite direction ──
     private int _floodCount;
     private int _floodGroupCount;
     private readonly Vector3[] _floodNegPos = new Vector3[2]; private readonly float[] _floodNegRot = new float[2]; private int _negCount;
@@ -12598,8 +12595,8 @@ public class Dancing_Mad_Ultimate
     private readonly float[] _floodSeqRot = new float[4]; private int _seqCount;
     private Vector3? _savedFloodSafe1;
     private Vector3? _savedFloodMid1;
-    // 框架每个事件处理器独立线程(ScriptManager 每方法一线程,无序列化)，配对读条会并发进入 OnWater，
-    // 必须加锁串行化洪水状态变更，避免丢失更新(_floodCount/计数器/数组竞态)。
+    // The framework runs each event handler on its own thread (ScriptManager: one thread per method, no serialization), so paired casts enter OnWater concurrently;
+    // Flood state changes must be serialized with a lock to avoid lost updates (_floodCount / counters / array races).
     private readonly object _floodLock = new object();
 
     #endregion
@@ -12626,10 +12623,10 @@ public class Dancing_Mad_Ultimate
 
     #endregion
 
-    #region 地火步进圈
+    #region Exaflare Circles
 
-    // 47932 地火：每个读条沿面向 7 段步进爆炸，6m 圈、间隔 7m / 700ms
-    [ScriptMethod(name: "P5 地火 (步进圈范围)", eventType: EventTypeEnum.StartCasting,
+    // 47932 exaflare: each cast explodes 7 times stepping along its facing, 6m circles, 7m / 700ms apart
+    [ScriptMethod(name: "P5 Exaflares (Exaflare AoE)", eventType: EventTypeEnum.StartCasting,
         eventCondition: ["ActionId:47932"])]
     public void OnFireCast(Event @event, ScriptAccessory accessory)
     {
@@ -12637,7 +12634,7 @@ public class Dancing_Mad_Ultimate
         var dir = RotationToDirection(float.Parse(@event["SourceRotation"]));
         var castDurationMs = DurationMs(@event, 5000);
         var delayMs = Math.Max(0, castDurationMs - AdvanceDrawMs);
-        // 计数只用来给同时读条的多路地火区分 dp.Name
+        // The counter only gives distinct dp.Names to multiple exaflare lines casting at once
         var round = Interlocked.Increment(ref _fireCount);
 
         for (var i = 0; i < FireStepCount; i++)
@@ -12655,9 +12652,9 @@ public class Dancing_Mad_Ultimate
         }
     }
 
-    // 47931 地火起手：按安全点方向初始化轨道并画初始点；47932 每路地火：记录相位、推进路线；
-    // 47934 咏唱中分散：地火结束，收掉安全点
-    [ScriptMethod(name: "P5 地火 (安全点指路)", eventType: EventTypeEnum.StartCasting,
+    // 47931 exaflare start: init the tracks by safe-spot direction and draw the starting spot; 47932 each exaflare line: record its phase, advance the route;
+    // 47934 Stray Entropy spread: exaflares are done, remove the safe spot
+    [ScriptMethod(name: "P5 Exaflares (Safe Spot Guidance)", eventType: EventTypeEnum.StartCasting,
         eventCondition: ["ActionId:regex:^(47931|47932|47934)$"])]
     public void OnFireSafeGuide(Event @event, ScriptAccessory accessory)
     {
@@ -12668,7 +12665,7 @@ public class Dancing_Mad_Ultimate
             return;
         }
 
-        // 火状态(相位列表/初始化标记)在框架多线程下会并发变更，整体串行化。
+        // The fire state (phase list / init flag) is mutated concurrently by the framework's threads, so it's serialized as a whole.
         lock (_fireLock)
         {
             EnsureFireSequenceInitialized(accessory);
@@ -12678,10 +12675,10 @@ public class Dancing_Mad_Ultimate
         }
     }
 
-    // 幂等初始化：仅在检测到"新序列"时才重置火状态并重画安全点。
-    // 新序列判定：尚未初始化，或距上次火事件已超过 FireSequenceGapMs。
-    // 这样迟到的 47931 不会清掉同一序列中 47932 已记录的相位。
-    // 调用方必须已持有 _fireLock。
+    // Idempotent init: only reset the fire state and redraw the safe spot when a "new sequence" is detected.
+    // New sequence: not initialized yet, or more than FireSequenceGapMs since the last fire event.
+    // That way a late 47931 won't wipe the phases 47932 already recorded in the same sequence.
+    // The caller must already hold _fireLock.
     private void EnsureFireSequenceInitialized(ScriptAccessory accessory)
     {
         var gapMs = (DateTime.Now - _lastFireActivityTime).TotalMilliseconds;
@@ -12689,7 +12686,7 @@ public class Dancing_Mad_Ultimate
         if (!isNewSequence)
             return;
 
-        // 只删上一轮各轨道的代号；整前缀删会把下面马上画的新图一起删掉（见 ClearFireTrackDraws）
+        // Only remove each track's previous code; removing the whole prefix would also wipe the new draws made right below (see ClearFireTrackDraws)
         foreach (var old in _fireTracks)
         {
             _curFire = old;
@@ -12724,7 +12721,7 @@ public class Dancing_Mad_Ultimate
         DrawFireGuideTo(accessory, "Center", _fireSafeCenter, 0, FireGuideDurationMs);
 
         if (enableDebugLogging)
-            accessory.Method.SendChat($"/e [地火安全] 方向={strategy} L={_fireCandidateLeftCol} R={_fireCandidateRightCol} center=({_fireSafeCenter.X:F1},{_fireSafeCenter.Z:F1})");
+            accessory.Method.SendChat($"/e [ExaSafe] dir={strategy} L={_fireCandidateLeftCol} R={_fireCandidateRightCol} center=({_fireSafeCenter.X:F1},{_fireSafeCenter.Z:F1})");
     }
 
     private void ClearFireSafeGuideState()
@@ -12757,7 +12754,7 @@ public class Dancing_Mad_Ultimate
         var n = _fireGuideRels.Count;
 
         if (enableDebugLogging)
-            accessory.Method.SendChat($"/e [地火安全] n={n} side={(isLeft ? "左" : "右")} cols={string.Join(":", _fireGuideCols)} rels={string.Join(":", _fireGuideRels)}");
+            accessory.Method.SendChat($"/e [ExaSafe] n={n} side={(isLeft ? "L" : "R")} cols={string.Join(":", _fireGuideCols)} rels={string.Join(":", _fireGuideRels)}");
 
         if (!_fireInitialPointDrawn && n <= 3 && rel != 0 && _fireGuideRels.Take(n - 1).All(r => r == 0))
         {
@@ -12840,7 +12837,7 @@ public class Dancing_Mad_Ultimate
         _fireFirstHalfDrawn = true;
 
         if (enableDebugLogging)
-            accessory.Method.SendChat($"/e [地火安全] 路线14前半 dirN4={dirN4} delay={delay}ms");
+            accessory.Method.SendChat($"/e [ExaSafe] route14 first half dirN4={dirN4} delay={delay}ms");
     }
 
     private void DrawFireSecondHalfRoute(ScriptAccessory accessory, int rel1, int rel4)
@@ -12853,7 +12850,7 @@ public class Dancing_Mad_Ultimate
         var delay = Math.Max(0, FireDelayForColumn(_fireCandidateLeftCol + (rel1 == 1 ? 0 : 1)));
         var total = Math.Max(FireGuideDurationMs, delay + 5000);
 
-        // 后半段取代前半段，不然两根绿线同时出现
+        // The second half replaces the first half, otherwise two green lines show at once
         ClearFireTrackDraws(accessory);
         DrawFireGuideTo(accessory, "SecondHalf_P2", p2, 0, delay);
         DrawFirePreview(accessory, "SecondHalf_Preview", p2, p3, 0, delay);
@@ -12861,7 +12858,7 @@ public class Dancing_Mad_Ultimate
         _fireRouteCompleted = true;
 
         if (enableDebugLogging)
-            accessory.Method.SendChat($"/e [地火安全] 路线14后半 dir4={dir4} clockwise={clockwise} delay={delay}ms");
+            accessory.Method.SendChat($"/e [ExaSafe] route14 second half dir4={dir4} clockwise={clockwise} delay={delay}ms");
     }
 
     private void DrawFireInitialPoint(ScriptAccessory accessory, int n, int rel)
@@ -12872,7 +12869,7 @@ public class Dancing_Mad_Ultimate
         DrawFireGuideTo(accessory, "InitialPoint", pos, 0, FireInitialPointDurationMs);
 
         if (enableDebugLogging)
-            accessory.Method.SendChat($"/e [地火安全] 初始斜点 n={n} rel={rel} dirN4={dirN4}");
+            accessory.Method.SendChat($"/e [ExaSafe] initial diagonal n={n} rel={rel} dirN4={dirN4}");
     }
 
     private void DrawFireFullRoute(ScriptAccessory accessory, string suffix, int dir4, bool clockwise, int delay1, int delay2)
@@ -12895,10 +12892,10 @@ public class Dancing_Mad_Ultimate
         _fireRouteCompleted = true;
 
         if (enableDebugLogging)
-            accessory.Method.SendChat($"/e [地火安全] {suffix} dir4={dir4} clockwise={clockwise} delay1={delay1}ms delay2={delay2}ms");
+            accessory.Method.SendChat($"/e [ExaSafe] {suffix} dir4={dir4} clockwise={clockwise} delay1={delay1}ms delay2={delay2}ms");
     }
 
-    // 绘图名：{FireSafePrefix}_{方向}_g{代号}_{suffix}[_{下标}]
+    // Draw name: {FireSafePrefix}_{direction}_g{code}_{suffix}[_{index}]
     private string FireDrawName(string suffix) => $"{FireSafePrefix}_{_curFire.Strategy}_g{_curFire.Gen}_{suffix}";
 
     private void DrawFireGuideTo(ScriptAccessory accessory, string suffix, Vector3 target, int delayMs, int durationMs)
@@ -12910,9 +12907,9 @@ public class Dancing_Mad_Ultimate
     private void DrawFirePreview(ScriptAccessory accessory, string suffix, Vector3 from, Vector3 to, int delayMs, int durationMs)
         => P5Preview(accessory, FireDrawName(suffix), from, to, delayMs, durationMs);
 
-    // 新的一段路线取代当前轨道之前画的指路；别把其他方向的轨道一起删了。
-    // RemoveDraw 下一帧才在主线程执行、正则不锚定，而 Imgui 指路 SendDraw 当场入列：先删再画同前缀，
-    // 新图会被一起删掉（之前地火整段不指路就是这个）。所以每段换一个新代号，只删旧代号
+    // A new route segment replaces the guidance this track drew before; don't remove other directions' tracks along with it.
+    // RemoveDraw runs on the main thread a frame later with an unanchored regex, while an Imgui guide SendDraw is queued immediately: removing then drawing with the same prefix
+    // wipes the new draws too (that's why the exaflares used to get no guidance at all). So each segment gets a new code and only the old code is removed
     private void ClearFireTrackDraws(ScriptAccessory accessory)
     {
         accessory.Method.RemoveDraw($"{FireSafePrefix}_{_curFire.Strategy}_g{_curFire.Gen}_");
@@ -12926,7 +12923,7 @@ public class Dancing_Mad_Ultimate
 
     private FireSafeStrategy ResolveFireSafeStrategy(int partyIndex)
     {
-        // LPDU 全员同一条轨道，不按职能拆
+        // LPDU: everyone shares one track, not split by role
         if (p5FireFollowLpdu)
             return FireSafeStrategy.Center;
 
@@ -13020,10 +13017,10 @@ public class Dancing_Mad_Ultimate
 
     #endregion
 
-    #region 钢铁/月环（二选一的灾祟）
+    #region Chariot/Donut (Catastrophic Choice)
 
-    // 49742 二选一的灾祟·地震：Boss 脚下 10m 钢铁
-    [ScriptMethod(name: "P5 二选一的灾祟 钢铁 (范围)", eventType: EventTypeEnum.StartCasting,
+    // 49742 Catastrophic Choice (Quake): 10m chariot under the boss
+    [ScriptMethod(name: "P5 Catastrophic Choice Chariot (AoE)", eventType: EventTypeEnum.StartCasting,
         eventCondition: ["ActionId:49742"])]
     public void OnSteel(Event @event, ScriptAccessory accessory)
     {
@@ -13039,8 +13036,8 @@ public class Dancing_Mad_Ultimate
         accessory.Method.SendDraw(DM, DrawTypeEnum.Circle, dp);
     }
 
-    // 49743 二选一的灾祟·龙卷：10m 内安全的 50m 月环
-    [ScriptMethod(name: "P5 二选一的灾祟 月环 (范围)", eventType: EventTypeEnum.StartCasting,
+    // 49743 Catastrophic Choice (Tornado): 50m donut, safe within 10m
+    [ScriptMethod(name: "P5 Catastrophic Choice Donut (AoE)", eventType: EventTypeEnum.StartCasting,
         eventCondition: ["ActionId:49743"])]
     public void OnDonut(Event @event, ScriptAccessory accessory)
     {
@@ -13060,10 +13057,10 @@ public class Dancing_Mad_Ultimate
 
     #endregion
 
-    #region 咏唱中分散圈
+    #region Stray Entropy Spread Circles
 
-    // 47934 咏唱中分散：读条结束后全员 5m 分散
-    [ScriptMethod(name: "P5 咏唱中分散圈 (范围)", eventType: EventTypeEnum.StartCasting,
+    // 47934 Stray Entropy: everyone spreads 5m after the cast ends
+    [ScriptMethod(name: "P5 Stray Entropy Spread (AoE)", eventType: EventTypeEnum.StartCasting,
         eventCondition: ["ActionId:47934"])]
     public void OnCastSpread(Event @event, ScriptAccessory accessory)
     {
@@ -13083,9 +13080,9 @@ public class Dancing_Mad_Ultimate
 
     #endregion
 
-    #region 三星踩塔指路
+    #region Celestriad Tower Guidance
 
-    [ScriptMethod(name: "三星踩塔机制开始", eventType: EventTypeEnum.StartCasting,
+    [ScriptMethod(name: "P5 Celestriad Towers Start", eventType: EventTypeEnum.StartCasting,
         eventCondition: ["ActionId:47938"], userControl: false)]
     public void OnTowerMechanicStart(Event @event, ScriptAccessory accessory)
     {
@@ -13101,13 +13098,13 @@ public class Dancing_Mad_Ultimate
 
         accessory.Method.RemoveDraw($"{TowerPrefix}_.*");
         var delay = DurationMs(@event, 4700) + 1000;
-        if (enableDebugLogging) accessory.Method.SendChat($"/e [塔] 机制开始，{delay}ms 后锁定闲人");
+        if (enableDebugLogging) accessory.Method.SendChat($"/e [Tower] mechanic start, {delay}ms until idle players are locked");
         _ = Task.Run(async () => { await Task.Delay(delay); LockTowerIdlePlayers(accessory, seq); });
     }
 
-    // 三星踩塔：每轮 4 座火/冰/雷塔（ObjectEffect Id1=16）出齐后，等新易伤上齐再按元素分配并指路
-    // 机制开始/易伤记录两个方法只收数据，关掉这个方法就不分配也不画
-    [ScriptMethod(name: "P5 三星踩塔 (指路)", eventType: EventTypeEnum.ObjectEffect,
+    // Celestriad towers: each round, once all 4 fire/ice/thunder towers (ObjectEffect Id1=16) are up, wait for the new vulns to land, then assign by element and guide
+    // The mechanic-start / vuln-record methods only collect data; turn this method off and nothing is assigned or drawn
+    [ScriptMethod(name: "P5 Celestriad Towers (Guidance)", eventType: EventTypeEnum.ObjectEffect,
         eventCondition: ["Id1:16"])]
     public void OnTowerObjectEffect(Event @event, ScriptAccessory accessory)
     {
@@ -13128,11 +13125,11 @@ public class Dancing_Mad_Ultimate
             if (shouldAssign) _towerCooling = true;
         }
 
-        if (enableDebugLogging) accessory.Method.SendChat($"/e [塔] {DateTime.Now:HH:mm:ss.fff} {TowerElementLabel((TowerElement)dataId)} ({pos.X:F1},{pos.Z:F1}) n={count}");
+        if (enableDebugLogging) accessory.Method.SendChat($"/e [Tower] {DateTime.Now:HH:mm:ss.fff} {TowerElementLabel((TowerElement)dataId)} ({pos.X:F1},{pos.Z:F1}) n={count}");
         if (shouldAssign) _ = Task.Run(async () => await WaitAndAssignTowerGuides(accessory));
     }
 
-    [ScriptMethod(name: "三星踩塔易伤", eventType: EventTypeEnum.StatusAdd,
+    [ScriptMethod(name: "P5 Celestriad Tower Vulnerabilities", eventType: EventTypeEnum.StatusAdd,
         eventCondition: ["StatusID:regex:^(2902|2903|2998)$"], userControl: false)]
     public void OnTowerDebuff(Event @event, ScriptAccessory accessory)
     {
@@ -13150,7 +13147,7 @@ public class Dancing_Mad_Ultimate
         };
         var expireAt = DateTime.Now.AddMilliseconds(DurationMs(@event, 20000));
         lock (_towerLock) _towerDebuffs[partyIndex] = (element, expireAt);
-        if (enableDebugLogging) accessory.Method.SendChat($"/e [易伤] {TowerPlayerLabel(partyIndex)} → {TowerElementLabel(element)} until {expireAt:HH:mm:ss.fff}");
+        if (enableDebugLogging) accessory.Method.SendChat($"/e [Vuln] {TowerPlayerLabel(partyIndex)} → {TowerElementLabel(element)} until {expireAt:HH:mm:ss.fff}");
     }
 
     private async Task WaitAndAssignTowerGuides(ScriptAccessory accessory)
@@ -13164,7 +13161,7 @@ public class Dancing_Mad_Ultimate
             waited += pollMs;
         }
 
-        if (enableDebugLogging) accessory.Method.SendChat($"/e [塔] 等待新易伤 {waited}ms count={CountCurrentTowerDebuffs()}/6");
+        if (enableDebugLogging) accessory.Method.SendChat($"/e [Tower] waiting for new vulns {waited}ms count={CountCurrentTowerDebuffs()}/6");
         AssignTowerGuides(accessory);
     }
 
@@ -13185,23 +13182,23 @@ public class Dancing_Mad_Ultimate
 
         if (towers.Count != 4)
         {
-            if (enableDebugLogging) accessory.Method.SendChat($"/e [塔] 第{round}轮塔数异常 {towers.Count}，跳过");
+            if (enableDebugLogging) accessory.Method.SendChat($"/e [Tower] round {round} bad tower count {towers.Count}, skipping");
             return;
         }
 
         var groups = towers.GroupBy(t => t.Element).ToDictionary(g => g.Key, g => g.ToList());
         if (groups.Count != 3 || groups.Values.Count(g => g.Count == 2) != 1)
         {
-            if (enableDebugLogging) accessory.Method.SendChat($"/e [塔] 第{round}轮元素分布异常 {string.Join(" ", groups.Select(g => $"{TowerElementLabel(g.Key)}x{g.Value.Count}"))}");
+            if (enableDebugLogging) accessory.Method.SendChat($"/e [Tower] round {round} bad element distribution {string.Join(" ", groups.Select(g => $"{TowerElementLabel(g.Key)}x{g.Value.Count}"))}");
             return;
         }
 
         var doubleElement = groups.First(g => g.Value.Count == 2).Key;
-        if (!_towerSeenDouble.Add(doubleElement) && enableDebugLogging) accessory.Method.SendChat($"/e [塔] 双塔元素重复：{TowerElementLabel(doubleElement)}");
+        if (!_towerSeenDouble.Add(doubleElement) && enableDebugLogging) accessory.Method.SendChat($"/e [Tower] double-tower element repeated: {TowerElementLabel(doubleElement)}");
         if (enableDebugLogging)
         {
-            accessory.Method.SendChat($"/e ═══ 第{round}轮 塔{towers.Count} 双{TowerElementLabel(doubleElement)} ═══");
-            foreach (var t in towers) accessory.Method.SendChat($"/e   {TowerElementLabel(t.Element)}塔 @({t.Pos.X:F1},{t.Pos.Z:F1}) ang={t.Angle:F2}");
+            accessory.Method.SendChat($"/e ═══ round {round} towers{towers.Count} double{TowerElementLabel(doubleElement)} ═══");
+            foreach (var t in towers) accessory.Method.SendChat($"/e   {TowerElementLabel(t.Element)} tower @({t.Pos.X:F1},{t.Pos.Z:F1}) ang={t.Angle:F2}");
         }
 
         var used = new HashSet<int>();
@@ -13214,7 +13211,7 @@ public class Dancing_Mad_Ultimate
                 _towerRawTargets[partyIndex] = pos;
             }
             DrawTowerGuide(accessory, partyIndex, pos);
-            if (enableDebugLogging) accessory.Method.SendChat($"/e   分配 {TowerPlayerLabel(partyIndex)} debuff:{(debuffs.TryGetValue(partyIndex, out var d) ? TowerElementLabel(d.Element) : "无")} → {label}");
+            if (enableDebugLogging) accessory.Method.SendChat($"/e   assign {TowerPlayerLabel(partyIndex)} debuff:{(debuffs.TryGetValue(partyIndex, out var d) ? TowerElementLabel(d.Element) : "none")} → {label}");
             markIndex++;
         }
 
@@ -13229,18 +13226,18 @@ public class Dancing_Mad_Ultimate
             })
             .OrderBy(kv => kv.Key)
             .ToList();
-        if (enableDebugLogging) accessory.Method.SendChat($"/e [塔] 第{round}轮使用新易伤 {activeDebuffs.Count}/6 remain={TowerNewDebuffMinRemainMs}-{TowerNewDebuffMaxRemainMs}ms");
+        if (enableDebugLogging) accessory.Method.SendChat($"/e [Tower] round {round} using new vulns {activeDebuffs.Count}/6 remain={TowerNewDebuffMinRemainMs}-{TowerNewDebuffMaxRemainMs}ms");
         foreach (var kv in activeDebuffs)
         {
             var target = ClockwiseFirstDifferentTower(towers, kv.Value.Element);
-            if (target.HasValue) Put(kv.Key, target.Value.Pos, $"顺异:{TowerElementLabel(target.Value.Element)}");
+            if (target.HasValue) Put(kv.Key, target.Value.Pos, $"CW-diff:{TowerElementLabel(target.Value.Element)}");
         }
 
         var idleTarget = CounterClockwiseFromTowerAnchor(towers, doubleElement);
         foreach (var partyIndex in idlePlayers)
         {
             if (markIndex >= TowerLabels.Length) break;
-            if (!used.Contains(partyIndex)) Put(partyIndex, idleTarget.Pos, $"逆双:{TowerElementLabel(doubleElement)}");
+            if (!used.Contains(partyIndex)) Put(partyIndex, idleTarget.Pos, $"CCW-double:{TowerElementLabel(doubleElement)}");
         }
 
         if (enableDebugLogging) TowerSummary(accessory, towers);
@@ -13284,7 +13281,7 @@ public class Dancing_Mad_Ultimate
             _towerIdleLocked = true;
         }
 
-        if (enableDebugLogging) accessory.Method.SendChat($"/e [塔] 锁定闲人：{string.Join(" ", idle.Select(TowerPlayerLabel))} debuffs={debuffCount} idle={idle.Count}");
+        if (enableDebugLogging) accessory.Method.SendChat($"/e [Tower] locked idle: {string.Join(" ", idle.Select(TowerPlayerLabel))} debuffs={debuffCount} idle={idle.Count}");
     }
 
     private List<int> GetTowerIdlePlayers()
@@ -13320,11 +13317,11 @@ public class Dancing_Mad_Ultimate
     {
         Dictionary<int, Vector3> raw;
         lock (_towerLock) raw = new Dictionary<int, Vector3>(_towerRawTargets);
-        accessory.Method.SendChat("/e ── 踩塔汇总 ──");
+        accessory.Method.SendChat("/e ── Tower summary ──");
         foreach (var t in towers)
         {
             var who = string.Join(" ", Enumerable.Range(0, 8).Where(i => raw.ContainsKey(i) && RoundTowerPos(raw[i]) == RoundTowerPos(t.Pos)).Select(TowerPlayerLabel));
-            accessory.Method.SendChat($"/e   {TowerElementLabel(t.Element)}塔 @({t.Pos.X:F1},{t.Pos.Z:F1}) → {who}");
+            accessory.Method.SendChat($"/e   {TowerElementLabel(t.Element)} tower @({t.Pos.X:F1},{t.Pos.Z:F1}) → {who}");
         }
     }
 
@@ -13361,9 +13358,9 @@ public class Dancing_Mad_Ultimate
 
     private static string TowerElementLabel(TowerElement element) => element switch
     {
-        TowerElement.Fire => "火",
-        TowerElement.Ice => "冰",
-        TowerElement.Thunder => "雷",
+        TowerElement.Fire => "Fire",
+        TowerElement.Ice => "Ice",
+        TowerElement.Thunder => "Thunder",
         _ => "?"
     };
 
@@ -13371,10 +13368,10 @@ public class Dancing_Mad_Ultimate
 
     #endregion
 
-    #region 地水（矩形AOE）
+    #region Flood (Rect AoE)
 
-    // 49539 地水：Boss 身后 10×60 矩形（中心 = Boss 位置 - 前方 30m），读条 4s 后判定
-    [ScriptMethod(name: "P5 地水 (范围)", eventType: EventTypeEnum.StartCasting,
+    // 49539 Flood: 10×60 rect behind the boss (center = boss position - 30m forward), resolves 4s after the cast
+    [ScriptMethod(name: "P5 Flood (AoE)", eventType: EventTypeEnum.StartCasting,
         eventCondition: ["ActionId:49539"])]
     public void OnWater(Event @event, ScriptAccessory accessory)
     {
@@ -13394,22 +13391,22 @@ public class Dancing_Mad_Ultimate
         accessory.Method.SendDraw(DM, DrawTypeEnum.Rect, dp);
     }
 
-    // 洪水2穿1：地水每 4 个读条为一组，取负向×正向两条矩形中线离场中最近的交点作安全点；
-    // 第 1 组的点先存着，第 2 组出来后按 2 → 1 连成路线
-    [ScriptMethod(name: "P5 洪水 2穿1 (安全点指路)", eventType: EventTypeEnum.StartCasting,
+    // Flood 2-then-1: every 4 Flood casts are one group; the safe spot is the intersection of a negative × positive pair of rect center lines closest to the middle;
+    // group 1's spot is stored first, and once group 2 appears they're linked into a 2 → 1 route
+    [ScriptMethod(name: "P5 Flood 2-then-1 (Safe Spot Guidance)", eventType: EventTypeEnum.StartCasting,
         eventCondition: ["ActionId:49539"])]
     public void OnFlood(Event @event, ScriptAccessory accessory)
     {
         var pos = JsonConvert.DeserializeObject<Vector3>(@event["SourcePosition"]);
         var rot = float.Parse(@event["SourceRotation"]);
 
-        // 配对读条并发进入，串行化全部洪水状态变更，杜绝丢失更新
+        // Paired casts arrive concurrently; serialize all Flood state changes to rule out lost updates
         lock (_floodLock)
         {
         _floodCount++;
 
         if (enableDebugLogging)
-            accessory.Method.SendChat($"/e [洪水] #{_floodCount} 读条 pos=({pos.X:F1},{pos.Z:F1}) rot={rot:F3}");
+            accessory.Method.SendChat($"/e [Flood] #{_floodCount} cast pos=({pos.X:F1},{pos.Z:F1}) rot={rot:F3}");
 
         if (_seqCount >= 4)
             _seqCount = 0;
@@ -13431,16 +13428,16 @@ public class Dancing_Mad_Ultimate
         }
 
         if (enableDebugLogging)
-            accessory.Method.SendChat($"/e [洪水] 读条#{_floodCount} rot={rot:F3} {(rot < 0f ? "负" : "正")} seq={_seqCount} neg={_negCount} pos={_posCount}");
+            accessory.Method.SendChat($"/e [Flood] cast#{_floodCount} rot={rot:F3} {(rot < 0f ? "neg" : "pos")} seq={_seqCount} neg={_negCount} pos={_posCount}");
 
         if (_negCount >= 1 && _posCount >= 1 && _negCount + _posCount >= 4)
         {
             _floodGroupCount++;
 
             if (enableDebugLogging)
-                accessory.Method.SendChat($"/e [洪水] 触发配对 groupCount={_floodGroupCount} saved1={( _savedFloodSafe1.HasValue ? "有" : "无")}");
+                accessory.Method.SendChat($"/e [Flood] pairing triggered groupCount={_floodGroupCount} saved1={( _savedFloodSafe1.HasValue ? "yes" : "no")}");
 
-            // 遍历所有 neg×pos 组合，取距场中最近的交点
+            // Go through every neg×pos combination and take the intersection closest to the middle
             Vector3? best = null; float bestDist = float.MaxValue;
             int bestNegIndex = -1, bestPosIndex = -1;
             for (int ni = 0; ni < _negCount; ni++)
@@ -13463,8 +13460,8 @@ public class Dancing_Mad_Ultimate
             if (best == null || bestDist > FloodMaxDist)
             {
                 if (enableDebugLogging)
-                    accessory.Method.SendChat($"/e [洪水] 组{_floodGroupCount} 交点距场中={bestDist:F1}m 超出阈值{FloodMaxDist:F1}m ✗");
-                // 该组交点无效，回滚 groupCount，避免占用有效组编号导致 组1保存/组2绘制 配对错位
+                    accessory.Method.SendChat($"/e [Flood] group{_floodGroupCount} intersection dist to middle={bestDist:F1}m over threshold{FloodMaxDist:F1}m ✗");
+                // This group's intersection is invalid; roll back groupCount so it doesn't use up a valid group number and misalign the group 1 save / group 2 draw pairing
                 _floodGroupCount--;
                 _negCount = 0; _posCount = 0;
                 _seqCount = 0;
@@ -13474,7 +13471,7 @@ public class Dancing_Mad_Ultimate
 
             _negCount = 0; _posCount = 0;
 
-            // 向场中偏移4米
+            // Shift 4m toward the middle
             var toCenter = P5ArenaCenter - safePos;
             var toCenterLen = toCenter.Length();
             if (toCenterLen > 0.001f)
@@ -13484,9 +13481,9 @@ public class Dancing_Mad_Ultimate
 
             if (enableDebugLogging)
             {
-                accessory.Method.SendChat($"/e [洪水] 组{_floodGroupCount} 交点=({safePos.X:F1},{safePos.Z:F1}) 距场中={bestDist:F1}m ✓");
+                accessory.Method.SendChat($"/e [Flood] group{_floodGroupCount} intersection=({safePos.X:F1},{safePos.Z:F1}) dist to middle={bestDist:F1}m ✓");
                 if (midPos.HasValue)
-                    accessory.Method.SendChat($"/e [洪水] 离散中间节点=({midPos.Value.X:F1},{midPos.Value.Z:F1})");
+                    accessory.Method.SendChat($"/e [Flood] discrete middle node=({midPos.Value.X:F1},{midPos.Value.Z:F1})");
             }
 
             if (_floodGroupCount == 1)
@@ -13567,7 +13564,7 @@ public class Dancing_Mad_Ultimate
         return Vector3.Distance(from, west) <= Vector3.Distance(from, east) ? west : east;
     }
 
-    // 2 → 中转 → 1：绿线指当前该去的点，白线预览下一段
+    // 2 → transfer → 1: the green line points at the current spot, the white line previews the next segment
     private void DrawFloodRoute(ScriptAccessory a, Vector3 safe2, Vector3 mid, Vector3 safe1)
     {
         var firstResolve = Math.Max(Flood2DelayMs, Flood1DelayMs);
@@ -13582,7 +13579,7 @@ public class Dancing_Mad_Ultimate
     private void DrawFloodLeg(ScriptAccessory a, string suffix, Vector3 target, Vector3? next, int startMs, int endMs)
     {
         var name = $"{P5DrawPrefix}_Flood{suffix}";
-        foreach (var i in 指路对象(a))
+        foreach (var i in GuidedPlayers(a))
             P5Guide(a, name, i, target, startMs, endMs - startMs);
         if (next.HasValue)
             P5Preview(a, $"{name}_Preview", target, next.Value, startMs, endMs - startMs);
@@ -13592,7 +13589,7 @@ public class Dancing_Mad_Ultimate
 
     #region Helpers
 
-    // 指路风格跟 P1~P3 一致：当前要去的点 = 绿色箭头（WaypointDp，默认安全色），下一段 = 白色预览线
+    // Guidance style matches P1~P3: current spot = green arrow (WaypointDp, default safe colour), next segment = white preview line
     private static readonly Vector4 P5PreviewColor = new(1, 1, 1, 1);
 
     private static void P5Guide(ScriptAccessory sa, string name, int partyIndex, Vector3 target, int delayMs, int durationMs)
@@ -13664,7 +13661,7 @@ public class Dancing_Mad_Ultimate
 
     #endregion
 
-    #region Helpers（Cicero 灵视）
+    #region Helpers (Cicero)
 
     #region Commons
 
@@ -13976,7 +13973,7 @@ public class Dancing_Mad_Ultimate
 
 }
 
-#region Helpers（Coda）
+#region Helpers (Coda)
 
 public static class EventExtensions
 {
@@ -14228,7 +14225,7 @@ public static class ScriptAccessoryExtensions
 
 #endregion
 
-#region Helpers（Cicero 灵视）
+#region Helpers (Cicero)
 
 #region Extensions
 
@@ -14261,9 +14258,9 @@ public static class CiceroScriptAccessoryExtensions
 
 #endregion
 
-#region Helpers（Usami）
+#region Helpers (Usami)
 
-#region 优先级字典
+#region Priority Dict
 internal class PriorityDict
 {
     // ReSharper disable once NullableWarningSuppressionIsUsed
@@ -14286,17 +14283,17 @@ internal class PriorityDict
     }
 
     /// <summary>
-    /// 为特定Key增加优先级
+    /// Add priority to a specific Key
     /// </summary>
     /// <param name="idx">key</param>
-    /// <param name="priority">优先级数值</param>
+    /// <param name="priority">priority value</param>
     public void AddPriority(int idx, int priority)
     {
         Priorities[idx] += priority;
     }
 
     /// <summary>
-    /// 从Priorities中找到前num个数值最小的，得到新的Dict返回
+    /// Take the num smallest values from Priorities and return them as a new Dict
     /// </summary>
     /// <param name="num"></param>
     /// <returns></returns>
@@ -14306,7 +14303,7 @@ internal class PriorityDict
     }
 
     /// <summary>
-    /// 从Priorities中找到前num个数值最大的，得到新的Dict返回
+    /// Take the num largest values from Priorities and return them as a new Dict
     /// </summary>
     /// <param name="num"></param>
     /// <returns></returns>
@@ -14316,11 +14313,11 @@ internal class PriorityDict
     }
 
     /// <summary>
-    /// 从Priorities中找到升序排列中间的数值，得到新的Dict返回
+    /// Take the middle values of the ascending order from Priorities and return them as a new Dict
     /// </summary>
-    /// <param name="skip">跳过skip个元素。若从第二个开始取，skip=1</param>
+    /// <param name="skip">number of elements to skip. To start from the second one, skip=1</param>
     /// <param name="num"></param>
-    /// <param name="descending">降序排列，默认为false</param>
+    /// <param name="descending">sort descending, false by default</param>
     /// <returns></returns>
     public List<KeyValuePair<int, int>> SelectMiddlePriorityIndices(int skip, int num, bool descending = false)
     {
@@ -14330,31 +14327,31 @@ internal class PriorityDict
         IEnumerable<KeyValuePair<int, int>> sortedPriorities;
         if (descending)
         {
-            // 根据值从大到小降序排序，并取前num个键
+            // Sort by value descending and take the first num keys
             sortedPriorities = Priorities
-                .OrderByDescending(pair => pair.Value) // 先根据值排列
-                .ThenBy(pair => pair.Key) // 再根据键排列
-                .Skip(skip) // 跳过前skip个元素
-                .Take(num); // 取前num个键值对
+                .OrderByDescending(pair => pair.Value) // Sort by value first
+                .ThenBy(pair => pair.Key) // then by key
+                .Skip(skip) // Skip the first skip elements
+                .Take(num); // Take the first num pairs
         }
         else
         {
-            // 根据值从小到大升序排序，并取前num个键
+            // Sort by value ascending and take the first num keys
             sortedPriorities = Priorities
-                .OrderBy(pair => pair.Value) // 先根据值排列
-                .ThenBy(pair => pair.Key) // 再根据键排列
-                .Skip(skip) // 跳过前skip个元素
-                .Take(num); // 取前num个键值对
+                .OrderBy(pair => pair.Value) // Sort by value first
+                .ThenBy(pair => pair.Key) // then by key
+                .Skip(skip) // Skip the first skip elements
+                .Take(num); // Take the first num pairs
         }
 
         return sortedPriorities.ToList();
     }
 
     /// <summary>
-    /// 从Priorities中找到升序排列第idx位的数据，得到新的Dict返回
+    /// Take the idx-th entry of the ascending order from Priorities and return it as a new Dict
     /// </summary>
     /// <param name="idx"></param>
-    /// <param name="descending">降序排列，默认为false</param>
+    /// <param name="descending">sort descending, false by default</param>
     /// <returns></returns>
     public KeyValuePair<int, int> SelectSpecificPriorityIndex(int idx, bool descending = false)
     {
@@ -14363,10 +14360,10 @@ internal class PriorityDict
     }
 
     /// <summary>
-    /// 从Priorities中找到对应key的数据，得到其Value排序后位置返回
+    /// Find the given key in Priorities and return the sorted position of its Value
     /// </summary>
     /// <param name="key"></param>
-    /// <param name="descending">降序排列，默认为false</param>
+    /// <param name="descending">sort descending, false by default</param>
     /// <returns></returns>
     public int FindPriorityIndexOfKey(int key, bool descending = false)
     {
@@ -14382,26 +14379,26 @@ internal class PriorityDict
     }
 
     /// <summary>
-    /// 一次性增加优先级数值
-    /// 通常适用于特殊优先级（如H-T-D-H）
+    /// Add priority values in one go
+    /// usually for special priorities (e.g. H-T-D-H)
     /// </summary>
     /// <param name="priorities"></param>
     public void AddPriorities(List<int> priorities)
     {
         if (Priorities.Count != priorities.Count)
-            throw new ArgumentException("输入的列表与内部设置长度不同");
+            throw new ArgumentException("Input list length differs from the internal setting");
 
         for (var i = 0; i < Priorities.Count; i++)
             AddPriority(i, priorities[i]);
     }
 
     /// <summary>
-    /// 输出优先级字典的Key与优先级
+    /// Print the priority dict's Keys and priorities
     /// </summary>
     /// <returns></returns>
     public string ShowPriorities(bool showJob = true)
     {
-        var str = $"{Annotation} ({ActionCount}-th) 优先级字典：\n";
+        var str = $"{Annotation} ({ActionCount}-th) priority dict:\n";
         if (Priorities.Count == 0)
         {
             str += $"PriorityDict Empty.\n";
@@ -14427,243 +14424,243 @@ internal class PriorityDict
 
     public string ShowGroup(string name, List<KeyValuePair<int, int>> kvpList)
     {
-        return $"{name}：{string.Join(" ", kvpList.Select(x => $"({Role[x.Key]}, {x.Value})"))}";
+        return $"{name}: {string.Join(" ", kvpList.Select(x => $"({Role[x.Key]}, {x.Value})"))}";
     }
 }
 
-#endregion 优先级字典 类
+#endregion Priority Dict Class
 
-#region 参数容器类
+#region Param Container Classes
 internal class UDMP3Params
 {
     public bool Debugging = true;
-    public int 当前阶段 = 0;
-    public ulong ObjectId_卡奥斯 = 0;
-    public ulong ObjectId_艾克斯迪司 = 0;
-    public bool 拉艾克斯迪司的是MT = false;
-    public string 判断防火墙目标Framework = "";
-    public int 上一次防火墙状态 = 0;
-    public bool 防火墙已开启 = false;
-    public bool 经纬聚爆先打左右 = false;
-    public bool 绘制经纬聚爆范围 = false;
-    public bool 经纬聚爆第二段绘制完毕 = false;
+    public int CurrentStage = 0;
+    public ulong ObjectId_Chaos = 0;
+    public ulong ObjectId_Exdeath = 0;
+    public bool MtTanksExdeath = false;
+    public string FirewallTargetFramework = "";
+    public int LastFirewallState = 0;
+    public bool FirewallEnabled = false;
+    public bool ImplosionSidesFirst = false;
+    public bool ImplosionAoeActive = false;
+    public bool ImplosionPart2Drawn = false;
 
-    // ---- 一运 ----
-    public bool 是长火 = false;
-    public int 一运状态记录次数 = 0;
-    public int 火水晶方位 = -1;
-    public int 水水晶方位 = -1;
-    public int 风水晶方位 = -1;
-    public int 无水晶方位 = -1;
+    // ---- P3A ----
+    public bool IsLongFire = false;
+    public int P3AStatusRecordCount = 0;
+    public int FireCrystalRegion = -1;
+    public int WaterCrystalRegion = -1;
+    public int WindCrystalRegion = -1;
+    public int EmptyCrystalRegion = -1;
 
-    public List<KeyValuePair<int, int>> 火组 = new();
-    public List<KeyValuePair<int, int>> 水组 = new();
-    public ManualResetEvent 一运状态记录 = new(false);
-    public ManualResetEvent 一运水晶记录 = new(false);
-    public ManualResetEvent 一水火准备 = new(false);
+    public List<KeyValuePair<int, int>> FireGroup = new();
+    public List<KeyValuePair<int, int>> WaterGroup = new();
+    public ManualResetEvent P3AStatusRecord = new(false);
+    public ManualResetEvent P3ACrystalRecord = new(false);
+    public ManualResetEvent FireWater1Ready = new(false);
 
-    public int 一水火指路与绘图时间 = 10000;
-    public int 二水火指路与绘图时间 = 9000;
-    public int 真空波指路时间 = 7000;
+    public int FireWater1GuideAndDrawTime = 10000;
+    public int FireWater2GuideAndDrawTime = 9000;
+    public int VacuumWaveGuideTime = 7000;
 
-    // ---- 二运 ----
-    public int 黑洞轮数 = 0;
-    public int 黑洞喷射轮数 = 0;
-    public bool 玩家正在接线 = false;
-    public Dictionary<ulong, (int round, int region, int relativeRegion, bool hasTether)> 黑洞字典 = new();
-    public ManualResetEvent 外黑洞获取完毕 = new(false);
-    public ManualResetEvent 黑洞轮数增加完毕 = new(false);
-    public ManualResetEvent 凯夫卡方位获取完毕 = new(false);
-    public int 凯夫卡方位 = 0;
+    // ---- P3B ----
+    public int BlackHoleRound = 0;
+    public int BlackHoleEffectRound = 0;
+    public bool PlayerIsTethering = false;
+    public Dictionary<ulong, (int round, int region, int relativeRegion, bool hasTether)> BlackHoleDict = new();
+    public ManualResetEvent OuterBlackHolesAcquired = new(false);
+    public ManualResetEvent BlackHoleRoundIncremented = new(false);
+    public ManualResetEvent KefkaRegionAcquired = new(false);
+    public int KefkaRegion = 0;
 
-    public int 冰封北方位 = -1;
-    public int 西塔方位 = -1;
-    public int 东塔方位 = -1;
-    public bool 分摊点TN = false;
-    public bool 绘制冰封引导路径 = false;
-    public bool 是第一次分摊 = false;
-    public Vector3 第二枚黄圈引导位置 = new Vector3(100, 0, 100);
-    public Vector3 第一次轰击位置 = new Vector3(0, 0, 0);
-    public bool 黑洞已出现 = false;
-    public int[] 接线顺位 = new int[8];   // 第一/二/三目标 = 1/2/3
-    public bool[] 有泥 = new bool[8];
+    public int BlizzardNorthRegion = -1;
+    public int WestTowerRegion = -1;
+    public int EastTowerRegion = -1;
+    public bool StackSpotIsTN = false;
+    public bool DrawBlizzardBaitPath = false;
+    public bool IsFirstStack = false;
+    public Vector3 SecondPuddleBaitPos = new Vector3(100, 0, 100);
+    public Vector3 FirstKnockDownPos = new Vector3(0, 0, 0);
+    public bool BlackHoleAppeared = false;
+    public int[] TetherOrder = new int[8];   // First/Second/Third in Line = 1/2/3
+    public bool[] HasAccretion = new bool[8];
 
-    public List<(int playerIdx, List<int> realRegions, List<ulong> blackHoles, string name)> 当前黑洞接线任务 = [];
-    public ManualResetEvent 黑洞接线任务准备 = new(false);
-    public int 黑洞接线任务版本 = 0;
-    public int 黑洞接线范围绘图已消费版本 = 0;
-    public int 黑洞接线TTS已消费版本 = 0;
-    public int 黑洞接线指路已消费版本 = 0;
-    public List<接线Framework元素> 接线FrameworkList = [];
-    public string 当前接线任务Framework = "";
+    public List<(int playerIdx, List<int> realRegions, List<ulong> blackHoles, string name)> CurrentBlackHoleTetherTasks = [];
+    public ManualResetEvent BlackHoleTetherTasksReady = new(false);
+    public int BlackHoleTetherTaskVersion = 0;
+    public int BlackHoleTetherAoeConsumedVersion = 0;
+    public int BlackHoleTetherTtsConsumedVersion = 0;
+    public int BlackHoleTetherGuideConsumedVersion = 0;
+    public List<TetherFrameworkElement> TetherFrameworkList = [];
+    public string curTetherTaskFramework = "";
 
     public void Reset(ScriptAccessory sa)
     {
-        当前阶段 = 0;
+        CurrentStage = 0;
 
-        // 一运
-        是长火 = false;
-        一运状态记录次数 = 0;
-        火水晶方位 = -1;
-        水水晶方位 = -1;
-        风水晶方位 = -1;
-        无水晶方位 = -1;
-        拉艾克斯迪司的是MT = false;
-        sa.Method.UnregistFrameworkUpdateAction(判断防火墙目标Framework);
-        判断防火墙目标Framework = "";
-        上一次防火墙状态 = 0;
-        防火墙已开启 = false;
-        经纬聚爆先打左右 = false;
-        绘制经纬聚爆范围 = false;
-        经纬聚爆第二段绘制完毕 = false;
+        // P3A
+        IsLongFire = false;
+        P3AStatusRecordCount = 0;
+        FireCrystalRegion = -1;
+        WaterCrystalRegion = -1;
+        WindCrystalRegion = -1;
+        EmptyCrystalRegion = -1;
+        MtTanksExdeath = false;
+        sa.Method.UnregistFrameworkUpdateAction(FirewallTargetFramework);
+        FirewallTargetFramework = "";
+        LastFirewallState = 0;
+        FirewallEnabled = false;
+        ImplosionSidesFirst = false;
+        ImplosionAoeActive = false;
+        ImplosionPart2Drawn = false;
 
-        ObjectId_卡奥斯 = 0;
-        ObjectId_艾克斯迪司 = 0;
+        ObjectId_Chaos = 0;
+        ObjectId_Exdeath = 0;
 
-        一运状态记录 = new(false);
-        一运水晶记录 = new(false);
-        一水火准备 = new(false);
+        P3AStatusRecord = new(false);
+        P3ACrystalRecord = new(false);
+        FireWater1Ready = new(false);
 
-        火组 = new();
-        水组 = new();
+        FireGroup = new();
+        WaterGroup = new();
 
-        一水火指路与绘图时间 = 10000;
-        二水火指路与绘图时间 = 9000;
-        真空波指路时间 = 7000;
+        FireWater1GuideAndDrawTime = 10000;
+        FireWater2GuideAndDrawTime = 9000;
+        VacuumWaveGuideTime = 7000;
 
-        // 二运
-        黑洞轮数 = 0;
-        黑洞喷射轮数 = 0;
-        玩家正在接线 = false;
-        黑洞字典 = new Dictionary<ulong, (int round, int region, int relativeRegion, bool hasTether)>();
-        外黑洞获取完毕 = new(false);
-        黑洞轮数增加完毕 = new(false);
-        凯夫卡方位获取完毕 = new(false);
-        凯夫卡方位 = 0;
+        // P3B
+        BlackHoleRound = 0;
+        BlackHoleEffectRound = 0;
+        PlayerIsTethering = false;
+        BlackHoleDict = new Dictionary<ulong, (int round, int region, int relativeRegion, bool hasTether)>();
+        OuterBlackHolesAcquired = new(false);
+        BlackHoleRoundIncremented = new(false);
+        KefkaRegionAcquired = new(false);
+        KefkaRegion = 0;
 
-        冰封北方位 = -1;
-        西塔方位 = -1;
-        东塔方位 = -1;
-        分摊点TN = false;
-        绘制冰封引导路径 = false;
-        是第一次分摊 = false;
-        第二枚黄圈引导位置 = new Vector3(100, 0, 100);
-        第一次轰击位置 = new Vector3(0, 0, 0);
-        黑洞已出现 = false;
-        接线顺位 = new int[8];
-        有泥 = new bool[8];
+        BlizzardNorthRegion = -1;
+        WestTowerRegion = -1;
+        EastTowerRegion = -1;
+        StackSpotIsTN = false;
+        DrawBlizzardBaitPath = false;
+        IsFirstStack = false;
+        SecondPuddleBaitPos = new Vector3(100, 0, 100);
+        FirstKnockDownPos = new Vector3(0, 0, 0);
+        BlackHoleAppeared = false;
+        TetherOrder = new int[8];
+        HasAccretion = new bool[8];
 
-        当前黑洞接线任务 = [];
-        黑洞接线任务准备 = new(false);
-        黑洞接线任务版本 = 0;
-        黑洞接线范围绘图已消费版本 = 0;
-        黑洞接线TTS已消费版本 = 0;
-        黑洞接线指路已消费版本 = 0;
-        foreach (var fw in 接线FrameworkList)
+        CurrentBlackHoleTetherTasks = [];
+        BlackHoleTetherTasksReady = new(false);
+        BlackHoleTetherTaskVersion = 0;
+        BlackHoleTetherAoeConsumedVersion = 0;
+        BlackHoleTetherTtsConsumedVersion = 0;
+        BlackHoleTetherGuideConsumedVersion = 0;
+        foreach (var fw in TetherFrameworkList)
         {
             if (fw.FwHandle != "")
                 sa.Method.UnregistFrameworkUpdateAction(fw.FwHandle);
         }
-        接线FrameworkList.Clear();
-        if (当前接线任务Framework != "")
-            sa.Method.UnregistFrameworkUpdateAction(当前接线任务Framework);
-        当前接线任务Framework = "";
+        TetherFrameworkList.Clear();
+        if (curTetherTaskFramework != "")
+            sa.Method.UnregistFrameworkUpdateAction(curTetherTaskFramework);
+        curTetherTaskFramework = "";
 
-        sa.DebugMsg($"绝妖星乱舞 P3 参数重置");
+        sa.DebugMsg($"DMU P3 params reset");
     }
 }
 
 internal static class P3AExtension
 {
-    public static bool 一运状态记录完毕(this UDMP3Params prm) =>
-        prm.一运状态记录次数 == 12;
+    public static bool P3AStatusRecordDone(this UDMP3Params prm) =>
+        prm.P3AStatusRecordCount == 12;
 
-    public static bool 水晶状态记录完毕(this UDMP3Params prm) =>
-        prm is { 火水晶方位: >= 0, 水水晶方位: >= 0, 风水晶方位: >= 0 };
+    public static bool CrystalRecordDone(this UDMP3Params prm) =>
+        prm is { FireCrystalRegion: >= 0, WaterCrystalRegion: >= 0, WindCrystalRegion: >= 0 };
 
-    public static void 成员分组(this UDMP3Params prm, ScriptAccessory sa, PriorityDict pd)
+    public static void GroupMembers(this UDMP3Params prm, ScriptAccessory sa, PriorityDict pd)
     {
-        prm.火组.Clear();
-        prm.水组.Clear();
+        prm.FireGroup.Clear();
+        prm.WaterGroup.Clear();
 
-        // 优先级 0~3 是只有风的人，4~5 火，6~7 水
-        prm.火组.Add(pd.SelectSpecificPriorityIndex(4));
-        prm.火组.Add(pd.SelectSpecificPriorityIndex(5));
-        prm.水组.Add(pd.SelectSpecificPriorityIndex(6));
-        prm.水组.Add(pd.SelectSpecificPriorityIndex(7));
+        // Priorities 0~3 are wind-only players, 4~5 fire, 6~7 water
+        prm.FireGroup.Add(pd.SelectSpecificPriorityIndex(4));
+        prm.FireGroup.Add(pd.SelectSpecificPriorityIndex(5));
+        prm.WaterGroup.Add(pd.SelectSpecificPriorityIndex(6));
+        prm.WaterGroup.Add(pd.SelectSpecificPriorityIndex(7));
 
-        // 再按 KVP.value 的个位数大小进行 sort，小的在前
-        prm.火组.Sort((a, b) => a.Value.GetDecimalDigit(0).CompareTo(b.Value.GetDecimalDigit(0)));
-        prm.水组.Sort((a, b) => a.Value.GetDecimalDigit(0).CompareTo(b.Value.GetDecimalDigit(0)));
+        // then sort by the ones digit of KVP.value, smaller first
+        prm.FireGroup.Sort((a, b) => a.Value.GetDecimalDigit(0).CompareTo(b.Value.GetDecimalDigit(0)));
+        prm.WaterGroup.Sort((a, b) => a.Value.GetDecimalDigit(0).CompareTo(b.Value.GetDecimalDigit(0)));
     }
 
-    public static bool 当前轮为火(this UDMP3Params prm)
-        // 第一轮 XOR 是长火
-        => prm.当前阶段 == 3100 ^ prm.是长火;
+    public static bool IsFireRound(this UDMP3Params prm)
+        // In round 1 the XOR is the long fire
+        => prm.CurrentStage == 3100 ^ prm.IsLongFire;
 
-    public static bool 需要背对(this UDMP3Params prm, int pdValue)
-        // 混沌之风，背对击退距离减半
+    public static bool NeedFaceAway(this UDMP3Params prm, int pdValue)
+        // Headwind: knockback halved when your back is to it
         => pdValue.GetDecimalDigit(1) == 1;
 
-    public static Vector3 基于水晶旋转(this UDMP3Params prm, Vector3 basePos, int crystalRegion)
+    public static Vector3 RotateFromCrystal(this UDMP3Params prm, Vector3 basePos, int crystalRegion)
     {
         var center = new Vector3(100, 0, 100);
         return basePos.RotateAndExtend(center, (crystalRegion * 90f).DegToRad());
     }
 
-    public static int 查询组序(this UDMP3Params prm, List<KeyValuePair<int, int>> group, int myIndex)
+    public static int QueryGroupOrder(this UDMP3Params prm, List<KeyValuePair<int, int>> group, int myIndex)
         => group.FindIndex(kvp => kvp.Key == myIndex);
 }
 
 internal static class P3BExtension
 {
 
-    public static int 巨大凯夫卡方位获取(this UDMP3Params prm, ScriptAccessory sa, bool cwFromA = true)
+    public static int GetGiantKefkaRegion(this UDMP3Params prm, ScriptAccessory sa, bool cwFromA = true)
     {
         var obj = sa.GetByDataId(19504u).FirstOrDefault();
         if (obj == null)
         {
-            sa.DebugMsg($"获取失败");
+            sa.DebugMsg($"Lookup failed");
             return 0;
         }
 
-        // ? A顺计数 : C逆计数
+        // ? count CW from A : count CCW from C
         var region = cwFromA
             ? (obj.Rotation.RadianToRegion(8, 4, isDiagDiv: true, isCw: true) + 4) % 8
             : (obj.Rotation.RadianToRegion(8, isDiagDiv: true) + 4) % 8;
 
-        // prm.凯夫卡方位 = region;
-        sa.DebugMsg($"凯夫卡方位 {region} {(cwFromA ? "A顺" : "C逆")}");
+        // prm.KefkaRegion = region;
+        sa.DebugMsg($"Kefka region {region} {(cwFromA ? "CW from A" : "CCW from C")}");
         return region;
     }
 
-    public static (int attackRegion, int safeRegion) 巨大凯夫卡半场刀方向(this UDMP3Params prm, ScriptAccessory sa, bool isRightHand)
+    public static (int attackRegion, int safeRegion) GiantKefkaCleaveDirection(this UDMP3Params prm, ScriptAccessory sa, bool isRightHand)
     {
-        // A顺，
-        var bossRegion = prm.凯夫卡方位;
+        // CW from A,
+        var bossRegion = prm.KefkaRegion;
         var attackRegion = (bossRegion + 8 + (isRightHand ? -2 : 2)) % 8;
         var safeRegion = (bossRegion + 8 + (isRightHand ? 2 : -2)) % 8;
-        sa.DebugMsg($"攻击 {attackRegion} 安全 {safeRegion} A顺");
+        sa.DebugMsg($"Attack {attackRegion} safe {safeRegion} CW from A");
         return (attackRegion, safeRegion);
     }
 
-    public static Vector3 基于凯夫卡旋转(this UDMP3Params prm, Vector3 basePos, int bossRegion)
+    public static Vector3 RotateFromKefka(this UDMP3Params prm, Vector3 basePos, int bossRegion)
     {
         var center = new Vector3(100, 0, 100);
         return basePos.RotateAndExtend(center, (bossRegion * 45f).DegToRad());
     }
 
-    public static bool 需要踩塔(this UDMP3Params prm, int myIndex)
+    public static bool NeedSoakTower(this UDMP3Params prm, int myIndex)
     {
-        // 分摊TN 我是TN 我分摊 false
-        // 分摊TN 我是D  我踩塔 true
-        // 分摊D  我是TN 我踩塔 true
-        // 分摊D  我是TN 我分摊 false
-        return prm.分摊点TN ^ (myIndex <= 3);
+        // Stack TN, I'm TN, I stack false
+        // Stack TN, I'm D, I soak true
+        // Stack D, I'm TN, I soak true
+        // Stack D, I'm TN, I stack false
+        return prm.StackSpotIsTN ^ (myIndex <= 3);
     }
 }
 
-internal class 接线Framework元素
+internal class TetherFrameworkElement
 {
     public string Name { get; init; } = "";
     public string TaskName { get; init; } = "";
@@ -14673,17 +14670,17 @@ internal class 接线Framework元素
     public ulong BlackHoleId { get; init; }
     public ulong PlayerObjId { get; init; }
     public Vector3 GuidePos { get; init; }
-    public bool 去接线指路已绘制 { get; set; } = false;
-    public ulong 上一次接线目标 { get; set; } = 0;
-    public string 上一次去接线指路绘图名 { get; set; } = "";
-    public string 上一次接线目标列表 { get; set; } = "";
-    public bool 上一次黑洞存在状态 { get; set; } = true;
-    public string 去接线指路绘图名前缀 => $"绘制黑洞接线 {TaskName} G去接线 {Name}";
+    public bool goToTetherGuideDrawn { get; set; } = false;
+    public ulong lastTetherTarget { get; set; } = 0;
+    public string lastGoToTetherDrawName { get; set; } = "";
+    public string lastTetherTargetList { get; set; } = "";
+    public bool lastBlackHoleExistState { get; set; } = true;
+    public string goToTetherDrawNamePrefix => $"DrawBlackHoleTether {TaskName} G-GoToTether {Name}";
 }
 
-#endregion 参数容器类
+#endregion Param Container Classes
 
-#region 函数集
+#region Function Set
 internal static class UsamiEventExtensions
 {
     private static bool ParseHexId(string? idStr, out uint id)
@@ -14755,7 +14752,7 @@ internal static class IbcHelper
         return tetherSourceId;
     }
 }
-#region 计算函数
+#region Math Functions
 
 internal static class MathTools
 {
@@ -14763,31 +14760,31 @@ internal static class MathTools
     public static float RadToDeg(this float rad) => (rad + 2 * float.Pi) % (2 * float.Pi) / float.Pi * 180f;
 
     /// <summary>
-    /// 获得任意点与中心点的弧度值，以(0, 0, 1)方向为0，以(1, 0, 0)方向为pi/2。
-    /// 即，逆时针方向增加。
+    /// Gets the radian of any point relative to the center, with (0, 0, 1) as 0 and (1, 0, 0) as pi/2.
+    /// i.e. increasing counterclockwise.
     /// </summary>
-    /// <param name="point">任意点</param>
-    /// <param name="center">中心点</param>
+    /// <param name="point">any point</param>
+    /// <param name="center">center point</param>
     /// <returns></returns>
     public static float GetRadian(this Vector3 point, Vector3 center)
         => MathF.Atan2(point.X - center.X, point.Z - center.Z);
 
     /// <summary>
-    /// 获得任意点与中心点的长度。
+    /// Gets the distance between any point and the center.
     /// </summary>
-    /// <param name="point">任意点</param>
-    /// <param name="center">中心点</param>
+    /// <param name="point">any point</param>
+    /// <param name="center">center point</param>
     /// <returns></returns>
     public static float GetLength(this Vector3 point, Vector3 center)
         => new Vector2(point.X - center.X, point.Z - center.Z).Length();
 
     /// <summary>
-    /// 将任意点以中心点为圆心，逆时针旋转并延长。
+    /// Rotates any point counterclockwise around the center and extends it.
     /// </summary>
-    /// <param name="point">任意点</param>
-    /// <param name="center">中心点</param>
-    /// <param name="radian">旋转弧度</param>
-    /// <param name="length">基于该点延伸长度</param>
+    /// <param name="point">any point</param>
+    /// <param name="center">center point</param>
+    /// <param name="radian">rotation radian</param>
+    /// <param name="length">extra length from that point</param>
     /// <returns></returns>
     public static Vector3 RotateAndExtend(this Vector3 point, Vector3 center, float radian, float length = 0)
     {
@@ -14802,13 +14799,13 @@ internal static class MathTools
     }
 
     /// <summary>
-    /// 获得某角度所在划分区域
+    /// Gets the region an angle falls into
     /// </summary>
-    /// <param name="radian">输入弧度</param>
-    /// <param name="regionNum">区域划分数量</param>
-    /// <param name="baseRegionIdx">0度所在区域的初始Idx</param>>
-    /// <param name="isDiagDiv">是否为斜分割，默认为false</param>
-    /// <param name="isCw">是否顺时针增加，默认为false</param>
+    /// <param name="radian">input radian</param>
+    /// <param name="regionNum">number of regions</param>
+    /// <param name="baseRegionIdx">starting Idx of the region at 0°</param>>
+    /// <param name="isDiagDiv">whether the split is diagonal, false by default</param>
+    /// <param name="isCw">whether it increases clockwise, false by default</param>
     /// <returns></returns>
     public static int RadianToRegion(this float radian, int regionNum, int baseRegionIdx = 0, bool isDiagDiv = false, bool isCw = false)
     {
@@ -14819,55 +14816,55 @@ internal static class MathTools
     }
 
     /// <summary>
-    /// 将输入点左右折叠
+    /// Mirrors the input point left/right
     /// </summary>
-    /// <param name="point">待折叠点</param>
-    /// <param name="centerX">中心折线坐标点</param>
+    /// <param name="point">point to mirror</param>
+    /// <param name="centerX">coordinate of the center fold line</param>
     /// <returns></returns>
     public static Vector3 FoldPointHorizon(this Vector3 point, float centerX)
         => point with { X = 2 * centerX - point.X };
 
     /// <summary>
-    /// 将输入点上下折叠
+    /// Mirrors the input point up/down
     /// </summary>
-    /// <param name="point">待折叠点</param>
-    /// <param name="centerZ">中心折线坐标点</param>
+    /// <param name="point">point to mirror</param>
+    /// <param name="centerZ">coordinate of the center fold line</param>
     /// <returns></returns>
     public static Vector3 FoldPointVertical(this Vector3 point, float centerZ)
         => point with { Z = 2 * centerZ - point.Z };
 
     /// <summary>
-    /// 将输入点中心对称
+    /// Point-mirrors the input point through the center
     /// </summary>
-    /// <param name="point">输入点</param>
-    /// <param name="center">中心点</param>
+    /// <param name="point">input point</param>
+    /// <param name="center">center point</param>
     /// <returns></returns>
     public static Vector3 PointCenterSymmetry(this Vector3 point, Vector3 center)
         => point.RotateAndExtend(center, float.Pi, 0);
 
     /// <summary>
-    /// 获取给定整数的指定位数
+    /// Gets the given digit of an integer
     /// </summary>
-    /// <param name="val">给定数值</param>
-    /// <param name="x">对应位数，个位为0</param>
-    /// <returns>返回指定位的数字，如果x超出范围返回0</returns>
+    /// <param name="val">the integer</param>
+    /// <param name="x">digit position, ones = 0</param>
+    /// <returns>the digit at that position, 0 if x is out of range</returns>
     public static int GetDecimalDigit(this int val, int x)
         => (int)(Math.Abs(val) / Math.Pow(10, x) % 10);
 
     /// <summary>
-    /// 获取整数的指定二进制位值
+    /// Gets the given binary bit of an integer
     /// </summary>
-    /// <param name="val">给定数值</param>
-    /// <param name="bitPosition">二进制位位置，从最低位开始，最低位为0</param>
-    /// <returns>返回指定位的值：0 或 1</returns>
+    /// <param name="val">the integer</param>
+    /// <param name="bitPosition">bit position, counted from the lowest bit, lowest = 0</param>
+    /// <returns>the bit value: 0 or 1</returns>
     public static int GetBinaryBit(this int val, int bitPosition)
         => (val >> bitPosition) & 1;
 
     /// <summary>
-    /// 获得两个弧度（rad到radReference）的差值，逆时针增加大于0
+    /// Gets the difference between two radians (rad to radReference), counterclockwise positive
     /// </summary>
-    /// <param name="rad">取值角度</param>
-    /// <param name="radReference">参考角度</param>
+    /// <param name="rad">angle</param>
+    /// <param name="radReference">reference angle</param>
     /// <returns></returns>
     public static float GetDiffRad(this float rad, float radReference)
     {
@@ -14877,52 +14874,52 @@ internal static class MathTools
     }
 }
 
-#endregion 计算函数
+#endregion Math Functions
 
-#region 位置序列函数
+#region Position Sequence Functions
 internal static class IndexHelper
 {
     /// <summary>
-    /// 输入玩家dataId，获得对应的位置index
+    /// Takes a player dataId and returns their position index
     /// </summary>
-    /// <param name="pid">玩家SourceId</param>
+    /// <param name="pid">player SourceId</param>
     /// <param name="sa"></param>
-    /// <returns>该玩家对应的位置index</returns>
+    /// <returns>the player's position index</returns>
     public static int GetPlayerIdIndex(this ScriptAccessory sa, uint pid)
     {
-        // 获得玩家 IDX
+        // Get the player IDX
         return sa.Data.PartyList.IndexOf(pid);
     }
 
     /// <summary>
-    /// 获得主视角玩家对应的位置index
+    /// Gets the local player's position index
     /// </summary>
     /// <param name="sa"></param>
-    /// <returns>主视角玩家对应的位置index</returns>
+    /// <returns>the local player's position index</returns>
     public static int GetMyIndex(this ScriptAccessory sa)
     {
         return sa.Data.PartyList.IndexOf(sa.Data.Me);
     }
 
     /// <summary>
-    /// 输入玩家dataId，获得对应的位置称呼，输出字符仅作文字输出用
+    /// Takes a player dataId and returns their position name, for text output only
     /// </summary>
-    /// <param name="pid">玩家SourceId</param>
+    /// <param name="pid">player SourceId</param>
     /// <param name="sa"></param>
-    /// <returns>该玩家对应的位置称呼</returns>
+    /// <returns>the player's position name</returns>
     public static string GetPlayerJobById(this ScriptAccessory sa, uint pid)
     {
-        // 获得玩家职能简称，无用处，仅作DEBUG输出
+        // Get the player's role short name; not used, DEBUG output only
         var idx = sa.Data.PartyList.IndexOf(pid);
         var str = sa.GetPlayerJobByIndex(idx);
         return str;
     }
 
     /// <summary>
-    /// 输入位置index，获得对应的位置称呼，输出字符仅作文字输出用
+    /// Takes a position index and returns the position name, for text output only
     /// </summary>
-    /// <param name="idx">位置index</param>
-    /// <param name="fourPeople">是否为四人迷宫</param>
+    /// <param name="idx">position index</param>
+    /// <param name="fourPeople">whether it's a four-player dungeon</param>
     /// <param name="sa"></param>
     /// <returns></returns>
     public static string GetPlayerJobByIndex(this ScriptAccessory sa, int idx, bool fourPeople = false)
@@ -14935,33 +14932,33 @@ internal static class IndexHelper
     }
 
 }
-#endregion 位置序列函数
+#endregion Position Sequence Functions
 
-#region 绘图函数
+#region Draw Functions
 
 internal static class DrawTools
 {
     /// <summary>
-    /// 返回绘图
+    /// Returns a draw
     /// </summary>
     /// <param name="sa"></param>
-    /// <param name="ownerObj">绘图基准，可为UID或位置</param>
-    /// <param name="targetObj">绘图指向目标，可为UID或位置</param>
-    /// <param name="delay">延时delay ms出现</param>
-    /// <param name="destroy">绘图自出现起，经destroy ms消失</param>
-    /// <param name="name">绘图名称</param>
-    /// <param name="radian">绘制图形弧度范围</param>
-    /// <param name="rotation">绘制图形旋转弧度，以owner面前为基准，逆时针增加</param>
-    /// <param name="width">绘制图形宽度，部分图形可保持与长度一致</param>
-    /// <param name="length">绘制图形长度，部分图形可保持与宽度一致</param>
-    /// <param name="innerWidth">绘制图形内宽，部分图形可保持与长度一致</param>
-    /// <param name="innerLength">绘制图形内长，部分图形可保持与宽度一致</param>
-    /// <param name="drawModeEnum">绘图方式</param>
-    /// <param name="drawTypeEnum">绘图类型</param>
-    /// <param name="color">使用颜色</param>
-    /// <param name="byTime">动画效果随时间填充</param>
-    /// <param name="byY">动画效果随距离变更</param>
-    /// <param name="draw">是否直接绘图</param>
+    /// <param name="ownerObj">draw anchor, UID or position</param>
+    /// <param name="targetObj">draw target, UID or position</param>
+    /// <param name="delay">appears after delay ms</param>
+    /// <param name="destroy">disappears destroy ms after appearing</param>
+    /// <param name="name">draw name</param>
+    /// <param name="radian">arc of the shape</param>
+    /// <param name="rotation">rotation of the shape relative to the owner's front, counterclockwise positive</param>
+    /// <param name="width">shape width, some shapes can match the length</param>
+    /// <param name="length">shape length, some shapes can match the width</param>
+    /// <param name="innerWidth">shape inner width, some shapes can match the length</param>
+    /// <param name="innerLength">shape inner length, some shapes can match the width</param>
+    /// <param name="drawModeEnum">draw mode</param>
+    /// <param name="drawTypeEnum">draw type</param>
+    /// <param name="color">colour</param>
+    /// <param name="byTime">fill animation over time</param>
+    /// <param name="byY">animation follows distance</param>
+    /// <param name="draw">whether to draw immediately</param>
     /// <returns></returns>
     public static DrawPropertiesEdit DrawOwnerBase(this ScriptAccessory sa,
         object ownerObj, object targetObj, int delay, int destroy, string name,
@@ -14993,7 +14990,7 @@ internal static class DrawTools
                 dp.Position = spos;
                 break;
             default:
-                throw new ArgumentException($"ownerObj {ownerObj} 的目标类型 {ownerObj.GetType()} 输入错误");
+                throw new ArgumentException($"ownerObj {ownerObj} target type {ownerObj.GetType()} invalid input");
         }
 
         switch (targetObj)
@@ -15011,7 +15008,7 @@ internal static class DrawTools
                 dp.TargetPosition = tpos;
                 break;
             default:
-                throw new ArgumentException($"targetObj {targetObj} 的目标类型 {targetObj.GetType()} 输入错误");
+                throw new ArgumentException($"targetObj {targetObj} target type {targetObj.GetType()} invalid input");
         }
 
         if (draw)
@@ -15020,18 +15017,18 @@ internal static class DrawTools
     }
 
     /// <summary>
-    /// 返回指路绘图
+    /// Returns a guidance draw
     /// </summary>
     /// <param name="sa"></param>
-    /// <param name="ownerObj">出发点</param>
-    /// <param name="targetObj">结束点</param>
-    /// <param name="delay">延时</param>
-    /// <param name="destroy">消失时间</param>
-    /// <param name="name">绘图名字</param>
-    /// <param name="rotation">箭头旋转角度</param>
-    /// <param name="width">箭头宽度</param>
-    /// <param name="color">使用颜色</param>
-    /// <param name="draw">是否直接绘制</param>
+    /// <param name="ownerObj">start point</param>
+    /// <param name="targetObj">end point</param>
+    /// <param name="delay">delay</param>
+    /// <param name="destroy">time until it disappears</param>
+    /// <param name="name">draw name</param>
+    /// <param name="rotation">arrow rotation</param>
+    /// <param name="width">arrow width</param>
+    /// <param name="color">colour</param>
+    /// <param name="draw">whether to draw immediately</param>
     /// <returns></returns>
     public static DrawPropertiesEdit DrawGuidance(this ScriptAccessory sa,
         object ownerObj, object targetObj, int delay, int destroy, string name,
@@ -15045,17 +15042,17 @@ internal static class DrawTools
         => sa.DrawGuidance((ulong)sa.Data.Me, targetObj, delay, destroy, name, color, rotation, width, draw);
 
     /// <summary>
-    /// 返回圆形绘图
+    /// Returns a circle draw
     /// </summary>
     /// <param name="sa"></param>
-    /// <param name="ownerObj">圆心</param>
-    /// <param name="delay">延时</param>
-    /// <param name="destroy">消失时间</param>
-    /// <param name="name">绘图名字</param>
-    /// <param name="scale">圆形径长</param>
-    /// <param name="byTime">是否随时间扩充</param>
-    /// <param name="color">使用颜色</param>
-    /// <param name="draw">是否直接绘制</param>
+    /// <param name="ownerObj">circle center</param>
+    /// <param name="delay">delay</param>
+    /// <param name="destroy">time until it disappears</param>
+    /// <param name="name">draw name</param>
+    /// <param name="scale">circle radius</param>
+    /// <param name="byTime">whether it fills over time</param>
+    /// <param name="color">colour</param>
+    /// <param name="draw">whether to draw immediately</param>
     /// <returns></returns>
     public static DrawPropertiesEdit DrawCircle(this ScriptAccessory sa,
         object ownerObj, int delay, int destroy, string name,
@@ -15064,18 +15061,18 @@ internal static class DrawTools
             0, 0, DrawModeEnum.Default, DrawTypeEnum.Circle, color, byTime,false, draw);
 
     /// <summary>
-    /// 返回环形绘图
+    /// Returns a donut draw
     /// </summary>
     /// <param name="sa"></param>
-    /// <param name="ownerObj">圆心</param>
-    /// <param name="delay">延时</param>
-    /// <param name="destroy">消失时间</param>
-    /// <param name="name">绘图名字</param>
-    /// <param name="outScale">外径</param>
-    /// <param name="innerScale">内径</param>
-    /// <param name="byTime">是否随时间扩充</param>
-    /// <param name="color">使用颜色</param>
-    /// <param name="draw">是否直接绘制</param>
+    /// <param name="ownerObj">circle center</param>
+    /// <param name="delay">delay</param>
+    /// <param name="destroy">time until it disappears</param>
+    /// <param name="name">draw name</param>
+    /// <param name="outScale">outer radius</param>
+    /// <param name="innerScale">inner radius</param>
+    /// <param name="byTime">whether it fills over time</param>
+    /// <param name="color">colour</param>
+    /// <param name="draw">whether to draw immediately</param>
     /// <returns></returns>
     public static DrawPropertiesEdit DrawDonut(this ScriptAccessory sa,
         object ownerObj, int delay, int destroy, string name,
@@ -15084,21 +15081,21 @@ internal static class DrawTools
             innerScale, DrawModeEnum.Default, DrawTypeEnum.Donut, color, byTime, false, draw);
 
     /// <summary>
-    /// 返回扇形绘图
+    /// Returns a fan draw
     /// </summary>
     /// <param name="sa"></param>
-    /// <param name="ownerObj">圆心</param>
-    /// <param name="targetObj">目标</param>
-    /// <param name="delay">延时</param>
-    /// <param name="destroy">消失时间</param>
-    /// <param name="name">绘图名字</param>
-    /// <param name="radian">弧度</param>
-    /// <param name="rotation">旋转角度</param>
-    /// <param name="outScale">外径</param>
-    /// <param name="innerScale">内径</param>
-    /// <param name="byTime">是否随时间扩充</param>
-    /// <param name="color">使用颜色</param>
-    /// <param name="draw">是否直接绘制</param>
+    /// <param name="ownerObj">circle center</param>
+    /// <param name="targetObj">target</param>
+    /// <param name="delay">delay</param>
+    /// <param name="destroy">time until it disappears</param>
+    /// <param name="name">draw name</param>
+    /// <param name="radian">arc</param>
+    /// <param name="rotation">rotation angle</param>
+    /// <param name="outScale">outer radius</param>
+    /// <param name="innerScale">inner radius</param>
+    /// <param name="byTime">whether it fills over time</param>
+    /// <param name="color">colour</param>
+    /// <param name="draw">whether to draw immediately</param>
     /// <returns></returns>
     public static DrawPropertiesEdit DrawFan(this ScriptAccessory sa,
         object ownerObj, object targetObj, int delay, int destroy, string name, float radian, float rotation,
@@ -15112,21 +15109,21 @@ internal static class DrawTools
         => sa.DrawFan(ownerObj, 0, delay, destroy, name, radian, rotation, outScale, innerScale, color, byTime, draw);
 
     /// <summary>
-    /// 返回矩形绘图
+    /// Returns a rect draw
     /// </summary>
     /// <param name="sa"></param>
-    /// <param name="ownerObj">矩形起始</param>
-    /// <param name="targetObj">目标</param>
-    /// <param name="delay">延时</param>
-    /// <param name="destroy">消失时间</param>
-    /// <param name="name">绘图名字</param>
-    /// <param name="rotation">旋转角度</param>
-    /// <param name="width">矩形宽度</param>
-    /// <param name="length">矩形长度</param>
-    /// <param name="byTime">是否随时间扩充</param>
-    /// <param name="byY">是否随距离扩充</param>
-    /// <param name="color">使用颜色</param>
-    /// <param name="draw">是否直接绘制</param>
+    /// <param name="ownerObj">rect start</param>
+    /// <param name="targetObj">target</param>
+    /// <param name="delay">delay</param>
+    /// <param name="destroy">time until it disappears</param>
+    /// <param name="name">draw name</param>
+    /// <param name="rotation">rotation angle</param>
+    /// <param name="width">rect width</param>
+    /// <param name="length">rect length</param>
+    /// <param name="byTime">whether it fills over time</param>
+    /// <param name="byY">whether it extends with distance</param>
+    /// <param name="color">colour</param>
+    /// <param name="draw">whether to draw immediately</param>
     /// <returns></returns>
     public static DrawPropertiesEdit DrawRect(this ScriptAccessory sa,
         object ownerObj, object targetObj, int delay, int destroy, string name, float rotation,
@@ -15140,21 +15137,21 @@ internal static class DrawTools
         => sa.DrawRect(ownerObj, 0, delay, destroy, name, rotation, width, length, color, byTime, byY, draw);
 
     /// <summary>
-    /// 返回线型绘图
+    /// Returns a line draw
     /// </summary>
     /// <param name="sa"></param>
-    /// <param name="ownerObj">线条起始</param>
-    /// <param name="targetObj">线条目标</param>
-    /// <param name="delay">延时</param>
-    /// <param name="destroy">消失时间</param>
-    /// <param name="name">绘图名字</param>
-    /// <param name="rotation">旋转角度</param>
-    /// <param name="width">线条宽度</param>
-    /// <param name="length">线条长度</param>
-    /// <param name="byTime">是否随时间扩充</param>
-    /// <param name="byY">是否随距离扩充</param>
-    /// <param name="color">使用颜色</param>
-    /// <param name="draw">是否直接绘制</param>
+    /// <param name="ownerObj">line start</param>
+    /// <param name="targetObj">line target</param>
+    /// <param name="delay">delay</param>
+    /// <param name="destroy">time until it disappears</param>
+    /// <param name="name">draw name</param>
+    /// <param name="rotation">rotation angle</param>
+    /// <param name="width">line width</param>
+    /// <param name="length">line length</param>
+    /// <param name="byTime">whether it fills over time</param>
+    /// <param name="byY">whether it extends with distance</param>
+    /// <param name="color">colour</param>
+    /// <param name="draw">whether to draw immediately</param>
     /// <returns></returns>
     public static DrawPropertiesEdit DrawLine(this ScriptAccessory sa,
         object ownerObj, object targetObj, int delay, int destroy, string name, float rotation,
@@ -15163,17 +15160,17 @@ internal static class DrawTools
             DrawModeEnum.Default, DrawTypeEnum.Line, color, byTime, byY, draw);
 
     /// <summary>
-    /// 返回两对象间连线绘图
+    /// Returns a connection draw between two objects
     /// </summary>
     /// <param name="sa"></param>
-    /// <param name="ownerObj">起始源</param>
-    /// <param name="targetObj">目标源</param>
-    /// <param name="delay">延时</param>
-    /// <param name="destroy">消失时间</param>
-    /// <param name="name">绘图名字</param>
-    /// <param name="width">线宽</param>
-    /// <param name="color">使用颜色</param>
-    /// <param name="draw">是否直接绘制</param>
+    /// <param name="ownerObj">start source</param>
+    /// <param name="targetObj">target source</param>
+    /// <param name="delay">delay</param>
+    /// <param name="destroy">time until it disappears</param>
+    /// <param name="name">draw name</param>
+    /// <param name="width">line width</param>
+    /// <param name="color">colour</param>
+    /// <param name="draw">whether to draw immediately</param>
     /// <returns></returns>
     public static DrawPropertiesEdit DrawConnection(this ScriptAccessory sa, object ownerObj, object targetObj,
         int delay, int destroy, string name, Vector4 color, float width = 1f, bool draw = true)
@@ -15181,11 +15178,11 @@ internal static class DrawTools
             0, 0, DrawModeEnum.Imgui, DrawTypeEnum.Line, color, false, true, draw);
 
     /// <summary>
-    /// 赋予输入的dp以ownerId为源的远近目标绘图
+    /// Gives the input dp a near/far-order target draw sourced from ownerId
     /// </summary>
     /// <param name="self"></param>
-    /// <param name="isNearOrder">从owner计算，近顺序或远顺序</param>
-    /// <param name="orderIdx">从1开始</param>
+    /// <param name="isNearOrder">counted from the owner, near order or far order</param>
+    /// <param name="orderIdx">starts at 1</param>
     /// <returns></returns>
     public static DrawPropertiesEdit SetOwnersDistanceOrder(this DrawPropertiesEdit self, bool isNearOrder,
         uint orderIdx)
@@ -15198,9 +15195,9 @@ internal static class DrawTools
     }
 }
 
-#endregion 绘图函数
+#endregion Draw Functions
 
-#region 调试函数
+#region Debug Functions
 
 internal static class DebugFunction
 {
@@ -15223,9 +15220,9 @@ internal static class DebugFunction
     }
 }
 
-#endregion 调试函数
+#endregion Debug Functions
 
-#region 特殊函数
+#region Special Functions
 
 internal static class SpecialFunction
 {
@@ -15233,7 +15230,7 @@ internal static class SpecialFunction
     {
         if (obj == null || !obj.IsValid())
         {
-            sa.Log.Error($"传入的IGameObject不合法。");
+            sa.Log.Error($"The IGameObject passed in is invalid.");
             return;
         }
         unsafe
@@ -15241,12 +15238,12 @@ internal static class SpecialFunction
             GameObject* charaStruct = (GameObject*)obj.Address;
             charaStruct->SetRotation(radian);
         }
-        // sa.Log.Debug($"改变面向 {obj.Name.TextValue} | {obj.GameObjectId} => {radian.RadToDeg()}");
+        // sa.Log.Debug($"Change facing {obj.Name.TextValue} | {obj.GameObjectId} => {radian.RadToDeg()}");
 
         if (!show) return;
         var ownerObj = sa.GetById(obj.GameObjectId);
         if (ownerObj == null) return;
-        var dp = sa.DrawGuidance(obj.GameObjectId, 0, 0, 2000, $"改变面向 {obj.Name.TextValue}", sa.Data.DefaultSafeColor, radian, draw: false);
+        var dp = sa.DrawGuidance(obj.GameObjectId, 0, 0, 2000, $"Change facing {obj.Name.TextValue}", sa.Data.DefaultSafeColor, radian, draw: false);
         dp.FixRotation = true;
         sa.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Arrow, dp);
     }
@@ -15277,7 +15274,7 @@ internal static class SpecialFunction
     {
         if (obj == null || !obj.IsValid())
         {
-            sa.Log.Error($"传入的IGameObject不合法。");
+            sa.Log.Error($"The IGameObject passed in is invalid.");
             return;
         }
         unsafe
@@ -15309,13 +15306,13 @@ internal static class SpecialFunction
             Character* charaStruct = (Character*)obj.Address;
             if (!obj.IsValid() || !charaStruct->IsReadyToDraw())
             {
-                sa.Log.Error($"传入的IGameObject不合法。");
+                sa.Log.Error($"The IGameObject passed in is invalid.");
                 return;
             }
 
             if (!charaStruct->IsCharacter())
             {
-                sa.Log.Error($"传入的IGameObject不是Character，无法修改透明度。");
+                sa.Log.Error($"The IGameObject passed in is not a Character; can't change its opacity.");
                 return;
             }
 
@@ -15331,8 +15328,8 @@ internal static class SpecialFunction
     }
 }
 
-#endregion 特殊函数
+#endregion Special Functions
 
-#endregion 函数集
+#endregion Function Set
 
 #endregion
