@@ -33,7 +33,7 @@ using Newtonsoft.Json.Linq;
 namespace CicerosKodakkuAssist.DancingMadUltimate.LPDU;
 
 [ScriptType(name: Name, territorys: [1363], guid: "52a1cc3b-57fb-4893-9608-c0cbaaf210bd",
-    version: Version, author: "Cicero & Coda & Usami & RyougiMio & Errer", note: Note, updateInfo: UpdateInfo)]
+    version: Version, author: "Cicero & Codaaaaaa & Usami & RyougiMio & Errer", note: Note, updateInfo: UpdateInfo)]
 public class Dancing_Mad_Ultimate
 {
     #region Metadata
