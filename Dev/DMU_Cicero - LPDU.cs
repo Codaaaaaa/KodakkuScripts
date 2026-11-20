@@ -46,19 +46,13 @@ public class Dancing_Mad_Ultimate
         {Version}
         Merged from five scripts:
             Cicero - P1~P5 draws, full P2 Forsaken guidance, and the P3 Bowels of Agony (P3A) Ultima Blaster guidance.
-            Coda - P1 Graven Image 1~3 guidance, and the LPDU strat adaptation of the P1~P3 guidance.
+            Coda - P1 guidance.
             Usami - P3 draws and guidance.
             RyougiMio - P4 guidance.
             Errer - P5 draws and guidance.
 
-        Party order must be MT ST H1 H2 D1(melee) D2(melee) D3(ranged) D4(ranged).
+        Party order must be MT OT H1 H2 M1 M2 R1 R2 (M = melee, R = ranged).
         Party order test: type /e kdmutest in chat.
-
-        P1~P3 guidance follows the LPDU strat:
-            P1 Supports West / DPS East, clockwise big box for the arrows, Graven Image 3 fully static tethers.
-            P2 Forsaken Buddies (AAABBBBA).
-            P3B black hole tethers are assigned by the Earthquake debuffs, no markers needed; Blizzard III corners and towers: T + melee left, H + ranged right (Kefka = north).
-        P2 and P3 can be switched to the PF strats in the user settings.
 
         Methods and settings marked with * are non-vanilla features (hiding skill VFX, transparent bosses, blocking invalid targets, removing the Thunder III tether).
         They are on by default; turn off the ones you don't want in the '* Special Features' group of the user settings.
@@ -68,7 +62,6 @@ public class Dancing_Mad_Ultimate
         $"""
         {Version}
         1. Merged the Cicero / Coda / Usami / RyougiMio / Errer scripts.
-        2. P3 AoE draws that overlapped with Usami's: only Usami's are kept.
         """;
 
     #endregion
@@ -116,9 +109,9 @@ public class Dancing_Mad_Ultimate
 
     [UserSetting("\n\n\n\n\n\n—————————— Debug ——————————")]
     public bool ____ { get; set; } = true;
-    internal static bool DebugEnabled;
-    [UserSetting("Debug - Output debug info\n(Dalamud log, some of it also goes to the Echo channel)")]
-    public bool enableDebugLogging { get => DebugEnabled; set => DebugEnabled = value; }
+        internal static bool DebugEnabled;
+        [UserSetting("Debug - Output debug info\n(Dalamud log, some of it also goes to the Echo channel)")]
+        public bool enableDebugLogging { get => DebugEnabled; set => DebugEnabled = value; }
 
     [UserSetting("\n\n\n\n\n\n—————————— P1 ——————————")]
     public bool _____ { get; set; } = true;
@@ -146,11 +139,11 @@ public class Dancing_Mad_Ultimate
     public bool _______ { get; set; } = true;
     [UserSetting("P3 Use PF strat: Blizzard III corners and towers split left/right by G1/G2 (Kefka = north)\n" +
         "Checked = PF:\n" +
-        "  G1 (MT H1 D1 D3) left: MT+H1 NW, D1+D3 SW, soak left tower\n" +
-        "  G2 (ST H2 D2 D4) right: ST+H2 NE, D2+D4 SE, soak right tower\n" +
+        "  G1 (MT H1 M1 R1) left: MT+H1 NW, M1+R1 SW, soak left tower\n" +
+        "  G2 (OT H2 M2 R2) right: OT+H2 NE, M2+R2 SE, soak right tower\n" +
         "Unchecked = LPDU:\n" +
-        "  T + melee left: MT+ST NW, D1+D2 SW, soak left tower\n" +
-        "  H + ranged right: H1+H2 NE, D3+D4 SE, soak right tower")]
+        "  T + melee left: MT+OT NW, M1+M2 SW, soak left tower\n" +
+        "  H + ranged right: H1+H2 NE, R1+R2 SE, soak right tower")]
     public bool p3FollowPfStrats { get; set; } = false;
     [UserSetting("P3 Chaos Damning Edict - Draw colour")]
     public ScriptColor CursedEdictColor { get; set; } = new ScriptColor { V4 = new Vector4(1.0f, 0.643f, 0f, 1.0f) };
@@ -174,7 +167,7 @@ public class Dancing_Mad_Ultimate
     public bool _________ { get; set; } = true;
     [UserSetting("P5 Exaflares - Use LPDU strat\n" +
         "Checked = LPDU: everyone walks through the middle together, spread at the end\n" +
-        "Unchecked = by role: MT ST D1 D2 walk through the middle, H1 left, H2 right, D3 up, D4 down")]
+        "Unchecked = by role: MT OT M1 M2 walk through the middle, H1 left, H2 right, R1 up, R2 down")]
     public bool p5FireFollowLpdu { get; set; } = false;
     [UserSetting("P5 Exaflares - Opacity of the exaflare circles (%, 0~100)")]
     public int p5FireOpacity { get; set; } = 30;
@@ -186,7 +179,7 @@ public class Dancing_Mad_Ultimate
     // When on, all guidance is drawn for all 8 players (each solved from their own buff / marker / role),
     // internal methods with userControl: Debugging are shown, and Usami's section prints debug info
     // Must be const: userControl: Debugging is an attribute argument and only takes compile-time constants
-    public const bool Debugging = true;
+    public const bool Debugging = false;
 
     /// <summary>Owner of the guidance arrow start: normally PartyList[idx], falls back to me if out of range</summary>
     private static uint GuidanceOwner(ScriptAccessory sa, int idx)
@@ -532,13 +525,13 @@ public class Dancing_Mad_Ultimate
         string log=string.Empty;
         KodakkuAssist.Data.IGameObject? sourceObject=null;
         string[] roles=["MT",
-                        "ST",
+                        "OT",
                         "H1",
                         "H2",
-                        "D1",
-                        "D2",
-                        "D3",
-                        "D4"];
+                        "M1",
+                        "M2",
+                        "R1",
+                        "R2"];
 
         for(int i=0;i<roles.Length;++i) {
 
@@ -1957,7 +1950,7 @@ public class Dancing_Mad_Ultimate
     #region P1 Guidance (Coda, LPDU strat)
 
     // LPDU P1: https://raidplan.io/plan/_5FyPYATLhNYkq8S , Tele-trouncing arrows: https://raidplan.io/plan/saC2CjTaXmSApm6y
-    // Party order MT ST H1 H2 D1(M1) D2(M2) D3(R1) D4(R2); waymarks A/B/C/D and 1/2/3/4 are all 12m from the middle
+    // Party order MT OT H1 H2 M1 M2 R1 R2; waymarks A/B/C/D and 1/2/3/4 are all 12m from the middle
 
     #region Globals & Init
 
@@ -2163,7 +2156,7 @@ public class Dancing_Mad_Ultimate
 
     private const uint RealIceAction = 47768;
 
-    // Wave Cannon conga: supports west, DPS east, from the middle outward MT ST H1 H2 / M1 M2 R1 R2
+    // Wave Cannon conga: supports west, DPS east, from the middle outward MT OT H1 H2 / M1 M2 R1 R2
     private static readonly float[] WaveCannonCongaDistance = [2.25f, 6.81f, 11.45f, 16.25f];
 
     [ScriptMethod(
@@ -2274,7 +2267,7 @@ public class Dancing_Mad_Ultimate
         });
     }
 
-    /// <summary>Graven Image 1 fire/ice spots: stack = the four of each half on one spot; spread = N/S of boss / E/W of boss / middle of the safe spot / wall (MT ST H1 H2, DPS in the same order)</summary>
+    /// <summary>Graven Image 1 fire/ice spots: stack = the four of each half on one spot; spread = N/S of boss / E/W of boss / middle of the safe spot / wall (MT OT H1 H2, DPS in the same order)</summary>
     private static Vector3 P1GravenImage1Spot(int idx, bool dangerLeftUpRightDown, bool isStackCall)
     {
         float sx = idx < 4 ? -1 : 1;
@@ -2372,7 +2365,7 @@ public class Dancing_Mad_Ultimate
     // Within a round one role gets all the stacks, the other all the meteors
     // Round 1: tethers → +1.4s Blizzard III Blowout 47765 (diagonal ice) → +6.5s Gravitas → +10.5s Vitrophyre; whole party at the edge of waymark A (north) on the safe diagonal's side
     // Round 2: cleave tell → tethers → +3.9s Intemperate Will 47794 (half-room cleave) → +8.5s Gravitas → +12.5s Vitrophyre; whole party at the edge of waymark C (south) on the cleave's safe side
-    // After Gravitas resolves: the meteor role spreads (G1 = MT H1 M1 R1 on the left facing the boss, G2 = ST H2 M2 R2 on the right; T/melee at max melee, H/ranged further out), the stack role goes under the boss
+    // After Gravitas resolves: the meteor role spreads (G1 = MT H1 M1 R1 on the left facing the boss, G2 = OT H2 M2 R2 on the right; T/melee at max melee, H/ranged further out), the stack role goes under the boss
     private readonly object _g2Lock = new();
     private int _g2Round = 0;
     private long _g2LastTethers = 0;
@@ -2654,7 +2647,7 @@ public class Dancing_Mad_Ultimate
         sa.Debug($"Graven Image 3 arrows: Index={targetIdx}, {plan.Callout}, First={firstPos}, Second={secondPos}");
     }
 
-    // Graven Image 3 tethers (ignore sleep/confuse) are fully static: N MT in / R1 out, W ST in / R2 out, E M2 in / H2 out, S M1 in / H1 out
+    // Graven Image 3 tethers (ignore sleep/confuse) are fully static: N MT in / R1 out, W OT in / R2 out, E M2 in / H2 out, S M1 in / H1 out
     // 3.3s after the tethers comes the third trap knockback, +9s Idyllic Will / Ave Maria resolve; go to the fixed spot after landing from the knockback
     [ScriptMethod(
         name: "P1_GravenImage3_FixedSpotsGuide",
@@ -2988,7 +2981,7 @@ public class Dancing_Mad_Ultimate
 
     }
 
-    // Fixed buddies MT+H1 / ST+H2 / M1+R1 / M2+R2: the two pairs with a stack are group A (towers on sets 1/2/3/8), the other two pairs are group B (sets 4~7)
+    // Fixed buddies MT+H1 / OT+H2 / M1+R1 / M2+R2: the two pairs with a stack are group A (towers on sets 1/2/3/8), the other two pairs are group B (sets 4~7)
     private bool groupPartyMembersAtBeginning(ScriptAccessory accessory) {
 
         int[][] group=[[0,2],
@@ -3505,7 +3498,7 @@ public class Dancing_Mad_Ultimate
     }
 
     // ----- LPDU Buddies: https://raidplan.io/plan/142oXOZpPc_jh3dd , exact positions: https://raidplan.io/plan/A0xlCay835pm5qxs -----
-    // Buddies MT+H1 / ST+H2 / M1+R1 / M2+R2, the two pairs with a stack are group A, towers go AAABBBBA; ranged (H/R) spots are fixed, T/melee adjust around their buddy
+    // Buddies MT+H1 / OT+H2 / M1+R1 / M2+R2, the two pairs with a stack are group A, towers go AAABBBBA; ranged (H/R) spots are fixed, T/melee adjust around their buddy
     // Spots are written in a local frame with "this set's two towers in the south" (x east positive, z south positive, relative to the middle): facing the boss, left tower (SW) = cone tower, right tower (SE) = circle tower
     private static readonly Vector2 P2LeftTower=new(-5.657f,5.657f);
     private const float P2DefaultHitbox=6;
@@ -4536,7 +4529,7 @@ public class Dancing_Mad_Ultimate
     //   The NW one's look doesn't match its explosion, so the outer ones are computed from position, not DataId; the middle one uses DataId: 2015154 points east, 2015155 points west
     // Everyone starts in the middle and stands on the safe half for the Wings of Destruction cleave (47821/47822); after set 1 explodes:
     //   the party goes into the first set-1 triangle "clockwise from north", the tanks into the first set-1 triangle "counterclockwise from NW"
-    //   ST far: the arena edge of the tank triangle; MT near: a gap of the middle triangle (between two points, 7.5m from the middle),
+    //   OT far: the arena edge of the tank triangle; MT near: a gap of the middle triangle (between two points, 7.5m from the middle),
     //   picking the gap whose neighbouring outer triangles aren't in set 3 and that's closest to the tank triangle; if a set-2 triangle is next to it, wait inside the tank triangle until it blows up
     // Near/far tankbuster 47823 (7m) targets the closest/farthest when set 3 explodes
     private readonly object _trineLock=new();
@@ -4749,7 +4742,7 @@ public class Dancing_Mad_Ultimate
 
     private const string DebugVersion = "a";
     private int _runId = 0;
-    private static readonly List<string> Role = ["MT", "ST", "H1", "H2", "D1", "D2", "D3", "D4"];
+    private static readonly List<string> Role = ["MT", "OT", "H1", "H2", "M1", "M2", "R1", "R2"];
     private static readonly Vector3 Center = new Vector3(100, 0, 100);
     private static readonly Vector3 CrystalBasePos = new Vector3(109.9f, 0, 109.9f);
     private static readonly Vector3 BlackHoleBasePos = new Vector3(100f, 0, 83f);
@@ -4901,9 +4894,9 @@ public class Dancing_Mad_Ultimate
         _udmP3Param.FirewallEnabled = false;
     }
 
-    [ScriptMethod(name: "P3_DetermineMtStByBuff", eventType: EventTypeEnum.StatusAdd, eventCondition: ["StatusID:regex:^(419[24])$"],
+    [ScriptMethod(name: "P3_DetermineMtOtByBuff", eventType: EventTypeEnum.StatusAdd, eventCondition: ["StatusID:regex:^(419[24])$"],
         userControl: Debugging)]
-    public void P3_DetermineMtStByBuff(Event ev, ScriptAccessory sa)
+    public void P3_DetermineMtOtByBuff(Event ev, ScriptAccessory sa)
     {
         const uint chaos_buff = 4192;
         const uint exdeath_buff = 4194;
@@ -4919,7 +4912,7 @@ public class Dancing_Mad_Ultimate
             1 => statusId == chaos_buff
         };
         sa.DebugMsg(
-            $"{sa.GetPlayerJobByIndex(idx)} got {statusId}, Exdeath tank is {(_udmP3Param.MtTanksExdeath ? "MT" : "ST")}");
+            $"{sa.GetPlayerJobByIndex(idx)} got {statusId}, Exdeath tank is {(_udmP3Param.MtTanksExdeath ? "MT" : "OT")}");
     }
 
     #region P3A Bowels of Agony Common
@@ -6355,7 +6348,7 @@ public class Dancing_Mad_Ultimate
          * Stack from Stray Gusts: Cyclone 47864
          */
 
-        // LPDU: after Fire & Water 2, D3 goes to the empty side's wall to bait the jump, everyone else except the tanks stacks at the wind crystal
+        // LPDU: after Fire & Water 2, R1 goes to the empty side's wall to bait the jump, everyone else except the tanks stacks at the wind crystal
         sa.DebugMsg($"Fire & Water 2 done, current stage {_udmP3Param.CurrentStage}");
         var windPos = CrystalDirectionPoint(_udmP3Param.WindCrystalRegion, 14f);
         foreach (var idx in GuidedPlayers(sa))
@@ -6420,7 +6413,7 @@ public class Dancing_Mad_Ultimate
         if (_udmP3Param.CurrentStage != 3111) return;
         sa.DebugMsg($"Stacks after knockback");
 
-        // LPDU role pair stacks: MT+ST, H1+H2, D1+D2, D3+D4
+        // LPDU role pair stacks: MT+OT, H1+H2, M1+M2, R1+R2
         foreach (var idx in GuidedPlayers(sa))
             sa.DrawCircle(sa.Data.PartyList[idx ^ 1], 0, 4000, $"VacuumWaveStack {idx}", 6, sa.Data.DefaultSafeColor);
     }
@@ -7532,8 +7525,8 @@ public class Dancing_Mad_Ultimate
 
     /// <summary>
     /// Blizzard III left/right split (Kefka = north, west = left). Corners and towers are on the same side: supports in the two north corners, DPS in the two south corners.
-    /// LPDU: T + melee west (MT+ST NW, D1+D2 SW), H + ranged east (H1+H2 NE, D3+D4 SE).
-    /// PF: G1 (MT H1 D1 D3) west (MT+H1 NW, D1+D3 SW), G2 (ST H2 D2 D4) east (ST+H2 NE, D2+D4 SE).
+    /// LPDU: T + melee west (MT+OT NW, M1+M2 SW), H + ranged east (H1+H2 NE, R1+R2 SE).
+    /// PF: G1 (MT H1 M1 R1) west (MT+H1 NW, M1+R1 SW), G2 (OT H2 M2 R2) east (OT+H2 NE, M2+R2 SE).
     /// </summary>
     private bool BlizzardOnWestSide(int myIndex)
         => p3FollowPfStrats ? myIndex is 0 or 2 or 4 or 6 : myIndex is 0 or 1 or 4 or 5;
@@ -9213,7 +9206,7 @@ public class Dancing_Mad_Ultimate
 
     private static readonly Vector3 P4ArenaCenter = new Vector3(100.0f, 0.0f, 100.0f);
     private static readonly Vector3 DefaultNorth = new Vector3(0.0f, 0.0f, -1.0f);
-    private static readonly string[] PartyPriorityLabels = new[] { "MT", "ST", "H1", "H2", "D1", "D2", "D3", "D4" };
+    private static readonly string[] PartyPriorityLabels = new[] { "MT", "OT", "H1", "H2", "M1", "M2", "R1", "R2" };
     private static readonly uint[] P4TrackedStatusIds = new uint[] { 5541, 5542, 5543, 5544, 5545, 5546, 5547, 5548, 454, 1382 };
     private static readonly float[] P4CardinalClocks = new[] { 0.0f, 3.0f, 6.0f, 9.0f };
     private static readonly float[] P4FinalHalfClocks = new[] { 11.5f, 12.5f, 2.5f, 3.5f, 5.5f, 6.5f, 8.5f, 9.5f };
@@ -12575,7 +12568,7 @@ public class Dancing_Mad_Ultimate
         FireSafeStrategy.Up, FireSafeStrategy.Down
     };
 
-    private static readonly string[] TowerLabels = { "MT", "ST", "H1", "H2", "D1", "D2", "D3", "D4" };
+    private static readonly string[] TowerLabels = { "MT", "OT", "H1", "H2", "M1", "M2", "R1", "R2" };
 
     private readonly object _towerLock = new();
     private readonly Dictionary<Vector3, TowerElement> _towerRoundTowers = new();
@@ -14268,7 +14261,7 @@ internal class PriorityDict
     public string Annotation { get; set; } = "";
     public int ActionCount { get; set; } = 0;
 
-    private static readonly List<string> Role = ["MT", "ST", "H1", "H2", "D1", "D2", "D3", "D4"];
+    private static readonly List<string> Role = ["MT", "OT", "H1", "H2", "M1", "M2", "R1", "R2"];
 
     public void Init(ScriptAccessory sa, string annotation, int partyNum = 8, bool refreshActionCount = true)
     {
@@ -14924,7 +14917,7 @@ internal static class IndexHelper
     /// <returns></returns>
     public static string GetPlayerJobByIndex(this ScriptAccessory sa, int idx, bool fourPeople = false)
     {
-        List<string> role8 = ["MT", "ST", "H1", "H2", "D1", "D2", "D3", "D4"];
+        List<string> role8 = ["MT", "OT", "H1", "H2", "M1", "M2", "R1", "R2"];
         List<string> role4 = ["T", "H", "D1", "D2"];
         if (idx < 0 || idx >= 8 || (fourPeople && idx >= 4))
             return "Unknown";
