@@ -39,7 +39,7 @@ public class Dancing_Mad_Ultimate
     #region Metadata
 
     private const string Name = "Dancing Mad (Ultimate) DMU UMAD - LPDU";
-    private const string Version = "0.0.0.1";
+    private const string Version = "0.0.0.2";
 
     private const string Note =
         $"""
@@ -61,7 +61,7 @@ public class Dancing_Mad_Ultimate
     private const string UpdateInfo =
         $"""
         {Version}
-        Merged the Cicero / Coda / Usami / RyougiMio / Errer scripts.
+        Adjusted the P2 Forsaken positions to be more precise
         """;
 
     #endregion
@@ -179,7 +179,7 @@ public class Dancing_Mad_Ultimate
     // When on, all guidance is drawn for all 8 players (each solved from their own buff / marker / role),
     // internal methods with userControl: Debugging are shown, and Usami's section prints debug info
     // Must be const: userControl: Debugging is an attribute argument and only takes compile-time constants
-    public const bool Debugging = false;
+    public const bool Debugging = true;
 
     /// <summary>Owner of the guidance arrow start: normally PartyList[idx], falls back to me if out of range</summary>
     private static uint GuidanceOwner(ScriptAccessory sa, int idx)
@@ -3639,7 +3639,7 @@ public class Dancing_Mad_Ultimate
 
         Vector2? relative=(currentRound%2==1)
             ?P2OddSetSpot(myIndex,inTower,currentRound==1)
-            :P2EvenSetSpot(myIndex,inTower,towerGroup,hitbox);
+            :P2EvenSetSpot(myIndex,inTower,hitbox);
 
         if(enableDebugLogging) {
 
@@ -3668,14 +3668,16 @@ public class Dancing_Mad_Ultimate
     // Both buddies have stacks: the ranged stays on their own role's side, T/melee swaps to the other side
     // PF strat only changes set 1: stacks take the tower with their buddy (buddy cone → cone tower, buddy circle → circle tower), later sets same as LPDU
     // Helpers are fixed: T inside the boss hitbox in front of the cone tower (takes the supports' stack), H directly south of the cone player to bait the cone; the two DPS between the towers, toward the circle tower, take the DPS stack
+    // Spots tuned from an EU player's recording: T ~0.5m outside the cone tower edge (not on the ring), H 1.4m south of the cone player so it stays the closest player to the cone,
+    // DPS stack: in-tower stack 3.2m from the circle tower centre (0.8m inside the edge), helpers ~5m from it (1m outside the edge), melee just north of ranged
     private Vector2? P2OddSetSpot(int idx,bool inTower,bool firstRound) {
 
         if(!inTower) {
 
-            if(isTank(idx)) return new Vector2(-2.8f,2.8f);
-            if(isHealer(idx)) return new Vector2(-5.0f,11.9f);
-            if(isMeleeDps(idx)) return new Vector2(1.2f,6.4f);
-            return new Vector2(1.6f,7.6f);
+            if(isTank(idx)) return new Vector2(-1.7f,3.5f);
+            if(isHealer(idx)) return new Vector2(-5.0f,10.6f);
+            if(isMeleeDps(idx)) return new Vector2(0.9f,7.2f);
+            return new Vector2(1.15f,7.82f);
 
         }
 
@@ -3684,8 +3686,9 @@ public class Dancing_Mad_Ultimate
             case Phase2Sub2_IconTypes.FAN:
                 return new Vector2(-5.0f,9.2f);
 
+            // Circle at the tower's ~1:30 (2.8m from centre, toward the boss/east) as in the EU recording; 5.8m from the in-tower DPS stack, outside the 5m circle
             case Phase2Sub2_IconTypes.SPREAD:
-                return new Vector2(9.06f,5.66f);
+                return new Vector2(7.6f,3.6f);
 
             case Phase2Sub2_IconTypes.STACK: {
 
@@ -3705,7 +3708,7 @@ public class Dancing_Mad_Ultimate
 
                 }
 
-                return coneTower?new Vector2(-4.81f,4.81f):new Vector2(3.46f,6.26f);
+                return coneTower?new Vector2(-4.81f,4.81f):new Vector2(2.57f,6.51f);
 
             }
 
@@ -3717,10 +3720,11 @@ public class Dancing_Mad_Ultimate
     }
 
     // Even sets (2 cones 2 circles): each tower has the cone in front and the circle behind
-    // H + melee take the left tower, ranged + T the right tower; if melee and H have the same icon, melee swaps with T
+    // Ranged are fixed (H left tower, R right tower); T/melee default to their buddy's tower and adjust to the other one if they have the same icon as their buddy
+    // (raidplan slide 1 "melees adjust for their ranged partner"; set 8 slide: H2 circle / R1 circle / OT cone / M1 cone -> OT left, M1 right)
     // Helpers are fixed: T NW / melee NE on the boss's outer hitbox ring to bait the clones (the four clones target the closest 4 = the two cones + these two),
     // H / ranged stand outside the cone players to bait the cones, which fire out east and west
-    private Vector2? P2EvenSetSpot(int idx,bool inTower,List<int> towerGroup,float hitbox) {
+    private Vector2? P2EvenSetSpot(int idx,bool inTower,float hitbox) {
 
         var (cone,circle,baiter)=P2EvenSetLeftTower();
 
@@ -3733,10 +3737,9 @@ public class Dancing_Mad_Ultimate
 
         }
 
-        int healer=towerGroup.FirstOrDefault(isHealer,-1);
-        int melee=towerGroup.FirstOrDefault(isMeleeDps,-1);
-        bool swap=healer>=0&&melee>=0&&phase2sub2_iconType[healer]==phase2sub2_iconType[melee];
-        bool left=isHealer(idx)||(isMeleeDps(idx)&&!swap)||(isTank(idx)&&swap);
+        // idx^2 = fixed buddy (0↔2, 1↔3, 4↔6, 5↔7)
+        bool sameAsBuddy=phase2sub2_iconType[idx]==phase2sub2_iconType[idx^2];
+        bool left=isHealer(idx)||(isTank(idx)&&!sameAsBuddy)||(isMeleeDps(idx)&&sameAsBuddy);
 
         Vector2? spot=phase2sub2_iconType[idx] switch {
             Phase2Sub2_IconTypes.FAN => cone,
