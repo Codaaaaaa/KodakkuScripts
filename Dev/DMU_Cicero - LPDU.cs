@@ -38,13 +38,13 @@ public class Dancing_Mad_Ultimate
 {
     #region 元信息
 
-    private const string Name = "Dancing Mad (Ultimate) DMU/UMAD - LPDU";
+    private const string Name = "Dancing Mad (Ultimate) DMU UMAD - LPDU";
     private const string Version = "0.0.0.1";
 
     private const string Note =
         $"""
         {Version}
-        由五个脚本整合而成，删除了所有头顶标记（打标点）功能：
+        由五个脚本整合而成：
             Cicero 灵视 - P1~P5 的绘制，P2 遗弃末世全程与 P3 深层痛楚(一运)究极冲击波的指路。
             Coda - P1 众神之像 1~3 的指路。
             Usami - P3 的绘制与指路。
@@ -92,25 +92,25 @@ public class Dancing_Mad_Ultimate
     // ----- * 特殊功能（非原生，默认关闭） -----
 
     [UserSetting("*通用 屏蔽呼啦啦爆炎、扩大大冰封和劈啪啪暴雷的技能特效（开启后这三种范围改用原生绘制）")]
-    public bool blockFireIceThunderVfx { get; set; } = false;
+    public bool blockFireIceThunderVfx { get; set; } = true;
     [UserSetting("*通用 呼啦啦爆炎、扩大大冰封和劈啪啪暴雷 技能特效屏蔽的方法")]
     public AnimationBlockadeModes animationBlockadeMode { get; set; } = AnimationBlockadeModes.传统方法_改变透明施法者的可见性;
     [UserSetting("*P3 防火墙 屏蔽无效目标")]
-    public bool p3FirewallBlockInvalidTargets { get; set; } = false;
+    public bool p3FirewallBlockInvalidTargets { get; set; } = true;
     [UserSetting("*P3A 移除暴雷连线")]
-    public bool p3aRemoveThunderTether { get; set; } = false;
+    public bool p3aRemoveThunderTether { get; set; } = true;
     [UserSetting("*P3A 真空波读条期间卡奥斯透明")]
-    public bool p3aChaosTransparentDuringVacuumWave { get; set; } = false;
+    public bool p3aChaosTransparentDuringVacuumWave { get; set; } = true;
     [UserSetting("*P3A1 真空波 自动面向辅助")]
-    public bool p3a1VacuumWaveAutoFace { get; set; } = false;
+    public bool p3a1VacuumWaveAutoFace { get; set; } = true;
     [UserSetting("*P3B 黑洞、冰封期间双Boss透明")]
-    public bool p3bBossesTransparentDuringBlackHole { get; set; } = false;
+    public bool p3bBossesTransparentDuringBlackHole { get; set; } = true;
     [UserSetting("*P3B 凯夫卡上桌透明化")]
-    public bool p3bKefkaTransparent { get; set; } = false;
+    public bool p3bKefkaTransparent { get; set; } = true;
     [UserSetting("*P3B 卡奥斯非技能期间透明化")]
-    public bool p3bChaosTransparent { get; set; } = false;
+    public bool p3bChaosTransparent { get; set; } = true;
     [UserSetting("*P3B 艾克斯迪司非技能期间透明化")]
-    public bool p3bExdeathTransparent { get; set; } = false;
+    public bool p3bExdeathTransparent { get; set; } = true;
 
     // ----- 调试 -----
 
