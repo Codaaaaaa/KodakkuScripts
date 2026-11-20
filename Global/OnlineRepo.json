@@ -46,5 +46,15 @@
     "DownloadUrl": "https://raw.githubusercontent.com/Codaaaaaa/KodakkuScripts/main/Global/LPDU/UCOB_Joshua%20%26%20Usami%20-%20LPDU.cs",
     "Note": "0.0.0.6\nThis is a modified version adapted for the LPDU strat.\n\n-----------Important-----------\n\nAt the very start, when everyone is lining up, once everyone is in position, type **/e sort** in the chat can automatically assign the players closest to each marker into the correct order.\n\nMT H1 D1 D3 → L1 L2 L3 L4\nST H2 D2 D4 → R1 R2 R3 R4\n\n-------------------------------\n\nA rework of the UCOB [The Unending Coil of Bahamut (Ultimate)] script.\nAdds a whole lot of new stuff.\n\nOriginal script authors: Joshua, Meva, KnightRider, Usami",
     "UpdateInfo": "0.0.0.6\nFix P4 Hatch: the far Neurolink is now the correct one\nReword P4 Hatch TTS: \"Hatch, then Twister\" / \"Twister, then Hatch\""
+  },
+  {
+    "Name": "Dancing Mad (Ultimate) DMU UMAD - LPDU",
+    "Guid": "52a1cc3b-57fb-4893-9608-c0cbaaf210bd",
+    "Version": "0.0.0.1",
+    "Author": "Cicero & Coda & Usami & RyougiMio & Errer",
+    "TerritoryIds": [1363],
+    "DownloadUrl": "https://raw.githubusercontent.com/Codaaaaaa/KodakkuScripts/main/Global/LPDU/DMU_Cicero%20-%20LPDU.cs",
+    "Note": "0.0.0.1\nMerged from five scripts:\n    Cicero - P1~P5 draws, full P2 Forsaken guidance, and the P3 Bowels of Agony (P3A) Ultima Blaster guidance.\n    Coda - P1 guidance.\n    Usami - P3 draws and guidance.\n    RyougiMio - P4 guidance.\n    Errer - P5 draws and guidance.\n\nParty order must be MT OT H1 H2 M1 M2 R1 R2 (M = melee, R = ranged).\nParty order test: type /e kdmutest in chat.\n\nMethods and settings marked with * are non-vanilla features (hiding skill VFX, transparent bosses, blocking invalid targets, removing the Thunder III tether).\nThey are on by default; turn off the ones you don't want in the '* Special Features' group of the user settings.",
+    "UpdateInfo": "0.0.0.1\nMerged the Cicero / Coda / Usami / RyougiMio / Errer scripts."
   }
 ]
