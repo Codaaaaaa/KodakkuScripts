@@ -39,7 +39,7 @@ public class Dancing_Mad_Ultimate
     #region Metadata
 
     private const string Name = "Dancing Mad (Ultimate) DMU UMAD - LPDU";
-    private const string Version = "0.0.0.2";
+    private const string Version = "0.0.0.3";
 
     private const string Note =
         $"""
@@ -61,7 +61,7 @@ public class Dancing_Mad_Ultimate
     private const string UpdateInfo =
         $"""
         {Version}
-        Adjusted the P2 Forsaken positions to be more precise
+        Disable Debugging mode
         """;
 
     #endregion
@@ -179,7 +179,7 @@ public class Dancing_Mad_Ultimate
     // When on, all guidance is drawn for all 8 players (each solved from their own buff / marker / role),
     // internal methods with userControl: Debugging are shown, and Usami's section prints debug info
     // Must be const: userControl: Debugging is an attribute argument and only takes compile-time constants
-    public const bool Debugging = true;
+    public const bool Debugging = false;
 
     /// <summary>Owner of the guidance arrow start: normally PartyList[idx], falls back to me if out of range</summary>
     private static uint GuidanceOwner(ScriptAccessory sa, int idx)
