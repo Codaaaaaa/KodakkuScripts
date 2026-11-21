@@ -50,11 +50,11 @@
   {
     "Name": "Dancing Mad (Ultimate) DMU UMAD - LPDU",
     "Guid": "52a1cc3b-57fb-4893-9608-c0cbaaf210bd",
-    "Version": "0.0.0.2",
+    "Version": "0.0.0.3",
     "Author": "Cicero & Codaaaaaa & Usami & RyougiMio & Errer",
     "TerritoryIds": [1363],
     "DownloadUrl": "https://raw.githubusercontent.com/Codaaaaaa/KodakkuScripts/main/Global/LPDU/DMU_Cicero%20-%20LPDU.cs",
-    "Note": "0.0.0.2\nMerged from five scripts:\n    Cicero - P1~P5 draws, full P2 Forsaken guidance, and the P3 Bowels of Agony (P3A) Ultima Blaster guidance.\n    Coda - P1 guidance.\n    Usami - P3 draws and guidance.\n    RyougiMio - P4 guidance.\n    Errer - P5 draws and guidance.\n\nParty order must be MT OT H1 H2 M1 M2 R1 R2 (M = melee, R = ranged).\nParty order test: type /e kdmutest in chat.\n\nMethods and settings marked with * are non-vanilla features (hiding skill VFX, transparent bosses, blocking invalid targets, removing the Thunder III tether).\nThey are on by default; turn off the ones you don't want in the '* Special Features' group of the user settings.",
-    "UpdateInfo": "0.0.0.2\nAdjusted the P2 Forsaken positions to be more precise"
+    "Note": "0.0.0.3\nMerged from five scripts:\n    Cicero - P1~P5 draws, full P2 Forsaken guidance, and the P3 Bowels of Agony (P3A) Ultima Blaster guidance.\n    Coda - P1 guidance.\n    Usami - P3 draws and guidance.\n    RyougiMio - P4 guidance.\n    Errer - P5 draws and guidance.\n\nParty order must be MT OT H1 H2 M1 M2 R1 R2 (M = melee, R = ranged).\nParty order test: type /e kdmutest in chat.\n\nMethods and settings marked with * are non-vanilla features (hiding skill VFX, transparent bosses, blocking invalid targets, removing the Thunder III tether).\nThey are on by default; turn off the ones you don't want in the '* Special Features' group of the user settings.",
+    "UpdateInfo": "0.0.0.3\nDisable Debugging mode"
   }
 ]
