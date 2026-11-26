@@ -125,16 +125,6 @@ namespace CicerosKodakkuAssist.FuturesRewrittenUltimate.LPDU
 
         [UserSetting("-----P3设置----- (No actual meaning for this setting/此设置无实际意义)")]
         public bool _____Phase3_Settings_____ { get; set; } = true;
-        [UserSetting("P3一运 攻略")]
-        public Phase3_Strats_Of_The_First_Half Phase3_Strat_Of_The_First_Half { get; set; } = Phase3_Strats_Of_The_First_Half.Moogle_莫古力_莫灵喵与MMW;
-        [UserSetting("P3二运 攻略")]
-        public Phase3_Strats_Of_The_Second_Half Phase3_Strat_Of_The_Second_Half { get; set; } = Phase3_Strats_Of_The_Second_Half.Moglin_Meow_Or_Baby_Wheelchair_Based_On_Signs_根据目标标记的莫灵喵法或宝宝椅法;
-        [UserSetting("P3二运 双分组法的分支")]
-        public Phase3_Branches_Of_The_Double_Group_Strat Phase3_Branch_Of_The_Double_Group_Strat { get; set; } = Phase3_Branches_Of_The_Double_Group_Strat.Based_On_Safe_Positions_安全区为基准_MMW;
-        [UserSetting("P3二运 车头低换法的分支")]
-        public Phase3_Branches_Of_The_Locomotive_Strat Phase3_Branch_Of_The_Locomotive_Strat { get; set; } = Phase3_Branches_Of_The_Locomotive_Strat.Others_As_Locomotives_Chinese_PF_国服野队人群为车头;
-        [UserSetting("P3二运 场地划分方式")]
-        public Phase3_Divisions_Of_The_Zone Phase3_Division_Of_The_Zone { get; set; } = Phase3_Divisions_Of_The_Zone.North_To_Southwest_For_The_Left_Group_左组从正北到西南_莫灵喵与MMW;
         [UserSetting("P3二运 粗略指路的颜色")]
         public ScriptColor Phase3_Colour_Of_Rough_Guidance { get; set; } = new() { V4 = new(1f, 1f, 0f, 1f) };
         [UserSetting("P3二运 倒数第二次启示(地火)的颜色")]
@@ -143,10 +133,6 @@ namespace CicerosKodakkuAssist.FuturesRewrittenUltimate.LPDU
         public Tanks Phase3_Tank_Who_Baits_Darkest_Dance { get; set; }
         [UserSetting("P3二运 暗夜舞蹈(最远死刑)的颜色")]
         public ScriptColor Phase3_Colour_Of_Darkest_Dance { get; set; } = new() { V4 = new(1f, 0f, 0f, 1f) };
-        [UserSetting("P3二运 启示录水分摊分组 MT/ST优先级互换")]
-        public static bool ApoTankPriorSwap { get; set; } = false;
-        [UserSetting("P3二运 启示录地火分散策略")]
-        public static ApoStgEnum ApoStg { get; set; } = ApoStgEnum.CrowdFirst_人群车头;
 
         [UserSetting("-----P4设置----- (No actual meaning for this setting/此设置无实际意义)")]
         public bool _____Phase4_Settings_____ { get; set; } = true;
@@ -273,39 +259,21 @@ namespace CicerosKodakkuAssist.FuturesRewrittenUltimate.LPDU
             Phase3_Types_Of_Dark_Water_III.NONE,
             Phase3_Types_Of_Dark_Water_III.NONE
         ];
-        volatile List<MarkType> phase3_marksOfPlayers = [
-            MarkType.Stop1,
-            MarkType.Stop1,
-            MarkType.Stop1,
-            MarkType.Stop1,
-            MarkType.Stop1,
-            MarkType.Stop1,
-            MarkType.Stop1,
-            MarkType.Stop1
-        ];
         volatile int phase3_numberOfDarkWaterIiiHasBeenProcessed = 0;
-        volatile int phase3_numberOfMarksHaveBeenRecorded = 0;
-        System.Threading.AutoResetEvent phase3_semaphoreMarksHaveBeenRecorded = new System.Threading.AutoResetEvent(false);
         volatile int phase3_roundOfDarkWaterIii = 0;
         volatile int phase3_rangeSemaphoreOfDarkWaterIii = 0;
         volatile int phase3_guidanceSemaphoreOfDarkWaterIii = 0;
-        List<int> phase3_doubleGroup_priority_asAConstant = [2, 3, 0, 1, 4, 5, 6, 7];
-        // The priority would be H1 H2 MT OT M1 M2 R1 R2 or H1 H2 MT ST D1 D2 D3 D4 temporarily if the Double Group strat is adopted.
-        List<int> phase3_locomotive_priority_asAConstant = [0, 1, 2, 3, 7, 6, 5, 4];
-        // The priority would be MT OT H1 H2 R2 R1 M2 M1 or MT ST H1 H2 D4 D3 D2 D1 temporarily if the Locomotive strat is adopted.
+        // LPDU 启示分组：T奶西北、DPS东南；同组两人拿到同一种水时，MT>OT>H1>H2 / M1>M2>R1>R2 里优先级高的去对面
+        // 同种水的两人里，这个列表中靠前的去左组（西北）：H2 H1 OT MT M1 M2 R1 R2
+        List<int> phase3_locomotive_priority_asAConstant = [3, 2, 1, 0, 4, 5, 6, 7];
+        // 两组分摊点：职能半场（左组正北~西南、右组东北~正南）的中线方向，距场中 7m
+        static readonly Vector3 phase3_leftGroupPosition_asAConstant = new(93.53f, 0, 97.32f);
+        static readonly Vector3 phase3_rightGroupPosition_asAConstant = new(106.47f, 0, 102.68f);
         volatile bool phase3_hasConfirmedInitialSafePositions = false;
-        Vector3 phase3_doubleGroup_initialSafePositionOfTheLeftGroup = new Vector3(100, 0, 100);
-        Vector3 phase3_doubleGroup_initialSafePositionOfTheRightGroup = new Vector3(100, 0, 100);
-        Vector3 phase3_doubleGroup_leftPositionToStackOfTheSecondRound = new Vector3(100, 0, 100);
-        Vector3 phase3_doubleGroup_rightPositionToStackOfTheSecondRound = new Vector3(100, 0, 100);
         Vector3 phase3_locomotive_initialSafePositionOfTheLeftGroup = new Vector3(100, 0, 100);
         Vector3 phase3_locomotive_initialSafePositionOfTheRightGroup = new Vector3(100, 0, 100);
         Vector3 phase3_locomotive_leftPositionToStackOfTheSecondRound = new Vector3(100, 0, 100);
         Vector3 phase3_locomotive_rightPositionToStackOfTheSecondRound = new Vector3(100, 0, 100);
-        Vector3 phase3_moglinMeow_initialSafePositionOfTheLeftGroup = new Vector3(100, 0, 100);
-        Vector3 phase3_moglinMeow_initialSafePositionOfTheRightGroup = new Vector3(100, 0, 100);
-        Vector3 phase3_moglinMeow_leftPositionToStackOfTheSecondRound = new Vector3(100, 0, 100);
-        Vector3 phase3_moglinMeow_rightPositionToStackOfTheSecondRound = new Vector3(100, 0, 100);
         Vector3 phase3_finalPositionOfTheBoss = new Vector3(100, 0, 100);
 
         ulong P4FragmentId;
@@ -386,7 +354,6 @@ namespace CicerosKodakkuAssist.FuturesRewrittenUltimate.LPDU
         private static PriorityDict _usamiPd = new();
         private static Counter _ct = new();
         private static Apocalypse _apo = new();
-        private static UlRelativity _ulr = new();
         private static List<ManualResetEvent> _usamiEvents = [.. Enumerable.Range(0, 20).Select(_ => new ManualResetEvent(false))];
         private static List<ulong> _fragTargets = [];
 
@@ -403,12 +370,6 @@ namespace CicerosKodakkuAssist.FuturesRewrittenUltimate.LPDU
         #endregion
 
         #region Enumeration_And_Classes_枚举和类
-
-        public enum ApoStgEnum
-        {
-            CrowdFirst_人群车头,
-            CrownFirst_MTD1皇帝车头,
-        }
 
         public enum AkhMornEnum
         {
@@ -514,47 +475,6 @@ namespace CicerosKodakkuAssist.FuturesRewrittenUltimate.LPDU
 
             MT,
             OT_ST
-
-        }
-
-        public enum Phase3_Strats_Of_The_First_Half
-        {
-
-            Moogle_莫古力_莫灵喵与MMW,
-            Other_Strats_Are_Work_In_Progress_其他攻略正在施工中
-
-        }
-
-        public enum Phase3_Strats_Of_The_Second_Half
-        {
-
-            Double_Group_双分组法,
-            High_Priority_As_Locomotives_车头低换法_MMW,
-            Moglin_Meow_Or_Baby_Wheelchair_Based_On_Signs_根据目标标记的莫灵喵法或宝宝椅法
-
-        }
-
-        public enum Phase3_Branches_Of_The_Double_Group_Strat
-        {
-
-            Based_On_Safe_Positions_安全区为基准_MMW,
-            Based_On_The_Second_Apocalypse_第二次启示为基准
-
-        }
-
-        public enum Phase3_Branches_Of_The_Locomotive_Strat
-        {
-
-            MT_And_M1_As_Locomotives_MT和D1为车头_MMW,
-            Others_As_Locomotives_Chinese_PF_国服野队人群为车头
-
-        }
-
-        public enum Phase3_Divisions_Of_The_Zone
-        {
-
-            North_To_Southwest_For_The_Left_Group_左组从正北到西南_莫灵喵与MMW,
-            Northwest_To_South_For_The_Left_Group_左组从西北到正南
 
         }
 
@@ -745,35 +665,15 @@ namespace CicerosKodakkuAssist.FuturesRewrittenUltimate.LPDU
                 Phase3_Types_Of_Dark_Water_III.NONE,
                 Phase3_Types_Of_Dark_Water_III.NONE
             ];
-            phase3_marksOfPlayers = [
-                MarkType.Stop1,
-                MarkType.Stop1,
-                MarkType.Stop1,
-                MarkType.Stop1,
-                MarkType.Stop1,
-                MarkType.Stop1,
-                MarkType.Stop1,
-                MarkType.Stop1
-            ];
             phase3_numberOfDarkWaterIiiHasBeenProcessed = 0;
-            phase3_numberOfMarksHaveBeenRecorded = 0;
-            phase3_semaphoreMarksHaveBeenRecorded = new System.Threading.AutoResetEvent(false);
             phase3_roundOfDarkWaterIii = 0;
             phase3_rangeSemaphoreOfDarkWaterIii = 0;
             phase3_guidanceSemaphoreOfDarkWaterIii = 0;
             phase3_hasConfirmedInitialSafePositions = false;
-            phase3_doubleGroup_initialSafePositionOfTheLeftGroup = new Vector3(100, 0, 100);
-            phase3_doubleGroup_initialSafePositionOfTheRightGroup = new Vector3(100, 0, 100);
-            phase3_doubleGroup_leftPositionToStackOfTheSecondRound = new Vector3(100, 0, 100);
-            phase3_doubleGroup_rightPositionToStackOfTheSecondRound = new Vector3(100, 0, 100);
             phase3_locomotive_initialSafePositionOfTheLeftGroup = new Vector3(100, 0, 100);
             phase3_locomotive_initialSafePositionOfTheRightGroup = new Vector3(100, 0, 100);
             phase3_locomotive_leftPositionToStackOfTheSecondRound = new Vector3(100, 0, 100);
             phase3_locomotive_rightPositionToStackOfTheSecondRound = new Vector3(100, 0, 100);
-            phase3_moglinMeow_initialSafePositionOfTheLeftGroup = new Vector3(100, 0, 100);
-            phase3_moglinMeow_initialSafePositionOfTheRightGroup = new Vector3(100, 0, 100);
-            phase3_moglinMeow_leftPositionToStackOfTheSecondRound = new Vector3(100, 0, 100);
-            phase3_moglinMeow_rightPositionToStackOfTheSecondRound = new Vector3(100, 0, 100);
             phase3_finalPositionOfTheBoss = new Vector3(100, 0, 100);
 
             P4FragmentId=0;
@@ -5413,104 +5313,16 @@ namespace CicerosKodakkuAssist.FuturesRewrittenUltimate.LPDU
                 Phase3_Types_Of_Dark_Water_III.NONE,
                 Phase3_Types_Of_Dark_Water_III.NONE
             ];
-            phase3_marksOfPlayers = [
-                MarkType.Stop1,
-                MarkType.Stop1,
-                MarkType.Stop1,
-                MarkType.Stop1,
-                MarkType.Stop1,
-                MarkType.Stop1,
-                MarkType.Stop1,
-                MarkType.Stop1
-            ];
             phase3_numberOfDarkWaterIiiHasBeenProcessed = 0;
-            phase3_numberOfMarksHaveBeenRecorded = 0;
-            phase3_semaphoreMarksHaveBeenRecorded = new System.Threading.AutoResetEvent(false);
             phase3_roundOfDarkWaterIii = 0;
             phase3_rangeSemaphoreOfDarkWaterIii = 0;
             phase3_guidanceSemaphoreOfDarkWaterIii = 0;
             phase3_hasConfirmedInitialSafePositions = false;
-            phase3_doubleGroup_initialSafePositionOfTheLeftGroup = new Vector3(100, 0, 100);
-            phase3_doubleGroup_initialSafePositionOfTheRightGroup = new Vector3(100, 0, 100);
-            phase3_doubleGroup_leftPositionToStackOfTheSecondRound = new Vector3(100, 0, 100);
-            phase3_doubleGroup_rightPositionToStackOfTheSecondRound = new Vector3(100, 0, 100);
             phase3_locomotive_initialSafePositionOfTheLeftGroup = new Vector3(100, 0, 100);
             phase3_locomotive_initialSafePositionOfTheRightGroup = new Vector3(100, 0, 100);
             phase3_locomotive_leftPositionToStackOfTheSecondRound = new Vector3(100, 0, 100);
             phase3_locomotive_rightPositionToStackOfTheSecondRound = new Vector3(100, 0, 100);
-            phase3_moglinMeow_initialSafePositionOfTheLeftGroup = new Vector3(100, 0, 100);
-            phase3_moglinMeow_initialSafePositionOfTheRightGroup = new Vector3(100, 0, 100);
-            phase3_moglinMeow_leftPositionToStackOfTheSecondRound = new Vector3(100, 0, 100);
-            phase3_moglinMeow_rightPositionToStackOfTheSecondRound = new Vector3(100, 0, 100);
             phase3_finalPositionOfTheBoss = new Vector3(100, 0, 100);
-        }
-
-        [ScriptMethod(name: "Phase3 Record Signs On Party Members 记录小队队员的目标标记",
-            eventType: EventTypeEnum.Marker,
-            userControl: false)]
-
-        public void Phase3_Record_Signs_On_Party_Members_记录小队队员的目标标记(Event @event, ScriptAccessory accessory)
-        {
-
-            if (parse!=32)
-            {
-
-                return;
-
-            }
-
-            if (!ParseObjectId(@event["TargetId"], out var targetId))
-            {
-
-                return;
-
-            }
-
-            if (!int.TryParse(@event["Id"], out var sign))
-            {
-
-                return;
-
-            }
-
-            MarkType currentType = sign switch
-            {
-                1 => MarkType.Attack1,
-                2 => MarkType.Attack2,
-                3 => MarkType.Attack3,
-                4 => MarkType.Attack4,
-                6 => MarkType.Bind1,
-                7 => MarkType.Bind2,
-                8 => MarkType.Bind3,
-                11 => MarkType.Square,
-                _ => MarkType.Stop1
-            };
-
-            int currentIndex = accessory.Data.PartyList.IndexOf(((uint)targetId));
-
-            if (0 <= currentIndex && currentIndex <= 7)
-            {
-
-                lock (phase3_marksOfPlayers)
-                {
-
-                    phase3_marksOfPlayers[currentIndex] = currentType;
-
-                    ++phase3_numberOfMarksHaveBeenRecorded;
-
-                    System.Threading.Thread.MemoryBarrier();
-
-                    if (phase3_numberOfMarksHaveBeenRecorded == 8)
-                    {
-
-                        phase3_semaphoreMarksHaveBeenRecorded.Set();
-
-                    }
-
-                }
-
-            }
-
         }
 
         [ScriptMethod(name: "Phase3 Determine Types Of Dark Water III 确定黑暗狂水(分摊)类型",
@@ -5639,350 +5451,51 @@ namespace CicerosKodakkuAssist.FuturesRewrittenUltimate.LPDU
 
             System.Threading.Thread.MemoryBarrier();
 
-            if (Phase3_Strat_Of_The_Second_Half == Phase3_Strats_Of_The_Second_Half.Double_Group_双分组法)
+            foreach (var 视角 in GuidanceIndices(accessory)) 指路(视角);
+
+            void 指路(int 视角)
             {
+                int myIndex = 视角;
+                bool goLeft = phase3_locomotive_shouldGoLeft(myIndex);
+                string prompt = "";
+                var currentProperty = accessory.Data.GetDefaultDrawProperties();
 
-                foreach (var 视角 in GuidanceIndices(accessory)) 指路(视角);
+                currentProperty.Name = $"Phase3_Prompt_Before_Dark_Water_III_暗黑狂水前提示-{视角}";
+                currentProperty.Scale = new(2);
+                currentProperty.ScaleMode |= ScaleMode.YByDistance;
+                currentProperty.Owner = GuidanceOwner(accessory, 视角);
+                currentProperty.TargetPosition = (goLeft) ? (phase3_leftGroupPosition_asAConstant) : (phase3_rightGroupPosition_asAConstant);
+                currentProperty.Color = accessory.Data.DefaultSafeColor;
+                currentProperty.DestoryAt = 5000;
 
-                void 指路(int 视角)
+                accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentProperty);
+
+                // 换组 = 最终分组和职能组（T奶西北、DPS东南）不同
+                bool swap = goLeft != (myIndex < 4);
+
+                if (Language_Of_Prompts == Languages_Of_Prompts.Simplified_Chinese_简体中文)
                 {
-                    bool goLeft = phase3_doubleGroup_shouldGoLeft(视角);
-                    bool stayInTheGroup = phase3_doubleGroup_shouldStayInTheGroup(视角);
-                    string prompt = "";
-                    var currentProperty = accessory.Data.GetDefaultDrawProperties();
 
-                    currentProperty.Name = $"Phase3_Prompt_Before_Dark_Water_III_暗黑狂水前提示-{视角}";
-                    currentProperty.Scale = new(2);
-                    currentProperty.ScaleMode |= ScaleMode.YByDistance;
-                    currentProperty.Owner = GuidanceOwner(accessory, 视角);
-                    currentProperty.TargetPosition = (goLeft) ? (new Vector3(93, 0, 100)) : (new Vector3(107, 0, 100));
-                    currentProperty.Color = accessory.Data.DefaultSafeColor;
-                    currentProperty.DestoryAt = 5000;
-
-                    accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentProperty);
-
-                    if (goLeft)
-                    {
-
-                        if (Language_Of_Prompts == Languages_Of_Prompts.Simplified_Chinese_简体中文)
-                        {
-
-                            prompt += "去左组分摊第一第三次，";
-
-                        }
-
-                        if (Language_Of_Prompts == Languages_Of_Prompts.English_英文)
-                        {
-
-                            prompt += "Go left for the first and third, ";
-
-                        }
-
-                    }
-
-                    else
-                    {
-
-                        if (Language_Of_Prompts == Languages_Of_Prompts.Simplified_Chinese_简体中文)
-                        {
-
-                            prompt += "去右组分摊第一第三次，";
-
-                        }
-
-                        if (Language_Of_Prompts == Languages_Of_Prompts.English_英文)
-                        {
-
-                            prompt += "Go right for the first and third, ";
-
-                        }
-
-                    }
-
-                    if (stayInTheGroup)
-                    {
-
-                        if (Language_Of_Prompts == Languages_Of_Prompts.Simplified_Chinese_简体中文)
-                        {
-
-                            prompt += "第二次留在本组";
-
-                        }
-
-                        if (Language_Of_Prompts == Languages_Of_Prompts.English_英文)
-                        {
-
-                            prompt += "stay in the current group for the second";
-
-                        }
-
-                    }
-
-                    else
-                    {
-
-                        if (Language_Of_Prompts == Languages_Of_Prompts.Simplified_Chinese_简体中文)
-                        {
-
-                            prompt += "第二次换去对组";
-
-                        }
-
-                        if (Language_Of_Prompts == Languages_Of_Prompts.English_英文)
-                        {
-
-                            prompt += "move to the opposite group for the second";
-
-                        }
-
-                    }
-
-                    if (Enable_Text_Prompts)
-                    {
-
-                        if (IsMe(accessory, 视角)) accessory.Method.TextInfo(prompt, 4000);
-
-                    }
-
-                    if (IsMe(accessory, 视角)) accessory.TTS($"{prompt}", Enable_Vanilla_TTS, Enable_Daily_Routines_TTS);
+                    prompt = $"{(goLeft ? "西北组" : "东南组")}分摊{(swap ? "（换组）" : "")}";
 
                 }
-            }
 
-            if (Phase3_Strat_Of_The_Second_Half == Phase3_Strats_Of_The_Second_Half.High_Priority_As_Locomotives_车头低换法_MMW)
-            {
-
-                foreach (var 视角 in GuidanceIndices(accessory)) 指路(视角);
-
-                void 指路(int 视角)
+                if (Language_Of_Prompts == Languages_Of_Prompts.English_英文)
                 {
-                    int myIndex = 视角;
-                    bool goLeft = phase3_locomotive_shouldGoLeft(myIndex);
-                    string prompt = "";
-                    var currentProperty = accessory.Data.GetDefaultDrawProperties();
 
-                    currentProperty.Name = $"Phase3_Prompt_Before_Dark_Water_III_暗黑狂水前提示-{视角}";
-                    currentProperty.Scale = new(2);
-                    currentProperty.ScaleMode |= ScaleMode.YByDistance;
-                    currentProperty.Owner = GuidanceOwner(accessory, 视角);
-                    currentProperty.TargetPosition = (goLeft) ? (new Vector3(93, 0, 100)) : (new Vector3(107, 0, 100));
-                    currentProperty.Color = accessory.Data.DefaultSafeColor;
-                    currentProperty.DestoryAt = 5000;
-
-                    accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentProperty);
-
-                    if (goLeft)
-                    {
-
-                        if (Language_Of_Prompts == Languages_Of_Prompts.Simplified_Chinese_简体中文)
-                        {
-
-                            prompt += "去左组分摊，";
-
-                        }
-
-                        if (Language_Of_Prompts == Languages_Of_Prompts.English_英文)
-                        {
-
-                            prompt += "Go left to stack, ";
-
-                        }
-
-                    }
-
-                    else
-                    {
-
-                        if (Language_Of_Prompts == Languages_Of_Prompts.Simplified_Chinese_简体中文)
-                        {
-
-                            prompt += "去右组分摊，";
-
-                        }
-
-                        if (Language_Of_Prompts == Languages_Of_Prompts.English_英文)
-                        {
-
-                            prompt += "Go right to stack, ";
-
-                        }
-
-                    }
-
-                    if (Phase3_Branch_Of_The_Locomotive_Strat == Phase3_Branches_Of_The_Locomotive_Strat.MT_And_M1_As_Locomotives_MT和D1为车头_MMW)
-                    {
-
-                        if (myIndex != 0 && myIndex != 4)
-                        {
-
-                            if (Language_Of_Prompts == Languages_Of_Prompts.Simplified_Chinese_简体中文)
-                            {
-
-                                prompt += (goLeft) ? ("跟随MT") : ("跟随D1");
-
-                            }
-
-                            if (Language_Of_Prompts == Languages_Of_Prompts.English_英文)
-                            {
-
-                                prompt += (goLeft) ? ("follow MT") : ("follow M1");
-
-                            }
-
-                        }
-
-                        if (myIndex == 0 || myIndex == 4)
-                        {
-
-                            if (Language_Of_Prompts == Languages_Of_Prompts.Simplified_Chinese_简体中文)
-                            {
-
-                                prompt += "你是车头";
-
-                            }
-
-                            if (Language_Of_Prompts == Languages_Of_Prompts.English_英文)
-                            {
-
-                                prompt += "you are the locomotive";
-
-                            }
-
-                        }
-
-                    }
-
-                    if (Phase3_Branch_Of_The_Locomotive_Strat == Phase3_Branches_Of_The_Locomotive_Strat.Others_As_Locomotives_Chinese_PF_国服野队人群为车头)
-                    {
-
-                        if (myIndex != 0 && myIndex != 4)
-                        {
-
-                            if (Language_Of_Prompts == Languages_Of_Prompts.Simplified_Chinese_简体中文)
-                            {
-
-                                prompt += "你是人群车头之一";
-
-                            }
-
-                            if (Language_Of_Prompts == Languages_Of_Prompts.English_英文)
-                            {
-
-                                prompt += "you are one of the locomotives";
-
-                            }
-
-                        }
-
-                        if (myIndex == 0 || myIndex == 4)
-                        {
-
-                            if (Language_Of_Prompts == Languages_Of_Prompts.Simplified_Chinese_简体中文)
-                            {
-
-                                prompt += "跟随组内人群";
-
-                            }
-
-                            if (Language_Of_Prompts == Languages_Of_Prompts.English_英文)
-                            {
-
-                                prompt += "follow others in the group";
-
-                            }
-
-                        }
-
-                    }
-
-                    if (Enable_Text_Prompts)
-                    {
-
-                        if (IsMe(accessory, 视角)) accessory.Method.TextInfo(prompt, 3500);
-
-                    }
-
-                    if (IsMe(accessory, 视角)) accessory.TTS($"{prompt}", Enable_Vanilla_TTS, Enable_Daily_Routines_TTS);
+                    prompt = $"Stack {(goLeft ? "NW" : "SE")}{(swap ? " (swap)" : "")}";
 
                 }
-            }
 
-            if (Phase3_Strat_Of_The_Second_Half == Phase3_Strats_Of_The_Second_Half.Moglin_Meow_Or_Baby_Wheelchair_Based_On_Signs_根据目标标记的莫灵喵法或宝宝椅法)
-            {
-
-                System.Threading.Thread.MemoryBarrier();
-
-                phase3_semaphoreMarksHaveBeenRecorded.WaitOne();
-
-                System.Threading.Thread.MemoryBarrier();
-
-                foreach (var 视角 in GuidanceIndices(accessory)) 指路(视角);
-
-                void 指路(int 视角)
+                if (Enable_Text_Prompts)
                 {
-                    int myIndex = 视角;
-                    bool goLeft = phase3_moglinMeow_shouldGoLeft(myIndex);
-                    string prompt = "";
-                    var currentProperty = accessory.Data.GetDefaultDrawProperties();
 
-                    currentProperty.Name = $"Phase3_Prompt_Before_Dark_Water_III_暗黑狂水前提示-{视角}";
-                    currentProperty.Scale = new(2);
-                    currentProperty.ScaleMode |= ScaleMode.YByDistance;
-                    currentProperty.Owner = GuidanceOwner(accessory, 视角);
-                    currentProperty.TargetPosition = (goLeft) ? (new Vector3(93, 0, 100)) : (new Vector3(107, 0, 100));
-                    currentProperty.Color = accessory.Data.DefaultSafeColor;
-                    currentProperty.DestoryAt = 5000;
-
-                    accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentProperty);
-
-                    if (goLeft)
-                    {
-
-                        if (Language_Of_Prompts == Languages_Of_Prompts.Simplified_Chinese_简体中文)
-                        {
-
-                            prompt += "始终去左组分摊";
-
-                        }
-
-                        if (Language_Of_Prompts == Languages_Of_Prompts.English_英文)
-                        {
-
-                            prompt += "Always stack on the left";
-
-                        }
-
-                    }
-
-                    else
-                    {
-
-                        if (Language_Of_Prompts == Languages_Of_Prompts.Simplified_Chinese_简体中文)
-                        {
-
-                            prompt += "始终去右组分摊";
-
-                        }
-
-                        if (Language_Of_Prompts == Languages_Of_Prompts.English_英文)
-                        {
-
-                            prompt += "Always stack on the right";
-
-                        }
-
-                    }
-
-                    if (Enable_Text_Prompts)
-                    {
-
-                        if (IsMe(accessory, 视角)) accessory.Method.TextInfo(prompt, 3500);
-
-                    }
-
-                    if (IsMe(accessory, 视角)) accessory.TTS($"{prompt}", Enable_Vanilla_TTS, Enable_Daily_Routines_TTS);
+                    if (IsMe(accessory, 视角)) accessory.Method.TextInfo(prompt, 3500);
 
                 }
+
+                if (IsMe(accessory, 视角)) accessory.TTS($"{prompt}", Enable_Vanilla_TTS, Enable_Daily_Routines_TTS);
+
             }
 
         }
@@ -6092,228 +5605,45 @@ namespace CicerosKodakkuAssist.FuturesRewrittenUltimate.LPDU
 
             var currentProperty = accessory.Data.GetDefaultDrawProperties();
 
-            if (Phase3_Strat_Of_The_Second_Half == Phase3_Strats_Of_The_Second_Half.Double_Group_双分组法)
+            if (phase3_numberOfDarkWaterIiiHasBeenProcessed == 6)
             {
 
-                if (phase3_numberOfDarkWaterIiiHasBeenProcessed == 6)
+                bool goLeft = phase3_locomotive_shouldGoLeft(accessory.Data.PartyList.IndexOf(accessory.Data.Me));
+
+                for (int i = 0; i < 8; ++i)
                 {
 
-                    int myIndex = accessory.Data.PartyList.IndexOf(accessory.Data.Me);
-                    bool goLeft = phase3_doubleGroup_shouldGoLeft(myIndex);
-                    bool stayInTheGroup = phase3_doubleGroup_shouldStayInTheGroup(myIndex);
-
-                    for (int i = 0; i < 8; ++i)
+                    if (phase3_typeOfDarkWaterIii[i] == currentType)
                     {
 
-                        if (phase3_typeOfDarkWaterIii[i] == currentType)
+                        currentProperty = accessory.Data.GetDefaultDrawProperties();
+
+                        currentProperty.Name = "Phase3_Range_Of_Dark_Water_III_黑暗狂水范围";
+                        currentProperty.Scale = new(6);
+                        currentProperty.Owner = accessory.Data.PartyList[i];
+                        currentProperty.DestoryAt = 5000;
+
+                        if (phase3_locomotive_shouldGoLeft(i) == goLeft)
                         {
 
-                            currentProperty = accessory.Data.GetDefaultDrawProperties();
-
-                            currentProperty.Name = "Phase3_Range_Of_Dark_Water_III_黑暗狂水范围";
-                            currentProperty.Scale = new(6);
-                            currentProperty.Owner = accessory.Data.PartyList[i];
-                            currentProperty.DestoryAt = 5000;
-
-                            if (phase3_roundOfDarkWaterIii == 1 || phase3_roundOfDarkWaterIii == 3)
-                            {
-
-                                if (phase3_doubleGroup_shouldGoLeft(i) == goLeft)
-                                {
-
-                                    currentProperty.Color = accessory.Data.DefaultSafeColor;
-
-                                }
-
-                                else
-                                {
-
-                                    currentProperty.Color = accessory.Data.DefaultDangerColor;
-
-                                }
-
-                            }
-
-                            if (phase3_roundOfDarkWaterIii == 2)
-                            {
-
-                                bool endUpWithTheLeftGroup = true;
-                                int doubleGroupIndexOfMyMedium = 0;
-
-                                if (0 <= myIndex && myIndex <= 3)
-                                {
-
-                                    endUpWithTheLeftGroup = true;
-
-                                }
-
-                                if (4 <= myIndex && myIndex <= 7)
-                                {
-
-                                    endUpWithTheLeftGroup = false;
-
-                                }
-
-                                if (!stayInTheGroup)
-                                {
-
-                                    endUpWithTheLeftGroup = (!endUpWithTheLeftGroup);
-
-                                }
-
-                                if (endUpWithTheLeftGroup)
-                                {
-
-                                    for (doubleGroupIndexOfMyMedium = 0;
-                                        phase3_typeOfDarkWaterIii[phase3_doubleGroup_priority_asAConstant[doubleGroupIndexOfMyMedium]] != Phase3_Types_Of_Dark_Water_III.MEDIUM
-                                        &&
-                                        doubleGroupIndexOfMyMedium < 8;
-                                        ++doubleGroupIndexOfMyMedium) ;
-
-                                }
-
-                                else
-                                {
-
-                                    for (doubleGroupIndexOfMyMedium = 7;
-                                        phase3_typeOfDarkWaterIii[phase3_doubleGroup_priority_asAConstant[doubleGroupIndexOfMyMedium]] != Phase3_Types_Of_Dark_Water_III.MEDIUM
-                                        &&
-                                        doubleGroupIndexOfMyMedium >= 0;
-                                        --doubleGroupIndexOfMyMedium) ;
-
-                                }
-
-                                if (doubleGroupIndexOfMyMedium < 0 || doubleGroupIndexOfMyMedium > 7)
-                                {
-
-                                    currentProperty.Color = accessory.Data.DefaultDangerColor;
-
-                                }
-
-                                else
-                                {
-
-                                    if (phase3_doubleGroup_priority_asAConstant[doubleGroupIndexOfMyMedium] == i)
-                                    {
-
-                                        currentProperty.Color = accessory.Data.DefaultSafeColor;
-
-                                    }
-
-                                    else
-                                    {
-
-                                        currentProperty.Color = accessory.Data.DefaultDangerColor;
-
-                                    }
-
-                                }
-
-                            }
-
-                            accessory.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Circle, currentProperty);
+                            currentProperty.Color = accessory.Data.DefaultSafeColor;
 
                         }
 
-                    }
-
-                    return;
-
-                }
-
-            }
-
-            if (Phase3_Strat_Of_The_Second_Half == Phase3_Strats_Of_The_Second_Half.High_Priority_As_Locomotives_车头低换法_MMW)
-            {
-
-                if (phase3_numberOfDarkWaterIiiHasBeenProcessed == 6)
-                {
-
-                    bool goLeft = phase3_locomotive_shouldGoLeft(accessory.Data.PartyList.IndexOf(accessory.Data.Me));
-
-                    for (int i = 0; i < 8; ++i)
-                    {
-
-                        if (phase3_typeOfDarkWaterIii[i] == currentType)
+                        else
                         {
 
-                            currentProperty = accessory.Data.GetDefaultDrawProperties();
-
-                            currentProperty.Name = "Phase3_Range_Of_Dark_Water_III_黑暗狂水范围";
-                            currentProperty.Scale = new(6);
-                            currentProperty.Owner = accessory.Data.PartyList[i];
-                            currentProperty.DestoryAt = 5000;
-
-                            if (phase3_locomotive_shouldGoLeft(i) == goLeft)
-                            {
-
-                                currentProperty.Color = accessory.Data.DefaultSafeColor;
-
-                            }
-
-                            else
-                            {
-
-                                currentProperty.Color = accessory.Data.DefaultDangerColor;
-
-                            }
-
-                            accessory.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Circle, currentProperty);
+                            currentProperty.Color = accessory.Data.DefaultDangerColor;
 
                         }
 
-                    }
-
-                    return;
-
-                }
-
-            }
-
-            if (Phase3_Strat_Of_The_Second_Half == Phase3_Strats_Of_The_Second_Half.Moglin_Meow_Or_Baby_Wheelchair_Based_On_Signs_根据目标标记的莫灵喵法或宝宝椅法)
-            {
-
-                if (phase3_numberOfMarksHaveBeenRecorded >= 8)
-                {
-
-                    bool goLeft = phase3_moglinMeow_shouldGoLeft(accessory.Data.PartyList.IndexOf(accessory.Data.Me));
-
-                    for (int i = 0; i < 8; ++i)
-                    {
-
-                        if (phase3_typeOfDarkWaterIii[i] == currentType)
-                        {
-
-                            currentProperty = accessory.Data.GetDefaultDrawProperties();
-
-                            currentProperty.Name = "Phase3_Range_Of_Dark_Water_III_黑暗狂水范围";
-                            currentProperty.Scale = new(6);
-                            currentProperty.Owner = accessory.Data.PartyList[i];
-                            currentProperty.DestoryAt = 5000;
-
-                            if (phase3_moglinMeow_shouldGoLeft(i) == goLeft)
-                            {
-
-                                currentProperty.Color = accessory.Data.DefaultSafeColor;
-
-                            }
-
-                            else
-                            {
-
-                                currentProperty.Color = accessory.Data.DefaultDangerColor;
-
-                            }
-
-                            accessory.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Circle, currentProperty);
-
-                        }
+                        accessory.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Circle, currentProperty);
 
                     }
 
-                    return;
-
                 }
+
+                return;
 
             }
 
@@ -6424,524 +5754,155 @@ namespace CicerosKodakkuAssist.FuturesRewrittenUltimate.LPDU
                 currentProperty.Color = accessory.Data.DefaultSafeColor;
                 currentProperty.DestoryAt = 5000;
 
-                if (Phase3_Strat_Of_The_Second_Half == Phase3_Strats_Of_The_Second_Half.Double_Group_双分组法)
+                bool goLeft = phase3_locomotive_shouldGoLeft(视角);
+
+                if (Enable_Developer_Mode)
                 {
 
-                    bool goLeft = phase3_doubleGroup_shouldGoLeft(视角);
-                    bool stayInTheGroup = phase3_doubleGroup_shouldStayInTheGroup(视角);
-
-                    if (Enable_Developer_Mode)
-                    {
-
-                        if (IsMe(accessory, 视角)) accessory.Method.SendChat($"""
-                                                   /e 
-                                                   goLeft={goLeft}
-                                                   stayInTheGroup={stayInTheGroup}
-                                                   phase3_roundOfDarkWaterIii={phase3_roundOfDarkWaterIii}
-
-                                                   """);
-
-                    }
-
-                    switch (phase3_roundOfDarkWaterIii)
-                    {
-
-                        case 1:
-                            {
-
-                                currentProperty.TargetPosition = (goLeft) ? (new Vector3(93, 0, 100)) : (new Vector3(107, 0, 100));
-
-                                targetPositionConfirmed = true;
-
-                                if (Language_Of_Prompts == Languages_Of_Prompts.Simplified_Chinese_简体中文)
-                                {
-
-                                    prompt = (goLeft) ? ("左侧分摊") : ("右侧分摊");
-
-                                }
-
-                                if (Language_Of_Prompts == Languages_Of_Prompts.English_英文)
-                                {
-
-                                    prompt = (goLeft) ? ("Stack on the left") : ("Stack on the right");
-
-                                }
-
-                                break;
-
-                            }
-
-                        case 2:
-                            {
-
-                                if (stayInTheGroup)
-                                {
-
-                                    if (0 <= 视角
-                                       &&
-                                       视角 <= 3)
-                                    {
-
-                                        currentProperty.TargetPosition = phase3_doubleGroup_leftPositionToStackOfTheSecondRound;
-
-                                        targetPositionConfirmed = true;
-
-                                    }
-
-                                    if (4 <= 视角
-                                       &&
-                                       视角 <= 7)
-                                    {
-
-                                        currentProperty.TargetPosition = phase3_doubleGroup_rightPositionToStackOfTheSecondRound;
-
-                                        targetPositionConfirmed = true;
-
-                                    }
-
-                                }
-
-                                else
-                                {
-
-                                    if (0 <= 视角
-                                       &&
-                                       视角 <= 3)
-                                    {
-
-                                        currentProperty.TargetPosition = phase3_doubleGroup_rightPositionToStackOfTheSecondRound;
-
-                                        targetPositionConfirmed = true;
-
-                                    }
-
-                                    if (4 <= 视角
-                                       &&
-                                       视角 <= 7)
-                                    {
-
-                                        currentProperty.TargetPosition = phase3_doubleGroup_leftPositionToStackOfTheSecondRound;
-
-                                        targetPositionConfirmed = true;
-
-                                    }
-
-                                }
-
-                                if (Language_Of_Prompts == Languages_Of_Prompts.Simplified_Chinese_简体中文)
-                                {
-
-                                    prompt = (stayInTheGroup) ? ("本组分摊") : ("对组分摊");
-
-                                }
-
-                                if (Language_Of_Prompts == Languages_Of_Prompts.English_英文)
-                                {
-
-                                    prompt = (stayInTheGroup) ? ("Stack in the current group") : ("Stack in the opposite group");
-
-                                }
-
-                                break;
-
-                            }
-
-                        case 3:
-                            {
-
-                                if (ParseObjectId(phase3_bossId, out var bossId))
-                                {
-
-                                    var bossObject = accessory.Data.Objects.SearchById(bossId);
-
-                                    if (bossObject != null)
-                                    {
-
-                                        float currentRotation = bossObject.Rotation;
-                                        currentRotation = -(currentRotation - float.Pi);
-
-                                        Vector3 groupPosition = new Vector3(100, 0, 100);
-
-                                        if (Enable_Developer_Mode)
-                                        {
-
-                                            if (IsMe(accessory, 视角)) accessory.Method.SendChat($"""
-                                                                   /e 
-                                                                   currentRotation={currentRotation}
-
-                                                                   """);
-
-                                        }
-
-                                        if (goLeft)
-                                        {
-
-                                            groupPosition = new Vector3(bossObject.Position.X - 6.89f,
-                                                                      bossObject.Position.Y,
-                                                                      bossObject.Position.Z + 6.89f);
-
-                                        }
-
-                                        else
-                                        {
-
-                                            groupPosition = new Vector3(bossObject.Position.X + 6.89f,
-                                                                      bossObject.Position.Y,
-                                                                      bossObject.Position.Z + 6.89f);
-
-                                        }
-
-                                        groupPosition = RotatePoint(groupPosition, bossObject.Position, currentRotation);
-
-                                        currentProperty.TargetPosition = groupPosition;
-
-                                        targetPositionConfirmed = true;
-
-                                    }
-
-                                }
-
-                                if (Language_Of_Prompts == Languages_Of_Prompts.Simplified_Chinese_简体中文)
-                                {
-
-                                    prompt = (goLeft) ? ("左侧分摊") : ("右侧分摊");
-
-                                }
-
-                                if (Language_Of_Prompts == Languages_Of_Prompts.English_英文)
-                                {
-
-                                    prompt = (goLeft) ? ("Stack on the left") : ("Stack on the right");
-
-                                }
-
-                                break;
-
-                            }
-
-                        default:
-                            {
-                                // Just a placeholder and should never be reached.
-
-                                break;
-
-                            }
-
-                    }
+                    if (IsMe(accessory, 视角)) accessory.Method.SendChat($"""
+                                               /e 
+                                               goLeft={goLeft}
+                                               phase3_roundOfDarkWaterIii={phase3_roundOfDarkWaterIii}
+
+                                               """);
 
                 }
 
-                if (Phase3_Strat_Of_The_Second_Half == Phase3_Strats_Of_The_Second_Half.High_Priority_As_Locomotives_车头低换法_MMW)
+                switch (phase3_roundOfDarkWaterIii)
                 {
 
-                    bool goLeft = phase3_locomotive_shouldGoLeft(视角);
+                    case 1:
+                        {
 
-                    if (Enable_Developer_Mode)
-                    {
+                            currentProperty.TargetPosition = (goLeft) ? (phase3_leftGroupPosition_asAConstant) : (phase3_rightGroupPosition_asAConstant);
 
-                        if (IsMe(accessory, 视角)) accessory.Method.SendChat($"""
-                                                   /e 
-                                                   goLeft={goLeft}
-                                                   phase3_roundOfDarkWaterIii={phase3_roundOfDarkWaterIii}
+                            targetPositionConfirmed = true;
 
-                                                   """);
-
-                    }
-
-                    switch (phase3_roundOfDarkWaterIii)
-                    {
-
-                        case 1:
+                            if (Language_Of_Prompts == Languages_Of_Prompts.Simplified_Chinese_简体中文)
                             {
 
-                                currentProperty.TargetPosition = (goLeft) ? (new Vector3(93, 0, 100)) : (new Vector3(107, 0, 100));
-
-                                targetPositionConfirmed = true;
-
-                                if (Language_Of_Prompts == Languages_Of_Prompts.Simplified_Chinese_简体中文)
-                                {
-
-                                    prompt = (goLeft) ? ("左侧分摊") : ("右侧分摊");
-
-                                }
-
-                                if (Language_Of_Prompts == Languages_Of_Prompts.English_英文)
-                                {
-
-                                    prompt = (goLeft) ? ("Stack on the left") : ("Stack on the right");
-
-                                }
-
-                                break;
+                                prompt = (goLeft) ? ("西北组分摊") : ("东南组分摊");
 
                             }
 
-                        case 2:
+                            if (Language_Of_Prompts == Languages_Of_Prompts.English_英文)
                             {
 
-                                currentProperty.TargetPosition = (goLeft) ?
-                                    (phase3_locomotive_leftPositionToStackOfTheSecondRound) :
-                                    (phase3_locomotive_rightPositionToStackOfTheSecondRound);
-
-                                targetPositionConfirmed = true;
-
-                                if (Language_Of_Prompts == Languages_Of_Prompts.Simplified_Chinese_简体中文)
-                                {
-
-                                    prompt = "场中当前侧分摊";
-
-                                }
-
-                                if (Language_Of_Prompts == Languages_Of_Prompts.English_英文)
-                                {
-
-                                    prompt = "Stack on this side of the center";
-
-                                }
-
-                                break;
+                                prompt = (goLeft) ? ("Stack NW") : ("Stack SE");
 
                             }
 
-                        case 3:
+                            break;
+
+                        }
+
+                    case 2:
+                        {
+
+                            currentProperty.TargetPosition = (goLeft) ?
+                                (phase3_locomotive_leftPositionToStackOfTheSecondRound) :
+                                (phase3_locomotive_rightPositionToStackOfTheSecondRound);
+
+                            targetPositionConfirmed = true;
+
+                            if (Language_Of_Prompts == Languages_Of_Prompts.Simplified_Chinese_简体中文)
                             {
 
-                                if (ParseObjectId(phase3_bossId, out var bossId))
+                                prompt = "场中当前侧分摊";
+
+                            }
+
+                            if (Language_Of_Prompts == Languages_Of_Prompts.English_英文)
+                            {
+
+                                prompt = "Stack on this side of the center";
+
+                            }
+
+                            break;
+
+                        }
+
+                    case 3:
+                        {
+
+                            if (ParseObjectId(phase3_bossId, out var bossId))
+                            {
+
+                                var bossObject = accessory.Data.Objects.SearchById(bossId);
+
+                                if (bossObject != null)
                                 {
 
-                                    var bossObject = accessory.Data.Objects.SearchById(bossId);
+                                    float currentRotation = bossObject.Rotation;
+                                    currentRotation = -(currentRotation - float.Pi);
 
-                                    if (bossObject != null)
+                                    Vector3 groupPosition = new Vector3(100, 0, 100);
+
+                                    if (Enable_Developer_Mode)
                                     {
 
-                                        float currentRotation = bossObject.Rotation;
-                                        currentRotation = -(currentRotation - float.Pi);
+                                        if (IsMe(accessory, 视角)) accessory.Method.SendChat($"""
+                                                               /e 
+                                                               currentRotation={currentRotation}
 
-                                        Vector3 groupPosition = new Vector3(100, 0, 100);
-
-                                        if (Enable_Developer_Mode)
-                                        {
-
-                                            if (IsMe(accessory, 视角)) accessory.Method.SendChat($"""
-                                                                   /e 
-                                                                   currentRotation={currentRotation}
-
-                                                                   """);
-
-                                        }
-
-                                        if (goLeft)
-                                        {
-
-                                            groupPosition = new Vector3(bossObject.Position.X - 6.89f,
-                                                                      bossObject.Position.Y,
-                                                                      bossObject.Position.Z + 6.89f);
-
-                                        }
-
-                                        else
-                                        {
-
-                                            groupPosition = new Vector3(bossObject.Position.X + 6.89f,
-                                                                      bossObject.Position.Y,
-                                                                      bossObject.Position.Z + 6.89f);
-
-                                        }
-
-                                        groupPosition = RotatePoint(groupPosition, bossObject.Position, currentRotation);
-
-                                        currentProperty.TargetPosition = groupPosition;
-
-                                        targetPositionConfirmed = true;
+                                                               """);
 
                                     }
 
-                                }
-
-                                if (Language_Of_Prompts == Languages_Of_Prompts.Simplified_Chinese_简体中文)
-                                {
-
-                                    prompt = (goLeft) ? ("左侧分摊") : ("右侧分摊");
-
-                                }
-
-                                if (Language_Of_Prompts == Languages_Of_Prompts.English_英文)
-                                {
-
-                                    prompt = (goLeft) ? ("Stack on the left") : ("Stack on the right");
-
-                                }
-
-                                break;
-
-                            }
-
-                        default:
-                            {
-                                // Just a placeholder and should never be reached.
-
-                                break;
-
-                            }
-
-                    }
-
-                }
-
-                if (Phase3_Strat_Of_The_Second_Half == Phase3_Strats_Of_The_Second_Half.Moglin_Meow_Or_Baby_Wheelchair_Based_On_Signs_根据目标标记的莫灵喵法或宝宝椅法)
-                {
-
-                    bool goLeft = phase3_moglinMeow_shouldGoLeft(视角);
-
-                    if (Enable_Developer_Mode)
-                    {
-
-                        if (IsMe(accessory, 视角)) accessory.Method.SendChat($"""
-                                                   /e 
-                                                   goLeft={goLeft}
-                                                   phase3_roundOfDarkWaterIii={phase3_roundOfDarkWaterIii}
-
-                                                   """);
-
-                    }
-
-                    switch (phase3_roundOfDarkWaterIii)
-                    {
-
-                        case 1:
-                            {
-
-                                currentProperty.TargetPosition = (goLeft) ? (new Vector3(93, 0, 100)) : (new Vector3(107, 0, 100));
-
-                                targetPositionConfirmed = true;
-
-                                if (Language_Of_Prompts == Languages_Of_Prompts.Simplified_Chinese_简体中文)
-                                {
-
-                                    prompt = (goLeft) ? ("左侧分摊") : ("右侧分摊");
-
-                                }
-
-                                if (Language_Of_Prompts == Languages_Of_Prompts.English_英文)
-                                {
-
-                                    prompt = (goLeft) ? ("Stack on the left") : ("Stack on the right");
-
-                                }
-
-                                break;
-
-                            }
-
-                        case 2:
-                            {
-
-                                currentProperty.TargetPosition = (goLeft) ?
-                                    (phase3_moglinMeow_leftPositionToStackOfTheSecondRound) :
-                                    (phase3_moglinMeow_rightPositionToStackOfTheSecondRound);
-
-                                targetPositionConfirmed = true;
-
-                                if (Language_Of_Prompts == Languages_Of_Prompts.Simplified_Chinese_简体中文)
-                                {
-
-                                    prompt = "场中当前侧分摊";
-
-                                }
-
-                                if (Language_Of_Prompts == Languages_Of_Prompts.English_英文)
-                                {
-
-                                    prompt = "Stack on this side of the center";
-
-                                }
-
-                                break;
-
-                            }
-
-                        case 3:
-                            {
-
-                                if (ParseObjectId(phase3_bossId, out var bossId))
-                                {
-
-                                    var bossObject = accessory.Data.Objects.SearchById(bossId);
-
-                                    if (bossObject != null)
+                                    if (goLeft)
                                     {
 
-                                        float currentRotation = bossObject.Rotation;
-                                        currentRotation = -(currentRotation - float.Pi);
-
-                                        Vector3 groupPosition = new Vector3(100, 0, 100);
-
-                                        if (Enable_Developer_Mode)
-                                        {
-
-                                            if (IsMe(accessory, 视角)) accessory.Method.SendChat($"""
-                                                                   /e 
-                                                                   currentRotation={currentRotation}
-
-                                                                   """);
-
-                                        }
-
-                                        if (goLeft)
-                                        {
-
-                                            groupPosition = new Vector3(bossObject.Position.X - 6.89f,
-                                                                      bossObject.Position.Y,
-                                                                      bossObject.Position.Z + 6.89f);
-
-                                        }
-
-                                        else
-                                        {
-
-                                            groupPosition = new Vector3(bossObject.Position.X + 6.89f,
-                                                                      bossObject.Position.Y,
-                                                                      bossObject.Position.Z + 6.89f);
-
-                                        }
-
-                                        groupPosition = RotatePoint(groupPosition, bossObject.Position, currentRotation);
-
-                                        currentProperty.TargetPosition = groupPosition;
-
-                                        targetPositionConfirmed = true;
+                                        groupPosition = new Vector3(bossObject.Position.X - 6.89f,
+                                                                  bossObject.Position.Y,
+                                                                  bossObject.Position.Z + 6.89f);
 
                                     }
 
+                                    else
+                                    {
+
+                                        groupPosition = new Vector3(bossObject.Position.X + 6.89f,
+                                                                  bossObject.Position.Y,
+                                                                  bossObject.Position.Z + 6.89f);
+
+                                    }
+
+                                    groupPosition = RotatePoint(groupPosition, bossObject.Position, currentRotation);
+
+                                    currentProperty.TargetPosition = groupPosition;
+
+                                    targetPositionConfirmed = true;
+
                                 }
-
-                                if (Language_Of_Prompts == Languages_Of_Prompts.Simplified_Chinese_简体中文)
-                                {
-
-                                    prompt = (goLeft) ? ("左侧分摊") : ("右侧分摊");
-
-                                }
-
-                                if (Language_Of_Prompts == Languages_Of_Prompts.English_英文)
-                                {
-
-                                    prompt = (goLeft) ? ("Stack on the left") : ("Stack on the right");
-
-                                }
-
-                                break;
 
                             }
 
-                        default:
+                            if (Language_Of_Prompts == Languages_Of_Prompts.Simplified_Chinese_简体中文)
                             {
-                                // Just a placeholder and should never be reached.
 
-                                break;
+                                prompt = (goLeft) ? ("左侧分摊") : ("右侧分摊");
 
                             }
 
-                    }
+                            if (Language_Of_Prompts == Languages_Of_Prompts.English_英文)
+                            {
+
+                                prompt = (goLeft) ? ("Stack on the left") : ("Stack on the right");
+
+                            }
+
+                            break;
+
+                        }
+
+                    default:
+                        {
+                            // Just a placeholder and should never be reached.
+
+                            break;
+
+                        }
 
                 }
 
@@ -6967,109 +5928,6 @@ namespace CicerosKodakkuAssist.FuturesRewrittenUltimate.LPDU
                 }
 
             }
-        }
-
-        private bool phase3_doubleGroup_shouldStayInTheGroup(int currentIndex)
-        {
-
-            bool inTheLeftGroup = true;
-
-            if (0 <= currentIndex && currentIndex <= 3)
-            {
-
-                inTheLeftGroup = true;
-
-            }
-
-            if (4 <= currentIndex && currentIndex <= 7)
-            {
-
-                inTheLeftGroup = false;
-
-            }
-
-            if (inTheLeftGroup == phase3_doubleGroup_shouldGoLeft(currentIndex))
-            {
-
-                return true;
-
-            }
-
-            else
-            {
-
-                return false;
-
-            }
-
-        }
-
-        private bool phase3_doubleGroup_shouldGoLeft(int currentIndex)
-        {
-
-            if (currentIndex < 0 || currentIndex > 7)
-            {
-
-                return true;
-
-            }
-
-            int doubleGroupIndex = phase3_doubleGroup_getDoubleGroupIndex(currentIndex);
-            Phase3_Types_Of_Dark_Water_III currentType = phase3_typeOfDarkWaterIii[currentIndex];
-            bool goLeft = true;
-
-            for (int i = 0; i < 8; ++i)
-            {
-
-                if (phase3_typeOfDarkWaterIii[phase3_doubleGroup_priority_asAConstant[i]] == currentType && i != doubleGroupIndex)
-                {
-
-                    if (i > doubleGroupIndex)
-                    {
-
-                        goLeft = true;
-                        // Should go left.
-
-                        break;
-
-                    }
-
-                    if (i < doubleGroupIndex)
-                    {
-
-                        goLeft = false;
-                        // Should go right.
-
-                        break;
-
-                    }
-
-                }
-
-            }
-
-            return goLeft;
-
-        }
-
-        private int phase3_doubleGroup_getDoubleGroupIndex(int currentIndex)
-        {
-
-            for (int i = 0; i < 8; ++i)
-            {
-
-                if (currentIndex == phase3_doubleGroup_priority_asAConstant[i])
-                {
-
-                    return i;
-
-                }
-
-            }
-
-            return currentIndex;
-            // Just a placeholder and should never be reached.
-
         }
 
         private bool phase3_locomotive_shouldGoLeft(int currentIndex)
@@ -7136,47 +5994,6 @@ namespace CicerosKodakkuAssist.FuturesRewrittenUltimate.LPDU
             }
 
             return currentIndex;
-            // Just a placeholder and should never be reached.
-
-        }
-
-        private bool phase3_moglinMeow_shouldGoLeft(int currentIndex)
-        {
-
-            if (currentIndex < 0 || currentIndex > 7)
-            {
-
-                return true;
-
-            }
-
-            if (phase3_marksOfPlayers[currentIndex] == MarkType.Attack1
-               ||
-               phase3_marksOfPlayers[currentIndex] == MarkType.Attack2
-               ||
-               phase3_marksOfPlayers[currentIndex] == MarkType.Attack3
-               ||
-               phase3_marksOfPlayers[currentIndex] == MarkType.Attack4)
-            {
-
-                return true;
-
-            }
-
-            if (phase3_marksOfPlayers[currentIndex] == MarkType.Bind1
-               ||
-               phase3_marksOfPlayers[currentIndex] == MarkType.Bind2
-               ||
-               phase3_marksOfPlayers[currentIndex] == MarkType.Bind3
-               ||
-               phase3_marksOfPlayers[currentIndex] == MarkType.Square)
-            {
-
-                return false;
-
-            }
-
-            return true;
             // Just a placeholder and should never be reached.
 
         }
@@ -7282,280 +6099,129 @@ namespace CicerosKodakkuAssist.FuturesRewrittenUltimate.LPDU
                 currentProperty.Delay = 1250;
                 currentProperty.DestoryAt = 2500;
 
-                if (Phase3_Strat_Of_The_Second_Half == Phase3_Strats_Of_The_Second_Half.Double_Group_双分组法)
-                {
-
-                    int myDoubleGroupIndex = phase3_doubleGroup_getDoubleGroupIndex(视角);
-
-                    switch (myDoubleGroupIndex)
-                    {
-
-                        case 0:
-                            {
-                                // H1
-
-                                currentProperty.TargetPosition = new Vector3(85, 0, 100);
-                                targetPositionConfirmed = true;
-
-                                break;
-
-                            }
-
-                        case 1:
-                            {
-                                // H2
-
-                                bool goLeft = phase3_doubleGroup_shouldGoLeft(视角);
-
-                                if (Enable_Developer_Mode)
-                                {
-
-                                    if (IsMe(accessory, 视角)) accessory.Method.SendChat($"""
-                                                           /e 
-                                                           goLeft={goLeft}
-
-                                                           """);
-
-                                }
-
-                                currentProperty.TargetPosition = (goLeft) ? (new Vector3(93, 0, 92)) : (new Vector3(107, 0, 92));
-                                targetPositionConfirmed = true;
-
-                                break;
-
-                            }
-
-                        case 2:
-                            {
-                                // MT
-
-                                currentProperty.TargetPosition = new Vector3(100, 0, 92);
-                                targetPositionConfirmed = true;
-
-                                break;
-
-                            }
-
-                        case 3:
-                            {
-                                // OT or ST
-
-                                currentProperty.TargetPosition = new Vector3(100, 0, 100);
-                                targetPositionConfirmed = true;
-
-                                break;
-
-                            }
-
-                        case 4:
-                            {
-                                // M1 or D1
-
-                                bool goLeft = phase3_doubleGroup_shouldGoLeft(视角);
-
-                                if (Enable_Developer_Mode)
-                                {
-
-                                    if (IsMe(accessory, 视角)) accessory.Method.SendChat($"""
-                                                           /e 
-                                                           goLeft={goLeft}
-
-                                                           """);
-
-                                }
-
-                                currentProperty.TargetPosition = (goLeft) ? (new Vector3(93, 0, 100)) : (new Vector3(107, 0, 100));
-                                targetPositionConfirmed = true;
-
-                                break;
-
-                            }
-
-                        case 5:
-                            {
-                                // M2 or D2
-
-                                currentProperty.TargetPosition = new Vector3(100, 0, 108);
-                                targetPositionConfirmed = true;
-
-                                break;
-
-                            }
-
-                        case 6:
-                            {
-                                // R1 or D3
-
-                                bool goLeft = phase3_doubleGroup_shouldGoLeft(视角);
-
-                                if (Enable_Developer_Mode)
-                                {
-
-                                    if (IsMe(accessory, 视角)) accessory.Method.SendChat($"""
-                                                           /e 
-                                                           goLeft={goLeft}
-
-                                                           """);
-
-                                }
-
-                                currentProperty.TargetPosition = (goLeft) ? (new Vector3(93, 0, 108)) : (new Vector3(107, 0, 108));
-                                targetPositionConfirmed = true;
-
-                                break;
-
-                            }
-
-                        case 7:
-                            {
-                                // R2 or D4
-
-                                currentProperty.TargetPosition = new Vector3(115, 0, 100);
-                                targetPositionConfirmed = true;
-
-                                break;
-
-                            }
-
-                        default:
-                            {
-                                // Just a placeholder and should never be reached.
-
-                                break;
-
-                            }
-
-                    }
-
-                }
-
-                else
-                {
-
-                    var temporaryProperty = accessory.Data.GetDefaultDrawProperties();
-
-                    Vector3 point1 = new Vector3(93f, 0f, 101f);
-                    Vector3 point1Extension = new Vector3(93f, 0f, 109f);
-                    Vector3 point2 = new Vector3(93f, 0f, 99f);
-                    Vector3 point2Extension = new Vector3(93f, 0f, 91f);
-                    Vector3 point3 = new Vector3(92f, 0f, 101f);
-                    Vector3 point3Extension = new Vector3(85.072f, 0f, 105f);
-                    Vector3 point4 = new Vector3(92f, 0f, 99f);
-                    Vector3 point4Extension = new Vector3(85.072f, 0f, 95f);
-                    Vector3 point5 = new Vector3(107f, 0f, 101f);
-                    Vector3 point5Extension = new Vector3(107f, 0f, 109f);
-                    Vector3 point6 = new Vector3(107f, 0f, 99f);
-                    Vector3 point6Extension = new Vector3(107f, 0f, 91f);
-                    Vector3 point7 = new Vector3(108f, 0f, 101f);
-                    Vector3 point7Extension = new Vector3(114.928f, 0f, 105f);
-                    Vector3 point8 = new Vector3(108f, 0f, 99f);
-                    Vector3 point8Extension = new Vector3(114.928f, 0f, 95f);
-
-                    temporaryProperty = accessory.Data.GetDefaultDrawProperties();
-
-                    temporaryProperty.Name = $"Phase3_Rough_Guidance_Of_Spirit_Taker_碎灵一击粗略指路-{视角}";
-                    temporaryProperty.Scale = new(2);
-                    temporaryProperty.Position = point1;
-                    temporaryProperty.TargetPosition = point1Extension;
-                    temporaryProperty.ScaleMode |= ScaleMode.YByDistance;
-                    temporaryProperty.Color = Phase3_Colour_Of_Rough_Guidance.V4.WithW(1f);
-                    temporaryProperty.Delay = 1250;
-                    temporaryProperty.DestoryAt = 2500;
-
-                    accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, temporaryProperty);
-
-                    temporaryProperty = accessory.Data.GetDefaultDrawProperties();
-
-                    temporaryProperty.Name = $"Phase3_Rough_Guidance_Of_Spirit_Taker_碎灵一击粗略指路-{视角}";
-                    temporaryProperty.Scale = new(2);
-                    temporaryProperty.Position = point2;
-                    temporaryProperty.TargetPosition = point2Extension;
-                    temporaryProperty.ScaleMode |= ScaleMode.YByDistance;
-                    temporaryProperty.Color = Phase3_Colour_Of_Rough_Guidance.V4.WithW(1f);
-                    temporaryProperty.Delay = 1250;
-                    temporaryProperty.DestoryAt = 2500;
-
-                    accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, temporaryProperty);
-
-                    temporaryProperty = accessory.Data.GetDefaultDrawProperties();
-
-                    temporaryProperty.Name = $"Phase3_Rough_Guidance_Of_Spirit_Taker_碎灵一击粗略指路-{视角}";
-                    temporaryProperty.Scale = new(2);
-                    temporaryProperty.Position = point3;
-                    temporaryProperty.TargetPosition = point3Extension;
-                    temporaryProperty.ScaleMode |= ScaleMode.YByDistance;
-                    temporaryProperty.Color = Phase3_Colour_Of_Rough_Guidance.V4.WithW(1f);
-                    temporaryProperty.Delay = 1250;
-                    temporaryProperty.DestoryAt = 2500;
-
-                    accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, temporaryProperty);
-
-                    temporaryProperty = accessory.Data.GetDefaultDrawProperties();
-
-                    temporaryProperty.Name = $"Phase3_Rough_Guidance_Of_Spirit_Taker_碎灵一击粗略指路-{视角}";
-                    temporaryProperty.Scale = new(2);
-                    temporaryProperty.Position = point4;
-                    temporaryProperty.TargetPosition = point4Extension;
-                    temporaryProperty.ScaleMode |= ScaleMode.YByDistance;
-                    temporaryProperty.Color = Phase3_Colour_Of_Rough_Guidance.V4.WithW(1f);
-                    temporaryProperty.Delay = 1250;
-                    temporaryProperty.DestoryAt = 2500;
-
-                    accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, temporaryProperty);
-
-                    temporaryProperty = accessory.Data.GetDefaultDrawProperties();
-
-                    temporaryProperty.Name = $"Phase3_Rough_Guidance_Of_Spirit_Taker_碎灵一击粗略指路-{视角}";
-                    temporaryProperty.Scale = new(2);
-                    temporaryProperty.Position = point5;
-                    temporaryProperty.TargetPosition = point5Extension;
-                    temporaryProperty.ScaleMode |= ScaleMode.YByDistance;
-                    temporaryProperty.Color = Phase3_Colour_Of_Rough_Guidance.V4.WithW(1f);
-                    temporaryProperty.Delay = 1250;
-                    temporaryProperty.DestoryAt = 2500;
-
-                    accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, temporaryProperty);
-
-                    temporaryProperty = accessory.Data.GetDefaultDrawProperties();
-
-                    temporaryProperty.Name = $"Phase3_Rough_Guidance_Of_Spirit_Taker_碎灵一击粗略指路-{视角}";
-                    temporaryProperty.Scale = new(2);
-                    temporaryProperty.Position = point6;
-                    temporaryProperty.TargetPosition = point6Extension;
-                    temporaryProperty.ScaleMode |= ScaleMode.YByDistance;
-                    temporaryProperty.Color = Phase3_Colour_Of_Rough_Guidance.V4.WithW(1f);
-                    temporaryProperty.Delay = 1250;
-                    temporaryProperty.DestoryAt = 2500;
-
-                    accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, temporaryProperty);
-
-                    temporaryProperty = accessory.Data.GetDefaultDrawProperties();
-
-                    temporaryProperty.Name = $"Phase3_Rough_Guidance_Of_Spirit_Taker_碎灵一击粗略指路-{视角}";
-                    temporaryProperty.Scale = new(2);
-                    temporaryProperty.Position = point7;
-                    temporaryProperty.TargetPosition = point7Extension;
-                    temporaryProperty.ScaleMode |= ScaleMode.YByDistance;
-                    temporaryProperty.Color = Phase3_Colour_Of_Rough_Guidance.V4.WithW(1f);
-                    temporaryProperty.Delay = 1250;
-                    temporaryProperty.DestoryAt = 2500;
-
-                    accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, temporaryProperty);
-
-                    temporaryProperty = accessory.Data.GetDefaultDrawProperties();
-
-                    temporaryProperty.Name = $"Phase3_Rough_Guidance_Of_Spirit_Taker_碎灵一击粗略指路-{视角}";
-                    temporaryProperty.Scale = new(2);
-                    temporaryProperty.Position = point8;
-                    temporaryProperty.TargetPosition = point8Extension;
-                    temporaryProperty.ScaleMode |= ScaleMode.YByDistance;
-                    temporaryProperty.Color = Phase3_Colour_Of_Rough_Guidance.V4.WithW(1f);
-                    temporaryProperty.Delay = 1250;
-                    temporaryProperty.DestoryAt = 2500;
-
-                    accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, temporaryProperty);
-
-                }
+                var temporaryProperty = accessory.Data.GetDefaultDrawProperties();
+
+                // LPDU 两组在西北、东南（正西、正东顺时针转 22.5°），碎灵一击按方框预分散
+                Vector3 point1 = RotatePoint(new Vector3(93f, 0f, 101f), new Vector3(100, 0, 100), float.Pi / 8);
+                Vector3 point1Extension = RotatePoint(new Vector3(93f, 0f, 109f), new Vector3(100, 0, 100), float.Pi / 8);
+                Vector3 point2 = RotatePoint(new Vector3(93f, 0f, 99f), new Vector3(100, 0, 100), float.Pi / 8);
+                Vector3 point2Extension = RotatePoint(new Vector3(93f, 0f, 91f), new Vector3(100, 0, 100), float.Pi / 8);
+                Vector3 point3 = RotatePoint(new Vector3(92f, 0f, 101f), new Vector3(100, 0, 100), float.Pi / 8);
+                Vector3 point3Extension = RotatePoint(new Vector3(85.072f, 0f, 105f), new Vector3(100, 0, 100), float.Pi / 8);
+                Vector3 point4 = RotatePoint(new Vector3(92f, 0f, 99f), new Vector3(100, 0, 100), float.Pi / 8);
+                Vector3 point4Extension = RotatePoint(new Vector3(85.072f, 0f, 95f), new Vector3(100, 0, 100), float.Pi / 8);
+                Vector3 point5 = RotatePoint(new Vector3(107f, 0f, 101f), new Vector3(100, 0, 100), float.Pi / 8);
+                Vector3 point5Extension = RotatePoint(new Vector3(107f, 0f, 109f), new Vector3(100, 0, 100), float.Pi / 8);
+                Vector3 point6 = RotatePoint(new Vector3(107f, 0f, 99f), new Vector3(100, 0, 100), float.Pi / 8);
+                Vector3 point6Extension = RotatePoint(new Vector3(107f, 0f, 91f), new Vector3(100, 0, 100), float.Pi / 8);
+                Vector3 point7 = RotatePoint(new Vector3(108f, 0f, 101f), new Vector3(100, 0, 100), float.Pi / 8);
+                Vector3 point7Extension = RotatePoint(new Vector3(114.928f, 0f, 105f), new Vector3(100, 0, 100), float.Pi / 8);
+                Vector3 point8 = RotatePoint(new Vector3(108f, 0f, 99f), new Vector3(100, 0, 100), float.Pi / 8);
+                Vector3 point8Extension = RotatePoint(new Vector3(114.928f, 0f, 95f), new Vector3(100, 0, 100), float.Pi / 8);
+
+                temporaryProperty = accessory.Data.GetDefaultDrawProperties();
+
+                temporaryProperty.Name = $"Phase3_Rough_Guidance_Of_Spirit_Taker_碎灵一击粗略指路-{视角}";
+                temporaryProperty.Scale = new(2);
+                temporaryProperty.Position = point1;
+                temporaryProperty.TargetPosition = point1Extension;
+                temporaryProperty.ScaleMode |= ScaleMode.YByDistance;
+                temporaryProperty.Color = Phase3_Colour_Of_Rough_Guidance.V4.WithW(1f);
+                temporaryProperty.Delay = 1250;
+                temporaryProperty.DestoryAt = 2500;
+
+                accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, temporaryProperty);
+
+                temporaryProperty = accessory.Data.GetDefaultDrawProperties();
+
+                temporaryProperty.Name = $"Phase3_Rough_Guidance_Of_Spirit_Taker_碎灵一击粗略指路-{视角}";
+                temporaryProperty.Scale = new(2);
+                temporaryProperty.Position = point2;
+                temporaryProperty.TargetPosition = point2Extension;
+                temporaryProperty.ScaleMode |= ScaleMode.YByDistance;
+                temporaryProperty.Color = Phase3_Colour_Of_Rough_Guidance.V4.WithW(1f);
+                temporaryProperty.Delay = 1250;
+                temporaryProperty.DestoryAt = 2500;
+
+                accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, temporaryProperty);
+
+                temporaryProperty = accessory.Data.GetDefaultDrawProperties();
+
+                temporaryProperty.Name = $"Phase3_Rough_Guidance_Of_Spirit_Taker_碎灵一击粗略指路-{视角}";
+                temporaryProperty.Scale = new(2);
+                temporaryProperty.Position = point3;
+                temporaryProperty.TargetPosition = point3Extension;
+                temporaryProperty.ScaleMode |= ScaleMode.YByDistance;
+                temporaryProperty.Color = Phase3_Colour_Of_Rough_Guidance.V4.WithW(1f);
+                temporaryProperty.Delay = 1250;
+                temporaryProperty.DestoryAt = 2500;
+
+                accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, temporaryProperty);
+
+                temporaryProperty = accessory.Data.GetDefaultDrawProperties();
+
+                temporaryProperty.Name = $"Phase3_Rough_Guidance_Of_Spirit_Taker_碎灵一击粗略指路-{视角}";
+                temporaryProperty.Scale = new(2);
+                temporaryProperty.Position = point4;
+                temporaryProperty.TargetPosition = point4Extension;
+                temporaryProperty.ScaleMode |= ScaleMode.YByDistance;
+                temporaryProperty.Color = Phase3_Colour_Of_Rough_Guidance.V4.WithW(1f);
+                temporaryProperty.Delay = 1250;
+                temporaryProperty.DestoryAt = 2500;
+
+                accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, temporaryProperty);
+
+                temporaryProperty = accessory.Data.GetDefaultDrawProperties();
+
+                temporaryProperty.Name = $"Phase3_Rough_Guidance_Of_Spirit_Taker_碎灵一击粗略指路-{视角}";
+                temporaryProperty.Scale = new(2);
+                temporaryProperty.Position = point5;
+                temporaryProperty.TargetPosition = point5Extension;
+                temporaryProperty.ScaleMode |= ScaleMode.YByDistance;
+                temporaryProperty.Color = Phase3_Colour_Of_Rough_Guidance.V4.WithW(1f);
+                temporaryProperty.Delay = 1250;
+                temporaryProperty.DestoryAt = 2500;
+
+                accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, temporaryProperty);
+
+                temporaryProperty = accessory.Data.GetDefaultDrawProperties();
+
+                temporaryProperty.Name = $"Phase3_Rough_Guidance_Of_Spirit_Taker_碎灵一击粗略指路-{视角}";
+                temporaryProperty.Scale = new(2);
+                temporaryProperty.Position = point6;
+                temporaryProperty.TargetPosition = point6Extension;
+                temporaryProperty.ScaleMode |= ScaleMode.YByDistance;
+                temporaryProperty.Color = Phase3_Colour_Of_Rough_Guidance.V4.WithW(1f);
+                temporaryProperty.Delay = 1250;
+                temporaryProperty.DestoryAt = 2500;
+
+                accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, temporaryProperty);
+
+                temporaryProperty = accessory.Data.GetDefaultDrawProperties();
+
+                temporaryProperty.Name = $"Phase3_Rough_Guidance_Of_Spirit_Taker_碎灵一击粗略指路-{视角}";
+                temporaryProperty.Scale = new(2);
+                temporaryProperty.Position = point7;
+                temporaryProperty.TargetPosition = point7Extension;
+                temporaryProperty.ScaleMode |= ScaleMode.YByDistance;
+                temporaryProperty.Color = Phase3_Colour_Of_Rough_Guidance.V4.WithW(1f);
+                temporaryProperty.Delay = 1250;
+                temporaryProperty.DestoryAt = 2500;
+
+                accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, temporaryProperty);
+
+                temporaryProperty = accessory.Data.GetDefaultDrawProperties();
+
+                temporaryProperty.Name = $"Phase3_Rough_Guidance_Of_Spirit_Taker_碎灵一击粗略指路-{视角}";
+                temporaryProperty.Scale = new(2);
+                temporaryProperty.Position = point8;
+                temporaryProperty.TargetPosition = point8Extension;
+                temporaryProperty.ScaleMode |= ScaleMode.YByDistance;
+                temporaryProperty.Color = Phase3_Colour_Of_Rough_Guidance.V4.WithW(1f);
+                temporaryProperty.Delay = 1250;
+                temporaryProperty.DestoryAt = 2500;
+
+                accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, temporaryProperty);
 
                 if (targetPositionConfirmed)
                 {
@@ -7621,474 +6287,48 @@ namespace CicerosKodakkuAssist.FuturesRewrittenUltimate.LPDU
 
             }
 
-            if (Phase3_Strat_Of_The_Second_Half == Phase3_Strats_Of_The_Second_Half.Double_Group_双分组法)
+            // LPDU：两个安全点一定一个落在 T奶颜色的标点（A 1 D 4，正北到西南），一个落在 DPS 颜色（2 B 3 C）
+            if (direction1OfTheLast == 0
+               ||
+               direction1OfTheLast == 7
+               ||
+               direction1OfTheLast == 6
+               ||
+               direction1OfTheLast == 5)
             {
 
-                if (Phase3_Branch_Of_The_Double_Group_Strat == Phase3_Branches_Of_The_Double_Group_Strat.Based_On_Safe_Positions_安全区为基准_MMW)
-                {
+                phase3_locomotive_initialSafePositionOfTheLeftGroup = position1OfTheLast;
+                phase3_locomotive_leftPositionToStackOfTheSecondRound = new Vector3((position1OfTheLast.X - 100) / 3 + 100,
+                                                                                  position1OfTheLast.Y,
+                                                                                  (position1OfTheLast.Z - 100) / 3 + 100);
+                phase3_locomotive_initialSafePositionOfTheRightGroup = position2OfTheLast;
+                phase3_locomotive_rightPositionToStackOfTheSecondRound = new Vector3((position2OfTheLast.X - 100) / 3 + 100,
+                                                                                   position2OfTheLast.Y,
+                                                                                   (position2OfTheLast.Z - 100) / 3 + 100);
 
-                    if (Phase3_Division_Of_The_Zone == Phase3_Divisions_Of_The_Zone.North_To_Southwest_For_The_Left_Group_左组从正北到西南_莫灵喵与MMW)
-                    {
-
-                        if (direction1OfTheLast == 0
-                           ||
-                           direction1OfTheLast == 7
-                           ||
-                           direction1OfTheLast == 6
-                           ||
-                           direction1OfTheLast == 5)
-                        {
-
-                            phase3_doubleGroup_initialSafePositionOfTheLeftGroup = position1OfTheLast;
-                            phase3_doubleGroup_leftPositionToStackOfTheSecondRound = new Vector3((position1OfTheLast.X - 100) / 3 + 100,
-                                                                                               position1OfTheLast.Y,
-                                                                                               (position1OfTheLast.Z - 100) / 3 + 100);
-                            phase3_doubleGroup_initialSafePositionOfTheRightGroup = position2OfTheLast;
-                            phase3_doubleGroup_rightPositionToStackOfTheSecondRound = new Vector3((position2OfTheLast.X - 100) / 3 + 100,
-                                                                                                position2OfTheLast.Y,
-                                                                                                (position2OfTheLast.Z - 100) / 3 + 100);
-
-                            phase3_hasConfirmedInitialSafePositions = true;
-
-                        }
-
-                        if (direction1OfTheLast == 1
-                           ||
-                           direction1OfTheLast == 2
-                           ||
-                           direction1OfTheLast == 3
-                           ||
-                           direction1OfTheLast == 4)
-                        {
-
-                            phase3_doubleGroup_initialSafePositionOfTheLeftGroup = position2OfTheLast;
-                            phase3_doubleGroup_leftPositionToStackOfTheSecondRound = new Vector3((position2OfTheLast.X - 100) / 3 + 100,
-                                                                                               position2OfTheLast.Y,
-                                                                                               (position2OfTheLast.Z - 100) / 3 + 100);
-                            phase3_doubleGroup_initialSafePositionOfTheRightGroup = position1OfTheLast;
-                            phase3_doubleGroup_rightPositionToStackOfTheSecondRound = new Vector3((position1OfTheLast.X - 100) / 3 + 100,
-                                                                                                position1OfTheLast.Y,
-                                                                                                (position1OfTheLast.Z - 100) / 3 + 100);
-
-                            phase3_hasConfirmedInitialSafePositions = true;
-
-                        }
-
-                    }
-
-                    if (Phase3_Division_Of_The_Zone == Phase3_Divisions_Of_The_Zone.Northwest_To_South_For_The_Left_Group_左组从西北到正南)
-                    {
-
-                        if (direction1OfTheLast == 7
-                           ||
-                           direction1OfTheLast == 6
-                           ||
-                           direction1OfTheLast == 5
-                           ||
-                           direction1OfTheLast == 4)
-                        {
-
-                            phase3_doubleGroup_initialSafePositionOfTheLeftGroup = position1OfTheLast;
-                            phase3_doubleGroup_leftPositionToStackOfTheSecondRound = new Vector3((position1OfTheLast.X - 100) / 3 + 100,
-                                                                                               position1OfTheLast.Y,
-                                                                                               (position1OfTheLast.Z - 100) / 3 + 100);
-                            phase3_doubleGroup_initialSafePositionOfTheRightGroup = position2OfTheLast;
-                            phase3_doubleGroup_rightPositionToStackOfTheSecondRound = new Vector3((position2OfTheLast.X - 100) / 3 + 100,
-                                                                                                position2OfTheLast.Y,
-                                                                                                (position2OfTheLast.Z - 100) / 3 + 100);
-
-                            phase3_hasConfirmedInitialSafePositions = true;
-
-                        }
-
-                        if (direction1OfTheLast == 0
-                           ||
-                           direction1OfTheLast == 1
-                           ||
-                           direction1OfTheLast == 2
-                           ||
-                           direction1OfTheLast == 3)
-                        {
-
-                            phase3_doubleGroup_initialSafePositionOfTheLeftGroup = position2OfTheLast;
-                            phase3_doubleGroup_leftPositionToStackOfTheSecondRound = new Vector3((position2OfTheLast.X - 100) / 3 + 100,
-                                                                                               position2OfTheLast.Y,
-                                                                                               (position2OfTheLast.Z - 100) / 3 + 100);
-                            phase3_doubleGroup_initialSafePositionOfTheRightGroup = position1OfTheLast;
-                            phase3_doubleGroup_rightPositionToStackOfTheSecondRound = new Vector3((position1OfTheLast.X - 100) / 3 + 100,
-                                                                                                position1OfTheLast.Y,
-                                                                                                (position1OfTheLast.Z - 100) / 3 + 100);
-
-                            phase3_hasConfirmedInitialSafePositions = true;
-
-                        }
-
-                    }
-
-                }
-
-                if (Phase3_Branch_Of_The_Double_Group_Strat == Phase3_Branches_Of_The_Double_Group_Strat.Based_On_The_Second_Apocalypse_第二次启示为基准)
-                {
-
-                    if (Phase3_Division_Of_The_Zone == Phase3_Divisions_Of_The_Zone.North_To_Southwest_For_The_Left_Group_左组从正北到西南_莫灵喵与MMW)
-                    {
-
-                        if (direction1OfTheSecond == 0
-                           ||
-                           direction1OfTheSecond == 7
-                           ||
-                           direction1OfTheSecond == 6
-                           ||
-                           direction1OfTheSecond == 5)
-                        {
-
-                            phase3_doubleGroup_initialSafePositionOfTheLeftGroup = position2OfTheLast;
-                            phase3_doubleGroup_leftPositionToStackOfTheSecondRound = new Vector3((position2OfTheLast.X - 100) / 3 + 100,
-                                                                                               position2OfTheLast.Y,
-                                                                                               (position2OfTheLast.Z - 100) / 3 + 100);
-                            phase3_doubleGroup_initialSafePositionOfTheRightGroup = position1OfTheLast;
-                            phase3_doubleGroup_rightPositionToStackOfTheSecondRound = new Vector3((position1OfTheLast.X - 100) / 3 + 100,
-                                                                                                position1OfTheLast.Y,
-                                                                                                (position1OfTheLast.Z - 100) / 3 + 100);
-
-                            phase3_hasConfirmedInitialSafePositions = true;
-
-                        }
-
-                        if (direction1OfTheSecond == 1
-                           ||
-                           direction1OfTheSecond == 2
-                           ||
-                           direction1OfTheSecond == 3
-                           ||
-                           direction1OfTheSecond == 4)
-                        {
-
-                            phase3_doubleGroup_initialSafePositionOfTheLeftGroup = position1OfTheLast;
-                            phase3_doubleGroup_leftPositionToStackOfTheSecondRound = new Vector3((position1OfTheLast.X - 100) / 3 + 100,
-                                                                                               position1OfTheLast.Y,
-                                                                                               (position1OfTheLast.Z - 100) / 3 + 100);
-                            phase3_doubleGroup_initialSafePositionOfTheRightGroup = position2OfTheLast;
-                            phase3_doubleGroup_rightPositionToStackOfTheSecondRound = new Vector3((position2OfTheLast.X - 100) / 3 + 100,
-                                                                                                position2OfTheLast.Y,
-                                                                                                (position2OfTheLast.Z - 100) / 3 + 100);
-
-                            phase3_hasConfirmedInitialSafePositions = true;
-
-                        }
-
-                    }
-
-                    if (Phase3_Division_Of_The_Zone == Phase3_Divisions_Of_The_Zone.Northwest_To_South_For_The_Left_Group_左组从西北到正南)
-                    {
-
-                        if (direction1OfTheSecond == 7
-                           ||
-                           direction1OfTheSecond == 6
-                           ||
-                           direction1OfTheSecond == 5
-                           ||
-                           direction1OfTheSecond == 4)
-                        {
-
-                            phase3_doubleGroup_initialSafePositionOfTheLeftGroup = position2OfTheLast;
-                            phase3_doubleGroup_leftPositionToStackOfTheSecondRound = new Vector3((position2OfTheLast.X - 100) / 3 + 100,
-                                                                                               position2OfTheLast.Y,
-                                                                                               (position2OfTheLast.Z - 100) / 3 + 100);
-                            phase3_doubleGroup_initialSafePositionOfTheRightGroup = position1OfTheLast;
-                            phase3_doubleGroup_rightPositionToStackOfTheSecondRound = new Vector3((position1OfTheLast.X - 100) / 3 + 100,
-                                                                                                position1OfTheLast.Y,
-                                                                                                (position1OfTheLast.Z - 100) / 3 + 100);
-
-                            phase3_hasConfirmedInitialSafePositions = true;
-
-                        }
-
-                        if (direction1OfTheSecond == 0
-                           ||
-                           direction1OfTheSecond == 1
-                           ||
-                           direction1OfTheSecond == 2
-                           ||
-                           direction1OfTheSecond == 3)
-                        {
-
-                            phase3_doubleGroup_initialSafePositionOfTheLeftGroup = position1OfTheLast;
-                            phase3_doubleGroup_leftPositionToStackOfTheSecondRound = new Vector3((position1OfTheLast.X - 100) / 3 + 100,
-                                                                                               position1OfTheLast.Y,
-                                                                                               (position1OfTheLast.Z - 100) / 3 + 100);
-                            phase3_doubleGroup_initialSafePositionOfTheRightGroup = position2OfTheLast;
-                            phase3_doubleGroup_rightPositionToStackOfTheSecondRound = new Vector3((position2OfTheLast.X - 100) / 3 + 100,
-                                                                                                position2OfTheLast.Y,
-                                                                                                (position2OfTheLast.Z - 100) / 3 + 100);
-
-                            phase3_hasConfirmedInitialSafePositions = true;
-
-                        }
-
-                    }
-
-                }
+                phase3_hasConfirmedInitialSafePositions = true;
 
             }
 
-            if (Phase3_Strat_Of_The_Second_Half == Phase3_Strats_Of_The_Second_Half.High_Priority_As_Locomotives_车头低换法_MMW)
+            if (direction1OfTheLast == 1
+               ||
+               direction1OfTheLast == 2
+               ||
+               direction1OfTheLast == 3
+               ||
+               direction1OfTheLast == 4)
             {
 
-                if (Phase3_Branch_Of_The_Locomotive_Strat == Phase3_Branches_Of_The_Locomotive_Strat.MT_And_M1_As_Locomotives_MT和D1为车头_MMW)
-                {
+                phase3_locomotive_initialSafePositionOfTheLeftGroup = position2OfTheLast;
+                phase3_locomotive_leftPositionToStackOfTheSecondRound = new Vector3((position2OfTheLast.X - 100) / 3 + 100,
+                                                                                  position2OfTheLast.Y,
+                                                                                  (position2OfTheLast.Z - 100) / 3 + 100);
+                phase3_locomotive_initialSafePositionOfTheRightGroup = position1OfTheLast;
+                phase3_locomotive_rightPositionToStackOfTheSecondRound = new Vector3((position1OfTheLast.X - 100) / 3 + 100,
+                                                                                   position1OfTheLast.Y,
+                                                                                   (position1OfTheLast.Z - 100) / 3 + 100);
 
-                    if (Phase3_Division_Of_The_Zone == Phase3_Divisions_Of_The_Zone.North_To_Southwest_For_The_Left_Group_左组从正北到西南_莫灵喵与MMW)
-                    {
-
-                        if (direction1OfThePenultimate == 0
-                           ||
-                           direction1OfThePenultimate == 7
-                           ||
-                           direction1OfThePenultimate == 6
-                           ||
-                           direction1OfThePenultimate == 5)
-                        {
-
-                            phase3_locomotive_initialSafePositionOfTheLeftGroup = position1OfThePenultimate;
-                            phase3_locomotive_leftPositionToStackOfTheSecondRound = new Vector3((position1OfTheLast.X - 100) / 3 + 100,
-                                                                                              position1OfTheLast.Y,
-                                                                                              (position1OfTheLast.Z - 100) / 3 + 100);
-                            phase3_locomotive_initialSafePositionOfTheRightGroup = position2OfThePenultimate;
-                            phase3_locomotive_rightPositionToStackOfTheSecondRound = new Vector3((position2OfTheLast.X - 100) / 3 + 100,
-                                                                                               position2OfTheLast.Y,
-                                                                                               (position2OfTheLast.Z - 100) / 3 + 100);
-
-                            phase3_hasConfirmedInitialSafePositions = true;
-
-                        }
-
-                        if (direction1OfThePenultimate == 1
-                            ||
-                            direction1OfThePenultimate == 2
-                            ||
-                            direction1OfThePenultimate == 3
-                            ||
-                            direction1OfThePenultimate == 4)
-                        {
-
-                            phase3_locomotive_initialSafePositionOfTheLeftGroup = position2OfThePenultimate;
-                            phase3_locomotive_leftPositionToStackOfTheSecondRound = new Vector3((position2OfTheLast.X - 100) / 3 + 100,
-                                                                                              position2OfTheLast.Y,
-                                                                                              (position2OfTheLast.Z - 100) / 3 + 100);
-                            phase3_locomotive_initialSafePositionOfTheRightGroup = position1OfThePenultimate;
-                            phase3_locomotive_rightPositionToStackOfTheSecondRound = new Vector3((position1OfTheLast.X - 100) / 3 + 100,
-                                                                                               position1OfTheLast.Y,
-                                                                                               (position1OfTheLast.Z - 100) / 3 + 100);
-
-                            phase3_hasConfirmedInitialSafePositions = true;
-
-                        }
-
-                    }
-
-                    if (Phase3_Division_Of_The_Zone == Phase3_Divisions_Of_The_Zone.Northwest_To_South_For_The_Left_Group_左组从西北到正南)
-                    {
-
-                        if (direction1OfThePenultimate == 7
-                            ||
-                            direction1OfThePenultimate == 6
-                            ||
-                            direction1OfThePenultimate == 5
-                            ||
-                            direction1OfThePenultimate == 4)
-                        {
-
-                            phase3_locomotive_initialSafePositionOfTheLeftGroup = position1OfThePenultimate;
-                            phase3_locomotive_leftPositionToStackOfTheSecondRound = new Vector3((position1OfTheLast.X - 100) / 3 + 100,
-                                                                                              position1OfTheLast.Y,
-                                                                                              (position1OfTheLast.Z - 100) / 3 + 100);
-                            phase3_locomotive_initialSafePositionOfTheRightGroup = position2OfThePenultimate;
-                            phase3_locomotive_rightPositionToStackOfTheSecondRound = new Vector3((position2OfTheLast.X - 100) / 3 + 100,
-                                                                                               position2OfTheLast.Y,
-                                                                                               (position2OfTheLast.Z - 100) / 3 + 100);
-
-                            phase3_hasConfirmedInitialSafePositions = true;
-
-                        }
-
-                        if (direction1OfThePenultimate == 0
-                            ||
-                            direction1OfThePenultimate == 1
-                            ||
-                            direction1OfThePenultimate == 2
-                            ||
-                            direction1OfThePenultimate == 3)
-                        {
-
-                            phase3_locomotive_initialSafePositionOfTheLeftGroup = position2OfThePenultimate;
-                            phase3_locomotive_leftPositionToStackOfTheSecondRound = new Vector3((position2OfTheLast.X - 100) / 3 + 100,
-                                                                                              position2OfTheLast.Y,
-                                                                                              (position2OfTheLast.Z - 100) / 3 + 100);
-                            phase3_locomotive_initialSafePositionOfTheRightGroup = position1OfThePenultimate;
-                            phase3_locomotive_rightPositionToStackOfTheSecondRound = new Vector3((position1OfTheLast.X - 100) / 3 + 100,
-                                                                                               position1OfTheLast.Y,
-                                                                                               (position1OfTheLast.Z - 100) / 3 + 100);
-
-                            phase3_hasConfirmedInitialSafePositions = true;
-
-                        }
-
-                    }
-
-                }
-
-                if (Phase3_Branch_Of_The_Locomotive_Strat == Phase3_Branches_Of_The_Locomotive_Strat.Others_As_Locomotives_Chinese_PF_国服野队人群为车头)
-                {
-
-                    if (Phase3_Division_Of_The_Zone == Phase3_Divisions_Of_The_Zone.North_To_Southwest_For_The_Left_Group_左组从正北到西南_莫灵喵与MMW)
-                    {
-
-                        if (direction1OfTheLast == 0
-                           ||
-                           direction1OfTheLast == 7
-                           ||
-                           direction1OfTheLast == 6
-                           ||
-                           direction1OfTheLast == 5)
-                        {
-
-                            phase3_locomotive_initialSafePositionOfTheLeftGroup = position1OfTheLast;
-                            phase3_locomotive_leftPositionToStackOfTheSecondRound = new Vector3((position1OfTheLast.X - 100) / 3 + 100,
-                                                                                              position1OfTheLast.Y,
-                                                                                              (position1OfTheLast.Z - 100) / 3 + 100);
-                            phase3_locomotive_initialSafePositionOfTheRightGroup = position2OfTheLast;
-                            phase3_locomotive_rightPositionToStackOfTheSecondRound = new Vector3((position2OfTheLast.X - 100) / 3 + 100,
-                                                                                               position2OfTheLast.Y,
-                                                                                               (position2OfTheLast.Z - 100) / 3 + 100);
-
-                            phase3_hasConfirmedInitialSafePositions = true;
-
-                        }
-
-                        if (direction1OfTheLast == 1
-                           ||
-                           direction1OfTheLast == 2
-                           ||
-                           direction1OfTheLast == 3
-                           ||
-                           direction1OfTheLast == 4)
-                        {
-
-                            phase3_locomotive_initialSafePositionOfTheLeftGroup = position2OfTheLast;
-                            phase3_locomotive_leftPositionToStackOfTheSecondRound = new Vector3((position2OfTheLast.X - 100) / 3 + 100,
-                                                                                              position2OfTheLast.Y,
-                                                                                              (position2OfTheLast.Z - 100) / 3 + 100);
-                            phase3_locomotive_initialSafePositionOfTheRightGroup = position1OfTheLast;
-                            phase3_locomotive_rightPositionToStackOfTheSecondRound = new Vector3((position1OfTheLast.X - 100) / 3 + 100,
-                                                                                               position1OfTheLast.Y,
-                                                                                               (position1OfTheLast.Z - 100) / 3 + 100);
-
-                            phase3_hasConfirmedInitialSafePositions = true;
-
-                        }
-
-                    }
-
-                    if (Phase3_Division_Of_The_Zone == Phase3_Divisions_Of_The_Zone.Northwest_To_South_For_The_Left_Group_左组从西北到正南)
-                    {
-
-                        if (direction1OfTheLast == 7
-                           ||
-                           direction1OfTheLast == 6
-                           ||
-                           direction1OfTheLast == 5
-                           ||
-                           direction1OfTheLast == 4)
-                        {
-
-                            phase3_locomotive_initialSafePositionOfTheLeftGroup = position1OfTheLast;
-                            phase3_locomotive_leftPositionToStackOfTheSecondRound = new Vector3((position1OfTheLast.X - 100) / 3 + 100,
-                                                                                              position1OfTheLast.Y,
-                                                                                              (position1OfTheLast.Z - 100) / 3 + 100);
-                            phase3_locomotive_initialSafePositionOfTheRightGroup = position2OfTheLast;
-                            phase3_locomotive_rightPositionToStackOfTheSecondRound = new Vector3((position2OfTheLast.X - 100) / 3 + 100,
-                                                                                               position2OfTheLast.Y,
-                                                                                               (position2OfTheLast.Z - 100) / 3 + 100);
-
-                            phase3_hasConfirmedInitialSafePositions = true;
-
-                        }
-
-                        if (direction1OfTheLast == 0
-                           ||
-                           direction1OfTheLast == 1
-                           ||
-                           direction1OfTheLast == 2
-                           ||
-                           direction1OfTheLast == 3)
-                        {
-
-                            phase3_locomotive_initialSafePositionOfTheLeftGroup = position2OfTheLast;
-                            phase3_locomotive_leftPositionToStackOfTheSecondRound = new Vector3((position2OfTheLast.X - 100) / 3 + 100,
-                                                                                              position2OfTheLast.Y,
-                                                                                              (position2OfTheLast.Z - 100) / 3 + 100);
-                            phase3_locomotive_initialSafePositionOfTheRightGroup = position1OfTheLast;
-                            phase3_locomotive_rightPositionToStackOfTheSecondRound = new Vector3((position1OfTheLast.X - 100) / 3 + 100,
-                                                                                               position1OfTheLast.Y,
-                                                                                               (position1OfTheLast.Z - 100) / 3 + 100);
-
-                            phase3_hasConfirmedInitialSafePositions = true;
-
-                        }
-
-                    }
-
-                }
-
-            }
-
-            if (Phase3_Strat_Of_The_Second_Half == Phase3_Strats_Of_The_Second_Half.Moglin_Meow_Or_Baby_Wheelchair_Based_On_Signs_根据目标标记的莫灵喵法或宝宝椅法)
-            {
-
-                if (direction1OfTheLast == 0
-                   ||
-                   direction1OfTheLast == 7
-                   ||
-                   direction1OfTheLast == 6
-                   ||
-                   direction1OfTheLast == 5)
-                {
-
-                    phase3_moglinMeow_initialSafePositionOfTheLeftGroup = position1OfTheLast;
-                    phase3_moglinMeow_leftPositionToStackOfTheSecondRound = new Vector3((position1OfTheLast.X - 100) / 3 + 100,
-                                                                                               position1OfTheLast.Y,
-                                                                                               (position1OfTheLast.Z - 100) / 3 + 100);
-                    phase3_moglinMeow_initialSafePositionOfTheRightGroup = position2OfTheLast;
-                    phase3_moglinMeow_rightPositionToStackOfTheSecondRound = new Vector3((position2OfTheLast.X - 100) / 3 + 100,
-                                                                                                position2OfTheLast.Y,
-                                                                                                (position2OfTheLast.Z - 100) / 3 + 100);
-
-                    phase3_hasConfirmedInitialSafePositions = true;
-
-                }
-
-                if (direction1OfTheLast == 1
-                   ||
-                   direction1OfTheLast == 2
-                   ||
-                   direction1OfTheLast == 3
-                   ||
-                   direction1OfTheLast == 4)
-                {
-
-                    phase3_moglinMeow_initialSafePositionOfTheLeftGroup = position2OfTheLast;
-                    phase3_moglinMeow_leftPositionToStackOfTheSecondRound = new Vector3((position2OfTheLast.X - 100) / 3 + 100,
-                                                                                               position2OfTheLast.Y,
-                                                                                               (position2OfTheLast.Z - 100) / 3 + 100);
-                    phase3_moglinMeow_initialSafePositionOfTheRightGroup = position1OfTheLast;
-                    phase3_moglinMeow_rightPositionToStackOfTheSecondRound = new Vector3((position1OfTheLast.X - 100) / 3 + 100,
-                                                                                                position1OfTheLast.Y,
-                                                                                                (position1OfTheLast.Z - 100) / 3 + 100);
-
-                    phase3_hasConfirmedInitialSafePositions = true;
-
-                }
+                phase3_hasConfirmedInitialSafePositions = true;
 
             }
 
@@ -8265,80 +6505,23 @@ namespace CicerosKodakkuAssist.FuturesRewrittenUltimate.LPDU
                 currentProperty.Delay = 500;
                 currentProperty.DestoryAt = 6500;
 
-                if (Phase3_Strat_Of_The_Second_Half == Phase3_Strats_Of_The_Second_Half.Double_Group_双分组法)
+                bool goLeft = phase3_locomotive_shouldGoLeft(视角);
+
+                if (goLeft)
                 {
 
-                    if (0 <= 视角
-                       &&
-                       视角 <= 3)
-                    {
+                    currentProperty.TargetPosition = phase3_locomotive_initialSafePositionOfTheLeftGroup;
 
-                        currentProperty.TargetPosition = phase3_doubleGroup_initialSafePositionOfTheLeftGroup;
-
-                        targetPositionConfirmed = true;
-
-                    }
-
-                    if (4 <= 视角
-                       &&
-                       视角 <= 7)
-                    {
-
-                        currentProperty.TargetPosition = phase3_doubleGroup_initialSafePositionOfTheRightGroup;
-
-                        targetPositionConfirmed = true;
-
-                    }
+                    targetPositionConfirmed = true;
 
                 }
 
-                if (Phase3_Strat_Of_The_Second_Half == Phase3_Strats_Of_The_Second_Half.High_Priority_As_Locomotives_车头低换法_MMW)
+                else
                 {
 
-                    bool goLeft = phase3_locomotive_shouldGoLeft(视角);
+                    currentProperty.TargetPosition = phase3_locomotive_initialSafePositionOfTheRightGroup;
 
-                    if (goLeft)
-                    {
-
-                        currentProperty.TargetPosition = phase3_locomotive_initialSafePositionOfTheLeftGroup;
-
-                        targetPositionConfirmed = true;
-
-                    }
-
-                    else
-                    {
-
-                        currentProperty.TargetPosition = phase3_locomotive_initialSafePositionOfTheRightGroup;
-
-                        targetPositionConfirmed = true;
-
-                    }
-
-                }
-
-                if (Phase3_Strat_Of_The_Second_Half == Phase3_Strats_Of_The_Second_Half.Moglin_Meow_Or_Baby_Wheelchair_Based_On_Signs_根据目标标记的莫灵喵法或宝宝椅法)
-                {
-
-                    bool goLeft = phase3_moglinMeow_shouldGoLeft(视角);
-
-                    if (goLeft)
-                    {
-
-                        currentProperty.TargetPosition = phase3_moglinMeow_initialSafePositionOfTheLeftGroup;
-
-                        targetPositionConfirmed = true;
-
-                    }
-
-                    else
-                    {
-
-                        currentProperty.TargetPosition = phase3_moglinMeow_initialSafePositionOfTheRightGroup;
-
-                        targetPositionConfirmed = true;
-
-                    }
+                    targetPositionConfirmed = true;
 
                 }
 
@@ -8829,65 +7012,25 @@ namespace CicerosKodakkuAssist.FuturesRewrittenUltimate.LPDU
                     break;
                 }
             }
-            if (Phase3_Strat_Of_The_First_Half == Phase3_Strats_Of_The_First_Half.Moogle_莫古力_莫灵喵与MMW)
+            // LPDU Y 字时间压缩：黄灯连成 Y，nLampIndex 是 Y 的竖（相对南），两臂中间是相对北
+            // 相对方位 = nLampIndex + 偏移：北 4、东北 5、东 6、东南 7、南 0、西南 1、西 2、西北 3
+            // T奶：冰/短火 北，中火 西，长火 西北/东北；DPS：短火 西南/东南，中火 东，冰/长火 南
+            // 同 debuff 的两个人按排队顺序分左右（T奶 H1 MT OT H2，DPS R1 M1 M2 R2），排在前面的去左边
+            var buff = P3FireBuff[myPartyIndex];
+            if (buff == 0) return -1;
+            var 排队 = myPartyIndex < 4 ? new[] { 2, 0, 1, 3 } : new[] { 6, 4, 5, 7 };
+            var 搭档 = 排队.FirstOrDefault(i => i != myPartyIndex && P3FireBuff[i] == buff, -1);
+            bool 去左边 = 搭档 < 0 || Array.IndexOf(排队, myPartyIndex) < Array.IndexOf(排队, 搭档);
+            int 偏移 = (myPartyIndex < 4, buff) switch
             {
-                //短火
-                if (P3FireBuff[myPartyIndex] == 1)
-                {
-                    if (myPartyIndex < 4)
-                    {
-                        return (nLampIndex + 4) % 8;
-                    }
-                    else
-                    {
-                        var lowIndex = P3FireBuff.LastIndexOf(1);
-                        if (lowIndex != myPartyIndex)
-                        {
-                            return (nLampIndex + 7) % 8;
-                        }
-                        else
-                        {
-                            return (nLampIndex + 1) % 8;
-                        }
-                    }
-
-                }
-                //中火
-                if (P3FireBuff[myPartyIndex] == 2)
-                {
-                    if (myPartyIndex < 4) return (nLampIndex + 6) % 8;
-                    else return (nLampIndex + 2) % 8;
-                }
-                //长火
-                if (P3FireBuff[myPartyIndex] == 3)
-                {
-                    if (myPartyIndex < 4)
-                    {
-                        var highIndex = P3FireBuff.IndexOf(3);
-                        if (highIndex == myPartyIndex)
-                        {
-                            return (nLampIndex + 5) % 8;
-                        }
-                        else
-                        {
-                            return (nLampIndex + 3) % 8;
-                        }
-                    }
-                    else
-                    {
-                        return (nLampIndex + 0) % 8;
-                    }
-
-                }
-                //冰
-                if (P3FireBuff[myPartyIndex] == 4)
-                {
-                    if (myPartyIndex < 4) return (nLampIndex + 4) % 8;
-                    else return (nLampIndex + 0) % 8;
-                }
-            }
-
-            return -1;
+                (true, 1 or 4) => 4,
+                (true, 2) => 2,
+                (true, 3) => 去左边 ? 3 : 5,
+                (false, 1) => 去左边 ? 1 : 7,
+                (false, 2) => 6,
+                _ => 0,
+            };
+            return (nLampIndex + 偏移) % 8;
         }
         #region P3 补丁 (Usami)
 
@@ -8901,70 +7044,10 @@ namespace CicerosKodakkuAssist.FuturesRewrittenUltimate.LPDU
             sa.DebugMsg($"当前阶段为：{_fruPhase}", Enable_Developer_Mode);
             _ct.Init(sa, "时间压缩");
             _usamiPd.Init(sa, "时间压缩");
-            _ulr.Init(sa, _usamiPd, _ct);
-            _usamiPd.AddPriorities([0, 1, 2, 3, 104, 105, 106, 107]);
             _usamiEvents = Enumerable
                 .Range(0, 20)
                 .Select(_ => new ManualResetEvent(false))
                 .ToList();
-        }
-
-        [ScriptMethod(name: "长短火类型记录（DEBUG ONLY）", eventType: EventTypeEnum.StatusAdd, eventCondition: ["StatusID:regex:^(2455|2462)$"],
-            userControl: Debugging)]
-        public void UlrDarkFireTypeRecord(Event ev, ScriptAccessory sa)
-        {
-            if (_fruPhase != FruPhase.P3A_UltimateRelativity) return;
-
-            // 11s, 21s, 31s
-            const uint fire = 2455;
-            const uint ice = 2462;
-            const uint fireShort = 11000 - 2000;
-            const uint fireMid = 21000 - 2000;
-            const uint fireLong = 31000 - 2000;
-
-            var dur = ev.DurationMilliseconds();
-            var tidx = sa.GetPlayerIdIndex(ev.TargetId);
-            var stid = ev.StatusId;
-            sa.Log.Debug($"检测到{sa.GetPlayerJobByIndex(tidx)}的 {(stid == fire ? "火" : "冰")} {dur}");
-
-            lock (_ulr)
-            {
-                if (stid == fire)
-                {
-                    if (dur > fireShort)
-                        _usamiPd.AddPriority(tidx, 10);
-                    if (dur > fireMid)
-                        _usamiPd.AddPriority(tidx, 10);
-                    if (dur > fireLong)
-                        _usamiPd.AddPriority(tidx, 10);
-                }
-                else
-                {
-                    // TN视为短火，DPS视为长火
-                    _usamiPd.AddPriority(tidx, tidx <= 3 ? 10 : 30);
-                }
-            }
-        }
-
-        [ScriptMethod(name: "沙漏连线记录（DEBUG ONLY）", eventType: EventTypeEnum.Tether, eventCondition: ["Id:regex:^(0085|0086)$"],
-            userControl: Debugging)]
-        public void UlrHourglassTetherRecord(Event ev, ScriptAccessory sa)
-        {
-            if (_fruPhase != FruPhase.P3A_UltimateRelativity) return;
-            const uint fast = 0x86;
-            const uint slow = 0x85;
-            lock (_ulr)
-            {
-                var spos = ev.SourcePosition;
-                var sdir = spos.Position2Dirs(Center, 8);
-                _ulr.TetherDirection[sdir] = ev.Id0() == fast ? 1 : 2;
-                sa.Log.Debug($"检测到{sdir}方向沙漏，ev.Id = {ev.Id} ev.Id0 = {ev.Id0()}, {(ev.Id0() == fast ? "快" : "慢")}");
-                _ct.AddCounter();
-
-                if (_ct.Number != 5) return;
-                sa.Log.Debug($"五根线记录完毕，开始寻找相对北。");
-                _ulr.BuildTrueDirection();
-            }
         }
 
         [ScriptMethod(name: "*P3 时间压缩 眩晕时自动面向", eventType: EventTypeEnum.StatusAdd, eventCondition: ["StatusID:4163"],
@@ -8973,65 +7056,11 @@ namespace CicerosKodakkuAssist.FuturesRewrittenUltimate.LPDU
         {
             if (!P3眩晕自动面向) return;
             if (_fruPhase != FruPhase.P3A_UltimateRelativity) return;
-            var myDir = _ulr.GetDirection(sa.GetMyIndex());
+            // 面朝自己的 LPDU 站位方向（背对场中）
+            var myDir = MyLampIndex(sa.GetMyIndex());
+            if (myDir < 0) return;
             sa.Log.Debug($"眩晕，触发自动面向。");
             sa.SetRotation(sa.Data.MyObject, (myDir * 45f).DegToRad().Game2Logic());
-        }
-
-        public class UlRelativity
-        {
-            // ReSharper disable once NullableWarningSuppressionIsUsed
-            public ScriptAccessory sa { get; set; } = null!;
-            public int RelativeNorth { get; set; } = -1;
-            // ReSharper disable once NullableWarningSuppressionIsUsed
-            public PriorityDict pd { get; set; } = null!;
-            // ReSharper disable once NullableWarningSuppressionIsUsed
-            public Counter ct { get; set; } = null!;
-            public List<int> TetherDirection { get; set; } = Enumerable.Repeat(0, 8).ToList();  // 0无，1加速，2减速
-            public List<int> RelativeDirection { get; set; } = [4, 6, 5, 3, 7, 1, 2, 0];
-            public List<int> TrueDirection { get; set; } = Enumerable.Repeat(0, 8).ToList();
-            public void Init(ScriptAccessory accessory, PriorityDict priorityDict, Counter counter)
-            {
-                sa = accessory;
-                pd = priorityDict;
-                ct = counter;
-                TetherDirection = Enumerable.Repeat(0, 8).ToList();
-                TrueDirection = Enumerable.Repeat(0, 8).ToList();
-                RelativeNorth = -1;
-            }
-
-            public void BuildTrueDirection()
-            {
-                // 找到减速灯
-                var slowTetherIdx = TetherDirection.IndexOf(2, 0);
-                var checkIdx1 = (slowTetherIdx - 2 + 8) % 8;
-                var checkIdx2 = (slowTetherIdx + 2 + 8) % 8;
-                RelativeNorth = TetherDirection[checkIdx1] == 1 ? checkIdx1 : checkIdx2;
-                sa.Log.Debug($"根据减速线{slowTetherIdx}计算相对北，检查{checkIdx1}与{checkIdx2}，得到{RelativeNorth}为相对北");
-
-                for (int i = 0; i < 8; i++)
-                {
-                    var jobIdx = pd.SelectSpecificPriorityIndex(i).Key;
-                    var dir = (RelativeDirection[i] + RelativeNorth) % 8;
-                    TrueDirection[jobIdx] = dir;
-                    sa.Log.Debug($"字典顺序{i}, {sa.GetPlayerJobByIndex(jobIdx)}({jobIdx}), 需去方位{dir}。");
-                }
-            }
-
-            public void ShowMessage()
-            {
-                var str = "\n ---- [时间压缩] ----\n";
-                str += $"相对北：{RelativeNorth}。\n";
-                str += $"各职能位置：{sa.BuildListStr(TrueDirection)}";
-
-                sa.Log.Debug(str);
-            }
-
-            public int GetDirection(int jobIdx)
-            {
-                return TrueDirection[jobIdx];
-            }
-
         }
 
         #endregion P3.1 时间压缩
@@ -9044,10 +7073,9 @@ namespace CicerosKodakkuAssist.FuturesRewrittenUltimate.LPDU
         {
             _fruPhase = FruPhase.P3B_Apocalypse;
             _usamiPd.Init(sa, "启示录");
-            _ct.Init(sa, "启示录外部标点");
             _apo.Init(sa, _usamiPd);
-            // ST引导超级跳的话，建议开启
-            _usamiPd.AddPriorities(ApoTankPriorSwap ? [1, 0, 2, 3, 7, 6, 5, 4] : [0, 1, 2, 3, 7, 6, 5, 4]);    // 初始THD优先级
+            // LPDU：同种水的两人里值小的去左组（西北），即 H2 H1 OT MT M1 M2 R1 R2，与 phase3_locomotive_priority_asAConstant 一致
+            _usamiPd.AddPriorities([3, 2, 1, 0, 4, 5, 6, 7]);
             _usamiEvents = Enumerable
                 .Range(0, 20)
                 .Select(_ => new ManualResetEvent(false))
@@ -9084,63 +7112,19 @@ namespace CicerosKodakkuAssist.FuturesRewrittenUltimate.LPDU
             }
         }
 
-        [ScriptMethod(name: "启示录检测外部标点", eventType: EventTypeEnum.Marker, eventCondition: ["Operate:Add", "Id:regex:^(0[1234678]|11)$"],
-            userControl: Debugging)]
-        public void DarkWaterMarkerFromOut(Event ev, ScriptAccessory sa)
-        {
-            if (_fruPhase != FruPhase.P3B_Apocalypse) return;
-            _usamiEvents[(int)EventIdx.ApoGrouping].WaitOne();
-
-            lock (_apo)
-            {
-                _ct.AddCounter();
-                var mark = ev.Id0();
-                var tid = ev.TargetId;
-                var tidx = sa.GetPlayerIdIndex(tid);
-
-                var groupIdx = mark switch
-                {
-                    0x1 => 0,     // Atk1
-                    0x2 => 2,     // Atk2
-                    0x3 => 4,     // Atk3
-                    0x4 => 6,     // Atk4
-                    0x6 => 1,     // Bind1
-                    0x7 => 3,     // Bind2
-                    0x8 => 5,     // Bind3
-                    0x11 => 7,    // Square
-                    _ => 0,
-                };
-
-                sa.DebugMsg($"检测到外部标点{mark}给玩家{sa.GetPlayerJobByIndex(tidx)}", Enable_Developer_Mode);
-
-                // 直接修改定义，此时优先值已无意义
-                _apo.TempGroup[groupIdx] = new KeyValuePair<int, int>(tidx, 0);
-
-                // 如果不是标8人，作废。
-                if (_ct.Number != 8) return;
-                sa.DebugMsg($"检测到外部标点标满8人，覆盖_apo.Group分组逻辑。", Enable_Developer_Mode);
-                _apo.Group = [.. _apo.TempGroup];
-                _usamiEvents[(int)EventIdx.ApoPreciseGrouping].Set();
-                _apo.GroupingFixed = true;
-            }
-        }
-
         [ScriptMethod(name: "水分摊范围提示", eventType: EventTypeEnum.StatusAdd, eventCondition: ["StatusID:2461"], userControl: true)]
         public void DarkWaterRange(Event ev, ScriptAccessory sa)
         {
             if (_fruPhase != FruPhase.P3B_Apocalypse) return;
-            // 程序内部确定分组 -> 检测是否完成精确分组 -> 范围提示
             _usamiEvents[(int)EventIdx.ApoGrouping].WaitOne();
-            _usamiEvents[(int)EventIdx.ApoPreciseGrouping].WaitOne(1000);
 
             var tid = ev.TargetId;
             var tidx = sa.GetPlayerIdIndex(tid);
             var dur = ev.DurationMilliseconds();
 
             var isSameGroup = _apo.GetMyGroup() == _apo.GetPlayerGroup(tidx);
-            var delayed = !_apo.GroupingFixed;
 
-            var dp = sa.DrawCircle(tid, 6, (int)dur - 3000 - (delayed ? 1000 : 0), 3000, $"Usami-狂水{tidx}", true);
+            var dp = sa.DrawCircle(tid, 6, (int)dur - 3000, 3000, $"Usami-狂水{tidx}", true);
             dp.Color = isSameGroup ? sa.Data.DefaultSafeColor : sa.Data.DefaultDangerColor;
             sa.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Circle, dp);
         }
@@ -9150,23 +7134,21 @@ namespace CicerosKodakkuAssist.FuturesRewrittenUltimate.LPDU
         public void DarkWaterSwapHint(Event @ev, ScriptAccessory sa)
         {
             if (_fruPhase != FruPhase.P3B_Apocalypse) return;
-            // 程序内部确定分组 -> 检测是否完成精确分组 -> 交换提示
             _usamiEvents[(int)EventIdx.ApoGrouping].WaitOne();
-            _usamiEvents[(int)EventIdx.ApoPreciseGrouping].WaitOne(1000);
 
             foreach (var 视角 in GuidanceIndices(sa)) 指路(视角);
 
             void 指路(int 视角)
             {
                 var myIndex = 视角;
-                var myPreviousGroup = myIndex < 4 ? 0 : 1;     // 0 左 1 右
+                var myPreviousGroup = myIndex < 4 ? 0 : 1;     // 0 左（T奶西北） 1 右（DPS东南）
                 var myCurrentGroup = _apo.GetPlayerGroup(myIndex);
 
-                var dp = sa.DrawGuidance(GuidanceOwner(sa, 视角), _apo.IsInLeftGroup(myIndex) ? new Vector3(93, 0, 100) : new Vector3(107, 0, 100), 0, 3000, $"Usami-狂水位置-{视角}");
+                var dp = sa.DrawGuidance(GuidanceOwner(sa, 视角), _apo.IsInLeftGroup(myIndex) ? phase3_leftGroupPosition_asAConstant : phase3_rightGroupPosition_asAConstant, 0, 3000, $"Usami-狂水位置-{视角}");
                 sa.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
-                var str = _apo.GroupingFixed ? "依照头标" : ApoTankPriorSwap ? "依照优先级(ST>MT)低换" : "依照优先级低换";
-                if (IsMe(sa, 视角)) if (Enable_Text_Prompts) sa.Method.TextInfo($"{(myPreviousGroup == myCurrentGroup ? "不换" : "交换")}({str})", 3000, true);
-                sa.DebugMsg($"{(myPreviousGroup == myCurrentGroup ? "不换" : "交换")}({str})", Enable_Developer_Mode);
+                var str = myPreviousGroup == myCurrentGroup ? "不换" : "交换";
+                if (IsMe(sa, 视角)) if (Enable_Text_Prompts) sa.Method.TextInfo($"{str}（同组同水时优先级高的换）", 3000, true);
+                sa.DebugMsg(str, Enable_Developer_Mode);
             }
         }
 
@@ -9181,12 +7163,12 @@ namespace CicerosKodakkuAssist.FuturesRewrittenUltimate.LPDU
                 sa.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Circle, dp);
             }
 
-            // 左侧人群集合点
-            Vector3 leftCenter = new(92, 0, 100);
-            Vector3 rightCenter = leftCenter.FoldPointHorizon(Center.X);
+            // 左组（T奶）集合点：LPDU 两组在西北、东南，整套分散点从正西、正东顺时针转 22.5°
+            Vector3 leftCenter = new Vector3(92, 0, 100).RotatePoint(Center, 22.5f.DegToRad());
+            Vector3 rightCenter = leftCenter.PointCenterSymmetry(Center);
             List<Vector3> spreadTargetPos = Enumerable.Repeat(new Vector3(0, 0, 0), 20).ToList();
 
-            List<float> rot = [0f, 0f, 180f, 180f, -60f, -60f, -120f, -120f];
+            List<float> rot = [22.5f, 22.5f, 202.5f, 202.5f, -37.5f, -37.5f, -97.5f, -97.5f];
 
             for (int i = 0; i < 8; i += 2)
             {
@@ -9215,52 +7197,25 @@ namespace CicerosKodakkuAssist.FuturesRewrittenUltimate.LPDU
 
             void 指路(int 视角)
             {
+                // LPDU：本组在自己颜色、紧挨地火起点（旋转反方向一侧）的标点分散
+                // 远程（奶、远程DPS）站标点外侧左右两个点；近战（T、近战DPS）站内圈：标点方向和再往旋转反方向一格的方向
+                // SafePoints[0/2] 是两个标点方向（[0]+3)%8<4 的那个在正北到西南，归左组），[1/3] 是各自往旋转反方向再偏一格
                 var myIndex = 视角;
-                var myGroupSafePosIdx = _apo.IsInCrowd(myIndex) ? -1 : 0;
-                int mySafeDir;
-                // 根据玩家所属位置，选择人群安全区位置。
-                if (ApoStg == ApoStgEnum.CrownFirst_MTD1皇帝车头)
-                {
-                    // 若玩家在左组，找位于北的皇帝安全区；否则找位于南的皇帝安全区
-                    int safeDir = (_apo.SafePoints[1] + 3) % 8;
-                    int mySafeDirIdx = _apo.IsInLeftGroup(myIndex) ? (safeDir < 4 ? 1 : 3) : (safeDir >= 4 ? 1 : 3);
-                    if (_apo.IsInCrowd(myIndex))
-                        mySafeDirIdx -= 1;
-                    mySafeDir = _apo.SafePoints[mySafeDirIdx];
-                }
-                else
-                {
-                    // (ApoStg == ApoStgEnum.CrowdFirst_人群车头)
-                    // 若玩家在左组，找位于北的人群安全区；否则找位于南的人群安全区
-                    int safeDir = (_apo.SafePoints[0] + 3) % 8;
-                    int mySafeDirIdx = _apo.IsInLeftGroup(myIndex) ? (safeDir < 4 ? 0 : 2) : (safeDir >= 4 ? 0 : 2);
-                    if (!_apo.IsInCrowd(myIndex))
-                        mySafeDirIdx += 1;
-                    mySafeDir = _apo.SafePoints[mySafeDirIdx];
-                }
+                int safeDir = (_apo.SafePoints[0] + 3) % 8;
+                int myMarkIdx = _apo.IsInLeftGroup(myIndex) ? (safeDir < 4 ? 0 : 2) : (safeDir >= 4 ? 0 : 2);
+                bool isMelee = myIndex is 0 or 1 or 4 or 5;
 
-                if (_apo.GroupingFixed && _apo.IsInCrowd(myIndex))
-                    myGroupSafePosIdx = _apo.GetPlayerGroupIdx(myIndex) / 2 - 1;
-
-                sa.DebugMsg($"玩家的安全方位为{mySafeDir}, 具体分散位置序列为{myGroupSafePosIdx}。", Enable_Developer_Mode);
+                sa.DebugMsg($"玩家的安全标点方位为{_apo.SafePoints[myMarkIdx]}，{(isMelee ? "近战站内圈" : "远程站外圈")}。", Enable_Developer_Mode);
 
                 for (int i = 0; i < 4; i++)
                 {
                     List<Vector3> safePos = _apo.GetSafePos(_apo.SafePoints[i]);
                     for (int j = 0; j < (i % 2 == 0 ? 3 : 1); j++)
                     {
-                        bool isSafe = mySafeDir == _apo.SafePoints[i];
-
-                        if (_apo.GroupingFixed && _apo.IsInCrowd(myIndex))
-                            isSafe &= myGroupSafePosIdx == j;
+                        // GetSafePos：[0] 内圈，[1][2] 外圈
+                        bool isSafe = (i == myMarkIdx || i == myMarkIdx + 1) && (j == 0) == isMelee;
 
                         if (IsMe(sa, 视角)) sa.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Circle, sa.DrawStaticCircle(safePos[j], isSafe ? sa.Data.DefaultSafeColor.WithW(3f) : sa.Data.DefaultDangerColor.WithW(3f), 0, 10000, $"Usami-分散位dir{i}-idx{j}", 0.5f));
-
-                        if (_apo.GroupingFixed && isSafe)
-                        {
-                            var dp0 = sa.DrawGuidance(GuidanceOwner(sa, 视角), safePos[j], 0, 10000, $"Usami-分散位dir{i}-idx{j}指引-{视角}");
-                            sa.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp0);
-                        }
                     }
                 }
             }
@@ -9294,9 +7249,9 @@ namespace CicerosKodakkuAssist.FuturesRewrittenUltimate.LPDU
         public void ApoDarkDanceGuidance(Event ev, ScriptAccessory sa)
         {
             if (_fruPhase != FruPhase.P3B_Apocalypse) return;
-            // 引导是在皇帝位引导，此处可直接取apo中MT与D1所站皇帝位的位置。
+            // LPDU：坦克去离第一次地火起点 90° 的最终安全点引导，即 SafePoints[1]/[3] 方向
 
-            // _apo.SafePoints[1]与[3]是皇帝位所在方位，只需要箭头指出去即可。
+            // 两个点都画，箭头指出去即可
             var tpos1 = new Vector3(100, 0, 80).RotatePoint(Center, (_apo.SafePoints[1] * 45f).DegToRad());
             var tpos2 = new Vector3(100, 0, 80).RotatePoint(Center, (_apo.SafePoints[3] * 45f).DegToRad());
 
@@ -9347,7 +7302,6 @@ namespace CicerosKodakkuAssist.FuturesRewrittenUltimate.LPDU
             public List<KeyValuePair<int, int>> TempGroup { get; set; } = null!;
             // ReSharper disable once NullableWarningSuppressionIsUsed
             public PriorityDict Priorities { get; set; } = null!;
-            public bool GroupingFixed { get; set; } = false;    // 分散位置是否精确到每个人
             public void Init(ScriptAccessory _accessory, PriorityDict _priorities)
             {
                 accessory = _accessory;
@@ -9356,7 +7310,6 @@ namespace CicerosKodakkuAssist.FuturesRewrittenUltimate.LPDU
                 NorthStartPoint = -1;
                 SafePoints = [-1, -1, -1, -1];
                 RotationDir = 0;
-                GroupingFixed = false;
             }
 
             public void AddActionCount()
@@ -9373,12 +7326,12 @@ namespace CicerosKodakkuAssist.FuturesRewrittenUltimate.LPDU
                 str += $"Group初始右：{TempGroup[1].Key}, {TempGroup[3].Key}, {TempGroup[5].Key}, {TempGroup[7].Key}\n";
                 accessory.DebugMsg(str, Enable_Developer_Mode);
 
-                // 若fixed为false（无人进行莫莫式标点），tempGroup的排序方式为：左无，右无，左短水，右短水，左中水，右中水，左长水，右长水。
+                // tempGroup 的排序方式为：左无，右无，左短水，右短水，左中水，右中水，左长水，右长水。
                 Group = [.. TempGroup];
 
                 var strLeft = $"{accessory.GetPlayerJobByIndex(Group[0].Key)},{accessory.GetPlayerJobByIndex(Group[2].Key)},{accessory.GetPlayerJobByIndex(Group[4].Key)},{accessory.GetPlayerJobByIndex(Group[6].Key)}";
                 var strRight = $"{accessory.GetPlayerJobByIndex(Group[1].Key)},{accessory.GetPlayerJobByIndex(Group[3].Key)},{accessory.GetPlayerJobByIndex(Group[5].Key)},{accessory.GetPlayerJobByIndex(Group[7].Key)}";
-                accessory.DebugMsg($"\n启示录分摊分组{(GroupingFixed ? "(Fixed)" : "")}：\n左组：{strLeft}\n右组：{strRight}", Enable_Developer_Mode);
+                accessory.DebugMsg($"\n启示录分摊分组：\n左组：{strLeft}\n右组：{strRight}", Enable_Developer_Mode);
 
                 _usamiEvents[(int)EventIdx.ApoGrouping].Set();
             }
@@ -9398,15 +7351,15 @@ namespace CicerosKodakkuAssist.FuturesRewrittenUltimate.LPDU
                 var dir = (NorthStartPoint + 8 - RotationDir) % 8;
                 bool isNorthSafePoint = (dir + 3) % 8 < 4;
 
-                // 定义人群安全点
+                // 两组分散用的安全标点
                 SafePoints[isNorthSafePoint ? 0 : 2] = dir;
                 SafePoints[isNorthSafePoint ? 2 : 0] = GetSymmetricPoint(dir);
 
-                // 进一步反向旋转，得到MT/D1位安全点
+                // 再往旋转反方向偏一格：近战内圈的第二个点，也是最后坦克引导最远死刑的方向
                 SafePoints[1] = (SafePoints[0] + 8 - RotationDir) % 8;
                 SafePoints[3] = (SafePoints[2] + 8 - RotationDir) % 8;
 
-                accessory.DebugMsg($"\n人群安全点：北{SafePoints[0]}，南{SafePoints[2]}。\n皇帝安全点：北{SafePoints[1]}，南{SafePoints[3]}。", Enable_Developer_Mode);
+                accessory.DebugMsg($"\n安全标点：左组{SafePoints[0]}，右组{SafePoints[2]}。\n内圈第二点：左组{SafePoints[1]}，右组{SafePoints[3]}。", Enable_Developer_Mode);
             }
 
             public int GetSymmetricPoint(int dir)
@@ -9425,10 +7378,6 @@ namespace CicerosKodakkuAssist.FuturesRewrittenUltimate.LPDU
             public int GetMyGroup() => GetPlayerGroup(accessory.GetMyIndex());
             public bool IsInLeftGroup(int idx) => GetPlayerGroupIdx(idx) % 2 == 0;
             public bool IsInRightGroup(int idx) => GetPlayerGroupIdx(idx) % 2 == 1;
-            public bool IsInCrowd(int idx)
-            {
-                return (idx != D1) && (idx != (ApoTankPriorSwap ? St : Mt));
-            }
 
             public List<Vector3> GetSafePos(int dir)
             {
@@ -9441,12 +7390,12 @@ namespace CicerosKodakkuAssist.FuturesRewrittenUltimate.LPDU
             public void ShowMessage()
             {
                 var str = "\n ---- [启示录] ----\n";
-                str += $"\n人群安全点：北{SafePoints[0]}，南{SafePoints[2]}。\n皇帝安全点：北{SafePoints[1]}，南{SafePoints[3]}。";
+                str += $"\n安全标点：左组{SafePoints[0]}，右组{SafePoints[2]}。\n内圈第二点：左组{SafePoints[1]}，右组{SafePoints[3]}。";
 
                 var strLeft = $"{accessory.GetPlayerJobByIndex(Group[0].Key)},{accessory.GetPlayerJobByIndex(Group[2].Key)},{accessory.GetPlayerJobByIndex(Group[4].Key)},{accessory.GetPlayerJobByIndex(Group[6].Key)}";
                 var strRight = $"{accessory.GetPlayerJobByIndex(Group[1].Key)},{accessory.GetPlayerJobByIndex(Group[3].Key)},{accessory.GetPlayerJobByIndex(Group[5].Key)},{accessory.GetPlayerJobByIndex(Group[7].Key)}";
 
-                str += $"\n启示录分摊分组{(GroupingFixed ? "(Fixed)" : "")}：\n左组：{strLeft}\n右组：{strRight}";
+                str += $"\n启示录分摊分组：\n左组：{strLeft}\n右组：{strRight}";
                 accessory.DebugMsg(str, Enable_Developer_Mode);
             }
         }
