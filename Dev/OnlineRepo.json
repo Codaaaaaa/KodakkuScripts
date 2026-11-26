@@ -26,7 +26,7 @@
     "Author": "Karlin & Cicero & Usami & Tetora",
     "TerritoryIds": [1238],
     "DownloadUrl": "https://raw.githubusercontent.com/Codaaaaaa/KodakkuScripts/main/Dev/FRU_Karlin%20-%20LPDU.cs",
-    "Note": "0.0.0.1\n整合自三个脚本：\n    Karlin's FRU script (灵视改装版) - Karlin & Cicero：全程绘图与指路（脚本主体）\n    FRU_Patch 补丁 - Usami：P1 罪壤堕(DB闲固)、P2 光暴放泥、P3 时间压缩 / 启示录、P4 光之锁 / 碎片受击警察等\n    FRU_DLC 额外补充 - Tetora：严冬风暴、未来的碎片、死亡轮回连线、各类横幅提醒与龙骑小工具\n\n已删除所有给队友打头顶标记的功能；读取他人标记来指路的功能保留。\n小队排序需为 MT ST H1 H2 D1 D2 D3 D4。\n带 * 的方法和设置是非原生功能（自动面向、自动使用技能、改变目标可选中状态），\n统一放在用户设置的「* 特殊功能」分组里开关。\n三个原脚本本来就是叠加使用的，部分横幅提示会重复（横幅只显示最早的一个），可在方法列表里关掉不需要的。",
+    "Note": "0.0.0.1\n整合自三个脚本：\n    Karlin's FRU script (灵视改装版) - Karlin & Cicero：全程绘图与指路（脚本主体）\n    FRU_Patch 补丁 - Usami：P1 罪壤堕(DB闲固)、P2 光暴放泥、P3 时间压缩 / 启示录、P4 光之锁 / 碎片受击警察等\n    FRU_DLC 额外补充 - Tetora：严冬风暴、未来的碎片、死亡轮回连线、各类横幅提醒\n\n已删除所有给队友打头顶标记的功能；读取他人标记来指路的功能保留。\n小队排序需为 MT ST H1 H2 D1 D2 D3 D4。\n带 * 的方法和设置是非原生功能（自动面向、自动使用技能、改变目标可选中状态），\n统一放在用户设置的「* 特殊功能」分组里开关。\n三个原脚本本来就是叠加使用的，部分横幅提示会重复（横幅只显示最早的一个），可在方法列表里关掉不需要的。",
     "UpdateInfo": "0.0.0.1\n初版：整合 Karlin(灵视改装版)、Usami 补丁、Tetora 额外补充三个脚本"
   }
 ]
