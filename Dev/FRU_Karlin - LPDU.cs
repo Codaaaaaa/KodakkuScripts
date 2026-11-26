@@ -111,37 +111,15 @@ namespace CicerosKodakkuAssist.FuturesRewrittenUltimate.LPDU
 
         [UserSetting("-----P1设置----- (No actual meaning for this setting/此设置无实际意义)")]
         public bool _____Phase1_Settings_____ { get; set; } = true;
-        [UserSetting("P1乐园绝技(雾龙) 待机站位")]
-        public Phase1_Standby_Positions_Of_Utopian_Sky Phase1_Standby_Position_Of_Utopian_Sky { get; set; } = Phase1_Standby_Positions_Of_Utopian_Sky.Swap_OT_And_M2_交换ST与D4_莫灵喵与MMW;
         [UserSetting("P1 燃烧击(火雷直线)特性的颜色")]
         public ScriptColor Phase1_Colour_Of_Burnt_Strike_Characteristics { get; set; } = new() { V4 = new(1f, 1f, 0f, 1f) };
-        [UserSetting("P1光轮召唤 分组")]
-        public Phase1_Groups_Of_Turn_Of_The_Heavens Phase1_Group_Of_Turn_Of_The_Heavens { get; set; } = Phase1_Groups_Of_Turn_Of_The_Heavens.MTH1M1R1_Go_North_Same_Group_Preys_TMRH_Swaps_With_Tank_LPDU;
-        [UserSetting("P1信仰崩塌(四连抓) 攻略")]
-        public Phase1_Strats_Of_Fall_Of_Faith Phase1_Strat_Of_Fall_Of_Faith { get; set; } = Phase1_Strats_Of_Fall_Of_Faith.Single_Line_In_HTD_Order_按HTD顺序单排_莫灵喵;
-        [UserSetting("P1信仰崩塌(四连抓) 面向基准")]
-        public Phase1_Orientation_Benchmarks_During_Fall_Of_Faith Phase1_Orientation_Benchmark_During_Fall_Of_Faith { get; set; } = Phase1_Orientation_Benchmarks_During_Fall_Of_Faith.High_Priority_Left_Facing_The_Boss_面向Boss左侧高优先级_莫灵喵与MMW;
-        [UserSetting("P1踩塔 攻略")]
-        public Phase1_Strats_Of_Towers Phase1_Strat_Of_Towers { get; set; } = Phase1_Strats_Of_Towers.Fixed_H1R2H2_Adjust_M1R1M2_LPDU;
 
         [UserSetting("-----P2设置----- (No actual meaning for this setting/此设置无实际意义)")]
         public bool _____Phase2_Settings_____ { get; set; } = true;
-        [UserSetting("P2钻石星辰 击退后攻略")]
-        public Phase2_Strats_After_Knockback Phase2_Strat_After_Knockback { get; set; } = Phase2_Strats_After_Knockback.Clockwise_Both_Groups_Counterclockwise_总是顺时针双组逆时针_莫灵喵与MMW;
-        [UserSetting("P2镜中奇遇 攻略")]
-        public Phase2_Strats_Of_Mirror_Mirror Phase2_Strat_Of_Mirror_Mirror { get; set; } = Phase2_Strats_Of_Mirror_Mirror.Melee_Group_Closest_Red_Right_If_Same_近战组最近红色镜子距离相同则右_莫灵喵与MMW;
         [UserSetting("P2镜中奇遇 镜子粗略指路的颜色")]
         public ScriptColor Phase2_Colour_Of_Mirror_Rough_Guidance { get; set; } = new() { V4 = new(1f, 1f, 0f, 1f) };
         [UserSetting("P2镜中奇遇 潜在危险区的颜色")]
         public ScriptColor Phase2_Colour_Of_Potential_Dangerous_Zones { get; set; } = new() { V4 = new(1f, 0f, 0f, 1f) };
-        [UserSetting("P2光之失控(光暴) 初始八方站位")]
-        public Phase2_Initial_Protean_Positions_Of_Light_Rampant Phase2_Initial_Protean_Position_Of_Light_Rampant { get; set; } = Phase2_Initial_Protean_Positions_Of_Light_Rampant.Normal_Protean_Tanks_North_East_For_Both_Grey9_常规八方T在东北_灰9用;
-        [UserSetting("P2光之失控(光暴) 攻略")]
-        public Phase2_Strats_Of_Light_Rampant Phase2_Strat_Of_Light_Rampant { get; set; } = Phase2_Strats_Of_Light_Rampant.New_Grey9_新灰九法_莫灵喵与MMW;
-        [UserSetting("P2光之失控(光暴) 光之失控放泥指路的策略")]
-        public static LightRampageStgEnum LightRampageStg { get; set; } = LightRampageStgEnum.Grey9_灰9式;
-        [UserSetting("P2光之失控(光暴) 大致路径的颜色")]
-        public ScriptColor Phase2_Colour_Of_Rough_Paths { get; set; } = new() { V4 = new(1f, 1f, 0f, 1f) };
         [UserSetting("P2光之失控(光暴) 球体AOE的颜色")]
         public ScriptColor Phase2_Colour_Of_Sphere_AOEs { get; set; } = new() { V4 = new(1f, 0f, 0f, 1f) };
 
@@ -426,12 +404,6 @@ namespace CicerosKodakkuAssist.FuturesRewrittenUltimate.LPDU
 
         #region Enumeration_And_Classes_枚举和类
 
-        public enum LightRampageStgEnum
-        {
-            Hexagram_正六芒星,
-            Grey9_灰9式,
-        }
-
         public enum ApoStgEnum
         {
             CrowdFirst_人群车头,
@@ -542,92 +514,6 @@ namespace CicerosKodakkuAssist.FuturesRewrittenUltimate.LPDU
 
             MT,
             OT_ST
-
-        }
-
-        public enum Phase1_Standby_Positions_Of_Utopian_Sky
-        {
-
-            Swap_OT_And_M2_交换ST与D4_莫灵喵与MMW,
-            Both_Tanks_Go_Center_双T去中间
-
-        }
-
-        public enum Phase1_Groups_Of_Turn_Of_The_Heavens
-        {
-
-            MTOTH1H2_Go_North_MTM1_vary_MTSTH1H2去北MTD1换_莫灵喵与MMW,
-            MTH1M1R1_Go_North_MTOT_vary_MTH1D1D3去北MTST换,
-            MTOTR1R2_Go_North_MTM1_vary_MTSTD3D4去北MTD1换_莫灵喵,
-            MTH1M1R1_Go_North_Same_Group_Preys_TMRH_Swaps_With_Tank_LPDU
-
-        }
-
-        public enum Phase1_Strats_Of_Fall_Of_Faith
-        {
-
-            Single_Line_In_THD_Order_按THD顺序单排,
-            Single_Line_In_HTD_Order_按HTD顺序单排_莫灵喵,
-            Single_Line_In_H1TDH2_Order_按H1TDH2顺序单排,
-            Double_Lines_H12MOT_Left_M12R12_Right_双排左H12MST右D1234_莫灵喵与MMW,
-            Double_Lines_MOTH12_Left_M12R12_Right_双排左MSTH12右D1234
-
-        }
-
-        public enum Phase1_Orientation_Benchmarks_During_Fall_Of_Faith
-        {
-
-            High_Priority_Left_Facing_Due_North_面向正北左侧高优先级,
-            High_Priority_Left_Facing_The_Boss_面向Boss左侧高优先级_莫灵喵与MMW
-
-        }
-
-        public enum Phase1_Strats_Of_Towers
-        {
-
-            Completely_Based_On_Priority_完全根据优先级_莫灵喵,
-            Fixed_H1H2R2_Priority_For_Rest_固定H1H2D4剩余人优先级,
-            Fixed_H1H2R2_Rest_Fill_Vacancies_固定H1H2D4剩余人补位_MMW,
-            Fixed_H1R2H2_Adjust_M1R1M2_LPDU
-
-        }
-
-        public enum Phase2_Strats_After_Knockback
-        {
-
-            Clockwise_One_Group_Counterclockwise_总是顺时针单组逆时针,
-            Counterclockwise_One_Group_Clockwise_总是逆时针单组顺时针,
-            Clockwise_Both_Groups_Counterclockwise_总是顺时针双组逆时针_莫灵喵与MMW,
-            Counterclockwise_Both_Groups_Clockwise_总是逆时针双组顺时针
-
-        }
-
-        public enum Phase2_Strats_Of_Mirror_Mirror
-        {
-
-            Melee_Group_Left_Red_近战组去左红色镜子,
-            Melee_Group_Right_Red_近战组去右红色镜子,
-            Melee_Group_Closest_Red_Left_If_Same_近战组最近红色镜子距离相同则左,
-            Melee_Group_Closest_Red_Right_If_Same_近战组最近红色镜子距离相同则右_莫灵喵与MMW
-
-        }
-        
-        public enum Phase2_Initial_Protean_Positions_Of_Light_Rampant
-        {
-
-            Supporters_North_MOTH12_For_JPPF_And_L_蓝绿全部在北MSTH12_日野和L团用,
-            Supporters_North_H12MOT_For_JPPF_And_L_蓝绿全部在北H12MST_日野和L团用,
-            Normal_Protean_Tanks_North_East_For_Both_Grey9_常规八方T在东北_灰9用
-
-        }
-
-        public enum Phase2_Strats_Of_Light_Rampant
-        {
-
-            Star_Of_David_Japanese_PF_六芒星日服野队法_莫灵喵与MMW,
-            New_Grey9_新灰九法_莫灵喵与MMW,
-            Lucrezia_L团法,
-            Obsolete_Old_Grey9_已淘汰的旧灰九法_莫灵喵
 
         }
 
@@ -1378,121 +1264,61 @@ namespace CicerosKodakkuAssist.FuturesRewrittenUltimate.LPDU
             {
                 int myIndex = 视角;
 
-                if (Phase1_Standby_Position_Of_Utopian_Sky == Phase1_Standby_Positions_Of_Utopian_Sky.Swap_OT_And_M2_交换ST与D4_莫灵喵与MMW)
+                // LPDU 待机：OT 与 R2 换位，其余按八方站位；T 和远程稍微错开
+                int rotationMultiplier = myIndex switch
+                {
+                    0 => 0,
+                    1 => 1,
+                    2 => 6,
+                    3 => 4,
+                    4 => 5,
+                    5 => 3,
+                    6 => 7,
+                    7 => 2
+                };
+
+                var myPosition = RotatePoint(new(100, 0, 81), new(100, 0, 100), float.Pi / 4 * rotationMultiplier);
+
+                if (myIndex == 0)
                 {
 
-                    int rotationMultiplier = myIndex switch
-                    {
-                        0 => 0,
-                        1 => 1,
-                        2 => 6,
-                        3 => 4,
-                        4 => 5,
-                        5 => 3,
-                        6 => 7,
-                        7 => 2
-                    };
-
-                    var myPosition = RotatePoint(new(100, 0, 81), new(100, 0, 100), float.Pi / 4 * rotationMultiplier);
-
-                    if (myIndex == 0)
-                    {
-
-                        myPosition = RotatePoint(myPosition, new(100, 0, 100), float.Pi / 72);
-
-                    }
-
-                    if (myIndex == 1)
-                    {
-
-                        myPosition = RotatePoint(myPosition, new(100, 0, 100), -(float.Pi / 72));
-
-                    }
-
-                    if (myIndex == 6)
-                    {
-
-                        myPosition = RotatePoint(myPosition, new(100, 0, 100), -(float.Pi / 36));
-
-                    }
-
-                    if (myIndex == 7)
-                    {
-
-                        myPosition = RotatePoint(myPosition, new(100, 0, 100), float.Pi / 36);
-
-                    }
-
-                    var currentProperty = accessory.Data.GetDefaultDrawProperties();
-
-                    currentProperty.Name = $"Phase1_Standby_Position_Of_Utopian_Sky_乐园绝技待机位置-{视角}";
-                    currentProperty.Scale = new(2);
-                    currentProperty.Owner = GuidanceOwner(accessory, 视角);
-                    currentProperty.TargetPosition = myPosition;
-                    currentProperty.ScaleMode |= ScaleMode.YByDistance;
-                    currentProperty.Color = accessory.Data.DefaultSafeColor;
-                    currentProperty.DestoryAt = 9000;
-
-                    accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentProperty);
+                    myPosition = RotatePoint(myPosition, new(100, 0, 100), float.Pi / 72);
 
                 }
 
-                if (Phase1_Standby_Position_Of_Utopian_Sky == Phase1_Standby_Positions_Of_Utopian_Sky.Both_Tanks_Go_Center_双T去中间)
+                if (myIndex == 1)
                 {
 
-                    var myPosition = new Vector3(100, 0, 100);
-
-                    if (myIndex == 0)
-                    {
-
-                        myPosition = new Vector3(100f, 0f, 94.5f);
-
-                    }
-
-                    if (myIndex == 1)
-                    {
-
-                        myPosition = new Vector3(100f, 0f, 105.5f);
-
-                    }
-
-                    if (2 <= myIndex && myIndex <= 7)
-                    {
-
-                        int rotationMultiplier = myIndex switch
-                        {
-                            2 => 6,
-                            3 => 2,
-                            4 => 5,
-                            5 => 3,
-                            6 => 7,
-                            7 => 1
-                        };
-
-                        myPosition = RotatePoint(new(100, 0, 81), new(100, 0, 100), float.Pi / 4 * rotationMultiplier);
-
-                    }
-
-                    if (myPosition.Equals(new Vector3(100, 0, 100)))
-                    {
-
-                        return;
-
-                    }
-
-                    var currentProperty = accessory.Data.GetDefaultDrawProperties();
-
-                    currentProperty.Name = $"Phase1_Standby_Position_Of_Utopian_Sky_乐园绝技待机位置-{视角}";
-                    currentProperty.Scale = new(2);
-                    currentProperty.Owner = GuidanceOwner(accessory, 视角);
-                    currentProperty.TargetPosition = myPosition;
-                    currentProperty.ScaleMode |= ScaleMode.YByDistance;
-                    currentProperty.Color = accessory.Data.DefaultSafeColor;
-                    currentProperty.DestoryAt = 9000;
-
-                    accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentProperty);
+                    myPosition = RotatePoint(myPosition, new(100, 0, 100), -(float.Pi / 72));
 
                 }
+
+                if (myIndex == 6)
+                {
+
+                    myPosition = RotatePoint(myPosition, new(100, 0, 100), -(float.Pi / 36));
+
+                }
+
+                if (myIndex == 7)
+                {
+
+                    myPosition = RotatePoint(myPosition, new(100, 0, 100), float.Pi / 36);
+
+                }
+
+                var currentProperty = accessory.Data.GetDefaultDrawProperties();
+
+                currentProperty.Name = $"Phase1_Standby_Position_Of_Utopian_Sky_乐园绝技待机位置-{视角}";
+                currentProperty.Scale = new(2);
+                currentProperty.Owner = GuidanceOwner(accessory, 视角);
+                currentProperty.TargetPosition = myPosition;
+                currentProperty.ScaleMode |= ScaleMode.YByDistance;
+                currentProperty.Color = accessory.Data.DefaultSafeColor;
+                currentProperty.DestoryAt = 9000;
+
+                accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentProperty);
+
 
             }
         }
@@ -1758,255 +1584,24 @@ namespace CicerosKodakkuAssist.FuturesRewrittenUltimate.LPDU
 
             }
 
-            bool hasSelectedAStrat = false;
-            int highPriorityStack = P1转轮召抓人.IndexOf(1);
-            int lowPriorityStack = P1转轮召抓人.LastIndexOf(1);
-            List<int> membersOfTheNorthGroup = [];
+            // 和自己同组（同北或同南）的 Prey 画安全色，另一个画危险色
+            int o1 = P1转轮召抓人.IndexOf(1);
+            int o2 = P1转轮召抓人.LastIndexOf(1);
+            if (o1 < 0) return;
+            var north = P1光轮召唤LPDU北组(o1, o2);
+            bool meNorth = north.Contains(accessory.Data.PartyList.IndexOf(accessory.Data.Me));
 
-            if (Phase1_Group_Of_Turn_Of_The_Heavens == Phase1_Groups_Of_Turn_Of_The_Heavens.MTOTH1H2_Go_North_MTM1_vary_MTSTH1H2去北MTD1换_莫灵喵与MMW)
-            {
-
-                hasSelectedAStrat = true;
-
-                membersOfTheNorthGroup.Add(highPriorityStack);
-
-                if (1 != highPriorityStack && 1 != lowPriorityStack)
-                {
-
-                    membersOfTheNorthGroup.Add(1);
-
-                }
-
-                if (2 != highPriorityStack && 2 != lowPriorityStack)
-                {
-
-                    membersOfTheNorthGroup.Add(2);
-
-                }
-
-                if (3 != highPriorityStack && 3 != lowPriorityStack)
-                {
-
-                    membersOfTheNorthGroup.Add(3);
-
-                }
-
-                if (membersOfTheNorthGroup.Count < 4
-                   &&
-                   0 != highPriorityStack
-                   &&
-                   0 != lowPriorityStack)
-                {
-
-                    membersOfTheNorthGroup.Add(0);
-
-                }
-
-                if (membersOfTheNorthGroup.Count < 4
-                   &&
-                   4 != highPriorityStack
-                   &&
-                   4 != lowPriorityStack)
-                {
-
-                    membersOfTheNorthGroup.Add(4);
-
-                }
-
-            }
-
-            if (Phase1_Group_Of_Turn_Of_The_Heavens == Phase1_Groups_Of_Turn_Of_The_Heavens.MTH1M1R1_Go_North_MTOT_vary_MTH1D1D3去北MTST换)
-            {
-
-                hasSelectedAStrat = true;
-
-                membersOfTheNorthGroup.Add(highPriorityStack);
-
-                if (2 != highPriorityStack && 2 != lowPriorityStack)
-                {
-
-                    membersOfTheNorthGroup.Add(2);
-
-                }
-
-                if (4 != highPriorityStack && 4 != lowPriorityStack)
-                {
-
-                    membersOfTheNorthGroup.Add(4);
-
-                }
-
-                if (6 != highPriorityStack && 6 != lowPriorityStack)
-                {
-
-                    membersOfTheNorthGroup.Add(6);
-
-                }
-
-                if (membersOfTheNorthGroup.Count < 4
-                   &&
-                   0 != highPriorityStack
-                   &&
-                   0 != lowPriorityStack)
-                {
-
-                    membersOfTheNorthGroup.Add(0);
-
-                }
-
-                if (membersOfTheNorthGroup.Count < 4
-                   &&
-                   1 != highPriorityStack
-                   &&
-                   1 != lowPriorityStack)
-                {
-
-                    membersOfTheNorthGroup.Add(1);
-
-                }
-
-            }
-
-            if (Phase1_Group_Of_Turn_Of_The_Heavens == Phase1_Groups_Of_Turn_Of_The_Heavens.MTOTR1R2_Go_North_MTM1_vary_MTSTD3D4去北MTD1换_莫灵喵)
-            {
-
-                hasSelectedAStrat = true;
-
-                membersOfTheNorthGroup.Add(highPriorityStack);
-
-                if (1 != highPriorityStack && 1 != lowPriorityStack)
-                {
-
-                    membersOfTheNorthGroup.Add(1);
-
-                }
-
-                if (6 != highPriorityStack && 6 != lowPriorityStack)
-                {
-
-                    membersOfTheNorthGroup.Add(6);
-
-                }
-
-                if (7 != highPriorityStack && 7 != lowPriorityStack)
-                {
-
-                    membersOfTheNorthGroup.Add(7);
-
-                }
-
-                if (membersOfTheNorthGroup.Count < 4
-                   &&
-                   0 != highPriorityStack
-                   &&
-                   0 != lowPriorityStack)
-                {
-
-                    membersOfTheNorthGroup.Add(0);
-
-                }
-
-                if (membersOfTheNorthGroup.Count < 4
-                   &&
-                   4 != highPriorityStack
-                   &&
-                   4 != lowPriorityStack)
-                {
-
-                    membersOfTheNorthGroup.Add(4);
-
-                }
-
-            }
-
-            if (Phase1_Group_Of_Turn_Of_The_Heavens == Phase1_Groups_Of_Turn_Of_The_Heavens.MTH1M1R1_Go_North_Same_Group_Preys_TMRH_Swaps_With_Tank_LPDU)
-            {
-
-                hasSelectedAStrat = true;
-                membersOfTheNorthGroup = P1光轮召唤LPDU北组(highPriorityStack, lowPriorityStack);
-
-            }
-
-            if (!hasSelectedAStrat
-               ||
-               membersOfTheNorthGroup.Count != 4)
+            foreach (var prey in (int[])[o1, o2])
             {
 
                 var currentProperty = accessory.Data.GetDefaultDrawProperties();
 
                 currentProperty.Name = "Phase1_Stack_Range_Of_Turn_Of_The_Heavens_光轮召唤分摊范围";
                 currentProperty.Scale = new(6);
-                currentProperty.Owner = accessory.Data.PartyList[highPriorityStack];
-                currentProperty.Color = accessory.Data.DefaultDangerColor;
+                currentProperty.Owner = accessory.Data.PartyList[prey];
+                currentProperty.Color = north.Contains(prey) == meNorth ? accessory.Data.DefaultSafeColor : accessory.Data.DefaultDangerColor;
                 currentProperty.Delay = 6000;
                 currentProperty.DestoryAt = 5000;
-
-                accessory.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Circle, currentProperty);
-
-                currentProperty = accessory.Data.GetDefaultDrawProperties();
-
-                currentProperty.Name = "Phase1_Stack_Range_Of_Turn_Of_The_Heavens_光轮召唤分摊范围";
-                currentProperty.Scale = new(6);
-                currentProperty.Owner = accessory.Data.PartyList[lowPriorityStack];
-                currentProperty.Color = accessory.Data.DefaultDangerColor;
-                currentProperty.Delay = 6000;
-                currentProperty.DestoryAt = 5000;
-
-                accessory.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Circle, currentProperty);
-
-            }
-
-            else
-            {
-
-                // 跟哪个 Prey 分摊 = 那个 Prey 是否和自己同在北组（LPDU 下北组的 Prey 不一定是下标小的那个）
-                bool inTheNorthGroup = membersOfTheNorthGroup.Contains(accessory.Data.PartyList.IndexOf(accessory.Data.Me))
-                                       == membersOfTheNorthGroup.Contains(highPriorityStack);
-                var currentProperty = accessory.Data.GetDefaultDrawProperties();
-
-                currentProperty.Name = "Phase1_Stack_Range_Of_Turn_Of_The_Heavens_光轮召唤分摊范围";
-                currentProperty.Scale = new(6);
-                currentProperty.Owner = accessory.Data.PartyList[highPriorityStack];
-                currentProperty.Delay = 6000;
-                currentProperty.DestoryAt = 5000;
-
-                if (inTheNorthGroup)
-                {
-
-                    currentProperty.Color = accessory.Data.DefaultSafeColor;
-
-                }
-
-                else
-                {
-
-                    currentProperty.Color = accessory.Data.DefaultDangerColor;
-
-                }
-
-                accessory.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Circle, currentProperty);
-
-                currentProperty = accessory.Data.GetDefaultDrawProperties();
-
-                currentProperty.Name = "Phase1_Stack_Range_Of_Turn_Of_The_Heavens_光轮召唤分摊范围";
-                currentProperty.Scale = new(6);
-                currentProperty.Owner = accessory.Data.PartyList[lowPriorityStack];
-                currentProperty.Delay = 6000;
-                currentProperty.DestoryAt = 5000;
-
-                if (inTheNorthGroup)
-                {
-
-                    currentProperty.Color = accessory.Data.DefaultDangerColor;
-
-                }
-
-                else
-                {
-
-                    currentProperty.Color = accessory.Data.DefaultSafeColor;
-
-                }
 
                 accessory.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Circle, currentProperty);
 
@@ -2026,64 +1621,7 @@ namespace CicerosKodakkuAssist.FuturesRewrittenUltimate.LPDU
             var atEast = pos.X - 100 > 1;
             var o1 = P1转轮召抓人.IndexOf(1);
             var o2 = P1转轮召抓人.LastIndexOf(1);
-            List<int> upGroup = [];
-            if (Phase1_Group_Of_Turn_Of_The_Heavens == Phase1_Groups_Of_Turn_Of_The_Heavens.MTOTH1H2_Go_North_MTM1_vary_MTSTH1H2去北MTD1换_莫灵喵与MMW)
-            {
-                upGroup.Add(o1);
-                if (o1 != 1 && o2 != 1) upGroup.Add(1);
-                if (o1 != 2 && o2 != 2) upGroup.Add(2);
-                if (o1 != 3 && o2 != 3) upGroup.Add(3);
-                if (upGroup.Count < 4 && o1 != 0 && o2 != 0) upGroup.Add(0);
-                if (upGroup.Count < 4 && o1 != 4 && o2 != 4) upGroup.Add(4);
-            }
-            if (Phase1_Group_Of_Turn_Of_The_Heavens == Phase1_Groups_Of_Turn_Of_The_Heavens.MTH1M1R1_Go_North_MTOT_vary_MTH1D1D3去北MTST换)
-            {
-                upGroup.Add(o1);
-                if (o1 != 2 && o2 != 2) upGroup.Add(2);
-                if (o1 != 4 && o2 != 4) upGroup.Add(4);
-                if (o1 != 6 && o2 != 6) upGroup.Add(6);
-                if (upGroup.Count < 4 && o1 != 0 && o2 != 0) upGroup.Add(0);
-                if (upGroup.Count < 4 && o1 != 1 && o2 != 1) upGroup.Add(1);
-            }
-            if (Phase1_Group_Of_Turn_Of_The_Heavens == Phase1_Groups_Of_Turn_Of_The_Heavens.MTOTR1R2_Go_North_MTM1_vary_MTSTD3D4去北MTD1换_莫灵喵)
-            {
-                /*
-                List<int> upIndex = [0, 1, 6, 7];
-                if (upIndex.Contains(o1) && !upIndex.Contains(o2)) upGroup.Add(o1);
-                if (upIndex.Contains(o2) && !upIndex.Contains(o1)) upGroup.Add(o2);
-                if (upIndex.Contains(o1) && !upIndex.Contains(o2))
-                {
-                    if (upIndex.IndexOf(o1)<upIndex.IndexOf(o2))
-                    {
-                        upGroup.Add(o1);
-                    }
-                    else
-                    {
-                        upGroup.Add(o2);
-                    }
-                }
-                var up0 = upGroup[0];
-                var down0 = up0 == o1 ? o2 : o1;
-                if (up0 != 1 && down0 != 1) upGroup.Add(1);
-                if (up0 != 6 && down0 != 6) upGroup.Add(6);
-                if (up0 != 7 && down0 != 7) upGroup.Add(7);
-                if (upGroup.Count < 4 && up0 != 0 && down0 != 0) upGroup.Add(0);
-                if (upGroup.Count < 4 && up0 != 4 && down0 != 4) upGroup.Add(4);
-                */
-
-                // After carefully examining the above algorithm, Cicero may consider that it's wrong.
-                // Even if it's correct, it may contain a bunch of redundant steps.
-                // Therefore, Cicero just simply decided to comment it out and rework a new algorithm similar to that of other groups.
-
-                upGroup.Add(o1);
-                if (o1 != 1 && o2 != 1) upGroup.Add(1);
-                if (o1 != 6 && o2 != 6) upGroup.Add(6);
-                if (o1 != 7 && o2 != 7) upGroup.Add(7);
-                if (upGroup.Count < 4 && o1 != 0 && o2 != 0) upGroup.Add(0);
-                if (upGroup.Count < 4 && o1 != 4 && o2 != 4) upGroup.Add(4);
-            }
-            if (Phase1_Group_Of_Turn_Of_The_Heavens == Phase1_Groups_Of_Turn_Of_The_Heavens.MTH1M1R1_Go_North_Same_Group_Preys_TMRH_Swaps_With_Tank_LPDU)
-                upGroup = P1光轮召唤LPDU北组(o1, o2);
+            var upGroup = P1光轮召唤LPDU北组(o1, o2);
 
             foreach (var 视角 in GuidanceIndices(accessory)) 指路(视角);
 
@@ -2716,108 +2254,22 @@ namespace CicerosKodakkuAssist.FuturesRewrittenUltimate.LPDU
                     {
                         var tehterObjIndex = phase1_tetheredPlayersDuringFallOfFaith.Select(o => o % 10).ToList();
                         var tehterIsFire = phase1_tetheredPlayersDuringFallOfFaith.Select(o => o < 20).ToList();
-                        List<int> idleObjIndex = [];
-                        if (Phase1_Strat_Of_Fall_Of_Faith == Phase1_Strats_Of_Fall_Of_Faith.Single_Line_In_THD_Order_按THD顺序单排
-                            ||
-                            Phase1_Strat_Of_Fall_Of_Faith == Phase1_Strats_Of_Fall_Of_Faith.Double_Lines_MOTH12_Left_M12R12_Right_双排左MSTH12右D1234)
-                        {
-                            for (int i = 0; i < accessory.Data.PartyList.Count; i++)
-                            {
-                                if (!tehterObjIndex.Contains(i))
-                                { idleObjIndex.Add(i); }
-                            }
-                        }
-
-                        if (Phase1_Strat_Of_Fall_Of_Faith == Phase1_Strats_Of_Fall_Of_Faith.Single_Line_In_HTD_Order_按HTD顺序单排_莫灵喵
-                           ||
-                           Phase1_Strat_Of_Fall_Of_Faith == Phase1_Strats_Of_Fall_Of_Faith.Double_Lines_H12MOT_Left_M12R12_Right_双排左H12MST右D1234_莫灵喵与MMW)
-                        {
-                            // The addition of this strat credits to @alexandria_prime. Appreciate!
-
-                            List<int> htdOrder = new List<int> { 2, 3, 0, 1, 4, 5, 6, 7 };
-
-                            for (int i = 0; i < htdOrder.Count; ++i)
-                            {
-
-                                if (!tehterObjIndex.Contains(htdOrder[i]))
-                                {
-
-                                    idleObjIndex.Add(htdOrder[i]);
-
-                                }
-
-                            }
-
-                        }
-
-                        if (Phase1_Strat_Of_Fall_Of_Faith == Phase1_Strats_Of_Fall_Of_Faith.Single_Line_In_H1TDH2_Order_按H1TDH2顺序单排)
-                        {
-                            // The addition of this strat credits to @alexandria_prime. Appreciate!
-
-                            List<int> h1tdh2Order = new List<int> { 2, 0, 1, 4, 5, 6, 7, 3 };
-
-                            for (int i = 0; i < h1tdh2Order.Count; ++i)
-                            {
-
-                                if (!tehterObjIndex.Contains(h1tdh2Order[i]))
-                                {
-
-                                    idleObjIndex.Add(h1tdh2Order[i]);
-
-                                }
-
-                            }
-
-                        }
+                        // 闲人按 H1 H2 MT OT M1 M2 R1 R2 排队：1、2 去北，3、4 去南
+                        List<int> idleObjIndex = ((List<int>)[2, 3, 0, 1, 4, 5, 6, 7]).Where(i => !tehterObjIndex.Contains(i)).ToList();
 
                         if (!idleObjIndex.Contains(myindex)) return;
 
-                        Vector3 i1p1 = new Vector3(100, 0, 100);
-                        Vector3 i1p2 = new Vector3(100, 0, 100);
-                        Vector3 i2p1 = new Vector3(100, 0, 100);
-                        Vector3 i2p2 = new Vector3(100, 0, 100);
-                        Vector3 i3p1 = new Vector3(100, 0, 100);
-                        Vector3 i3p2 = new Vector3(100, 0, 100);
-                        Vector3 i4p1 = new Vector3(100, 0, 100);
-                        Vector3 i4p2 = new Vector3(100, 0, 100);
+                        // 面向 Boss 左侧高优先级：北侧雷线时优先级高的在东，南侧在西；火线闲人站线后
+                        Vector3 i1p1 = tehterIsFire[0] ? new(100, 0, 100 - far - dis) : new(100 + dis, 0, 100 - far);
+                        Vector3 i1p2 = tehterIsFire[2] ? new(100, 0, 100 - far - dis) : new(100 + dis, 0, 100 - far);
+                        Vector3 i2p1 = tehterIsFire[0] ? new(100, 0, 100 - far - dis) : new(100 - dis, 0, 100 - far);
+                        Vector3 i2p2 = tehterIsFire[2] ? new(100, 0, 100 - far - dis) : new(100 - dis, 0, 100 - far);
+                        Vector3 i3p1 = tehterIsFire[1] ? new(100, 0, 100 + far + dis) : new(100 - dis, 0, 100 + far);
+                        Vector3 i3p2 = tehterIsFire[3] ? new(100, 0, 100 + far + dis) : new(100 - dis, 0, 100 + far);
+                        Vector3 i4p1 = tehterIsFire[1] ? new(100, 0, 100 + far + dis) : new(100 + dis, 0, 100 + far);
+                        Vector3 i4p2 = tehterIsFire[3] ? new(100, 0, 100 + far + dis) : new(100 + dis, 0, 100 + far);
                         Vector3 dealpos1 = default;
                         Vector3 dealpos2 = default;
-
-                        if (Phase1_Orientation_Benchmark_During_Fall_Of_Faith == Phase1_Orientation_Benchmarks_During_Fall_Of_Faith.High_Priority_Left_Facing_Due_North_面向正北左侧高优先级)
-                        {
-
-                            i1p1 = tehterIsFire[0] ? new(100, 0, 100 - far - dis) : new(100 - dis, 0, 100 - far);
-                            i1p2 = tehterIsFire[2] ? new(100, 0, 100 - far - dis) : new(100 - dis, 0, 100 - far);
-                            i2p1 = tehterIsFire[0] ? new(100, 0, 100 - far - dis) : new(100 + dis, 0, 100 - far);
-                            i2p2 = tehterIsFire[2] ? new(100, 0, 100 - far - dis) : new(100 + dis, 0, 100 - far);
-                            i3p1 = tehterIsFire[1] ? new(100, 0, 100 + far + dis) : new(100 - dis, 0, 100 + far);
-                            i3p2 = tehterIsFire[3] ? new(100, 0, 100 + far + dis) : new(100 - dis, 0, 100 + far);
-                            i4p1 = tehterIsFire[1] ? new(100, 0, 100 + far + dis) : new(100 + dis, 0, 100 + far);
-                            i4p2 = tehterIsFire[3] ? new(100, 0, 100 + far + dis) : new(100 + dis, 0, 100 + far);
-
-                        }
-
-                        if (Phase1_Orientation_Benchmark_During_Fall_Of_Faith == Phase1_Orientation_Benchmarks_During_Fall_Of_Faith.High_Priority_Left_Facing_The_Boss_面向Boss左侧高优先级_莫灵喵与MMW)
-                        {
-                            // The addition of this benchmark credits to @alexandria_prime. Appreciate!
-
-                            i1p1 = tehterIsFire[0] ? new(100, 0, 100 - far - dis) : new(100 + dis, 0, 100 - far);
-                            i1p2 = tehterIsFire[2] ? new(100, 0, 100 - far - dis) : new(100 + dis, 0, 100 - far);
-                            i2p1 = tehterIsFire[0] ? new(100, 0, 100 - far - dis) : new(100 - dis, 0, 100 - far);
-                            i2p2 = tehterIsFire[2] ? new(100, 0, 100 - far - dis) : new(100 - dis, 0, 100 - far);
-                            i3p1 = tehterIsFire[1] ? new(100, 0, 100 + far + dis) : new(100 - dis, 0, 100 + far);
-                            i3p2 = tehterIsFire[3] ? new(100, 0, 100 + far + dis) : new(100 - dis, 0, 100 + far);
-                            i4p1 = tehterIsFire[1] ? new(100, 0, 100 + far + dis) : new(100 + dis, 0, 100 + far);
-                            i4p2 = tehterIsFire[3] ? new(100, 0, 100 + far + dis) : new(100 + dis, 0, 100 + far);
-
-                        }
-
-                        if (i1p1.Equals(new Vector3(100, 0, 100)))
-                        {
-
-                            return;
-
-                        }
 
                         dealpos1 = idleObjIndex.IndexOf(myindex) switch
                         {
@@ -3044,296 +2496,11 @@ namespace CicerosKodakkuAssist.FuturesRewrittenUltimate.LPDU
                         }
                         else
                         {
-                            int myTowerIndex = myIndex - 1;
-                            Vector3 standbyPosition = new Vector3(100, 0, 100);
-                            Vector3 towerPosition = new Vector3(100, 0, 100);
-
                             // LPDU：雷塔直接进塔
-                            if (Phase1_Strat_Of_Towers == Phase1_Strats_Of_Towers.Fixed_H1R2H2_Adjust_M1R1M2_LPDU && P1塔LPDU塔序号(myIndex) is var lpduTower and >= 0)
-                                standbyPosition = towerPosition = P1塔位置(lpduTower, eastTower);
-
-                            if (Phase1_Strat_Of_Towers == Phase1_Strats_Of_Towers.Completely_Based_On_Priority_完全根据优先级_莫灵喵)
-                            {
-
-                                if (myTowerIndex > 0 && myTowerIndex <= P1塔[0]) standbyPosition = new(eastTower ? 113.08f : 86.92f, 0, 90.81f);
-                                if (myTowerIndex > P1塔[0] && myTowerIndex <= P1塔[0] + P1塔[1]) standbyPosition = new(eastTower ? 115.98f : 84.02f, 0, 100f);
-                                if (myTowerIndex > P1塔[0] + P1塔[1] && myTowerIndex <= P1塔[0] + P1塔[1] + P1塔[2]) standbyPosition = new(eastTower ? 113.08f : 86.92f, 0, 109.18f);
-
-                                if (myTowerIndex > 0 && myTowerIndex <= P1塔[0]) towerPosition = new(eastTower ? 113.08f : 86.92f, 0, 90.81f);
-                                if (myTowerIndex > P1塔[0] && myTowerIndex <= P1塔[0] + P1塔[1]) towerPosition = new(eastTower ? 115.98f : 84.02f, 0, 100f);
-                                if (myTowerIndex > P1塔[0] + P1塔[1] && myTowerIndex <= P1塔[0] + P1塔[1] + P1塔[2]) towerPosition = new(eastTower ? 113.08f : 86.92f, 0, 109.18f);
-
-                            }
-
-                            if (Phase1_Strat_Of_Towers == Phase1_Strats_Of_Towers.Fixed_H1H2R2_Priority_For_Rest_固定H1H2D4剩余人优先级)
-                            {
-
-                                bool fixedPartyMember = false;
-
-                                if (myIndex == 2)
-                                {
-
-                                    fixedPartyMember = true;
-
-                                    standbyPosition = new(eastTower ? 113.08f : 86.92f, 0, 90.81f);
-                                    towerPosition = new(eastTower ? 113.08f : 86.92f, 0, 90.81f);
-
-                                }
-
-                                if (myIndex == 3)
-                                {
-
-                                    fixedPartyMember = true;
-
-                                    standbyPosition = new(eastTower ? 115.98f : 84.02f, 0, 100f);
-                                    towerPosition = new(eastTower ? 115.98f : 84.02f, 0, 100f);
-
-                                }
-
-                                if (myIndex == 7)
-                                {
-
-                                    fixedPartyMember = true;
-
-                                    standbyPosition = new(eastTower ? 113.08f : 86.92f, 0, 109.18f);
-                                    towerPosition = new(eastTower ? 113.08f : 86.92f, 0, 109.18f);
-
-                                }
-
-                                if (!fixedPartyMember)
-                                {
-
-                                    int newTower0 = P1塔[0] - 1;
-                                    int newTower1 = P1塔[1] - 1;
-                                    int newTower2 = P1塔[2] - 1;
-                                    int myNewTowerIndex = myIndex - 3;
-
-                                    if (Enable_Developer_Mode)
-                                    {
-
-                                        if (IsMe(accessory, 视角)) accessory.Method.SendChat($"""
-                                                                   /e 
-                                                                   newTower0={newTower0}
-                                                                   newTower1={newTower1}
-                                                                   newTower2={newTower2}
-                                                                   myNewTowerIndex={myNewTowerIndex}
-
-                                                                   """);
-
-                                    }
-
-                                    if (newTower0 > 0
-                                        &&
-                                        0 < myNewTowerIndex && myNewTowerIndex <= newTower0)
-                                    {
-
-                                        standbyPosition = new(eastTower ? 113.08f : 86.92f, 0, 90.81f);
-                                        towerPosition = new(eastTower ? 113.08f : 86.92f, 0, 90.81f);
-
-                                    }
-
-                                    if (newTower1 > 0
-                                       &&
-                                       newTower0 < myNewTowerIndex && myNewTowerIndex <= newTower0 + newTower1)
-                                    {
-
-                                        standbyPosition = new(eastTower ? 115.98f : 84.02f, 0, 100f);
-                                        towerPosition = new(eastTower ? 115.98f : 84.02f, 0, 100f);
-
-                                    }
-
-                                    if (newTower2 > 0
-                                       &&
-                                       newTower0 + newTower1 < myNewTowerIndex && myNewTowerIndex <= newTower0 + newTower1 + newTower2)
-                                    {
-
-                                        standbyPosition = new(eastTower ? 113.08f : 86.92f, 0, 109.18f);
-                                        towerPosition = new(eastTower ? 113.08f : 86.92f, 0, 109.18f);
-
-                                    }
-
-                                }
-
-                            }
-
-                            if (Phase1_Strat_Of_Towers == Phase1_Strats_Of_Towers.Fixed_H1H2R2_Rest_Fill_Vacancies_固定H1H2D4剩余人补位_MMW)
-                            {
-                                // The algorithm implementation of this strat was inspired by @abigseal's script.
-                                // Therefore, the following code should credit to him. Appreciate!
-
-                                bool fixedPartyMember = false;
-
-                                if (myIndex == 2)
-                                {
-
-                                    fixedPartyMember = true;
-
-                                    standbyPosition = new(eastTower ? 113.08f : 86.92f, 0, 90.81f);
-                                    towerPosition = new(eastTower ? 113.08f : 86.92f, 0, 90.81f);
-
-                                }
-
-                                if (myIndex == 3)
-                                {
-
-                                    fixedPartyMember = true;
-
-                                    standbyPosition = new(eastTower ? 115.98f : 84.02f, 0, 100f);
-                                    towerPosition = new(eastTower ? 115.98f : 84.02f, 0, 100f);
-
-                                }
-
-                                if (myIndex == 7)
-                                {
-
-                                    fixedPartyMember = true;
-
-                                    standbyPosition = new(eastTower ? 113.08f : 86.92f, 0, 109.18f);
-                                    towerPosition = new(eastTower ? 113.08f : 86.92f, 0, 109.18f);
-
-                                }
-
-                                if (!fixedPartyMember)
-                                {
-
-                                    if (Enable_Developer_Mode)
-                                    {
-
-                                        if (IsMe(accessory, 视角)) accessory.Method.SendChat($"""
-                                                                   /e 
-                                                                   P1塔[0]={P1塔[0]}
-                                                                   P1塔[1]={P1塔[1]}
-                                                                   P1塔[2]={P1塔[2]}
-                                                                   myTowerIndex={myTowerIndex}
-
-                                                                   """);
-
-                                    }
-
-                                    if (myIndex == 4)
-                                    {
-
-                                        if (P1塔[0] >= 2)
-                                        {
-
-                                            standbyPosition = new(eastTower ? 113.08f : 86.92f, 0, 90.81f);
-                                            towerPosition = new(eastTower ? 113.08f : 86.92f, 0, 90.81f);
-
-                                        }
-
-                                        else
-                                        {
-
-                                            if (P1塔[1] >= 3)
-                                            {
-
-                                                standbyPosition = new(eastTower ? 115.98f : 84.02f, 0, 100f);
-                                                towerPosition = new(eastTower ? 115.98f : 84.02f, 0, 100f);
-
-                                            }
-
-                                            if (P1塔[2] >= 3)
-                                            {
-
-                                                standbyPosition = new(eastTower ? 113.08f : 86.92f, 0, 109.18f);
-                                                towerPosition = new(eastTower ? 113.08f : 86.92f, 0, 109.18f);
-
-                                            }
-
-                                        }
-
-                                    }
-
-                                    if (myIndex == 5)
-                                    {
-
-                                        if (P1塔[1] >= 2)
-                                        {
-
-                                            standbyPosition = new(eastTower ? 115.98f : 84.02f, 0, 100f);
-                                            towerPosition = new(eastTower ? 115.98f : 84.02f, 0, 100f);
-
-                                        }
-
-                                        else
-                                        {
-
-                                            if (P1塔[0] >= 3)
-                                            {
-
-                                                standbyPosition = new(eastTower ? 113.08f : 86.92f, 0, 90.81f);
-                                                towerPosition = new(eastTower ? 113.08f : 86.92f, 0, 90.81f);
-
-                                            }
-
-                                            if (P1塔[2] >= 3)
-                                            {
-
-                                                standbyPosition = new(eastTower ? 113.08f : 86.92f, 0, 109.18f);
-                                                towerPosition = new(eastTower ? 113.08f : 86.92f, 0, 109.18f);
-
-                                            }
-
-                                        }
-
-                                    }
-
-                                    if (myIndex == 6)
-                                    {
-
-                                        if (P1塔[2] >= 2)
-                                        {
-
-                                            standbyPosition = new(eastTower ? 113.08f : 86.92f, 0, 109.18f);
-                                            towerPosition = new(eastTower ? 113.08f : 86.92f, 0, 109.18f);
-
-                                        }
-
-                                        else
-                                        {
-
-                                            if (P1塔[0] >= 3)
-                                            {
-
-                                                standbyPosition = new(eastTower ? 113.08f : 86.92f, 0, 90.81f);
-                                                towerPosition = new(eastTower ? 113.08f : 86.92f, 0, 90.81f);
-
-                                            }
-
-                                            if (P1塔[1] >= 3)
-                                            {
-
-                                                standbyPosition = new(eastTower ? 115.98f : 84.02f, 0, 100f);
-                                                towerPosition = new(eastTower ? 115.98f : 84.02f, 0, 100f);
-
-                                            }
-
-                                        }
-
-                                    }
-
-                                }
-
-                            }
-
-                            if (Enable_Developer_Mode)
-                            {
-
-                                if (IsMe(accessory, 视角)) accessory.Method.SendChat($"""
-                                                           /e 
-                                                           standbyPosition={standbyPosition}
-                                                           towerPosition={towerPosition}
-
-                                                           """);
-
-                            }
-
-                            if (standbyPosition.Equals(new Vector3(100, 0, 100)) || towerPosition.Equals(new Vector3(100, 0, 100)))
-                            {
-
-                                return;
-
-                            }
+                            var lpduTower = P1塔LPDU塔序号(myIndex);
+                            if (lpduTower < 0) return;
+                            Vector3 towerPosition = P1塔位置(lpduTower, eastTower);
+                            Vector3 standbyPosition = towerPosition;
 
                             var dp = accessory.Data.GetDefaultDrawProperties();
                             dp.Name = $"P1_雷塔_塔处理位置_ND-{视角}";
@@ -3403,298 +2570,11 @@ namespace CicerosKodakkuAssist.FuturesRewrittenUltimate.LPDU
                         }
                         else
                         {
-                            var myTowerIndex = myIndex - 1;
-                            Vector3 standbyPosition = new Vector3(100, 0, 100);
-                            Vector3 towerPosition = new Vector3(100, 0, 100);
-
                             // LPDU：火塔先在场中同高度待机，击退后进塔
-                            if (Phase1_Strat_Of_Towers == Phase1_Strats_Of_Towers.Fixed_H1R2H2_Adjust_M1R1M2_LPDU && P1塔LPDU塔序号(myIndex) is var lpduTower and >= 0)
-                            {
-                                towerPosition = P1塔位置(lpduTower, eastTower);
-                                standbyPosition = new(eastTower ? 102f : 98f, 0, towerPosition.Z);
-                            }
-
-                            if (Phase1_Strat_Of_Towers == Phase1_Strats_Of_Towers.Completely_Based_On_Priority_完全根据优先级_莫灵喵)
-                            {
-
-                                if (myTowerIndex > 0 && myTowerIndex <= P1塔[0]) standbyPosition = new(eastTower ? 102f : 98f, 0, 90.81f);
-                                if (myTowerIndex > P1塔[0] && myTowerIndex <= P1塔[0] + P1塔[1]) standbyPosition = new(eastTower ? 102f : 98f, 0, 100f);
-                                if (myTowerIndex > P1塔[0] + P1塔[1] && myTowerIndex <= P1塔[0] + P1塔[1] + P1塔[2]) standbyPosition = new(eastTower ? 102f : 98f, 0, 109.18f);
-
-                                if (myTowerIndex > 0 && myTowerIndex <= P1塔[0]) towerPosition = new(eastTower ? 113.08f : 86.92f, 0, 90.81f);
-                                if (myTowerIndex > P1塔[0] && myTowerIndex <= P1塔[0] + P1塔[1]) towerPosition = new(eastTower ? 115.98f : 84.02f, 0, 100f);
-                                if (myTowerIndex > P1塔[0] + P1塔[1] && myTowerIndex <= P1塔[0] + P1塔[1] + P1塔[2]) towerPosition = new(eastTower ? 113.08f : 86.92f, 0, 109.18f);
-
-                            }
-
-                            if (Phase1_Strat_Of_Towers == Phase1_Strats_Of_Towers.Fixed_H1H2R2_Priority_For_Rest_固定H1H2D4剩余人优先级)
-                            {
-
-                                bool fixedPartyMember = false;
-
-                                if (myIndex == 2)
-                                {
-
-                                    fixedPartyMember = true;
-
-                                    standbyPosition = new(eastTower ? 102f : 98f, 0, 90.81f);
-                                    towerPosition = new(eastTower ? 113.08f : 86.92f, 0, 90.81f);
-
-                                }
-
-                                if (myIndex == 3)
-                                {
-
-                                    fixedPartyMember = true;
-
-                                    standbyPosition = new(eastTower ? 102f : 98f, 0, 100f);
-                                    towerPosition = new(eastTower ? 115.98f : 84.02f, 0, 100f);
-
-                                }
-
-                                if (myIndex == 7)
-                                {
-
-                                    fixedPartyMember = true;
-
-                                    standbyPosition = new(eastTower ? 102f : 98f, 0, 109.18f);
-                                    towerPosition = new(eastTower ? 113.08f : 86.92f, 0, 109.18f);
-
-                                }
-
-                                if (!fixedPartyMember)
-                                {
-
-                                    int newTower0 = P1塔[0] - 1;
-                                    int newTower1 = P1塔[1] - 1;
-                                    int newTower2 = P1塔[2] - 1;
-                                    int myNewTowerIndex = myIndex - 3;
-
-                                    if (Enable_Developer_Mode)
-                                    {
-
-                                        if (IsMe(accessory, 视角)) accessory.Method.SendChat($"""
-                                                                   /e 
-                                                                   newTower0={newTower0}
-                                                                   newTower1={newTower1}
-                                                                   newTower2={newTower2}
-                                                                   myNewTowerIndex={myNewTowerIndex}
-
-                                                                   """);
-
-                                    }
-
-                                    if (newTower0 > 0
-                                        &&
-                                        0 < myNewTowerIndex && myNewTowerIndex <= newTower0)
-                                    {
-
-                                        standbyPosition = new(eastTower ? 102f : 98f, 0, 90.81f);
-                                        towerPosition = new(eastTower ? 113.08f : 86.92f, 0, 90.81f);
-
-                                    }
-
-                                    if (newTower1 > 0
-                                       &&
-                                       newTower0 < myNewTowerIndex && myNewTowerIndex <= newTower0 + newTower1)
-                                    {
-
-                                        standbyPosition = new(eastTower ? 102f : 98f, 0, 100f);
-                                        towerPosition = new(eastTower ? 115.98f : 84.02f, 0, 100f);
-
-                                    }
-
-                                    if (newTower2 > 0
-                                       &&
-                                       newTower0 + newTower1 < myNewTowerIndex && myNewTowerIndex <= newTower0 + newTower1 + newTower2)
-                                    {
-
-                                        standbyPosition = new(eastTower ? 102f : 98f, 0, 109.18f);
-                                        towerPosition = new(eastTower ? 113.08f : 86.92f, 0, 109.18f);
-
-                                    }
-
-                                }
-
-                            }
-
-                            if (Phase1_Strat_Of_Towers == Phase1_Strats_Of_Towers.Fixed_H1H2R2_Rest_Fill_Vacancies_固定H1H2D4剩余人补位_MMW)
-                            {
-                                // Same as before, the following credits to @abigseal. Appreciate!
-
-                                bool fixedPartyMember = false;
-
-                                if (myIndex == 2)
-                                {
-
-                                    fixedPartyMember = true;
-
-                                    standbyPosition = new(eastTower ? 102f : 98f, 0, 90.81f);
-                                    towerPosition = new(eastTower ? 113.08f : 86.92f, 0, 90.81f);
-
-                                }
-
-                                if (myIndex == 3)
-                                {
-
-                                    fixedPartyMember = true;
-
-                                    standbyPosition = new(eastTower ? 102f : 98f, 0, 100f);
-                                    towerPosition = new(eastTower ? 115.98f : 84.02f, 0, 100f);
-
-                                }
-
-                                if (myIndex == 7)
-                                {
-
-                                    fixedPartyMember = true;
-
-                                    standbyPosition = new(eastTower ? 102f : 98f, 0, 109.18f);
-                                    towerPosition = new(eastTower ? 113.08f : 86.92f, 0, 109.18f);
-
-                                }
-
-                                if (!fixedPartyMember)
-                                {
-
-                                    if (Enable_Developer_Mode)
-                                    {
-
-                                        if (IsMe(accessory, 视角)) accessory.Method.SendChat($"""
-                                                                   /e 
-                                                                   P1塔[0]={P1塔[0]}
-                                                                   P1塔[1]={P1塔[1]}
-                                                                   P1塔[2]={P1塔[2]}
-                                                                   myTowerIndex={myTowerIndex}
-
-                                                                   """);
-
-                                    }
-
-                                    if (myIndex == 4)
-                                    {
-
-                                        if (P1塔[0] >= 2)
-                                        {
-
-                                            standbyPosition = new(eastTower ? 102f : 98f, 0, 90.81f);
-                                            towerPosition = new(eastTower ? 113.08f : 86.92f, 0, 90.81f);
-
-                                        }
-
-                                        else
-                                        {
-
-                                            if (P1塔[1] >= 3)
-                                            {
-
-                                                standbyPosition = new(eastTower ? 102f : 98f, 0, 100f);
-                                                towerPosition = new(eastTower ? 115.98f : 84.02f, 0, 100f);
-
-                                            }
-
-                                            if (P1塔[2] >= 3)
-                                            {
-
-                                                standbyPosition = new(eastTower ? 102f : 98f, 0, 109.18f);
-                                                towerPosition = new(eastTower ? 113.08f : 86.92f, 0, 109.18f);
-
-                                            }
-
-                                        }
-
-                                    }
-
-                                    if (myIndex == 5)
-                                    {
-
-                                        if (P1塔[1] >= 2)
-                                        {
-
-                                            standbyPosition = new(eastTower ? 102f : 98f, 0, 100f);
-                                            towerPosition = new(eastTower ? 115.98f : 84.02f, 0, 100f);
-
-                                        }
-
-                                        else
-                                        {
-
-                                            if (P1塔[0] >= 3)
-                                            {
-
-                                                standbyPosition = new(eastTower ? 102f : 98f, 0, 90.81f);
-                                                towerPosition = new(eastTower ? 113.08f : 86.92f, 0, 90.81f);
-
-                                            }
-
-                                            if (P1塔[2] >= 3)
-                                            {
-
-                                                standbyPosition = new(eastTower ? 102f : 98f, 0, 109.18f);
-                                                towerPosition = new(eastTower ? 113.08f : 86.92f, 0, 109.18f);
-
-                                            }
-
-                                        }
-
-                                    }
-
-                                    if (myIndex == 6)
-                                    {
-
-                                        if (P1塔[2] >= 2)
-                                        {
-
-                                            standbyPosition = new(eastTower ? 102f : 98f, 0, 109.18f);
-                                            towerPosition = new(eastTower ? 113.08f : 86.92f, 0, 109.18f);
-
-                                        }
-
-                                        else
-                                        {
-
-                                            if (P1塔[0] >= 3)
-                                            {
-
-                                                standbyPosition = new(eastTower ? 102f : 98f, 0, 90.81f);
-                                                towerPosition = new(eastTower ? 113.08f : 86.92f, 0, 90.81f);
-
-                                            }
-
-                                            if (P1塔[1] >= 3)
-                                            {
-
-                                                standbyPosition = new(eastTower ? 102f : 98f, 0, 100f);
-                                                towerPosition = new(eastTower ? 115.98f : 84.02f, 0, 100f);
-
-                                            }
-
-                                        }
-
-                                    }
-
-                                }
-
-                            }
-
-                            if (Enable_Developer_Mode)
-                            {
-
-                                if (IsMe(accessory, 视角)) accessory.Method.SendChat($"""
-                                                           /e 
-                                                           standbyPosition={standbyPosition}
-                                                           towerPosition={towerPosition}
-
-                                                           """);
-
-                            }
-
-                            if (standbyPosition.Equals(new Vector3(100, 0, 100)) || towerPosition.Equals(new Vector3(100, 0, 100)))
-                            {
-
-                                return;
-
-                            }
+                            var lpduTower = P1塔LPDU塔序号(myIndex);
+                            if (lpduTower < 0) return;
+                            Vector3 towerPosition = P1塔位置(lpduTower, eastTower);
+                            Vector3 standbyPosition = new(eastTower ? 102f : 98f, 0, towerPosition.Z);
 
                             var dp = accessory.Data.GetDefaultDrawProperties();
                             dp.Name = $"P1_火塔_塔处理位置_ND-{视角}";
@@ -4202,7 +3082,6 @@ namespace CicerosKodakkuAssist.FuturesRewrittenUltimate.LPDU
             {
                 int proteanPositionOfTheCurrentGroup = PositionTo8Dir(phase2_positionToBeKnockedBack[视角], new(100, 0, 100));
                 int proteanPositionOfTheOppositeGroup = phase2_getOppositeProteanPosition(proteanPositionOfTheCurrentGroup);
-                bool propertyHasBeenConfirmed = false;
                 var currentProperty = accessory.Data.GetDefaultDrawProperties();
                 string prompt = "";
 
@@ -4228,326 +3107,39 @@ namespace CicerosKodakkuAssist.FuturesRewrittenUltimate.LPDU
                 currentProperty.Color = accessory.Data.DefaultSafeColor.WithW(25f);
                 currentProperty.DestoryAt = 14250;
 
-                if (Phase2_Strat_After_Knockback == Phase2_Strats_After_Knockback.Clockwise_One_Group_Counterclockwise_总是顺时针单组逆时针)
+                // LPDU：一律顺时针；神使的倒影在本组顺时针 45° 时只有本组改逆时针。两组都走到倒影的前后轴线为止
+                int step = ((proteanPositionOfTheCurrentGroup + 1) % 8) == proteanPositionOfTheReflection ? -1 : 1;
+                int rotationOfThePath = 1;
+
+                while (((proteanPositionOfTheCurrentGroup + step * rotationOfThePath + 8) % 8) is var p
+                      && p != proteanPositionOfTheReflection
+                      && p != phase2_getOppositeProteanPosition(proteanPositionOfTheReflection))
                 {
 
-                    if (((proteanPositionOfTheCurrentGroup + 1) % 8) == proteanPositionOfTheReflection)
-                    {
-
-                        currentProperty.Radian = float.Pi / 2 - float.Pi / 18;
-                        currentProperty.Rotation += (float.Pi / 2 - float.Pi / 18) / 2;
-
-                        if (Language_Of_Prompts == Languages_Of_Prompts.Simplified_Chinese_简体中文)
-                        {
-
-                            prompt = "逆时针80度,遇见对组";
-
-                        }
-
-                        if (Language_Of_Prompts == Languages_Of_Prompts.English_英文)
-                        {
-
-                            prompt = "Counterclockwise 80 degrees, encountering the opposite group";
-
-                        }
-
-                    }
-
-                    else
-                    {
-
-                        if (((proteanPositionOfTheOppositeGroup + 1) % 8) == proteanPositionOfTheReflection)
-                        {
-
-                            currentProperty.Radian = float.Pi / 2 - float.Pi / 18;
-                            currentProperty.Rotation += -((float.Pi / 2 - float.Pi / 18) / 2);
-
-                            if (Language_Of_Prompts == Languages_Of_Prompts.Simplified_Chinese_简体中文)
-                            {
-
-                                prompt = "顺时针80度,遇见对组";
-
-                            }
-
-                            if (Language_Of_Prompts == Languages_Of_Prompts.English_英文)
-                            {
-
-                                prompt = "Clockwise 80 degrees, encountering the opposite group";
-
-                            }
-
-                        }
-
-                        else
-                        {
-
-                            int rotationOfThePath = 1;
-
-                            while (((proteanPositionOfTheCurrentGroup + rotationOfThePath) % 8) != proteanPositionOfTheReflection
-                                  &&
-                                  ((proteanPositionOfTheCurrentGroup + rotationOfThePath) % 8) != phase2_getOppositeProteanPosition(proteanPositionOfTheReflection))
-                            {
-
-                                ++rotationOfThePath;
-
-                            }
-
-                            currentProperty.Radian = float.Pi / 4 * rotationOfThePath;
-                            currentProperty.Rotation += -((float.Pi / 4 * rotationOfThePath) / 2);
-
-                            rotationOfThePath *= 45;
-
-                            if (Language_Of_Prompts == Languages_Of_Prompts.Simplified_Chinese_简体中文)
-                            {
-
-                                prompt = $"顺时针{rotationOfThePath}度";
-
-                            }
-
-                            if (Language_Of_Prompts == Languages_Of_Prompts.English_英文)
-                            {
-
-                                prompt = $"Clockwise {rotationOfThePath} degrees";
-
-                            }
-
-                        }
-
-                    }
-
-                    propertyHasBeenConfirmed = true;
+                    ++rotationOfThePath;
 
                 }
 
-                if (Phase2_Strat_After_Knockback == Phase2_Strats_After_Knockback.Counterclockwise_One_Group_Clockwise_总是逆时针单组顺时针)
+                currentProperty.Radian = float.Pi / 4 * rotationOfThePath;
+                currentProperty.Rotation += -step * (float.Pi / 4 * rotationOfThePath) / 2;
+
+                rotationOfThePath *= 45;
+
+                if (Language_Of_Prompts == Languages_Of_Prompts.Simplified_Chinese_简体中文)
                 {
 
-                    if (((proteanPositionOfTheCurrentGroup - 1 + 8) % 8) == proteanPositionOfTheReflection)
-                    {
-
-                        currentProperty.Radian = float.Pi / 2 - float.Pi / 18;
-                        currentProperty.Rotation += -((float.Pi / 2 - float.Pi / 18) / 2);
-
-                        if (Language_Of_Prompts == Languages_Of_Prompts.Simplified_Chinese_简体中文)
-                        {
-
-                            prompt = "顺时针80度,遇见对组";
-
-                        }
-
-                        if (Language_Of_Prompts == Languages_Of_Prompts.English_英文)
-                        {
-
-                            prompt = "Clockwise 80 degrees, encountering the opposite group";
-
-                        }
-
-                    }
-
-                    else
-                    {
-
-                        if (((proteanPositionOfTheOppositeGroup - 1 + 8) % 8) == proteanPositionOfTheReflection)
-                        {
-
-                            currentProperty.Radian = float.Pi / 2 - float.Pi / 18;
-                            currentProperty.Rotation += (float.Pi / 2 - float.Pi / 18) / 2;
-
-                            if (Language_Of_Prompts == Languages_Of_Prompts.Simplified_Chinese_简体中文)
-                            {
-
-                                prompt = "逆时针80度,遇见对组";
-
-                            }
-
-                            if (Language_Of_Prompts == Languages_Of_Prompts.English_英文)
-                            {
-
-                                prompt = "Counterclockwise 80 degrees, encountering the opposite group";
-
-                            }
-
-                        }
-
-                        else
-                        {
-
-                            int rotationOfThePath = 1;
-
-                            while (((proteanPositionOfTheCurrentGroup - rotationOfThePath + 8) % 8) != proteanPositionOfTheReflection
-                                  &&
-                                  ((proteanPositionOfTheCurrentGroup - rotationOfThePath + 8) % 8) != phase2_getOppositeProteanPosition(proteanPositionOfTheReflection))
-                            {
-
-                                ++rotationOfThePath;
-
-                            }
-
-                            currentProperty.Radian = float.Pi / 4 * rotationOfThePath;
-                            currentProperty.Rotation += (float.Pi / 4 * rotationOfThePath) / 2;
-
-                            rotationOfThePath *= 45;
-
-                            if (Language_Of_Prompts == Languages_Of_Prompts.Simplified_Chinese_简体中文)
-                            {
-
-                                prompt = $"逆时针{rotationOfThePath}度";
-
-                            }
-
-                            if (Language_Of_Prompts == Languages_Of_Prompts.English_英文)
-                            {
-
-                                prompt = $"Counterclockwise {rotationOfThePath} degrees";
-
-                            }
-
-                        }
-
-                    }
-
-                    propertyHasBeenConfirmed = true;
+                    prompt = $"{(step == 1 ? "顺时针" : "逆时针")}{rotationOfThePath}度";
 
                 }
 
-                if (Phase2_Strat_After_Knockback == Phase2_Strats_After_Knockback.Clockwise_Both_Groups_Counterclockwise_总是顺时针双组逆时针_莫灵喵与MMW)
+                if (Language_Of_Prompts == Languages_Of_Prompts.English_英文)
                 {
 
-                    if (((proteanPositionOfTheCurrentGroup + 1) % 8) == proteanPositionOfTheReflection
-                       ||
-                       ((proteanPositionOfTheOppositeGroup + 1) % 8) == proteanPositionOfTheReflection)
-                    {
-
-                        currentProperty.Radian = float.Pi / 4 * 3;
-                        currentProperty.Rotation += (float.Pi / 4 * 3) / 2;
-
-                        if (Language_Of_Prompts == Languages_Of_Prompts.Simplified_Chinese_简体中文)
-                        {
-
-                            prompt = "逆时针135度";
-
-                        }
-
-                        if (Language_Of_Prompts == Languages_Of_Prompts.English_英文)
-                        {
-
-                            prompt = "Counterclockwise 135 degrees";
-
-                        }
-
-                    }
-
-                    else
-                    {
-
-                        int rotationOfThePath = 1;
-
-                        while (((proteanPositionOfTheCurrentGroup + rotationOfThePath) % 8) != proteanPositionOfTheReflection
-                              &&
-                              ((proteanPositionOfTheCurrentGroup + rotationOfThePath) % 8) != phase2_getOppositeProteanPosition(proteanPositionOfTheReflection))
-                        {
-
-                            ++rotationOfThePath;
-
-                        }
-
-                        currentProperty.Radian = float.Pi / 4 * rotationOfThePath;
-                        currentProperty.Rotation += -((float.Pi / 4 * rotationOfThePath) / 2);
-
-                        rotationOfThePath *= 45;
-
-                        if (Language_Of_Prompts == Languages_Of_Prompts.Simplified_Chinese_简体中文)
-                        {
-
-                            prompt = $"顺时针{rotationOfThePath}度";
-
-                        }
-
-                        if (Language_Of_Prompts == Languages_Of_Prompts.English_英文)
-                        {
-
-                            prompt = $"Clockwise {rotationOfThePath} degrees";
-
-                        }
-
-                    }
-
-                    propertyHasBeenConfirmed = true;
+                    prompt = $"{(step == 1 ? "Clockwise" : "Counterclockwise")} {rotationOfThePath} degrees";
 
                 }
 
-                if (Phase2_Strat_After_Knockback == Phase2_Strats_After_Knockback.Counterclockwise_Both_Groups_Clockwise_总是逆时针双组顺时针)
-                {
-
-                    if (((proteanPositionOfTheCurrentGroup - 1 + 8) % 8) == proteanPositionOfTheReflection
-                       ||
-                       ((proteanPositionOfTheOppositeGroup - 1 + 8) % 8) == proteanPositionOfTheReflection)
-                    {
-
-                        currentProperty.Radian = float.Pi / 4 * 3;
-                        currentProperty.Rotation += -((float.Pi / 4 * 3) / 2);
-
-                        if (Language_Of_Prompts == Languages_Of_Prompts.Simplified_Chinese_简体中文)
-                        {
-
-                            prompt = "顺时针135度";
-
-                        }
-
-                        if (Language_Of_Prompts == Languages_Of_Prompts.English_英文)
-                        {
-
-                            prompt = "Clockwise 135 degrees";
-
-                        }
-
-                    }
-
-                    else
-                    {
-
-                        int rotationOfThePath = 1;
-
-                        while (((proteanPositionOfTheCurrentGroup - rotationOfThePath + 8) % 8) != proteanPositionOfTheReflection
-                              &&
-                              ((proteanPositionOfTheCurrentGroup - rotationOfThePath + 8) % 8) != phase2_getOppositeProteanPosition(proteanPositionOfTheReflection))
-                        {
-
-                            ++rotationOfThePath;
-
-                        }
-
-                        currentProperty.Radian = float.Pi / 4 * rotationOfThePath;
-                        currentProperty.Rotation += (float.Pi / 4 * rotationOfThePath) / 2;
-
-                        rotationOfThePath *= 45;
-
-                        if (Language_Of_Prompts == Languages_Of_Prompts.Simplified_Chinese_简体中文)
-                        {
-
-                            prompt = $"逆时针{rotationOfThePath}度";
-
-                        }
-
-                        if (Language_Of_Prompts == Languages_Of_Prompts.English_英文)
-                        {
-
-                            prompt = $"Counterclockwise {rotationOfThePath} degrees";
-
-                        }
-
-                    }
-
-                    propertyHasBeenConfirmed = true;
-
-                }
-
-                if (propertyHasBeenConfirmed)
-                {
-
-                    accessory.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Donut, currentProperty);
-
-                }
+                accessory.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Donut, currentProperty);
 
                 if (!prompt.Equals(""))
                 {
@@ -4809,8 +3401,8 @@ namespace CicerosKodakkuAssist.FuturesRewrittenUltimate.LPDU
             }
             else
             {
-                //int[] group = [6, 7, 4, 5, 2, 3, 0, 1];
-                int[] group = [4, 5, 6, 7, 0, 1, 2, 3];
+                // LPDU 双镜分摊搭档：MT+M2、OT+M1、H1+R1、H2+R2
+                int[] group = [5, 4, 6, 7, 1, 0, 2, 3];
                 var myindex = accessory.Data.PartyList.IndexOf(accessory.Data.Me);
                 for (int i = 0; i < 4; i++)
                 {
@@ -5285,304 +3877,30 @@ namespace CicerosKodakkuAssist.FuturesRewrittenUltimate.LPDU
 
             }
 
+            // 近战组（蓝镜对面）去最近的红镜，距离相同时去顺时针先碰到的那面；远程组去另一面
+            int meleeGroup = phase2_getOppositeProteanPosition(colourlessMirror);
+            int Clockwise(int mirror) => (mirror - meleeGroup + 8) % 8;
+            int Distance(int mirror) => Math.Min(Clockwise(mirror), 8 - Clockwise(mirror));
+            int meleeMirror = (Distance(redMirror1), Clockwise(redMirror1)).CompareTo((Distance(redMirror2), Clockwise(redMirror2))) <= 0 ? redMirror1 : redMirror2;
+            int rangedMirror = meleeMirror == redMirror1 ? redMirror2 : redMirror1;
+
             foreach (var 视角 in GuidanceIndices(accessory)) 指路(视角);
 
             void 指路(int 视角)
             {
-                int myIndex = 视角;
-                bool isMeleeGroup = true;
-
-                if (myIndex == 0
-                   ||
-                   myIndex == 1
-                   ||
-                   myIndex == 4
-                   ||
-                   myIndex == 5)
-                {
-
-                    isMeleeGroup = true;
-
-                }
-
-                if (myIndex == 2
-                   ||
-                   myIndex == 3
-                   ||
-                   myIndex == 6
-                   ||
-                   myIndex == 7)
-                {
-
-                    isMeleeGroup = false;
-
-                }
-
+                bool isMeleeGroup = 视角 is 0 or 1 or 4 or 5;
                 var currentProperty = accessory.Data.GetDefaultDrawProperties();
 
-                if (((leftMirror + 1) % 8) == colourlessMirror
-                   ||
-                   ((leftMirror + 1) % 8) == phase2_getOppositeProteanPosition(colourlessMirror))
-                {
-
-                    if (Phase2_Strat_Of_Mirror_Mirror == Phase2_Strats_Of_Mirror_Mirror.Melee_Group_Left_Red_近战组去左红色镜子
-                       ||
-                       Phase2_Strat_Of_Mirror_Mirror == Phase2_Strats_Of_Mirror_Mirror.Melee_Group_Closest_Red_Left_If_Same_近战组最近红色镜子距离相同则左)
-                    {
-
-                        Vector3 targetPosition = new Vector3(100, 0, 100);
-
-                        if (isMeleeGroup)
-                        {
-
-                            targetPosition = RotatePoint(new Vector3(100, 0, 80.5f), new(100, 0, 100), float.Pi / 4 * leftMirror);
-
-                        }
-
-                        else
-                        {
-
-                            targetPosition = RotatePoint(new Vector3(100, 0, 80.5f), new(100, 0, 100), float.Pi / 4 * rightMirror);
-
-                        }
-
-                        currentProperty = accessory.Data.GetDefaultDrawProperties();
-
-                        currentProperty.Name = $"Phase2_Rough_Guidance_Of_Red_Mirrors_红色镜子粗略指路-{视角}";
-                        currentProperty.Scale = new(2);
-                        currentProperty.ScaleMode |= ScaleMode.YByDistance;
-                        currentProperty.Owner = GuidanceOwner(accessory, 视角);
-                        currentProperty.TargetPosition = targetPosition;
-                        currentProperty.Color = Phase2_Colour_Of_Mirror_Rough_Guidance.V4.WithW(1f);
-                        currentProperty.Delay = 13500;
-                        currentProperty.DestoryAt = 9500;
-
-                        accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentProperty);
-
-                    }
-
-                    if (Phase2_Strat_Of_Mirror_Mirror == Phase2_Strats_Of_Mirror_Mirror.Melee_Group_Right_Red_近战组去右红色镜子
-                       ||
-                       Phase2_Strat_Of_Mirror_Mirror == Phase2_Strats_Of_Mirror_Mirror.Melee_Group_Closest_Red_Right_If_Same_近战组最近红色镜子距离相同则右_莫灵喵与MMW)
-                    {
-
-                        Vector3 targetPosition = new Vector3(100, 0, 100);
-
-                        if (isMeleeGroup)
-                        {
-
-                            targetPosition = RotatePoint(new Vector3(100, 0, 80.5f), new(100, 0, 100), float.Pi / 4 * rightMirror);
-
-                        }
-
-                        else
-                        {
-
-                            targetPosition = RotatePoint(new Vector3(100, 0, 80.5f), new(100, 0, 100), float.Pi / 4 * leftMirror);
-
-                        }
-
-                        currentProperty = accessory.Data.GetDefaultDrawProperties();
-
-                        currentProperty.Name = $"Phase2_Rough_Guidance_Of_Red_Mirrors_红色镜子粗略指路-{视角}";
-                        currentProperty.Scale = new(2);
-                        currentProperty.ScaleMode |= ScaleMode.YByDistance;
-                        currentProperty.Owner = GuidanceOwner(accessory, 视角);
-                        currentProperty.TargetPosition = targetPosition;
-                        currentProperty.Color = Phase2_Colour_Of_Mirror_Rough_Guidance.V4.WithW(1f);
-                        currentProperty.Delay = 13500;
-                        currentProperty.DestoryAt = 9500;
-
-                        accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentProperty);
-
-                    }
-
-                }
-
-                else
-                {
-
-                    if (Phase2_Strat_Of_Mirror_Mirror == Phase2_Strats_Of_Mirror_Mirror.Melee_Group_Left_Red_近战组去左红色镜子)
-                    {
-
-                        Vector3 targetPosition = new Vector3(100, 0, 100);
-
-                        if (isMeleeGroup)
-                        {
-
-                            targetPosition = RotatePoint(new Vector3(100, 0, 80.5f), new(100, 0, 100), float.Pi / 4 * leftMirror);
-
-                        }
-
-                        else
-                        {
-
-                            targetPosition = RotatePoint(new Vector3(100, 0, 80.5f), new(100, 0, 100), float.Pi / 4 * rightMirror);
-
-                        }
-
-                        currentProperty = accessory.Data.GetDefaultDrawProperties();
-
-                        currentProperty.Name = $"Phase2_Rough_Guidance_Of_Red_Mirrors_红色镜子粗略指路-{视角}";
-                        currentProperty.Scale = new(2);
-                        currentProperty.ScaleMode |= ScaleMode.YByDistance;
-                        currentProperty.Owner = GuidanceOwner(accessory, 视角);
-                        currentProperty.TargetPosition = targetPosition;
-                        currentProperty.Color = Phase2_Colour_Of_Mirror_Rough_Guidance.V4.WithW(1f);
-                        currentProperty.Delay = 13500;
-                        currentProperty.DestoryAt = 9500;
-
-                        accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentProperty);
-
-                    }
-
-                    if (Phase2_Strat_Of_Mirror_Mirror == Phase2_Strats_Of_Mirror_Mirror.Melee_Group_Right_Red_近战组去右红色镜子)
-                    {
-
-                        Vector3 targetPosition = new Vector3(100, 0, 100);
-
-                        if (isMeleeGroup)
-                        {
-
-                            targetPosition = RotatePoint(new Vector3(100, 0, 80.5f), new(100, 0, 100), float.Pi / 4 * rightMirror);
-
-                        }
-
-                        else
-                        {
-
-                            targetPosition = RotatePoint(new Vector3(100, 0, 80.5f), new(100, 0, 100), float.Pi / 4 * leftMirror);
-
-                        }
-
-                        currentProperty = accessory.Data.GetDefaultDrawProperties();
-
-                        currentProperty.Name = $"Phase2_Rough_Guidance_Of_Red_Mirrors_红色镜子粗略指路-{视角}";
-                        currentProperty.Scale = new(2);
-                        currentProperty.ScaleMode |= ScaleMode.YByDistance;
-                        currentProperty.Owner = GuidanceOwner(accessory, 视角);
-                        currentProperty.TargetPosition = targetPosition;
-                        currentProperty.Color = Phase2_Colour_Of_Mirror_Rough_Guidance.V4.WithW(1f);
-                        currentProperty.Delay = 13500;
-                        currentProperty.DestoryAt = 9500;
-
-                        accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentProperty);
-
-                    }
-
-                    int meleeGroup = phase2_getOppositeProteanPosition(colourlessMirror);
-                    int discreteDistanceToTheLeft = 0;
-                    int discreteDistanceToTheRight = 0;
-
-                    while (((meleeGroup + discreteDistanceToTheLeft) % 8) != leftMirror)
-                    {
-
-                        ++discreteDistanceToTheLeft;
-
-                    }
-
-                    while (((meleeGroup - discreteDistanceToTheRight + 8) % 8) != rightMirror)
-                    {
-
-                        ++discreteDistanceToTheRight;
-
-                    }
-
-                    if (Enable_Developer_Mode)
-                    {
-
-                        if (IsMe(accessory, 视角)) accessory.Method.SendChat($"""
-                                                   /e 
-                                                   discreteDistanceToTheLeft={discreteDistanceToTheLeft}
-                                                   discreteDistanceToTheRight={discreteDistanceToTheRight}
-
-                                                   """);
-
-                    }
-
-                    if (discreteDistanceToTheLeft < discreteDistanceToTheRight)
-                    {
-
-                        if (Phase2_Strat_Of_Mirror_Mirror == Phase2_Strats_Of_Mirror_Mirror.Melee_Group_Closest_Red_Left_If_Same_近战组最近红色镜子距离相同则左
-                           ||
-                           Phase2_Strat_Of_Mirror_Mirror == Phase2_Strats_Of_Mirror_Mirror.Melee_Group_Closest_Red_Right_If_Same_近战组最近红色镜子距离相同则右_莫灵喵与MMW)
-                        {
-
-                            Vector3 targetPosition = new Vector3(100, 0, 100);
-
-                            if (isMeleeGroup)
-                            {
-
-                                targetPosition = RotatePoint(new Vector3(100, 0, 80.5f), new(100, 0, 100), float.Pi / 4 * leftMirror);
-
-                            }
-
-                            else
-                            {
-
-                                targetPosition = RotatePoint(new Vector3(100, 0, 80.5f), new(100, 0, 100), float.Pi / 4 * rightMirror);
-
-                            }
-
-                            currentProperty = accessory.Data.GetDefaultDrawProperties();
-
-                            currentProperty.Name = $"Phase2_Rough_Guidance_Of_Red_Mirrors_红色镜子粗略指路-{视角}";
-                            currentProperty.Scale = new(2);
-                            currentProperty.ScaleMode |= ScaleMode.YByDistance;
-                            currentProperty.Owner = GuidanceOwner(accessory, 视角);
-                            currentProperty.TargetPosition = targetPosition;
-                            currentProperty.Color = Phase2_Colour_Of_Mirror_Rough_Guidance.V4.WithW(1f);
-                            currentProperty.Delay = 13500;
-                            currentProperty.DestoryAt = 9500;
-
-                            accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentProperty);
-
-                        }
-
-                    }
-
-                    if (discreteDistanceToTheLeft > discreteDistanceToTheRight)
-                    {
-
-                        if (Phase2_Strat_Of_Mirror_Mirror == Phase2_Strats_Of_Mirror_Mirror.Melee_Group_Closest_Red_Left_If_Same_近战组最近红色镜子距离相同则左
-                           ||
-                           Phase2_Strat_Of_Mirror_Mirror == Phase2_Strats_Of_Mirror_Mirror.Melee_Group_Closest_Red_Right_If_Same_近战组最近红色镜子距离相同则右_莫灵喵与MMW)
-                        {
-
-                            Vector3 targetPosition = new Vector3(100, 0, 100);
-
-                            if (isMeleeGroup)
-                            {
-
-                                targetPosition = RotatePoint(new Vector3(100, 0, 80.5f), new(100, 0, 100), float.Pi / 4 * rightMirror);
-
-                            }
-
-                            else
-                            {
-
-                                targetPosition = RotatePoint(new Vector3(100, 0, 80.5f), new(100, 0, 100), float.Pi / 4 * leftMirror);
-
-                            }
-
-                            currentProperty = accessory.Data.GetDefaultDrawProperties();
-
-                            currentProperty.Name = $"Phase2_Rough_Guidance_Of_Red_Mirrors_红色镜子粗略指路-{视角}";
-                            currentProperty.Scale = new(2);
-                            currentProperty.ScaleMode |= ScaleMode.YByDistance;
-                            currentProperty.Owner = GuidanceOwner(accessory, 视角);
-                            currentProperty.TargetPosition = targetPosition;
-                            currentProperty.Color = Phase2_Colour_Of_Mirror_Rough_Guidance.V4.WithW(1f);
-                            currentProperty.Delay = 13500;
-                            currentProperty.DestoryAt = 9500;
-
-                            accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentProperty);
-
-                        }
-
-                    }
-
-                }
+                currentProperty.Name = $"Phase2_Rough_Guidance_Of_Red_Mirrors_红色镜子粗略指路-{视角}";
+                currentProperty.Scale = new(2);
+                currentProperty.ScaleMode |= ScaleMode.YByDistance;
+                currentProperty.Owner = GuidanceOwner(accessory, 视角);
+                currentProperty.TargetPosition = RotatePoint(new Vector3(100, 0, 80.5f), new(100, 0, 100), float.Pi / 4 * (isMeleeGroup ? meleeMirror : rangedMirror));
+                currentProperty.Color = Phase2_Colour_Of_Mirror_Rough_Guidance.V4.WithW(1f);
+                currentProperty.Delay = 13500;
+                currentProperty.DestoryAt = 9500;
+
+                accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentProperty);
 
             }
             var currentProperty = accessory.Data.GetDefaultDrawProperties();
@@ -5676,64 +3994,18 @@ namespace CicerosKodakkuAssist.FuturesRewrittenUltimate.LPDU
             void 指路(int 视角)
             {
                 int myIndex = 视角;
-                double rotation = 0d;
-
-                if (Phase2_Initial_Protean_Position_Of_Light_Rampant == Phase2_Initial_Protean_Positions_Of_Light_Rampant.Normal_Protean_Tanks_North_East_For_Both_Grey9_常规八方T在东北_灰9用)
+                // LPDU 双排：北排从西到东 H1 H2 MT OT，南排从西到东 R1 R2 M1 M2（半径 5，相邻 45°）
+                double rotation = -0.5d + myIndex switch
                 {
-
-                    rotation = 0d;
-
-                    rotation += myIndex switch
-                    {
-                        0 => 0d,
-                        7 => 1d,
-                        1 => 2d,
-                        5 => 3d,
-                        3 => 4d,
-                        4 => 5d,
-                        2 => 6d,
-                        6 => 7d
-                    };
-
-                }
-
-                if (Phase2_Initial_Protean_Position_Of_Light_Rampant == Phase2_Initial_Protean_Positions_Of_Light_Rampant.Supporters_North_MOTH12_For_JPPF_And_L_蓝绿全部在北MSTH12_日野和L团用)
-                {
-
-                    rotation = -0.5d;
-
-                    rotation += myIndex switch
-                    {
-                        0 => -1d,
-                        1 => 0d,
-                        2 => 1d,
-                        3 => 2d,
-                        7 => 3d,
-                        6 => 4d,
-                        5 => 5d,
-                        4 => 6d
-                    };
-
-                }
-
-                if (Phase2_Initial_Protean_Position_Of_Light_Rampant == Phase2_Initial_Protean_Positions_Of_Light_Rampant.Supporters_North_H12MOT_For_JPPF_And_L_蓝绿全部在北H12MST_日野和L团用)
-                {
-
-                    rotation = -0.5d;
-
-                    rotation += myIndex switch
-                    {
-                        2 => -1d,
-                        3 => 0d,
-                        0 => 1d,
-                        1 => 2d,
-                        7 => 3d,
-                        6 => 4d,
-                        5 => 5d,
-                        4 => 6d
-                    };
-
-                }
+                    2 => -1d,
+                    3 => 0d,
+                    0 => 1d,
+                    1 => 2d,
+                    5 => 3d,
+                    4 => 4d,
+                    7 => 5d,
+                    _ => 6d
+                };
 
                 var currentproperty = accessory.Data.GetDefaultDrawProperties();
 
@@ -5748,237 +4020,6 @@ namespace CicerosKodakkuAssist.FuturesRewrittenUltimate.LPDU
                 accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentproperty);
 
             }
-        }
-
-        [ScriptMethod(name: "Phase2 Rough Path Of Luminous Hammer 光流侵蚀(放泥)大致路径",
-            eventType: EventTypeEnum.ActionEffect,
-            eventCondition: ["ActionId:40212"],
-            suppress: 2000)]
-
-        public void Phase2_Rough_Path_Of_Luminous_Hammer_光流侵蚀大致路径(Event @event, ScriptAccessory accessory)
-        {
-
-            if (parse!=23)
-            {
-
-                return;
-
-            }
-
-            var currentproperty = accessory.Data.GetDefaultDrawProperties();
-
-            if (Phase2_Strat_Of_Light_Rampant == Phase2_Strats_Of_Light_Rampant.Star_Of_David_Japanese_PF_六芒星日服野队法_莫灵喵与MMW)
-            {
-
-                Vector3 point1 = new Vector3(97.321f, 0f, 106.467f);
-                Vector3 point1Symmetry = RotatePoint(point1, new Vector3(100, 0, 100), float.Pi);
-                Vector3 point2 = new Vector3(93f, 0f, 100f);
-                Vector3 point2Symmetry = RotatePoint(point2, new Vector3(100, 0, 100), float.Pi);
-                Vector3 point3 = new Vector3(97.321f, 0f, 93.533f);
-                Vector3 point3Symmetry = RotatePoint(point3, new Vector3(100, 0, 100), float.Pi);
-                Vector3 point4 = new Vector3(97.321f, 0f, 82f);
-                Vector3 point4Symmetry = RotatePoint(point4, new Vector3(100, 0, 100), float.Pi);
-
-                currentproperty = accessory.Data.GetDefaultDrawProperties();
-
-                currentproperty.Name = "Phase2_Rough_Path_Of_Luminous_Hammer_光流侵蚀大致路径";
-                currentproperty.Scale = new(2);
-                currentproperty.Position = point1;
-                currentproperty.TargetPosition = point2;
-                currentproperty.ScaleMode |= ScaleMode.YByDistance;
-                currentproperty.Color = Phase2_Colour_Of_Rough_Paths.V4.WithW(1f);
-                currentproperty.Delay = 3500;
-                currentproperty.DestoryAt = 9500;
-
-                accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentproperty);
-
-                currentproperty = accessory.Data.GetDefaultDrawProperties();
-
-                currentproperty.Name = "Phase2_Rough_Path_Of_Luminous_Hammer_光流侵蚀大致路径";
-                currentproperty.Scale = new(2);
-                currentproperty.Position = point2;
-                currentproperty.TargetPosition = point3;
-                currentproperty.ScaleMode |= ScaleMode.YByDistance;
-                currentproperty.Color = Phase2_Colour_Of_Rough_Paths.V4.WithW(1f);
-                currentproperty.Delay = 3500;
-                currentproperty.DestoryAt = 9500;
-
-                accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentproperty);
-
-                currentproperty = accessory.Data.GetDefaultDrawProperties();
-
-                currentproperty.Name = "Phase2_Rough_Path_Of_Luminous_Hammer_光流侵蚀大致路径";
-                currentproperty.Scale = new(2);
-                currentproperty.Position = point3;
-                currentproperty.TargetPosition = point4;
-                currentproperty.ScaleMode |= ScaleMode.YByDistance;
-                currentproperty.Color = Phase2_Colour_Of_Rough_Paths.V4.WithW(1f);
-                currentproperty.Delay = 3500;
-                currentproperty.DestoryAt = 9500;
-
-                accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentproperty);
-
-                currentproperty = accessory.Data.GetDefaultDrawProperties();
-
-                currentproperty.Name = "Phase2_Rough_Path_Of_Luminous_Hammer_光流侵蚀大致路径";
-                currentproperty.Scale = new(2);
-                currentproperty.Position = point1Symmetry;
-                currentproperty.TargetPosition = point2Symmetry;
-                currentproperty.ScaleMode |= ScaleMode.YByDistance;
-                currentproperty.Color = Phase2_Colour_Of_Rough_Paths.V4.WithW(1f);
-                currentproperty.Delay = 3500;
-                currentproperty.DestoryAt = 9500;
-
-                accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentproperty);
-
-                currentproperty = accessory.Data.GetDefaultDrawProperties();
-
-                currentproperty.Name = "Phase2_Rough_Path_Of_Luminous_Hammer_光流侵蚀大致路径";
-                currentproperty.Scale = new(2);
-                currentproperty.Position = point2Symmetry;
-                currentproperty.TargetPosition = point3Symmetry;
-                currentproperty.ScaleMode |= ScaleMode.YByDistance;
-                currentproperty.Color = Phase2_Colour_Of_Rough_Paths.V4.WithW(1f);
-                currentproperty.Delay = 3500;
-                currentproperty.DestoryAt = 9500;
-
-                accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentproperty);
-
-                currentproperty = accessory.Data.GetDefaultDrawProperties();
-
-                currentproperty.Name = "Phase2_Rough_Path_Of_Luminous_Hammer_光流侵蚀大致路径";
-                currentproperty.Scale = new(2);
-                currentproperty.Position = point3Symmetry;
-                currentproperty.TargetPosition = point4Symmetry;
-                currentproperty.ScaleMode |= ScaleMode.YByDistance;
-                currentproperty.Color = Phase2_Colour_Of_Rough_Paths.V4.WithW(1f);
-                currentproperty.Delay = 3500;
-                currentproperty.DestoryAt = 9500;
-
-                accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentproperty);
-
-            }
-
-            if (Phase2_Strat_Of_Light_Rampant == Phase2_Strats_Of_Light_Rampant.New_Grey9_新灰九法_莫灵喵与MMW)
-            {
-
-                Vector3 point1 = new Vector3(92f, 0f, 100f);
-                Vector3 point1Symmetry = RotatePoint(point1, new Vector3(100, 0, 100), float.Pi);
-                Vector3 point2 = new Vector3(94.343f, 0f, 94.343f);
-                Vector3 point2Symmetry = RotatePoint(point2, new Vector3(100, 0, 100), float.Pi);
-                Vector3 point3 = new Vector3(100f, 0f, 92f);
-                Vector3 point3Symmetry = RotatePoint(point3, new Vector3(100, 0, 100), float.Pi);
-                Vector3 point4 = new Vector3(106.133f, 0f, 91.97f);
-                Vector3 point4Symmetry = RotatePoint(point4, new Vector3(100, 0, 100), float.Pi);
-                Vector3 point5 = new Vector3(111.314f, 0f, 88.686f);
-                Vector3 point5Symmetry = RotatePoint(point5, new Vector3(100, 0, 100), float.Pi);
-				
-                currentproperty = accessory.Data.GetDefaultDrawProperties();
-
-                currentproperty.Name = "Phase2_Rough_Path_Of_Luminous_Hammer_光流侵蚀大致路径";
-                currentproperty.Scale = new(2);
-                currentproperty.Position = point1;
-                currentproperty.TargetPosition = point2;
-                currentproperty.ScaleMode |= ScaleMode.YByDistance;
-                currentproperty.Color = Phase2_Colour_Of_Rough_Paths.V4.WithW(1f);
-                currentproperty.Delay = 3500;
-                currentproperty.DestoryAt = 9500;
-
-                accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentproperty);
-
-                currentproperty = accessory.Data.GetDefaultDrawProperties();
-
-                currentproperty.Name = "Phase2_Rough_Path_Of_Luminous_Hammer_光流侵蚀大致路径";
-                currentproperty.Scale = new(2);
-                currentproperty.Position = point2;
-                currentproperty.TargetPosition = point3;
-                currentproperty.ScaleMode |= ScaleMode.YByDistance;
-                currentproperty.Color = Phase2_Colour_Of_Rough_Paths.V4.WithW(1f);
-                currentproperty.Delay = 3500;
-                currentproperty.DestoryAt = 9500;
-
-                accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentproperty);
-
-                currentproperty = accessory.Data.GetDefaultDrawProperties();
-
-                currentproperty.Name = "Phase2_Rough_Path_Of_Luminous_Hammer_光流侵蚀大致路径";
-                currentproperty.Scale = new(2);
-                currentproperty.Position = point3;
-                currentproperty.TargetPosition = point4;
-                currentproperty.ScaleMode |= ScaleMode.YByDistance;
-                currentproperty.Color = Phase2_Colour_Of_Rough_Paths.V4.WithW(1f);
-                currentproperty.Delay = 3500;
-                currentproperty.DestoryAt = 9500;
-
-                accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentproperty);
-
-                currentproperty = accessory.Data.GetDefaultDrawProperties();
-				
-                currentproperty.Name = "Phase2_Rough_Path_Of_Luminous_Hammer_光流侵蚀大致路径";
-                currentproperty.Scale = new(2);
-                currentproperty.Position = point4;
-                currentproperty.TargetPosition = point5;
-                currentproperty.ScaleMode |= ScaleMode.YByDistance;
-                currentproperty.Color = Phase2_Colour_Of_Rough_Paths.V4.WithW(1f);
-                currentproperty.Delay = 3500;
-                currentproperty.DestoryAt = 9500;
-
-                accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentproperty);
-
-                currentproperty = accessory.Data.GetDefaultDrawProperties();
-				
-                currentproperty.Name = "Phase2_Rough_Path_Of_Luminous_Hammer_光流侵蚀大致路径";
-                currentproperty.Scale = new(2);
-                currentproperty.Position = point1Symmetry;
-                currentproperty.TargetPosition = point2Symmetry;
-                currentproperty.ScaleMode |= ScaleMode.YByDistance;
-                currentproperty.Color = Phase2_Colour_Of_Rough_Paths.V4.WithW(1f);
-                currentproperty.Delay = 3500;
-                currentproperty.DestoryAt = 9500;
-
-                accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentproperty);
-
-                currentproperty = accessory.Data.GetDefaultDrawProperties();
-
-                currentproperty.Name = "Phase2_Rough_Path_Of_Luminous_Hammer_光流侵蚀大致路径";
-                currentproperty.Scale = new(2);
-                currentproperty.Position = point2Symmetry;
-                currentproperty.TargetPosition = point3Symmetry;
-                currentproperty.ScaleMode |= ScaleMode.YByDistance;
-                currentproperty.Color = Phase2_Colour_Of_Rough_Paths.V4.WithW(1f);
-                currentproperty.Delay = 3500;
-                currentproperty.DestoryAt = 9500;
-
-                accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentproperty);
-
-                currentproperty = accessory.Data.GetDefaultDrawProperties();
-
-                currentproperty.Name = "Phase2_Rough_Path_Of_Luminous_Hammer_光流侵蚀大致路径";
-                currentproperty.Scale = new(2);
-                currentproperty.Position = point3Symmetry;
-                currentproperty.TargetPosition = point4Symmetry;
-                currentproperty.ScaleMode |= ScaleMode.YByDistance;
-                currentproperty.Color = Phase2_Colour_Of_Rough_Paths.V4.WithW(1f);
-                currentproperty.Delay = 3500;
-                currentproperty.DestoryAt = 9500;
-
-                accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentproperty);
-				
-				currentproperty = accessory.Data.GetDefaultDrawProperties();
-				
-                currentproperty.Name = "Phase2_Rough_Path_Of_Luminous_Hammer_光流侵蚀大致路径";
-                currentproperty.Scale = new(2);
-                currentproperty.Position = point4Symmetry;
-                currentproperty.TargetPosition = point5Symmetry;
-                currentproperty.ScaleMode |= ScaleMode.YByDistance;
-                currentproperty.Color = Phase2_Colour_Of_Rough_Paths.V4.WithW(1f);
-                currentproperty.Delay = 3500;
-                currentproperty.DestoryAt = 9500;
-
-                accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentproperty);
-
-            }
-
         }
 
         [ScriptMethod(name: "Phase2 Determine Luminous Hammer During Light Rampant 光之失控(光暴)确定光流侵蚀(放泥)",
@@ -6241,80 +4282,9 @@ namespace CicerosKodakkuAssist.FuturesRewrittenUltimate.LPDU
 
                 }
 
-                List<int> playersWithTethers = [];
-
-                if (Phase2_Initial_Protean_Position_Of_Light_Rampant == Phase2_Initial_Protean_Positions_Of_Light_Rampant.Normal_Protean_Tanks_North_East_For_Both_Grey9_常规八方T在东北_灰9用)
-                {
-
-                    List<int> orderFromTheWestInclusive = [2, 6, 0, 7, 1, 5, 3, 4];
-
-                    for (int i = 0; i < orderFromTheWestInclusive.Count; ++i)
-                    {
-
-                        if (!phase2_playersWithLuminousHammer.Contains(orderFromTheWestInclusive[i]))
-                        {
-
-                            playersWithTethers.Add(orderFromTheWestInclusive[i]);
-
-                        }
-
-                    }
-
-                }
-
-                if (Phase2_Initial_Protean_Position_Of_Light_Rampant == Phase2_Initial_Protean_Positions_Of_Light_Rampant.Supporters_North_MOTH12_For_JPPF_And_L_蓝绿全部在北MSTH12_日野和L团用)
-                {
-
-                    List<int> orderFromTheWestInclusive = [0, 1, 2, 3, 7, 6, 5, 4];
-
-                    for (int i = 0; i < orderFromTheWestInclusive.Count; ++i)
-                    {
-
-                        if (!phase2_playersWithLuminousHammer.Contains(orderFromTheWestInclusive[i]))
-                        {
-
-                            playersWithTethers.Add(orderFromTheWestInclusive[i]);
-
-                        }
-
-                    }
-
-                }
-
-                if (Phase2_Initial_Protean_Position_Of_Light_Rampant == Phase2_Initial_Protean_Positions_Of_Light_Rampant.Supporters_North_H12MOT_For_JPPF_And_L_蓝绿全部在北H12MST_日野和L团用)
-                {
-
-                    List<int> orderFromTheWestInclusive = [2, 3, 0, 1, 7, 6, 5, 4];
-
-                    for (int i = 0; i < orderFromTheWestInclusive.Count; ++i)
-                    {
-
-                        if (!phase2_playersWithLuminousHammer.Contains(orderFromTheWestInclusive[i]))
-                        {
-
-                            playersWithTethers.Add(orderFromTheWestInclusive[i]);
-
-                        }
-
-                    }
-
-                }
-
-                if (Enable_Developer_Mode)
-                {
-
-                    if (IsMe(accessory, 视角)) accessory.Method.SendChat($"""
-                                               /e 
-                                               playersWithTethers.Count={playersWithTethers.Count}
-                                               playersWithTethers[]={playersWithTethers[0]},{playersWithTethers[1]},{playersWithTethers[2]},{playersWithTethers[3]},{playersWithTethers[4]},{playersWithTethers[5]} 
-
-                                               """);
-
-                }
-
+                // 双排顺时针绕一圈：北排西→东 H1 H2 MT OT，再南排东→西 M2 M1 R2 R1，去掉两个放泥的人
+                List<int> playersWithTethers = ((List<int>)[2, 3, 0, 1, 5, 4, 7, 6]).Where(i => !phase2_playersWithLuminousHammer.Contains(i)).ToList();
                 int myTetherIndex = playersWithTethers.IndexOf(myIndex);
-                Vector3 myTower = new Vector3(100, 0, 100);
-                Vector3 myMeetingPoint = new Vector3(100, 0, 100);
 
                 Vector3 tower1 = new Vector3(100.00f, 0, 084.00f);
                 // North.
@@ -6329,485 +4299,23 @@ namespace CicerosKodakkuAssist.FuturesRewrittenUltimate.LPDU
                 Vector3 tower6 = new Vector3(086.14f, 0, 092.00f);
                 // Northwest.
 
-                Vector3 northMeetingPoint = new Vector3(100.00f, 0, 82.00f);
-                Vector3 eastMeetingPoint = new Vector3(118.00f, 0, 100.00f);
-                Vector3 southMeetingPoint = new Vector3(100.00f, 0, 118.00f);
-                Vector3 westMeetingPoint = new Vector3(82.00f, 0, 100.00f);
+                // 两个放泥都在北排（蓝绿）时全员顺时针挪一位，南排最西的人补到西北；否则 3-3 不动。
+                // 站位槽 西北/北/东北/东南/南/西南 → 塔：北↔南、西北↔东北对换，东南、西南不动
+                int shift = phase2_playersWithLuminousHammer.All(i => i <= 3) ? 1 : 0;
 
-                if (Phase2_Strat_Of_Light_Rampant == Phase2_Strats_Of_Light_Rampant.Star_Of_David_Japanese_PF_六芒星日服野队法_莫灵喵与MMW)
+                Vector3 myTower = ((myTetherIndex + shift) % 6) switch
                 {
-                    accessory.Log.Debug("Star_Of_David_Japanese_PF_六芒星日服野队法_莫灵喵与MMW");
-                    myTower = myTetherIndex switch
-                    {
-                        1 => tower4,
-                        4 => tower1,
-                        0 => tower6,
-                        2 => tower2,
-                        3 => tower5,
-                        5 => tower3
-                    };
-
-                    if (Vector3.Distance(myTower, tower1) < 1
-                       ||
-                       Vector3.Distance(myTower, tower2) < 1
-                       ||
-                       Vector3.Distance(myTower, tower6) < 1)
-                    {
-
-                        myMeetingPoint = northMeetingPoint;
-
-                    }
-
-                    else
-                    {
-
-                        myMeetingPoint = southMeetingPoint;
-
-                    }
-
-                }
-
-                if (Phase2_Strat_Of_Light_Rampant == Phase2_Strats_Of_Light_Rampant.New_Grey9_新灰九法_莫灵喵与MMW)
-                {
-                    foreach (var item in phase2_playersWithLuminousHammer)
-                    {
-                        accessory.Log.Debug($"{item}");
-                    }
-                    int numberOfPlayersWithLuminousHammerBefore = 0;
-
-                    if (myIndex == 0)
-                    {
-
-                        if (Enable_Developer_Mode)
-                        {
-
-                            if (IsMe(accessory, 视角)) accessory.Method.SendChat($"""
-                                                       /e 
-                                                       numberOfPlayersWithLuminousHammerBefore={numberOfPlayersWithLuminousHammerBefore}
-
-                                                       """);
-
-                        }
-
-                        myTower = tower4;
-
-                    }
-
-                    numberOfPlayersWithLuminousHammerBefore += (phase2_playersWithLuminousHammer.Contains(0)) ? (1) : (0);
-
-                    if (myIndex == 7)
-                    {
-
-                        if (Enable_Developer_Mode)
-                        {
-
-                            if (IsMe(accessory, 视角)) accessory.Method.SendChat($"""
-                                                       /e 
-                                                       numberOfPlayersWithLuminousHammerBefore={numberOfPlayersWithLuminousHammerBefore}
-
-                                                       """);
-
-                        }
-
-                        myTower = (phase2_playersWithLuminousHammer.Contains(0)) ? (tower4) : (tower6);
-
-                    }
-
-                    numberOfPlayersWithLuminousHammerBefore += (phase2_playersWithLuminousHammer.Contains(7)) ? (1) : (0);
-
-                    if (myIndex == 1)
-                    {
-
-                        if (Enable_Developer_Mode)
-                        {
-
-                            if (IsMe(accessory, 视角)) accessory.Method.SendChat($"""
-                                                       /e 
-                                                       numberOfPlayersWithLuminousHammerBefore={numberOfPlayersWithLuminousHammerBefore}
-
-                                                       """);
-
-                        }
-
-                        myTower = numberOfPlayersWithLuminousHammerBefore switch
-                        {
-                            0 => tower2,
-                            1 => tower6,
-                            2 => tower4
-                        };
-
-                    }
-
-                    numberOfPlayersWithLuminousHammerBefore += (phase2_playersWithLuminousHammer.Contains(1)) ? (1) : (0);
-
-                    if (myIndex == 5)
-                    {
-
-                        if (Enable_Developer_Mode)
-                        {
-
-                            if (IsMe(accessory, 视角)) accessory.Method.SendChat($"""
-                                                       /e 
-                                                       numberOfPlayersWithLuminousHammerBefore={numberOfPlayersWithLuminousHammerBefore}
-
-                                                       """);
-
-                        }
-
-                        myTower = numberOfPlayersWithLuminousHammerBefore switch
-                        {
-                            0 => tower5,
-                            1 => tower2,
-                            2 => tower6
-                        };
-
-                    }
-
-                    numberOfPlayersWithLuminousHammerBefore += (phase2_playersWithLuminousHammer.Contains(5)) ? (1) : (0);
-
-                    if (myIndex == 3)
-                    {
-
-                        if (Enable_Developer_Mode)
-                        {
-
-                            if (IsMe(accessory, 视角)) accessory.Method.SendChat($"""
-                                                       /e 
-                                                       numberOfPlayersWithLuminousHammerBefore={numberOfPlayersWithLuminousHammerBefore}
-
-                                                       """);
-
-                        }
-
-                        myTower = numberOfPlayersWithLuminousHammerBefore switch
-                        {
-                            0 => tower3,
-                            1 => tower5,
-                            2 => tower2
-                        };
-
-                    }
-
-                    numberOfPlayersWithLuminousHammerBefore += (phase2_playersWithLuminousHammer.Contains(3)) ? (1) : (0);
-
-                    if (myIndex == 4)
-                    {
-
-                        if (Enable_Developer_Mode)
-                        {
-
-                            if (IsMe(accessory, 视角)) accessory.Method.SendChat($"""
-                                                       /e 
-                                                       numberOfPlayersWithLuminousHammerBefore={numberOfPlayersWithLuminousHammerBefore}
-
-                                                       """);
-
-                        }
-
-                        myTower = numberOfPlayersWithLuminousHammerBefore switch
-                        {
-                            0 => tower1,
-                            1 => tower3,
-                            2 => tower5
-                        };
-
-                    }
-
-                    numberOfPlayersWithLuminousHammerBefore += (phase2_playersWithLuminousHammer.Contains(4)) ? (1) : (0);
-
-                    if (myIndex == 2)
-                    {
-
-                        if (Enable_Developer_Mode)
-                        {
-
-                            if (IsMe(accessory, 视角)) accessory.Method.SendChat($"""
-                                                       /e 
-                                                       numberOfPlayersWithLuminousHammerBefore={numberOfPlayersWithLuminousHammerBefore}
-
-                                                       """);
-
-                        }
-
-                        myTower = (phase2_playersWithLuminousHammer.Contains(6)) ? (tower1) : (tower3);
-
-                    }
-
-                    numberOfPlayersWithLuminousHammerBefore += (phase2_playersWithLuminousHammer.Contains(2)) ? (1) : (0);
-
-                    if (myIndex == 6)
-                    {
-
-                        if (Enable_Developer_Mode)
-                        {
-
-                            if (IsMe(accessory, 视角)) accessory.Method.SendChat($"""
-                                                       /e 
-                                                       numberOfPlayersWithLuminousHammerBefore={numberOfPlayersWithLuminousHammerBefore}
-
-                                                       """);
-
-                        }
-
-                        myTower = tower1;
-
-                    }
-
-                    if (Vector3.Distance(myTower, tower2) < 1
-                       ||
-                       Vector3.Distance(myTower, tower3) < 1
-                       ||
-                       Vector3.Distance(myTower, tower4) < 1)
-                    {
-
-                        myMeetingPoint = eastMeetingPoint;
-
-                    }
-
-                    else
-                    {
-
-                        myMeetingPoint = westMeetingPoint;
-
-                    }
-
-                }
-
-                if (Phase2_Strat_Of_Light_Rampant == Phase2_Strats_Of_Light_Rampant.Lucrezia_L团法)
-                {
-                    accessory.Log.Debug("Lucrezia_L团法");
-                    myTower = myTetherIndex switch
-                    {
-                        1 => tower1,
-                        4 => tower4,
-                        0 => tower5,
-                        2 => tower3,
-                        3 => tower6,
-                        5 => tower2
-                    };
-
-                    if (Vector3.Distance(myTower, tower1) < 1
-                       ||
-                       Vector3.Distance(myTower, tower2) < 1
-                       ||
-                       Vector3.Distance(myTower, tower6) < 1)
-                    {
-
-                        myMeetingPoint = northMeetingPoint;
-
-                    }
-
-                    else
-                    {
-
-                        myMeetingPoint = southMeetingPoint;
-
-                    }
-
-                }
-
-                if (Phase2_Strat_Of_Light_Rampant == Phase2_Strats_Of_Light_Rampant.Obsolete_Old_Grey9_已淘汰的旧灰九法_莫灵喵)
-                {
-                    accessory.Log.Debug("Obsolete_Old_Grey9_已淘汰的旧灰九法_莫灵喵");
-                    int numberOfPlayersWithLuminousHammerBefore = 0;
-
-                    if (myIndex == 0)
-                    {
-
-                        if (Enable_Developer_Mode)
-                        {
-
-                            if (IsMe(accessory, 视角)) accessory.Method.SendChat($"""
-                                                       /e 
-                                                       numberOfPlayersWithLuminousHammerBefore={numberOfPlayersWithLuminousHammerBefore}
-
-                                                       """);
-
-                        }
-
-                        myTower = tower4;
-
-                    }
-
-                    numberOfPlayersWithLuminousHammerBefore += (phase2_playersWithLuminousHammer.Contains(0)) ? (1) : (0);
-
-                    if (myIndex == 7)
-                    {
-
-                        if (Enable_Developer_Mode)
-                        {
-
-                            if (IsMe(accessory, 视角)) accessory.Method.SendChat($"""
-                                                       /e 
-                                                       numberOfPlayersWithLuminousHammerBefore={numberOfPlayersWithLuminousHammerBefore}
-
-                                                       """);
-
-                        }
-
-                        myTower = (phase2_playersWithLuminousHammer.Contains(0)) ? (tower4) : (tower2);
-
-                    }
-
-                    numberOfPlayersWithLuminousHammerBefore += (phase2_playersWithLuminousHammer.Contains(7)) ? (1) : (0);
-
-                    if (myIndex == 1)
-                    {
-
-                        if (Enable_Developer_Mode)
-                        {
-
-                            if (IsMe(accessory, 视角)) accessory.Method.SendChat($"""
-                                                       /e 
-                                                       numberOfPlayersWithLuminousHammerBefore={numberOfPlayersWithLuminousHammerBefore}
-
-                                                       """);
-
-                        }
-
-                        myTower = numberOfPlayersWithLuminousHammerBefore switch
-                        {
-                            0 => tower6,
-                            1 => tower2,
-                            2 => tower4
-                        };
-
-                    }
-
-                    numberOfPlayersWithLuminousHammerBefore += (phase2_playersWithLuminousHammer.Contains(1)) ? (1) : (0);
-
-                    if (myIndex == 5)
-                    {
-
-                        if (Enable_Developer_Mode)
-                        {
-
-                            if (IsMe(accessory, 视角)) accessory.Method.SendChat($"""
-                                                       /e 
-                                                       numberOfPlayersWithLuminousHammerBefore={numberOfPlayersWithLuminousHammerBefore}
-
-                                                       """);
-
-                        }
-
-                        myTower = numberOfPlayersWithLuminousHammerBefore switch
-                        {
-                            0 => tower3,
-                            1 => tower6,
-                            2 => tower2
-                        };
-
-                    }
-
-                    numberOfPlayersWithLuminousHammerBefore += (phase2_playersWithLuminousHammer.Contains(5)) ? (1) : (0);
-
-                    if (myIndex == 3)
-                    {
-
-                        if (Enable_Developer_Mode)
-                        {
-
-                            if (IsMe(accessory, 视角)) accessory.Method.SendChat($"""
-                                                       /e 
-                                                       numberOfPlayersWithLuminousHammerBefore={numberOfPlayersWithLuminousHammerBefore}
-
-                                                       """);
-
-                        }
-
-                        myTower = numberOfPlayersWithLuminousHammerBefore switch
-                        {
-                            0 => tower5,
-                            1 => tower3,
-                            2 => tower6
-                        };
-
-                    }
-
-                    numberOfPlayersWithLuminousHammerBefore += (phase2_playersWithLuminousHammer.Contains(3)) ? (1) : (0);
-
-                    if (myIndex == 4)
-                    {
-
-                        if (Enable_Developer_Mode)
-                        {
-
-                            if (IsMe(accessory, 视角)) accessory.Method.SendChat($"""
-                                                       /e 
-                                                       numberOfPlayersWithLuminousHammerBefore={numberOfPlayersWithLuminousHammerBefore}
-
-                                                       """);
-
-                        }
-
-                        myTower = numberOfPlayersWithLuminousHammerBefore switch
-                        {
-                            0 => tower1,
-                            1 => tower5,
-                            2 => tower3
-                        };
-
-                    }
-
-                    numberOfPlayersWithLuminousHammerBefore += (phase2_playersWithLuminousHammer.Contains(4)) ? (1) : (0);
-
-                    if (myIndex == 2)
-                    {
-
-                        if (Enable_Developer_Mode)
-                        {
-
-                            if (IsMe(accessory, 视角)) accessory.Method.SendChat($"""
-                                                       /e 
-                                                       numberOfPlayersWithLuminousHammerBefore={numberOfPlayersWithLuminousHammerBefore}
-
-                                                       """);
-
-                        }
-
-                        myTower = (phase2_playersWithLuminousHammer.Contains(6)) ? (tower1) : (tower5);
-
-                    }
-
-                    numberOfPlayersWithLuminousHammerBefore += (phase2_playersWithLuminousHammer.Contains(2)) ? (1) : (0);
-
-                    if (myIndex == 6)
-                    {
-
-                        if (Enable_Developer_Mode)
-                        {
-
-                            if (IsMe(accessory, 视角)) accessory.Method.SendChat($"""
-                                                       /e 
-                                                       numberOfPlayersWithLuminousHammerBefore={numberOfPlayersWithLuminousHammerBefore}
-
-                                                       """);
-
-                        }
-
-                        myTower = tower1;
-
-                    }
-
-                    if (Vector3.Distance(myTower, tower1) < 1
-                       ||
-                       Vector3.Distance(myTower, tower2) < 1
-                       ||
-                       Vector3.Distance(myTower, tower3) < 1)
-                    {
-
-                        myMeetingPoint = eastMeetingPoint;
-
-                    }
-
-                    else
-                    {
-
-                        myMeetingPoint = westMeetingPoint;
-
-                    }
-
-                }
+                    0 => tower2,
+                    1 => tower4,
+                    2 => tower6,
+                    3 => tower3,
+                    4 => tower1,
+                    _ => tower5
+                };
+
+                // 北侧三塔去东北集合，南侧三塔去西南
+                bool northSide = myTower == tower1 || myTower == tower2 || myTower == tower6;
+                Vector3 myMeetingPoint = RotatePoint(new Vector3(100, 0, 82), new Vector3(100, 0, 100), float.Pi / 4 * (northSide ? 1 : 5));
 
                 var currentProperty = accessory.Data.GetDefaultDrawProperties();
 
@@ -7111,33 +4619,9 @@ namespace CicerosKodakkuAssist.FuturesRewrittenUltimate.LPDU
             _fruPhase = FruPhase.P2C_LightRampant;
             _usamiPd.Init(accessory, "光爆");
 
-            List<int> priorities = LightRampageStg switch
-            {
-                LightRampageStgEnum.Grey9_灰9式 => [20, 42, 2, 24, 13, 33, 11, 31],
-                LightRampageStgEnum.Hexagram_正六芒星 => [0, 1, 2, 3, 10, 11, 12, 13],
-                _ => [20, 42, 2, 24, 13, 33, 11, 31]
-            };
-
-            // 灰9式放泥
-            /* 数小在左，数大在右
-            *    00 10 20 30 40
-            * 0        MT
-            * 1     D3    D4
-            * 2  H1          ST 
-            * 3     D1    D2
-            * 4        H2
-            */
-
-            // 六芒星式放泥
-            /* 数小在左下，数大在右上
-            *       00  01  02  03
-            * 00        ST  H1
-            * 00    MT          H2
-            * 10    D1          D4
-            * 10        D2  D3
-            */
-
-            _usamiPd.AddPriorities(priorities);
+            // LPDU 双排放泥：北排西→东 H1 H2 MT OT = 0..3，南排西→东 R1 R2 M1 M2 = 10..13
+            // 数小的走北路线：一南一北时北排的人走北，同侧时靠西的人走北
+            _usamiPd.AddPriorities([2, 3, 0, 1, 12, 13, 10, 11]);
             accessory.DebugMsg($"当前阶段为：{_fruPhase}", Enable_Developer_Mode);
         }
 
@@ -7167,34 +4651,15 @@ namespace CicerosKodakkuAssist.FuturesRewrittenUltimate.LPDU
                 var myIndex = 视角;
                 if ((myIndex != tLeft) && (myIndex != tRight)) return;
 
-                // 此处leftRoute指左/上路线
-                List<Vector3> leftRoute = LightRampageStg switch
-                {
-                    LightRampageStgEnum.Grey9_灰9式 =>
-                        [
-                            new Vector3(92, 0, 100),
-                            new Vector3(94.6f, 0, 94),
-                            new Vector3(100, 0, 92),
-                            new Vector3(105.6f, 0, 92),
-                            new Vector3(111.3f, 0, 88.7f)
-                        ],
-                    LightRampageStgEnum.Hexagram_正六芒星 =>
-                        [
-                            new Vector3(100, 0, 92).RotatePoint(Center, 22.5f.DegToRad()),
-                            new Vector3(100, 0, 92).RotatePoint(Center, 67.5f.DegToRad()),
-                            new Vector3(100, 0, 92).RotatePoint(Center, 112.5f.DegToRad()),
-                            new Vector3(100, 0, 92).RotatePoint(Center, 157.5f.DegToRad()),
-                            new Vector3(100, 0, 92).RotatePoint(Center, 157.5f.DegToRad()) + new Vector3(0, 0, 8.5f),
-                        ],
-                    _ =>
-                        [
-                            new Vector3(92, 0, 100),
-                            new Vector3(94.6f, 0, 94),
-                            new Vector3(100, 0, 92),
-                            new Vector3(105.6f, 0, 92),
-                            new Vector3(111.3f, 0, 88.7f)
-                        ],
-                };
+                // leftRoute 是北路线：从正北 10m 起顺时针放 5 个泥，约 32° 一个，最后停在东南；南路线为其中心对称
+                List<Vector3> leftRoute =
+                [
+                    new Vector3(100, 0, 90),
+                    new Vector3(100, 0, 90).RotatePoint(Center, 32f.DegToRad()),
+                    new Vector3(100, 0, 90).RotatePoint(Center, 64f.DegToRad()),
+                    new Vector3(100, 0, 90).RotatePoint(Center, 96f.DegToRad()),
+                    new Vector3(100, 0, 90).RotatePoint(Center, 128f.DegToRad()),
+                ];
 
                 List<Vector3> rightRoute =
                 [
