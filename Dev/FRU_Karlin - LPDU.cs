@@ -60,8 +60,27 @@ namespace CicerosKodakkuAssist.FuturesRewrittenUltimate.LPDU
 
         #region 调试
 
-        // userControl: Debugging 是特性参数，只吃编译期常量
+        // 打开后所有指路按全队 8 人绘制，每人用自己的位次 / buff / 标记 / 仇恨算；横幅、TTS、聊天仍只给自己
+        // 必须是 const：userControl: Debugging 是特性参数，只吃编译期常量
         private const bool Debugging = false;
+
+        /// <summary>要画指路的位次：Debug 时全队，否则只有自己（不在小队里则为空）</summary>
+        private static List<int> GuidanceIndices(ScriptAccessory sa)
+        {
+            var me = sa.GetMyIndex();
+            return Debugging ? [.. Enumerable.Range(0, sa.Data.PartyList.Count)] : me < 0 ? [] : [me];
+        }
+
+        /// <summary>指路箭头起点 Owner：正常取 PartyList[idx]，越界回退自己</summary>
+        private static uint GuidanceOwner(ScriptAccessory sa, int idx)
+            => idx >= 0 && idx < sa.Data.PartyList.Count ? sa.Data.PartyList[idx] : sa.Data.Me;
+
+        /// <summary>位次 idx 对应的玩家对象，代替指路里的 MyObject</summary>
+        private static IGameObject? GuidanceObject(ScriptAccessory sa, int idx)
+            => sa.Data.Objects.SearchById(GuidanceOwner(sa, idx));
+
+        /// <summary>该视角是不是自己：文字 / TTS / 聊天只给自己发一次</summary>
+        private static bool IsMe(ScriptAccessory sa, int idx) => idx == sa.GetMyIndex();
 
         #endregion
 
@@ -253,7 +272,7 @@ namespace CicerosKodakkuAssist.FuturesRewrittenUltimate.LPDU
         volatile string phase2_bossId = "";
         bool P2DDDircle = false;
         volatile List<int> Phase2_Positions_Of_Icicle_Impact = [];
-        Vector3 phase2_positionToBeKnockedBack = new Vector3(100, 0, 100);
+        Vector3[] phase2_positionToBeKnockedBack = new Vector3[8];
         System.Threading.AutoResetEvent phase2_semaphoreOfGuidanceBeforeKnockback = new System.Threading.AutoResetEvent(false);
         System.Threading.AutoResetEvent phase2_semaphoreOfGuidanceAfterKnockback = new System.Threading.AutoResetEvent(false);
         volatile int phase2_proteanPositionOfTheColourlessMirror = -1;
@@ -840,7 +859,7 @@ namespace CicerosKodakkuAssist.FuturesRewrittenUltimate.LPDU
 
             phase2_bossId = "";
             Phase2_Positions_Of_Icicle_Impact.Clear();
-            phase2_positionToBeKnockedBack = new Vector3(100, 0, 100);
+            phase2_positionToBeKnockedBack = new Vector3[8];
             phase2_semaphoreOfGuidanceBeforeKnockback = new System.Threading.AutoResetEvent(false);
             phase2_semaphoreOfGuidanceAfterKnockback = new System.Threading.AutoResetEvent(false);
             phase2_proteanPositionOfTheColourlessMirror = -1;
@@ -1457,33 +1476,38 @@ namespace CicerosKodakkuAssist.FuturesRewrittenUltimate.LPDU
         {
             if (parse!=1) return;
             if (!ParseObjectId(@event["SourceId"], out var sid)) return;
-            var myindex = accessory.Data.PartyList.IndexOf(accessory.Data.Me);
-            var spread = @event["ActionId"] == "40148" || @event["ActionId"] == "40330";
-            var rot8 = myindex switch
+            foreach (var 视角 in GuidanceIndices(accessory)) 指路(视角);
+
+            void 指路(int 视角)
             {
-                0 => 0,
-                1 => 2,
-                2 => 6,
-                3 => 4,
-                4 => 5,
-                5 => 3,
-                6 => 7,
-                7 => 1,
-                _ => 0,
-            };
-            var outPoint = spread && (myindex == 2 || myindex == 3 || myindex == 6 || myindex == 7);
-            var mPosEnd = RotatePoint(outPoint ? new(100, 0, 90) : new(100, 0, 95), new(100, 0, 100), float.Pi / 4 * rot8);
+                var myindex = 视角;
+                var spread = @event["ActionId"] == "40148" || @event["ActionId"] == "40330";
+                var rot8 = myindex switch
+                {
+                    0 => 0,
+                    1 => 2,
+                    2 => 6,
+                    3 => 4,
+                    4 => 5,
+                    5 => 3,
+                    6 => 7,
+                    7 => 1,
+                    _ => 0,
+                };
+                var outPoint = spread && (myindex == 2 || myindex == 3 || myindex == 6 || myindex == 7);
+                var mPosEnd = RotatePoint(outPoint ? new(100, 0, 90) : new(100, 0, 95), new(100, 0, 100), float.Pi / 4 * rot8);
 
-            var dp = accessory.Data.GetDefaultDrawProperties();
-            dp.Name = "P1_八方雷火_引导位置";
-            dp.Scale = new(2);
-            dp.Owner = accessory.Data.Me;
-            dp.TargetPosition = mPosEnd;
-            dp.ScaleMode |= ScaleMode.YByDistance;
-            dp.Color = accessory.Data.DefaultSafeColor;
-            dp.DestoryAt = 7000;
-            accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
+                var dp = accessory.Data.GetDefaultDrawProperties();
+                dp.Name = $"P1_八方雷火_引导位置-{视角}";
+                dp.Scale = new(2);
+                dp.Owner = GuidanceOwner(accessory, 视角);
+                dp.TargetPosition = mPosEnd;
+                dp.ScaleMode |= ScaleMode.YByDistance;
+                dp.Color = accessory.Data.DefaultSafeColor;
+                dp.DestoryAt = 7000;
+                accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
 
+            }
         }
         [ScriptMethod(name: "P1_T死刑Buff爆炸", eventType: EventTypeEnum.StatusAdd, eventCondition: ["StatusID:4166"])]
         public void P1_T死刑Buff爆炸(Event @event, ScriptAccessory accessory)
@@ -1722,124 +1746,129 @@ namespace CicerosKodakkuAssist.FuturesRewrittenUltimate.LPDU
 
             }
 
-            int myIndex = accessory.Data.PartyList.IndexOf(accessory.Data.Me);
+            foreach (var 视角 in GuidanceIndices(accessory)) 指路(视角);
 
-            if (Phase1_Standby_Position_Of_Utopian_Sky == Phase1_Standby_Positions_Of_Utopian_Sky.Swap_OT_And_M2_交换ST与D4_莫灵喵与MMW)
+            void 指路(int 视角)
             {
+                int myIndex = 视角;
 
-                int rotationMultiplier = myIndex switch
-                {
-                    0 => 0,
-                    1 => 1,
-                    2 => 6,
-                    3 => 4,
-                    4 => 5,
-                    5 => 3,
-                    6 => 7,
-                    7 => 2
-                };
-
-                var myPosition = RotatePoint(new(100, 0, 81), new(100, 0, 100), float.Pi / 4 * rotationMultiplier);
-
-                if (myIndex == 0)
-                {
-
-                    myPosition = RotatePoint(myPosition, new(100, 0, 100), float.Pi / 72);
-
-                }
-
-                if (myIndex == 1)
-                {
-
-                    myPosition = RotatePoint(myPosition, new(100, 0, 100), -(float.Pi / 72));
-
-                }
-
-                if (myIndex == 6)
-                {
-
-                    myPosition = RotatePoint(myPosition, new(100, 0, 100), -(float.Pi / 36));
-
-                }
-
-                if (myIndex == 7)
-                {
-
-                    myPosition = RotatePoint(myPosition, new(100, 0, 100), float.Pi / 36);
-
-                }
-
-                var currentProperty = accessory.Data.GetDefaultDrawProperties();
-
-                currentProperty.Name = "Phase1_Standby_Position_Of_Utopian_Sky_乐园绝技待机位置";
-                currentProperty.Scale = new(2);
-                currentProperty.Owner = accessory.Data.Me;
-                currentProperty.TargetPosition = myPosition;
-                currentProperty.ScaleMode |= ScaleMode.YByDistance;
-                currentProperty.Color = accessory.Data.DefaultSafeColor;
-                currentProperty.DestoryAt = 9000;
-
-                accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentProperty);
-
-            }
-
-            if (Phase1_Standby_Position_Of_Utopian_Sky == Phase1_Standby_Positions_Of_Utopian_Sky.Both_Tanks_Go_Center_双T去中间)
-            {
-
-                var myPosition = new Vector3(100, 0, 100);
-
-                if (myIndex == 0)
-                {
-
-                    myPosition = new Vector3(100f, 0f, 94.5f);
-
-                }
-
-                if (myIndex == 1)
-                {
-
-                    myPosition = new Vector3(100f, 0f, 105.5f);
-
-                }
-
-                if (2 <= myIndex && myIndex <= 7)
+                if (Phase1_Standby_Position_Of_Utopian_Sky == Phase1_Standby_Positions_Of_Utopian_Sky.Swap_OT_And_M2_交换ST与D4_莫灵喵与MMW)
                 {
 
                     int rotationMultiplier = myIndex switch
                     {
+                        0 => 0,
+                        1 => 1,
                         2 => 6,
-                        3 => 2,
+                        3 => 4,
                         4 => 5,
                         5 => 3,
                         6 => 7,
-                        7 => 1
+                        7 => 2
                     };
 
-                    myPosition = RotatePoint(new(100, 0, 81), new(100, 0, 100), float.Pi / 4 * rotationMultiplier);
+                    var myPosition = RotatePoint(new(100, 0, 81), new(100, 0, 100), float.Pi / 4 * rotationMultiplier);
+
+                    if (myIndex == 0)
+                    {
+
+                        myPosition = RotatePoint(myPosition, new(100, 0, 100), float.Pi / 72);
+
+                    }
+
+                    if (myIndex == 1)
+                    {
+
+                        myPosition = RotatePoint(myPosition, new(100, 0, 100), -(float.Pi / 72));
+
+                    }
+
+                    if (myIndex == 6)
+                    {
+
+                        myPosition = RotatePoint(myPosition, new(100, 0, 100), -(float.Pi / 36));
+
+                    }
+
+                    if (myIndex == 7)
+                    {
+
+                        myPosition = RotatePoint(myPosition, new(100, 0, 100), float.Pi / 36);
+
+                    }
+
+                    var currentProperty = accessory.Data.GetDefaultDrawProperties();
+
+                    currentProperty.Name = $"Phase1_Standby_Position_Of_Utopian_Sky_乐园绝技待机位置-{视角}";
+                    currentProperty.Scale = new(2);
+                    currentProperty.Owner = GuidanceOwner(accessory, 视角);
+                    currentProperty.TargetPosition = myPosition;
+                    currentProperty.ScaleMode |= ScaleMode.YByDistance;
+                    currentProperty.Color = accessory.Data.DefaultSafeColor;
+                    currentProperty.DestoryAt = 9000;
+
+                    accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentProperty);
 
                 }
 
-                if (myPosition.Equals(new Vector3(100, 0, 100)))
+                if (Phase1_Standby_Position_Of_Utopian_Sky == Phase1_Standby_Positions_Of_Utopian_Sky.Both_Tanks_Go_Center_双T去中间)
                 {
 
-                    return;
+                    var myPosition = new Vector3(100, 0, 100);
+
+                    if (myIndex == 0)
+                    {
+
+                        myPosition = new Vector3(100f, 0f, 94.5f);
+
+                    }
+
+                    if (myIndex == 1)
+                    {
+
+                        myPosition = new Vector3(100f, 0f, 105.5f);
+
+                    }
+
+                    if (2 <= myIndex && myIndex <= 7)
+                    {
+
+                        int rotationMultiplier = myIndex switch
+                        {
+                            2 => 6,
+                            3 => 2,
+                            4 => 5,
+                            5 => 3,
+                            6 => 7,
+                            7 => 1
+                        };
+
+                        myPosition = RotatePoint(new(100, 0, 81), new(100, 0, 100), float.Pi / 4 * rotationMultiplier);
+
+                    }
+
+                    if (myPosition.Equals(new Vector3(100, 0, 100)))
+                    {
+
+                        return;
+
+                    }
+
+                    var currentProperty = accessory.Data.GetDefaultDrawProperties();
+
+                    currentProperty.Name = $"Phase1_Standby_Position_Of_Utopian_Sky_乐园绝技待机位置-{视角}";
+                    currentProperty.Scale = new(2);
+                    currentProperty.Owner = GuidanceOwner(accessory, 视角);
+                    currentProperty.TargetPosition = myPosition;
+                    currentProperty.ScaleMode |= ScaleMode.YByDistance;
+                    currentProperty.Color = accessory.Data.DefaultSafeColor;
+                    currentProperty.DestoryAt = 9000;
+
+                    accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentProperty);
 
                 }
 
-                var currentProperty = accessory.Data.GetDefaultDrawProperties();
-
-                currentProperty.Name = "Phase1_Standby_Position_Of_Utopian_Sky_乐园绝技待机位置";
-                currentProperty.Scale = new(2);
-                currentProperty.Owner = accessory.Data.Me;
-                currentProperty.TargetPosition = myPosition;
-                currentProperty.ScaleMode |= ScaleMode.YByDistance;
-                currentProperty.Color = accessory.Data.DefaultSafeColor;
-                currentProperty.DestoryAt = 9000;
-
-                accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentProperty);
-
             }
-
         }
 
         [ScriptMethod(name: "P1_雾龙_处理位置", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:regex:^(40158)$"])]
@@ -1853,73 +1882,78 @@ namespace CicerosKodakkuAssist.FuturesRewrittenUltimate.LPDU
                 if (P1雾龙计数 != 3) return;
                 Task.Delay(334).ContinueWith(t =>
                 {
-                    if (!P1雾龙雷)
-                    {
-                        var safeDir = P1雾龙记录.IndexOf(0);
-                        List<int> h1group = [0, 2, 4, 6];
-                        var myindex = accessory.Data.PartyList.IndexOf(accessory.Data.Me);
-                        var isH1group = h1group.Contains(myindex);
-                        var rot8 = safeDir switch
-                        {
-                            0 => isH1group ? 0 : 4,
-                            1 => isH1group ? 5 : 1,
-                            2 => isH1group ? 6 : 2,
-                            3 => isH1group ? 7 : 3,
-                            _ => 0
-                        };
-                        var mPosEnd = RotatePoint(new(100, 0, 84), new(100, 0, 100), float.Pi / 4 * rot8);
+                    foreach (var 视角 in GuidanceIndices(accessory)) 指路(视角);
 
-                        var dp = accessory.Data.GetDefaultDrawProperties();
-                        dp.Name = "P1_雾龙_分摊处理位置";
-                        dp.Scale = new(2);
-                        dp.Owner = accessory.Data.Me;
-                        dp.TargetPosition = mPosEnd;
-                        dp.ScaleMode |= ScaleMode.YByDistance;
-                        dp.Color = accessory.Data.DefaultSafeColor;
-                        dp.DestoryAt = 9000;
-                        accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
-                    }
-                    else
+                    void 指路(int 视角)
                     {
-                        var safeDir = P1雾龙记录.IndexOf(0);
-                        List<int> h1group = [0, 2, 4, 6];
-                        var myindex = accessory.Data.PartyList.IndexOf(accessory.Data.Me);
-                        var isH1group = h1group.Contains(myindex);
-                        Vector3 p1 = new(100.0f, 0, 88.0f);
-                        Vector3 p2 = new(100.0f, 0, 80.5f);
-                        Vector3 p3 = new(106.5f, 0, 81.5f);
-                        Vector3 p4 = new(093.5f, 0, 81.5f);
-                        var rot8 = safeDir switch
+                        if (!P1雾龙雷)
                         {
-                            0 => isH1group ? 0 : 4,
-                            1 => isH1group ? 5 : 1,
-                            2 => isH1group ? 6 : 2,
-                            3 => isH1group ? 7 : 3,
-                            _ => 0
-                        };
-                        var myPosA = myindex switch
-                        {
-                            0 => p2,
-                            1 => p2,
-                            2 => p1,
-                            3 => p1,
-                            4 => p3,
-                            5 => p3,
-                            6 => p4,
-                            7 => p4,
-                            _ => p1,
-                        };
-                        var mPosEnd = RotatePoint(myPosA, new(100, 0, 100), float.Pi / 4 * rot8);
+                            var safeDir = P1雾龙记录.IndexOf(0);
+                            List<int> h1group = [0, 2, 4, 6];
+                            var myindex = 视角;
+                            var isH1group = h1group.Contains(myindex);
+                            var rot8 = safeDir switch
+                            {
+                                0 => isH1group ? 0 : 4,
+                                1 => isH1group ? 5 : 1,
+                                2 => isH1group ? 6 : 2,
+                                3 => isH1group ? 7 : 3,
+                                _ => 0
+                            };
+                            var mPosEnd = RotatePoint(new(100, 0, 84), new(100, 0, 100), float.Pi / 4 * rot8);
 
-                        var dp = accessory.Data.GetDefaultDrawProperties();
-                        dp.Name = "P1_雾龙_分散处理位置";
-                        dp.Scale = new(2);
-                        dp.Owner = accessory.Data.Me;
-                        dp.TargetPosition = mPosEnd;
-                        dp.ScaleMode |= ScaleMode.YByDistance;
-                        dp.Color = accessory.Data.DefaultSafeColor;
-                        dp.DestoryAt = 9000;
-                        accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
+                            var dp = accessory.Data.GetDefaultDrawProperties();
+                            dp.Name = $"P1_雾龙_分摊处理位置-{视角}";
+                            dp.Scale = new(2);
+                            dp.Owner = GuidanceOwner(accessory, 视角);
+                            dp.TargetPosition = mPosEnd;
+                            dp.ScaleMode |= ScaleMode.YByDistance;
+                            dp.Color = accessory.Data.DefaultSafeColor;
+                            dp.DestoryAt = 9000;
+                            accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
+                        }
+                        else
+                        {
+                            var safeDir = P1雾龙记录.IndexOf(0);
+                            List<int> h1group = [0, 2, 4, 6];
+                            var myindex = 视角;
+                            var isH1group = h1group.Contains(myindex);
+                            Vector3 p1 = new(100.0f, 0, 88.0f);
+                            Vector3 p2 = new(100.0f, 0, 80.5f);
+                            Vector3 p3 = new(106.5f, 0, 81.5f);
+                            Vector3 p4 = new(093.5f, 0, 81.5f);
+                            var rot8 = safeDir switch
+                            {
+                                0 => isH1group ? 0 : 4,
+                                1 => isH1group ? 5 : 1,
+                                2 => isH1group ? 6 : 2,
+                                3 => isH1group ? 7 : 3,
+                                _ => 0
+                            };
+                            var myPosA = myindex switch
+                            {
+                                0 => p2,
+                                1 => p2,
+                                2 => p1,
+                                3 => p1,
+                                4 => p3,
+                                5 => p3,
+                                6 => p4,
+                                7 => p4,
+                                _ => p1,
+                            };
+                            var mPosEnd = RotatePoint(myPosA, new(100, 0, 100), float.Pi / 4 * rot8);
+
+                            var dp = accessory.Data.GetDefaultDrawProperties();
+                            dp.Name = $"P1_雾龙_分散处理位置-{视角}";
+                            dp.Scale = new(2);
+                            dp.Owner = GuidanceOwner(accessory, 视角);
+                            dp.TargetPosition = mPosEnd;
+                            dp.ScaleMode |= ScaleMode.YByDistance;
+                            dp.Color = accessory.Data.DefaultSafeColor;
+                            dp.DestoryAt = 9000;
+                            accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
+                        }
                     }
                 });
 
@@ -2413,41 +2447,46 @@ namespace CicerosKodakkuAssist.FuturesRewrittenUltimate.LPDU
                 if (upGroup.Count < 4 && o1 != 4 && o2 != 4) upGroup.Add(4);
             }
 
-            var myindex = accessory.Data.PartyList.IndexOf(accessory.Data.Me);
-            var dealpos1 = new Vector3(atEast ? 105.5f : 94.5f, 0, upGroup.Contains(myindex) ? 93 : 107);
-            var dealpos2 = new Vector3(atEast ? 102 : 98, 0, upGroup.Contains(myindex) ? 93 : 107);
-            var dp = accessory.Data.GetDefaultDrawProperties();
-            dp.Name = "P1_转轮召_击退处理位置1";
-            dp.Scale = new(2);
-            dp.Owner = accessory.Data.Me;
-            dp.TargetPosition = dealpos1;
-            dp.ScaleMode |= ScaleMode.YByDistance;
-            dp.Color = accessory.Data.DefaultSafeColor;
-            dp.DestoryAt = 4000;
-            accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
+            foreach (var 视角 in GuidanceIndices(accessory)) 指路(视角);
 
-            dp = accessory.Data.GetDefaultDrawProperties();
-            dp.Name = "P1_转轮召_击退处理位置2";
-            dp.Scale = new(2);
-            dp.Position = dealpos1;
-            dp.TargetPosition = dealpos2;
-            dp.ScaleMode |= ScaleMode.YByDistance;
-            dp.Color = accessory.Data.DefaultSafeColor;
-            dp.DestoryAt = 4000;
-            accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
+            void 指路(int 视角)
+            {
+                var myindex = 视角;
+                var dealpos1 = new Vector3(atEast ? 105.5f : 94.5f, 0, upGroup.Contains(myindex) ? 93 : 107);
+                var dealpos2 = new Vector3(atEast ? 102 : 98, 0, upGroup.Contains(myindex) ? 93 : 107);
+                var dp = accessory.Data.GetDefaultDrawProperties();
+                dp.Name = $"P1_转轮召_击退处理位置1-{视角}";
+                dp.Scale = new(2);
+                dp.Owner = GuidanceOwner(accessory, 视角);
+                dp.TargetPosition = dealpos1;
+                dp.ScaleMode |= ScaleMode.YByDistance;
+                dp.Color = accessory.Data.DefaultSafeColor;
+                dp.DestoryAt = 4000;
+                accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
 
-            dp = accessory.Data.GetDefaultDrawProperties();
-            dp.Name = "P1_转轮召_击退处理位置3";
-            dp.Scale = new(2);
-            dp.Owner = accessory.Data.Me;
-            dp.TargetPosition = dealpos2;
-            dp.ScaleMode |= ScaleMode.YByDistance;
-            dp.Color = accessory.Data.DefaultSafeColor;
-            dp.Delay = 4000;
-            dp.DestoryAt = 2000;
-            accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
+                dp = accessory.Data.GetDefaultDrawProperties();
+                dp.Name = $"P1_转轮召_击退处理位置2-{视角}";
+                dp.Scale = new(2);
+                dp.Position = dealpos1;
+                dp.TargetPosition = dealpos2;
+                dp.ScaleMode |= ScaleMode.YByDistance;
+                dp.Color = accessory.Data.DefaultSafeColor;
+                dp.DestoryAt = 4000;
+                accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
+
+                dp = accessory.Data.GetDefaultDrawProperties();
+                dp.Name = $"P1_转轮召_击退处理位置3-{视角}";
+                dp.Scale = new(2);
+                dp.Owner = GuidanceOwner(accessory, 视角);
+                dp.TargetPosition = dealpos2;
+                dp.ScaleMode |= ScaleMode.YByDistance;
+                dp.Color = accessory.Data.DefaultSafeColor;
+                dp.Delay = 4000;
+                dp.DestoryAt = 2000;
+                accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
 
 
+            }
         }
 
         [ScriptMethod(name: "Phase1 Fall Of Faith Control 信仰崩塌(四连抓)控制",
@@ -2868,312 +2907,317 @@ namespace CicerosKodakkuAssist.FuturesRewrittenUltimate.LPDU
             var far = 5.25f;//距离boss
             Task.Delay(334).ContinueWith(t =>
             {
-                var myindex = accessory.Data.PartyList.IndexOf(accessory.Data.Me);
-                Vector3 t1p1 = new(100, 0, 100 - far);
-                Vector3 t1p2 = new(100, 0, 100 - far - dis);
-                Vector3 t2p1 = new(100, 0, 100 + far);
-                Vector3 t2p2 = new(100, 0, 100 + far + dis);
-                Vector3 t3p1 = new(100, 0, 100 - far - dis);
-                Vector3 t3p2 = new(100, 0, 100 - far);
-                Vector3 t4p1 = new(100, 0, 100 + far + dis);
-                Vector3 t4p2 = new(100, 0, 100 + far);
+                foreach (var 视角 in GuidanceIndices(accessory)) 指路(视角);
 
-                if (phase1_tetheredPlayersDuringFallOfFaith.Count == 1 && tid == accessory.Data.Me)
+                void 指路(int 视角)
                 {
-                    var dp = accessory.Data.GetDefaultDrawProperties();
-                    dp.Name = "P1_四连线_线1处理位置1";
-                    dp.Scale = new(2);
-                    dp.Owner = accessory.Data.Me;
-                    dp.TargetPosition = t1p1;
-                    dp.ScaleMode |= ScaleMode.YByDistance;
-                    dp.Color = accessory.Data.DefaultSafeColor;
-                    dp.DestoryAt = 13000;
-                    accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
+                    var myindex = 视角;
+                    Vector3 t1p1 = new(100, 0, 100 - far);
+                    Vector3 t1p2 = new(100, 0, 100 - far - dis);
+                    Vector3 t2p1 = new(100, 0, 100 + far);
+                    Vector3 t2p2 = new(100, 0, 100 + far + dis);
+                    Vector3 t3p1 = new(100, 0, 100 - far - dis);
+                    Vector3 t3p2 = new(100, 0, 100 - far);
+                    Vector3 t4p1 = new(100, 0, 100 + far + dis);
+                    Vector3 t4p2 = new(100, 0, 100 + far);
 
-                    dp = accessory.Data.GetDefaultDrawProperties();
-                    dp.Name = "P1_四连线_线1处理位置2";
-                    dp.Scale = new(2);
-                    dp.Owner = accessory.Data.Me;
-                    dp.TargetPosition = t1p2;
-                    dp.ScaleMode |= ScaleMode.YByDistance;
-                    dp.Color = accessory.Data.DefaultSafeColor;
-                    dp.Delay = 13000;
-                    dp.DestoryAt = 6000;
-                    accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
-
-                    if (t1p1 != t1p2)
+                    if (phase1_tetheredPlayersDuringFallOfFaith.Count == 1 && tid == GuidanceOwner(accessory, 视角))
                     {
-                        dp = accessory.Data.GetDefaultDrawProperties();
-                        dp.Name = "P1_四连线_线1处理位置2预指";
+                        var dp = accessory.Data.GetDefaultDrawProperties();
+                        dp.Name = $"P1_四连线_线1处理位置1-{视角}";
                         dp.Scale = new(2);
-                        dp.Position = t1p1;
-                        dp.TargetPosition = t1p2;
+                        dp.Owner = GuidanceOwner(accessory, 视角);
+                        dp.TargetPosition = t1p1;
                         dp.ScaleMode |= ScaleMode.YByDistance;
-                        dp.Color = accessory.Data.DefaultDangerColor;
+                        dp.Color = accessory.Data.DefaultSafeColor;
                         dp.DestoryAt = 13000;
                         accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
-                    }
-                }
-                if (phase1_tetheredPlayersDuringFallOfFaith.Count == 2 && tid == accessory.Data.Me)
-                {
-                    var dp = accessory.Data.GetDefaultDrawProperties();
-                    dp.Name = "P1_四连线_线2处理位置1";
-                    dp.Scale = new(2);
-                    dp.Owner = accessory.Data.Me;
-                    dp.TargetPosition = t2p1;
-                    dp.ScaleMode |= ScaleMode.YByDistance;
-                    dp.Color = accessory.Data.DefaultSafeColor;
-                    dp.DestoryAt = 13500;
-                    accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
 
-                    dp = accessory.Data.GetDefaultDrawProperties();
-                    dp.Name = "P1_四连线_线2处理位置2";
-                    dp.Scale = new(2);
-                    dp.Owner = accessory.Data.Me;
-                    dp.TargetPosition = t2p2;
-                    dp.ScaleMode |= ScaleMode.YByDistance;
-                    dp.Color = accessory.Data.DefaultSafeColor;
-                    dp.Delay = 13500;
-                    dp.DestoryAt = 5000;
-                    accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
-                    if (t2p1 != t2p2)
-                    {
                         dp = accessory.Data.GetDefaultDrawProperties();
-                        dp.Name = "P1_四连线_线2处理位置2预指";
+                        dp.Name = $"P1_四连线_线1处理位置2-{视角}";
                         dp.Scale = new(2);
-                        dp.Position = t2p1;
-                        dp.TargetPosition = t2p2;
+                        dp.Owner = GuidanceOwner(accessory, 视角);
+                        dp.TargetPosition = t1p2;
                         dp.ScaleMode |= ScaleMode.YByDistance;
-                        dp.Color = accessory.Data.DefaultDangerColor;
+                        dp.Color = accessory.Data.DefaultSafeColor;
+                        dp.Delay = 13000;
+                        dp.DestoryAt = 6000;
+                        accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
+
+                        if (t1p1 != t1p2)
+                        {
+                            dp = accessory.Data.GetDefaultDrawProperties();
+                            dp.Name = $"P1_四连线_线1处理位置2预指-{视角}";
+                            dp.Scale = new(2);
+                            dp.Position = t1p1;
+                            dp.TargetPosition = t1p2;
+                            dp.ScaleMode |= ScaleMode.YByDistance;
+                            dp.Color = accessory.Data.DefaultDangerColor;
+                            dp.DestoryAt = 13000;
+                            accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
+                        }
+                    }
+                    if (phase1_tetheredPlayersDuringFallOfFaith.Count == 2 && tid == GuidanceOwner(accessory, 视角))
+                    {
+                        var dp = accessory.Data.GetDefaultDrawProperties();
+                        dp.Name = $"P1_四连线_线2处理位置1-{视角}";
+                        dp.Scale = new(2);
+                        dp.Owner = GuidanceOwner(accessory, 视角);
+                        dp.TargetPosition = t2p1;
+                        dp.ScaleMode |= ScaleMode.YByDistance;
+                        dp.Color = accessory.Data.DefaultSafeColor;
                         dp.DestoryAt = 13500;
                         accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
-                    }
-                }
-                if (phase1_tetheredPlayersDuringFallOfFaith.Count == 3 && tid == accessory.Data.Me)
-                {
-                    var dp = accessory.Data.GetDefaultDrawProperties();
-                    dp.Name = "P1_四连线_线3处理位置1";
-                    dp.Scale = new(2);
-                    dp.Owner = accessory.Data.Me;
-                    dp.TargetPosition = t3p1;
-                    dp.ScaleMode |= ScaleMode.YByDistance;
-                    dp.Color = accessory.Data.DefaultSafeColor;
-                    dp.DestoryAt = 7500;
-                    accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
 
-                    dp = accessory.Data.GetDefaultDrawProperties();
-                    dp.Name = "P1_四连线_线3处理位置2";
-                    dp.Scale = new(3);
-                    dp.Owner = accessory.Data.Me;
-                    dp.TargetPosition = t3p2;
-                    dp.ScaleMode |= ScaleMode.YByDistance;
-                    dp.Color = accessory.Data.DefaultSafeColor;
-                    dp.Delay = 7500;
-                    dp.DestoryAt = 6000;
-                    accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
-                    if (t3p1 != t3p2)
-                    {
                         dp = accessory.Data.GetDefaultDrawProperties();
-                        dp.Name = "P1_四连线_线3处理位置2预指";
+                        dp.Name = $"P1_四连线_线2处理位置2-{视角}";
                         dp.Scale = new(2);
-                        dp.Position = t3p1;
-                        dp.TargetPosition = t3p2;
+                        dp.Owner = GuidanceOwner(accessory, 视角);
+                        dp.TargetPosition = t2p2;
                         dp.ScaleMode |= ScaleMode.YByDistance;
-                        dp.Color = accessory.Data.DefaultDangerColor;
+                        dp.Color = accessory.Data.DefaultSafeColor;
+                        dp.Delay = 13500;
+                        dp.DestoryAt = 5000;
+                        accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
+                        if (t2p1 != t2p2)
+                        {
+                            dp = accessory.Data.GetDefaultDrawProperties();
+                            dp.Name = $"P1_四连线_线2处理位置2预指-{视角}";
+                            dp.Scale = new(2);
+                            dp.Position = t2p1;
+                            dp.TargetPosition = t2p2;
+                            dp.ScaleMode |= ScaleMode.YByDistance;
+                            dp.Color = accessory.Data.DefaultDangerColor;
+                            dp.DestoryAt = 13500;
+                            accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
+                        }
+                    }
+                    if (phase1_tetheredPlayersDuringFallOfFaith.Count == 3 && tid == GuidanceOwner(accessory, 视角))
+                    {
+                        var dp = accessory.Data.GetDefaultDrawProperties();
+                        dp.Name = $"P1_四连线_线3处理位置1-{视角}";
+                        dp.Scale = new(2);
+                        dp.Owner = GuidanceOwner(accessory, 视角);
+                        dp.TargetPosition = t3p1;
+                        dp.ScaleMode |= ScaleMode.YByDistance;
+                        dp.Color = accessory.Data.DefaultSafeColor;
                         dp.DestoryAt = 7500;
                         accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
-                    }
-                }
-                if (phase1_tetheredPlayersDuringFallOfFaith.Count == 4 && tid == accessory.Data.Me)
-                {
-                    var dp = accessory.Data.GetDefaultDrawProperties();
-                    dp.Name = "P1_四连线_线4处理位置1";
-                    dp.Scale = new(2);
-                    dp.Owner = accessory.Data.Me;
-                    dp.TargetPosition = t4p1;
-                    dp.ScaleMode |= ScaleMode.YByDistance;
-                    dp.Color = accessory.Data.DefaultSafeColor;
-                    dp.DestoryAt = 8500;
-                    accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
 
-                    dp = accessory.Data.GetDefaultDrawProperties();
-                    dp.Name = "P1_四连线_线4处理位置2";
-                    dp.Scale = new(3);
-                    dp.Owner = accessory.Data.Me;
-                    dp.TargetPosition = t4p2;
-                    dp.ScaleMode |= ScaleMode.YByDistance;
-                    dp.Color = accessory.Data.DefaultSafeColor;
-                    dp.Delay = 8500;
-                    dp.DestoryAt = 5000;
-                    accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
-                    if (t4p1 != t4p2)
-                    {
                         dp = accessory.Data.GetDefaultDrawProperties();
-                        dp.Name = "P1_四连线_线4处理位置2预指";
-                        dp.Scale = new(2);
-                        dp.Position = t4p1;
-                        dp.TargetPosition = t4p2;
+                        dp.Name = $"P1_四连线_线3处理位置2-{视角}";
+                        dp.Scale = new(3);
+                        dp.Owner = GuidanceOwner(accessory, 视角);
+                        dp.TargetPosition = t3p2;
                         dp.ScaleMode |= ScaleMode.YByDistance;
-                        dp.Color = accessory.Data.DefaultDangerColor;
+                        dp.Color = accessory.Data.DefaultSafeColor;
+                        dp.Delay = 7500;
+                        dp.DestoryAt = 6000;
+                        accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
+                        if (t3p1 != t3p2)
+                        {
+                            dp = accessory.Data.GetDefaultDrawProperties();
+                            dp.Name = $"P1_四连线_线3处理位置2预指-{视角}";
+                            dp.Scale = new(2);
+                            dp.Position = t3p1;
+                            dp.TargetPosition = t3p2;
+                            dp.ScaleMode |= ScaleMode.YByDistance;
+                            dp.Color = accessory.Data.DefaultDangerColor;
+                            dp.DestoryAt = 7500;
+                            accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
+                        }
+                    }
+                    if (phase1_tetheredPlayersDuringFallOfFaith.Count == 4 && tid == GuidanceOwner(accessory, 视角))
+                    {
+                        var dp = accessory.Data.GetDefaultDrawProperties();
+                        dp.Name = $"P1_四连线_线4处理位置1-{视角}";
+                        dp.Scale = new(2);
+                        dp.Owner = GuidanceOwner(accessory, 视角);
+                        dp.TargetPosition = t4p1;
+                        dp.ScaleMode |= ScaleMode.YByDistance;
+                        dp.Color = accessory.Data.DefaultSafeColor;
                         dp.DestoryAt = 8500;
                         accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
-                    }
-                }
-                if (phase1_tetheredPlayersDuringFallOfFaith.Count == 4)
-                {
-                    var tehterObjIndex = phase1_tetheredPlayersDuringFallOfFaith.Select(o => o % 10).ToList();
-                    var tehterIsFire = phase1_tetheredPlayersDuringFallOfFaith.Select(o => o < 20).ToList();
-                    List<int> idleObjIndex = [];
-                    if (Phase1_Strat_Of_Fall_Of_Faith == Phase1_Strats_Of_Fall_Of_Faith.Single_Line_In_THD_Order_按THD顺序单排
-                        ||
-                        Phase1_Strat_Of_Fall_Of_Faith == Phase1_Strats_Of_Fall_Of_Faith.Double_Lines_MOTH12_Left_M12R12_Right_双排左MSTH12右D1234)
-                    {
-                        for (int i = 0; i < accessory.Data.PartyList.Count; i++)
-                        {
-                            if (!tehterObjIndex.Contains(i))
-                            { idleObjIndex.Add(i); }
-                        }
-                    }
 
-                    if (Phase1_Strat_Of_Fall_Of_Faith == Phase1_Strats_Of_Fall_Of_Faith.Single_Line_In_HTD_Order_按HTD顺序单排_莫灵喵
-                       ||
-                       Phase1_Strat_Of_Fall_Of_Faith == Phase1_Strats_Of_Fall_Of_Faith.Double_Lines_H12MOT_Left_M12R12_Right_双排左H12MST右D1234_莫灵喵与MMW)
-                    {
-                        // The addition of this strat credits to @alexandria_prime. Appreciate!
-
-                        List<int> htdOrder = new List<int> { 2, 3, 0, 1, 4, 5, 6, 7 };
-
-                        for (int i = 0; i < htdOrder.Count; ++i)
-                        {
-
-                            if (!tehterObjIndex.Contains(htdOrder[i]))
-                            {
-
-                                idleObjIndex.Add(htdOrder[i]);
-
-                            }
-
-                        }
-
-                    }
-
-                    if (Phase1_Strat_Of_Fall_Of_Faith == Phase1_Strats_Of_Fall_Of_Faith.Single_Line_In_H1TDH2_Order_按H1TDH2顺序单排)
-                    {
-                        // The addition of this strat credits to @alexandria_prime. Appreciate!
-
-                        List<int> h1tdh2Order = new List<int> { 2, 0, 1, 4, 5, 6, 7, 3 };
-
-                        for (int i = 0; i < h1tdh2Order.Count; ++i)
-                        {
-
-                            if (!tehterObjIndex.Contains(h1tdh2Order[i]))
-                            {
-
-                                idleObjIndex.Add(h1tdh2Order[i]);
-
-                            }
-
-                        }
-
-                    }
-
-                    if (!idleObjIndex.Contains(myindex)) return;
-
-                    Vector3 i1p1 = new Vector3(100, 0, 100);
-                    Vector3 i1p2 = new Vector3(100, 0, 100);
-                    Vector3 i2p1 = new Vector3(100, 0, 100);
-                    Vector3 i2p2 = new Vector3(100, 0, 100);
-                    Vector3 i3p1 = new Vector3(100, 0, 100);
-                    Vector3 i3p2 = new Vector3(100, 0, 100);
-                    Vector3 i4p1 = new Vector3(100, 0, 100);
-                    Vector3 i4p2 = new Vector3(100, 0, 100);
-                    Vector3 dealpos1 = default;
-                    Vector3 dealpos2 = default;
-
-                    if (Phase1_Orientation_Benchmark_During_Fall_Of_Faith == Phase1_Orientation_Benchmarks_During_Fall_Of_Faith.High_Priority_Left_Facing_Due_North_面向正北左侧高优先级)
-                    {
-
-                        i1p1 = tehterIsFire[0] ? new(100, 0, 100 - far - dis) : new(100 - dis, 0, 100 - far);
-                        i1p2 = tehterIsFire[2] ? new(100, 0, 100 - far - dis) : new(100 - dis, 0, 100 - far);
-                        i2p1 = tehterIsFire[0] ? new(100, 0, 100 - far - dis) : new(100 + dis, 0, 100 - far);
-                        i2p2 = tehterIsFire[2] ? new(100, 0, 100 - far - dis) : new(100 + dis, 0, 100 - far);
-                        i3p1 = tehterIsFire[1] ? new(100, 0, 100 + far + dis) : new(100 - dis, 0, 100 + far);
-                        i3p2 = tehterIsFire[3] ? new(100, 0, 100 + far + dis) : new(100 - dis, 0, 100 + far);
-                        i4p1 = tehterIsFire[1] ? new(100, 0, 100 + far + dis) : new(100 + dis, 0, 100 + far);
-                        i4p2 = tehterIsFire[3] ? new(100, 0, 100 + far + dis) : new(100 + dis, 0, 100 + far);
-
-                    }
-
-                    if (Phase1_Orientation_Benchmark_During_Fall_Of_Faith == Phase1_Orientation_Benchmarks_During_Fall_Of_Faith.High_Priority_Left_Facing_The_Boss_面向Boss左侧高优先级_莫灵喵与MMW)
-                    {
-                        // The addition of this benchmark credits to @alexandria_prime. Appreciate!
-
-                        i1p1 = tehterIsFire[0] ? new(100, 0, 100 - far - dis) : new(100 + dis, 0, 100 - far);
-                        i1p2 = tehterIsFire[2] ? new(100, 0, 100 - far - dis) : new(100 + dis, 0, 100 - far);
-                        i2p1 = tehterIsFire[0] ? new(100, 0, 100 - far - dis) : new(100 - dis, 0, 100 - far);
-                        i2p2 = tehterIsFire[2] ? new(100, 0, 100 - far - dis) : new(100 - dis, 0, 100 - far);
-                        i3p1 = tehterIsFire[1] ? new(100, 0, 100 + far + dis) : new(100 - dis, 0, 100 + far);
-                        i3p2 = tehterIsFire[3] ? new(100, 0, 100 + far + dis) : new(100 - dis, 0, 100 + far);
-                        i4p1 = tehterIsFire[1] ? new(100, 0, 100 + far + dis) : new(100 + dis, 0, 100 + far);
-                        i4p2 = tehterIsFire[3] ? new(100, 0, 100 + far + dis) : new(100 + dis, 0, 100 + far);
-
-                    }
-
-                    if (i1p1.Equals(new Vector3(100, 0, 100)))
-                    {
-
-                        return;
-
-                    }
-
-                    dealpos1 = idleObjIndex.IndexOf(myindex) switch
-                    {
-                        0 => i1p1,
-                        1 => i2p1,
-                        2 => i3p1,
-                        3 => i4p1,
-                    };
-                    dealpos2 = idleObjIndex.IndexOf(myindex) switch
-                    {
-                        0 => i1p2,
-                        1 => i2p2,
-                        2 => i3p2,
-                        3 => i4p2,
-                    };
-                    var upgroup = (idleObjIndex.IndexOf(myindex) == 0 || idleObjIndex.IndexOf(myindex) == 1);
-
-                    var dp = accessory.Data.GetDefaultDrawProperties();
-                    dp.Name = "P1_四连线_处理位置1";
-                    dp.Scale = new(2);
-                    dp.Owner = accessory.Data.Me;
-                    dp.TargetPosition = dealpos1;
-                    dp.ScaleMode |= ScaleMode.YByDistance;
-                    dp.Color = accessory.Data.DefaultSafeColor;
-                    dp.DestoryAt = upgroup ? 5000 : 8500;
-                    accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
-
-                    dp = accessory.Data.GetDefaultDrawProperties();
-                    dp.Name = "P1_四连线_处理位置2";
-                    dp.Scale = new(2);
-                    dp.Owner = accessory.Data.Me;
-                    dp.TargetPosition = dealpos2;
-                    dp.ScaleMode |= ScaleMode.YByDistance;
-                    dp.Color = accessory.Data.DefaultSafeColor;
-                    dp.Delay = upgroup ? 5000 : 8500;
-                    dp.DestoryAt = upgroup ? 6000 : 5000;
-                    accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
-
-                    if (dealpos1 != dealpos2)
-                    {
                         dp = accessory.Data.GetDefaultDrawProperties();
-                        dp.Name = "P1_四连线_处理位置2预指";
-                        dp.Scale = new(2);
-                        dp.Position = dealpos1;
-                        dp.TargetPosition = dealpos2;
+                        dp.Name = $"P1_四连线_线4处理位置2-{视角}";
+                        dp.Scale = new(3);
+                        dp.Owner = GuidanceOwner(accessory, 视角);
+                        dp.TargetPosition = t4p2;
                         dp.ScaleMode |= ScaleMode.YByDistance;
-                        dp.Color = accessory.Data.DefaultDangerColor;
+                        dp.Color = accessory.Data.DefaultSafeColor;
+                        dp.Delay = 8500;
+                        dp.DestoryAt = 5000;
+                        accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
+                        if (t4p1 != t4p2)
+                        {
+                            dp = accessory.Data.GetDefaultDrawProperties();
+                            dp.Name = $"P1_四连线_线4处理位置2预指-{视角}";
+                            dp.Scale = new(2);
+                            dp.Position = t4p1;
+                            dp.TargetPosition = t4p2;
+                            dp.ScaleMode |= ScaleMode.YByDistance;
+                            dp.Color = accessory.Data.DefaultDangerColor;
+                            dp.DestoryAt = 8500;
+                            accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
+                        }
+                    }
+                    if (phase1_tetheredPlayersDuringFallOfFaith.Count == 4)
+                    {
+                        var tehterObjIndex = phase1_tetheredPlayersDuringFallOfFaith.Select(o => o % 10).ToList();
+                        var tehterIsFire = phase1_tetheredPlayersDuringFallOfFaith.Select(o => o < 20).ToList();
+                        List<int> idleObjIndex = [];
+                        if (Phase1_Strat_Of_Fall_Of_Faith == Phase1_Strats_Of_Fall_Of_Faith.Single_Line_In_THD_Order_按THD顺序单排
+                            ||
+                            Phase1_Strat_Of_Fall_Of_Faith == Phase1_Strats_Of_Fall_Of_Faith.Double_Lines_MOTH12_Left_M12R12_Right_双排左MSTH12右D1234)
+                        {
+                            for (int i = 0; i < accessory.Data.PartyList.Count; i++)
+                            {
+                                if (!tehterObjIndex.Contains(i))
+                                { idleObjIndex.Add(i); }
+                            }
+                        }
+
+                        if (Phase1_Strat_Of_Fall_Of_Faith == Phase1_Strats_Of_Fall_Of_Faith.Single_Line_In_HTD_Order_按HTD顺序单排_莫灵喵
+                           ||
+                           Phase1_Strat_Of_Fall_Of_Faith == Phase1_Strats_Of_Fall_Of_Faith.Double_Lines_H12MOT_Left_M12R12_Right_双排左H12MST右D1234_莫灵喵与MMW)
+                        {
+                            // The addition of this strat credits to @alexandria_prime. Appreciate!
+
+                            List<int> htdOrder = new List<int> { 2, 3, 0, 1, 4, 5, 6, 7 };
+
+                            for (int i = 0; i < htdOrder.Count; ++i)
+                            {
+
+                                if (!tehterObjIndex.Contains(htdOrder[i]))
+                                {
+
+                                    idleObjIndex.Add(htdOrder[i]);
+
+                                }
+
+                            }
+
+                        }
+
+                        if (Phase1_Strat_Of_Fall_Of_Faith == Phase1_Strats_Of_Fall_Of_Faith.Single_Line_In_H1TDH2_Order_按H1TDH2顺序单排)
+                        {
+                            // The addition of this strat credits to @alexandria_prime. Appreciate!
+
+                            List<int> h1tdh2Order = new List<int> { 2, 0, 1, 4, 5, 6, 7, 3 };
+
+                            for (int i = 0; i < h1tdh2Order.Count; ++i)
+                            {
+
+                                if (!tehterObjIndex.Contains(h1tdh2Order[i]))
+                                {
+
+                                    idleObjIndex.Add(h1tdh2Order[i]);
+
+                                }
+
+                            }
+
+                        }
+
+                        if (!idleObjIndex.Contains(myindex)) return;
+
+                        Vector3 i1p1 = new Vector3(100, 0, 100);
+                        Vector3 i1p2 = new Vector3(100, 0, 100);
+                        Vector3 i2p1 = new Vector3(100, 0, 100);
+                        Vector3 i2p2 = new Vector3(100, 0, 100);
+                        Vector3 i3p1 = new Vector3(100, 0, 100);
+                        Vector3 i3p2 = new Vector3(100, 0, 100);
+                        Vector3 i4p1 = new Vector3(100, 0, 100);
+                        Vector3 i4p2 = new Vector3(100, 0, 100);
+                        Vector3 dealpos1 = default;
+                        Vector3 dealpos2 = default;
+
+                        if (Phase1_Orientation_Benchmark_During_Fall_Of_Faith == Phase1_Orientation_Benchmarks_During_Fall_Of_Faith.High_Priority_Left_Facing_Due_North_面向正北左侧高优先级)
+                        {
+
+                            i1p1 = tehterIsFire[0] ? new(100, 0, 100 - far - dis) : new(100 - dis, 0, 100 - far);
+                            i1p2 = tehterIsFire[2] ? new(100, 0, 100 - far - dis) : new(100 - dis, 0, 100 - far);
+                            i2p1 = tehterIsFire[0] ? new(100, 0, 100 - far - dis) : new(100 + dis, 0, 100 - far);
+                            i2p2 = tehterIsFire[2] ? new(100, 0, 100 - far - dis) : new(100 + dis, 0, 100 - far);
+                            i3p1 = tehterIsFire[1] ? new(100, 0, 100 + far + dis) : new(100 - dis, 0, 100 + far);
+                            i3p2 = tehterIsFire[3] ? new(100, 0, 100 + far + dis) : new(100 - dis, 0, 100 + far);
+                            i4p1 = tehterIsFire[1] ? new(100, 0, 100 + far + dis) : new(100 + dis, 0, 100 + far);
+                            i4p2 = tehterIsFire[3] ? new(100, 0, 100 + far + dis) : new(100 + dis, 0, 100 + far);
+
+                        }
+
+                        if (Phase1_Orientation_Benchmark_During_Fall_Of_Faith == Phase1_Orientation_Benchmarks_During_Fall_Of_Faith.High_Priority_Left_Facing_The_Boss_面向Boss左侧高优先级_莫灵喵与MMW)
+                        {
+                            // The addition of this benchmark credits to @alexandria_prime. Appreciate!
+
+                            i1p1 = tehterIsFire[0] ? new(100, 0, 100 - far - dis) : new(100 + dis, 0, 100 - far);
+                            i1p2 = tehterIsFire[2] ? new(100, 0, 100 - far - dis) : new(100 + dis, 0, 100 - far);
+                            i2p1 = tehterIsFire[0] ? new(100, 0, 100 - far - dis) : new(100 - dis, 0, 100 - far);
+                            i2p2 = tehterIsFire[2] ? new(100, 0, 100 - far - dis) : new(100 - dis, 0, 100 - far);
+                            i3p1 = tehterIsFire[1] ? new(100, 0, 100 + far + dis) : new(100 - dis, 0, 100 + far);
+                            i3p2 = tehterIsFire[3] ? new(100, 0, 100 + far + dis) : new(100 - dis, 0, 100 + far);
+                            i4p1 = tehterIsFire[1] ? new(100, 0, 100 + far + dis) : new(100 + dis, 0, 100 + far);
+                            i4p2 = tehterIsFire[3] ? new(100, 0, 100 + far + dis) : new(100 + dis, 0, 100 + far);
+
+                        }
+
+                        if (i1p1.Equals(new Vector3(100, 0, 100)))
+                        {
+
+                            return;
+
+                        }
+
+                        dealpos1 = idleObjIndex.IndexOf(myindex) switch
+                        {
+                            0 => i1p1,
+                            1 => i2p1,
+                            2 => i3p1,
+                            3 => i4p1,
+                        };
+                        dealpos2 = idleObjIndex.IndexOf(myindex) switch
+                        {
+                            0 => i1p2,
+                            1 => i2p2,
+                            2 => i3p2,
+                            3 => i4p2,
+                        };
+                        var upgroup = (idleObjIndex.IndexOf(myindex) == 0 || idleObjIndex.IndexOf(myindex) == 1);
+
+                        var dp = accessory.Data.GetDefaultDrawProperties();
+                        dp.Name = $"P1_四连线_处理位置1-{视角}";
+                        dp.Scale = new(2);
+                        dp.Owner = GuidanceOwner(accessory, 视角);
+                        dp.TargetPosition = dealpos1;
+                        dp.ScaleMode |= ScaleMode.YByDistance;
+                        dp.Color = accessory.Data.DefaultSafeColor;
                         dp.DestoryAt = upgroup ? 5000 : 8500;
                         accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
+
+                        dp = accessory.Data.GetDefaultDrawProperties();
+                        dp.Name = $"P1_四连线_处理位置2-{视角}";
+                        dp.Scale = new(2);
+                        dp.Owner = GuidanceOwner(accessory, 视角);
+                        dp.TargetPosition = dealpos2;
+                        dp.ScaleMode |= ScaleMode.YByDistance;
+                        dp.Color = accessory.Data.DefaultSafeColor;
+                        dp.Delay = upgroup ? 5000 : 8500;
+                        dp.DestoryAt = upgroup ? 6000 : 5000;
+                        accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
+
+                        if (dealpos1 != dealpos2)
+                        {
+                            dp = accessory.Data.GetDefaultDrawProperties();
+                            dp.Name = $"P1_四连线_处理位置2预指-{视角}";
+                            dp.Scale = new(2);
+                            dp.Position = dealpos1;
+                            dp.TargetPosition = dealpos2;
+                            dp.ScaleMode |= ScaleMode.YByDistance;
+                            dp.Color = accessory.Data.DefaultDangerColor;
+                            dp.DestoryAt = upgroup ? 5000 : 8500;
+                            accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
+                        }
                     }
                 }
             });
@@ -3323,195 +3367,110 @@ namespace CicerosKodakkuAssist.FuturesRewrittenUltimate.LPDU
             if (parse!=1) return;
             Task.Delay(334).ContinueWith(t =>
             {
-                var myIndex = accessory.Data.PartyList.IndexOf(accessory.Data.Me);
-                if (@event["ActionId"] == "40134")
+                foreach (var 视角 in GuidanceIndices(accessory)) 指路(视角);
+
+                void 指路(int 视角)
                 {
-                    var eastTower = P1塔[3] == 1;
-                    //雷
-                    if (myIndex == 0 || myIndex == 1)
+                    var myIndex = 视角;
+                    if (@event["ActionId"] == "40134")
                     {
-                        var dx = eastTower ? -10.5f : 10.5f;
-                        var dy = myIndex == 0 ? -5.5f : 5.5f;
-                        // The expression was myindex == 1 ? -5.5f : 5.5f before. Obviously it reverses the situation of MT and OT.
-                        // The bug fix here credits to @alexandria_prime. Appreciate!
-                        var dp = accessory.Data.GetDefaultDrawProperties();
-                        dp.Name = "P1_雷塔_塔处理位置_T";
-                        dp.Scale = new(2);
-                        dp.Owner = accessory.Data.Me;
-                        dp.TargetPosition = new(100 + dx, 0, 100 + dy);
-                        dp.ScaleMode |= ScaleMode.YByDistance;
-                        dp.Color = accessory.Data.DefaultSafeColor;
-                        dp.DestoryAt = 10500;
-                        accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
-                    }
-                    else
-                    {
-                        int myTowerIndex = myIndex - 1;
-                        Vector3 standbyPosition = new Vector3(100, 0, 100);
-                        Vector3 towerPosition = new Vector3(100, 0, 100);
-
-                        if (Phase1_Strat_Of_Towers == Phase1_Strats_Of_Towers.Completely_Based_On_Priority_完全根据优先级_莫灵喵)
+                        var eastTower = P1塔[3] == 1;
+                        //雷
+                        if (myIndex == 0 || myIndex == 1)
                         {
-
-                            if (myTowerIndex > 0 && myTowerIndex <= P1塔[0]) standbyPosition = new(eastTower ? 113.08f : 86.92f, 0, 90.81f);
-                            if (myTowerIndex > P1塔[0] && myTowerIndex <= P1塔[0] + P1塔[1]) standbyPosition = new(eastTower ? 115.98f : 84.02f, 0, 100f);
-                            if (myTowerIndex > P1塔[0] + P1塔[1] && myTowerIndex <= P1塔[0] + P1塔[1] + P1塔[2]) standbyPosition = new(eastTower ? 113.08f : 86.92f, 0, 109.18f);
-
-                            if (myTowerIndex > 0 && myTowerIndex <= P1塔[0]) towerPosition = new(eastTower ? 113.08f : 86.92f, 0, 90.81f);
-                            if (myTowerIndex > P1塔[0] && myTowerIndex <= P1塔[0] + P1塔[1]) towerPosition = new(eastTower ? 115.98f : 84.02f, 0, 100f);
-                            if (myTowerIndex > P1塔[0] + P1塔[1] && myTowerIndex <= P1塔[0] + P1塔[1] + P1塔[2]) towerPosition = new(eastTower ? 113.08f : 86.92f, 0, 109.18f);
-
+                            var dx = eastTower ? -10.5f : 10.5f;
+                            var dy = myIndex == 0 ? -5.5f : 5.5f;
+                            // The expression was myindex == 1 ? -5.5f : 5.5f before. Obviously it reverses the situation of MT and OT.
+                            // The bug fix here credits to @alexandria_prime. Appreciate!
+                            var dp = accessory.Data.GetDefaultDrawProperties();
+                            dp.Name = $"P1_雷塔_塔处理位置_T-{视角}";
+                            dp.Scale = new(2);
+                            dp.Owner = GuidanceOwner(accessory, 视角);
+                            dp.TargetPosition = new(100 + dx, 0, 100 + dy);
+                            dp.ScaleMode |= ScaleMode.YByDistance;
+                            dp.Color = accessory.Data.DefaultSafeColor;
+                            dp.DestoryAt = 10500;
+                            accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
                         }
-
-                        if (Phase1_Strat_Of_Towers == Phase1_Strats_Of_Towers.Fixed_H1H2R2_Priority_For_Rest_固定H1H2D4剩余人优先级)
+                        else
                         {
+                            int myTowerIndex = myIndex - 1;
+                            Vector3 standbyPosition = new Vector3(100, 0, 100);
+                            Vector3 towerPosition = new Vector3(100, 0, 100);
 
-                            bool fixedPartyMember = false;
-
-                            if (myIndex == 2)
+                            if (Phase1_Strat_Of_Towers == Phase1_Strats_Of_Towers.Completely_Based_On_Priority_完全根据优先级_莫灵喵)
                             {
 
-                                fixedPartyMember = true;
+                                if (myTowerIndex > 0 && myTowerIndex <= P1塔[0]) standbyPosition = new(eastTower ? 113.08f : 86.92f, 0, 90.81f);
+                                if (myTowerIndex > P1塔[0] && myTowerIndex <= P1塔[0] + P1塔[1]) standbyPosition = new(eastTower ? 115.98f : 84.02f, 0, 100f);
+                                if (myTowerIndex > P1塔[0] + P1塔[1] && myTowerIndex <= P1塔[0] + P1塔[1] + P1塔[2]) standbyPosition = new(eastTower ? 113.08f : 86.92f, 0, 109.18f);
 
-                                standbyPosition = new(eastTower ? 113.08f : 86.92f, 0, 90.81f);
-                                towerPosition = new(eastTower ? 113.08f : 86.92f, 0, 90.81f);
+                                if (myTowerIndex > 0 && myTowerIndex <= P1塔[0]) towerPosition = new(eastTower ? 113.08f : 86.92f, 0, 90.81f);
+                                if (myTowerIndex > P1塔[0] && myTowerIndex <= P1塔[0] + P1塔[1]) towerPosition = new(eastTower ? 115.98f : 84.02f, 0, 100f);
+                                if (myTowerIndex > P1塔[0] + P1塔[1] && myTowerIndex <= P1塔[0] + P1塔[1] + P1塔[2]) towerPosition = new(eastTower ? 113.08f : 86.92f, 0, 109.18f);
 
                             }
 
-                            if (myIndex == 3)
+                            if (Phase1_Strat_Of_Towers == Phase1_Strats_Of_Towers.Fixed_H1H2R2_Priority_For_Rest_固定H1H2D4剩余人优先级)
                             {
 
-                                fixedPartyMember = true;
+                                bool fixedPartyMember = false;
 
-                                standbyPosition = new(eastTower ? 115.98f : 84.02f, 0, 100f);
-                                towerPosition = new(eastTower ? 115.98f : 84.02f, 0, 100f);
-
-                            }
-
-                            if (myIndex == 7)
-                            {
-
-                                fixedPartyMember = true;
-
-                                standbyPosition = new(eastTower ? 113.08f : 86.92f, 0, 109.18f);
-                                towerPosition = new(eastTower ? 113.08f : 86.92f, 0, 109.18f);
-
-                            }
-
-                            if (!fixedPartyMember)
-                            {
-
-                                int newTower0 = P1塔[0] - 1;
-                                int newTower1 = P1塔[1] - 1;
-                                int newTower2 = P1塔[2] - 1;
-                                int myNewTowerIndex = myIndex - 3;
-
-                                if (Enable_Developer_Mode)
+                                if (myIndex == 2)
                                 {
 
-                                    accessory.Method.SendChat($"""
-                                                               /e 
-                                                               newTower0={newTower0}
-                                                               newTower1={newTower1}
-                                                               newTower2={newTower2}
-                                                               myNewTowerIndex={myNewTowerIndex}
-                                                               
-                                                               """);
-
-                                }
-
-                                if (newTower0 > 0
-                                    &&
-                                    0 < myNewTowerIndex && myNewTowerIndex <= newTower0)
-                                {
+                                    fixedPartyMember = true;
 
                                     standbyPosition = new(eastTower ? 113.08f : 86.92f, 0, 90.81f);
                                     towerPosition = new(eastTower ? 113.08f : 86.92f, 0, 90.81f);
 
                                 }
 
-                                if (newTower1 > 0
-                                   &&
-                                   newTower0 < myNewTowerIndex && myNewTowerIndex <= newTower0 + newTower1)
+                                if (myIndex == 3)
                                 {
+
+                                    fixedPartyMember = true;
 
                                     standbyPosition = new(eastTower ? 115.98f : 84.02f, 0, 100f);
                                     towerPosition = new(eastTower ? 115.98f : 84.02f, 0, 100f);
 
                                 }
 
-                                if (newTower2 > 0
-                                   &&
-                                   newTower0 + newTower1 < myNewTowerIndex && myNewTowerIndex <= newTower0 + newTower1 + newTower2)
+                                if (myIndex == 7)
                                 {
+
+                                    fixedPartyMember = true;
 
                                     standbyPosition = new(eastTower ? 113.08f : 86.92f, 0, 109.18f);
                                     towerPosition = new(eastTower ? 113.08f : 86.92f, 0, 109.18f);
 
                                 }
 
-                            }
-
-                        }
-
-                        if (Phase1_Strat_Of_Towers == Phase1_Strats_Of_Towers.Fixed_H1H2R2_Rest_Fill_Vacancies_固定H1H2D4剩余人补位_MMW)
-                        {
-                            // The algorithm implementation of this strat was inspired by @abigseal's script.
-                            // Therefore, the following code should credit to him. Appreciate!
-
-                            bool fixedPartyMember = false;
-
-                            if (myIndex == 2)
-                            {
-
-                                fixedPartyMember = true;
-
-                                standbyPosition = new(eastTower ? 113.08f : 86.92f, 0, 90.81f);
-                                towerPosition = new(eastTower ? 113.08f : 86.92f, 0, 90.81f);
-
-                            }
-
-                            if (myIndex == 3)
-                            {
-
-                                fixedPartyMember = true;
-
-                                standbyPosition = new(eastTower ? 115.98f : 84.02f, 0, 100f);
-                                towerPosition = new(eastTower ? 115.98f : 84.02f, 0, 100f);
-
-                            }
-
-                            if (myIndex == 7)
-                            {
-
-                                fixedPartyMember = true;
-
-                                standbyPosition = new(eastTower ? 113.08f : 86.92f, 0, 109.18f);
-                                towerPosition = new(eastTower ? 113.08f : 86.92f, 0, 109.18f);
-
-                            }
-
-                            if (!fixedPartyMember)
-                            {
-
-                                if (Enable_Developer_Mode)
+                                if (!fixedPartyMember)
                                 {
 
-                                    accessory.Method.SendChat($"""
-                                                               /e 
-                                                               P1塔[0]={P1塔[0]}
-                                                               P1塔[1]={P1塔[1]}
-                                                               P1塔[2]={P1塔[2]}
-                                                               myTowerIndex={myTowerIndex}
+                                    int newTower0 = P1塔[0] - 1;
+                                    int newTower1 = P1塔[1] - 1;
+                                    int newTower2 = P1塔[2] - 1;
+                                    int myNewTowerIndex = myIndex - 3;
 
-                                                               """);
+                                    if (Enable_Developer_Mode)
+                                    {
 
-                                }
+                                        if (IsMe(accessory, 视角)) accessory.Method.SendChat($"""
+                                                                   /e 
+                                                                   newTower0={newTower0}
+                                                                   newTower1={newTower1}
+                                                                   newTower2={newTower2}
+                                                                   myNewTowerIndex={myNewTowerIndex}
 
-                                if (myIndex == 4)
-                                {
+                                                                   """);
 
-                                    if (P1塔[0] >= 2)
+                                    }
+
+                                    if (newTower0 > 0
+                                        &&
+                                        0 < myNewTowerIndex && myNewTowerIndex <= newTower0)
                                     {
 
                                         standbyPosition = new(eastTower ? 113.08f : 86.92f, 0, 90.81f);
@@ -3519,33 +3478,9 @@ namespace CicerosKodakkuAssist.FuturesRewrittenUltimate.LPDU
 
                                     }
 
-                                    else
-                                    {
-
-                                        if (P1塔[1] >= 3)
-                                        {
-
-                                            standbyPosition = new(eastTower ? 115.98f : 84.02f, 0, 100f);
-                                            towerPosition = new(eastTower ? 115.98f : 84.02f, 0, 100f);
-
-                                        }
-
-                                        if (P1塔[2] >= 3)
-                                        {
-
-                                            standbyPosition = new(eastTower ? 113.08f : 86.92f, 0, 109.18f);
-                                            towerPosition = new(eastTower ? 113.08f : 86.92f, 0, 109.18f);
-
-                                        }
-
-                                    }
-
-                                }
-
-                                if (myIndex == 5)
-                                {
-
-                                    if (P1塔[1] >= 2)
+                                    if (newTower1 > 0
+                                       &&
+                                       newTower0 < myNewTowerIndex && myNewTowerIndex <= newTower0 + newTower1)
                                     {
 
                                         standbyPosition = new(eastTower ? 115.98f : 84.02f, 0, 100f);
@@ -3553,33 +3488,9 @@ namespace CicerosKodakkuAssist.FuturesRewrittenUltimate.LPDU
 
                                     }
 
-                                    else
-                                    {
-
-                                        if (P1塔[0] >= 3)
-                                        {
-
-                                            standbyPosition = new(eastTower ? 113.08f : 86.92f, 0, 90.81f);
-                                            towerPosition = new(eastTower ? 113.08f : 86.92f, 0, 90.81f);
-
-                                        }
-
-                                        if (P1塔[2] >= 3)
-                                        {
-
-                                            standbyPosition = new(eastTower ? 113.08f : 86.92f, 0, 109.18f);
-                                            towerPosition = new(eastTower ? 113.08f : 86.92f, 0, 109.18f);
-
-                                        }
-
-                                    }
-
-                                }
-
-                                if (myIndex == 6)
-                                {
-
-                                    if (P1塔[2] >= 2)
+                                    if (newTower2 > 0
+                                       &&
+                                       newTower0 + newTower1 < myNewTowerIndex && myNewTowerIndex <= newTower0 + newTower1 + newTower2)
                                     {
 
                                         standbyPosition = new(eastTower ? 113.08f : 86.92f, 0, 109.18f);
@@ -3587,10 +3498,68 @@ namespace CicerosKodakkuAssist.FuturesRewrittenUltimate.LPDU
 
                                     }
 
-                                    else
+                                }
+
+                            }
+
+                            if (Phase1_Strat_Of_Towers == Phase1_Strats_Of_Towers.Fixed_H1H2R2_Rest_Fill_Vacancies_固定H1H2D4剩余人补位_MMW)
+                            {
+                                // The algorithm implementation of this strat was inspired by @abigseal's script.
+                                // Therefore, the following code should credit to him. Appreciate!
+
+                                bool fixedPartyMember = false;
+
+                                if (myIndex == 2)
+                                {
+
+                                    fixedPartyMember = true;
+
+                                    standbyPosition = new(eastTower ? 113.08f : 86.92f, 0, 90.81f);
+                                    towerPosition = new(eastTower ? 113.08f : 86.92f, 0, 90.81f);
+
+                                }
+
+                                if (myIndex == 3)
+                                {
+
+                                    fixedPartyMember = true;
+
+                                    standbyPosition = new(eastTower ? 115.98f : 84.02f, 0, 100f);
+                                    towerPosition = new(eastTower ? 115.98f : 84.02f, 0, 100f);
+
+                                }
+
+                                if (myIndex == 7)
+                                {
+
+                                    fixedPartyMember = true;
+
+                                    standbyPosition = new(eastTower ? 113.08f : 86.92f, 0, 109.18f);
+                                    towerPosition = new(eastTower ? 113.08f : 86.92f, 0, 109.18f);
+
+                                }
+
+                                if (!fixedPartyMember)
+                                {
+
+                                    if (Enable_Developer_Mode)
                                     {
 
-                                        if (P1塔[0] >= 3)
+                                        if (IsMe(accessory, 视角)) accessory.Method.SendChat($"""
+                                                                   /e 
+                                                                   P1塔[0]={P1塔[0]}
+                                                                   P1塔[1]={P1塔[1]}
+                                                                   P1塔[2]={P1塔[2]}
+                                                                   myTowerIndex={myTowerIndex}
+
+                                                                   """);
+
+                                    }
+
+                                    if (myIndex == 4)
+                                    {
+
+                                        if (P1塔[0] >= 2)
                                         {
 
                                             standbyPosition = new(eastTower ? 113.08f : 86.92f, 0, 90.81f);
@@ -3598,7 +3567,33 @@ namespace CicerosKodakkuAssist.FuturesRewrittenUltimate.LPDU
 
                                         }
 
-                                        if (P1塔[1] >= 3)
+                                        else
+                                        {
+
+                                            if (P1塔[1] >= 3)
+                                            {
+
+                                                standbyPosition = new(eastTower ? 115.98f : 84.02f, 0, 100f);
+                                                towerPosition = new(eastTower ? 115.98f : 84.02f, 0, 100f);
+
+                                            }
+
+                                            if (P1塔[2] >= 3)
+                                            {
+
+                                                standbyPosition = new(eastTower ? 113.08f : 86.92f, 0, 109.18f);
+                                                towerPosition = new(eastTower ? 113.08f : 86.92f, 0, 109.18f);
+
+                                            }
+
+                                        }
+
+                                    }
+
+                                    if (myIndex == 5)
+                                    {
+
+                                        if (P1塔[1] >= 2)
                                         {
 
                                             standbyPosition = new(eastTower ? 115.98f : 84.02f, 0, 100f);
@@ -3606,266 +3601,231 @@ namespace CicerosKodakkuAssist.FuturesRewrittenUltimate.LPDU
 
                                         }
 
+                                        else
+                                        {
+
+                                            if (P1塔[0] >= 3)
+                                            {
+
+                                                standbyPosition = new(eastTower ? 113.08f : 86.92f, 0, 90.81f);
+                                                towerPosition = new(eastTower ? 113.08f : 86.92f, 0, 90.81f);
+
+                                            }
+
+                                            if (P1塔[2] >= 3)
+                                            {
+
+                                                standbyPosition = new(eastTower ? 113.08f : 86.92f, 0, 109.18f);
+                                                towerPosition = new(eastTower ? 113.08f : 86.92f, 0, 109.18f);
+
+                                            }
+
+                                        }
+
+                                    }
+
+                                    if (myIndex == 6)
+                                    {
+
+                                        if (P1塔[2] >= 2)
+                                        {
+
+                                            standbyPosition = new(eastTower ? 113.08f : 86.92f, 0, 109.18f);
+                                            towerPosition = new(eastTower ? 113.08f : 86.92f, 0, 109.18f);
+
+                                        }
+
+                                        else
+                                        {
+
+                                            if (P1塔[0] >= 3)
+                                            {
+
+                                                standbyPosition = new(eastTower ? 113.08f : 86.92f, 0, 90.81f);
+                                                towerPosition = new(eastTower ? 113.08f : 86.92f, 0, 90.81f);
+
+                                            }
+
+                                            if (P1塔[1] >= 3)
+                                            {
+
+                                                standbyPosition = new(eastTower ? 115.98f : 84.02f, 0, 100f);
+                                                towerPosition = new(eastTower ? 115.98f : 84.02f, 0, 100f);
+
+                                            }
+
+                                        }
+
                                     }
 
                                 }
 
                             }
 
+                            if (Enable_Developer_Mode)
+                            {
+
+                                if (IsMe(accessory, 视角)) accessory.Method.SendChat($"""
+                                                           /e 
+                                                           standbyPosition={standbyPosition}
+                                                           towerPosition={towerPosition}
+
+                                                           """);
+
+                            }
+
+                            if (standbyPosition.Equals(new Vector3(100, 0, 100)) || towerPosition.Equals(new Vector3(100, 0, 100)))
+                            {
+
+                                return;
+
+                            }
+
+                            var dp = accessory.Data.GetDefaultDrawProperties();
+                            dp.Name = $"P1_雷塔_塔处理位置_ND-{视角}";
+                            dp.Scale = new(2);
+                            dp.Owner = GuidanceOwner(accessory, 视角);
+                            dp.TargetPosition = standbyPosition;
+                            dp.ScaleMode |= ScaleMode.YByDistance;
+                            dp.Color = accessory.Data.DefaultSafeColor;
+                            dp.DestoryAt = 10500;
+                            accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
+
+                            dp = accessory.Data.GetDefaultDrawProperties();
+                            dp.Name = $"P1_雷塔_塔_ND-{视角}";
+                            dp.Scale = new(4);
+                            dp.Position = towerPosition;
+                            dp.Color = accessory.Data.DefaultSafeColor;
+                            dp.DestoryAt = 10500;
+                            accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Circle, dp);
+
                         }
-
-                        if (Enable_Developer_Mode)
-                        {
-
-                            accessory.Method.SendChat($"""
-                                                       /e 
-                                                       standbyPosition={standbyPosition}
-                                                       towerPosition={towerPosition}
-
-                                                       """);
-
-                        }
-
-                        if (standbyPosition.Equals(new Vector3(100, 0, 100)) || towerPosition.Equals(new Vector3(100, 0, 100)))
-                        {
-
-                            return;
-
-                        }
-
-                        var dp = accessory.Data.GetDefaultDrawProperties();
-                        dp.Name = "P1_雷塔_塔处理位置_ND";
-                        dp.Scale = new(2);
-                        dp.Owner = accessory.Data.Me;
-                        dp.TargetPosition = standbyPosition;
-                        dp.ScaleMode |= ScaleMode.YByDistance;
-                        dp.Color = accessory.Data.DefaultSafeColor;
-                        dp.DestoryAt = 10500;
-                        accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
-
-                        dp = accessory.Data.GetDefaultDrawProperties();
-                        dp.Name = "P1_雷塔_塔_ND";
-                        dp.Scale = new(4);
-                        dp.Position = towerPosition;
-                        dp.Color = accessory.Data.DefaultSafeColor;
-                        dp.DestoryAt = 10500;
-                        accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Circle, dp);
-
-                    }
-                }
-                else
-                {
-                    var eastTower = P1塔[3] == 1;
-                    //火
-                    if (myIndex == 0 || myIndex == 1)
-                    {
-                        var dx2 = eastTower ? -2f : 2f;
-                        var dx1 = eastTower ? -5.5f : 5.5f;
-                        var dy = myIndex == 0 ? -5.5f : 5.5f;
-                        // The expression was myindex == 1 ? -5.5f : 5.5f before. Same background as the previous one.
-                        // The bug fix here credits to @alexandria_prime. Appreciate!
-
-                        var dp = accessory.Data.GetDefaultDrawProperties();
-                        dp.Name = "P1_火塔_塔处理位置_T1";
-                        // The name of the drawing here was once incorrectly labeled as towers with thunder Burnt Strike.
-                        // Same situation for the other four names below.
-                        // The corrections credit to @alexandria_prime. Appreciate!
-                        dp.Scale = new(2);
-                        dp.Owner = accessory.Data.Me;
-                        dp.TargetPosition = new(100 + dx1, 0, 100 + dy);
-                        dp.ScaleMode |= ScaleMode.YByDistance;
-                        dp.Color = accessory.Data.DefaultSafeColor;
-                        dp.DestoryAt = 6500;
-                        accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
-
-                        dp = accessory.Data.GetDefaultDrawProperties();
-                        dp.Name = "P1_火塔_塔处理位置_T2";
-                        dp.Scale = new(2);
-                        dp.Position = new(100 + dx1, 0, 100 + dy);
-                        dp.TargetPosition = new(100 + dx2, 0, 100 + dy);
-                        dp.ScaleMode |= ScaleMode.YByDistance;
-                        dp.Color = accessory.Data.DefaultSafeColor;
-                        dp.DestoryAt = 6500;
-                        accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
-
-                        dp = accessory.Data.GetDefaultDrawProperties();
-                        dp.Name = "P1_火塔_塔处理位置_T3";
-                        dp.Scale = new(2);
-                        dp.Owner = accessory.Data.Me;
-                        dp.TargetPosition = new(100 + dx2, 0, 100 + dy);
-                        dp.ScaleMode |= ScaleMode.YByDistance;
-                        dp.Color = accessory.Data.DefaultSafeColor;
-                        dp.Delay = 6500;
-                        dp.DestoryAt = 1700;
-                        accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
                     }
                     else
                     {
-                        var myTowerIndex = myIndex - 1;
-                        Vector3 standbyPosition = new Vector3(100, 0, 100);
-                        Vector3 towerPosition = new Vector3(100, 0, 100);
-
-                        if (Phase1_Strat_Of_Towers == Phase1_Strats_Of_Towers.Completely_Based_On_Priority_完全根据优先级_莫灵喵)
+                        var eastTower = P1塔[3] == 1;
+                        //火
+                        if (myIndex == 0 || myIndex == 1)
                         {
+                            var dx2 = eastTower ? -2f : 2f;
+                            var dx1 = eastTower ? -5.5f : 5.5f;
+                            var dy = myIndex == 0 ? -5.5f : 5.5f;
+                            // The expression was myindex == 1 ? -5.5f : 5.5f before. Same background as the previous one.
+                            // The bug fix here credits to @alexandria_prime. Appreciate!
 
-                            if (myTowerIndex > 0 && myTowerIndex <= P1塔[0]) standbyPosition = new(eastTower ? 102f : 98f, 0, 90.81f);
-                            if (myTowerIndex > P1塔[0] && myTowerIndex <= P1塔[0] + P1塔[1]) standbyPosition = new(eastTower ? 102f : 98f, 0, 100f);
-                            if (myTowerIndex > P1塔[0] + P1塔[1] && myTowerIndex <= P1塔[0] + P1塔[1] + P1塔[2]) standbyPosition = new(eastTower ? 102f : 98f, 0, 109.18f);
+                            var dp = accessory.Data.GetDefaultDrawProperties();
+                            dp.Name = $"P1_火塔_塔处理位置_T1-{视角}";
+                            // The name of the drawing here was once incorrectly labeled as towers with thunder Burnt Strike.
+                            // Same situation for the other four names below.
+                            // The corrections credit to @alexandria_prime. Appreciate!
+                            dp.Scale = new(2);
+                            dp.Owner = GuidanceOwner(accessory, 视角);
+                            dp.TargetPosition = new(100 + dx1, 0, 100 + dy);
+                            dp.ScaleMode |= ScaleMode.YByDistance;
+                            dp.Color = accessory.Data.DefaultSafeColor;
+                            dp.DestoryAt = 6500;
+                            accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
 
-                            if (myTowerIndex > 0 && myTowerIndex <= P1塔[0]) towerPosition = new(eastTower ? 113.08f : 86.92f, 0, 90.81f);
-                            if (myTowerIndex > P1塔[0] && myTowerIndex <= P1塔[0] + P1塔[1]) towerPosition = new(eastTower ? 115.98f : 84.02f, 0, 100f);
-                            if (myTowerIndex > P1塔[0] + P1塔[1] && myTowerIndex <= P1塔[0] + P1塔[1] + P1塔[2]) towerPosition = new(eastTower ? 113.08f : 86.92f, 0, 109.18f);
+                            dp = accessory.Data.GetDefaultDrawProperties();
+                            dp.Name = $"P1_火塔_塔处理位置_T2-{视角}";
+                            dp.Scale = new(2);
+                            dp.Position = new(100 + dx1, 0, 100 + dy);
+                            dp.TargetPosition = new(100 + dx2, 0, 100 + dy);
+                            dp.ScaleMode |= ScaleMode.YByDistance;
+                            dp.Color = accessory.Data.DefaultSafeColor;
+                            dp.DestoryAt = 6500;
+                            accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
 
+                            dp = accessory.Data.GetDefaultDrawProperties();
+                            dp.Name = $"P1_火塔_塔处理位置_T3-{视角}";
+                            dp.Scale = new(2);
+                            dp.Owner = GuidanceOwner(accessory, 视角);
+                            dp.TargetPosition = new(100 + dx2, 0, 100 + dy);
+                            dp.ScaleMode |= ScaleMode.YByDistance;
+                            dp.Color = accessory.Data.DefaultSafeColor;
+                            dp.Delay = 6500;
+                            dp.DestoryAt = 1700;
+                            accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
                         }
-
-                        if (Phase1_Strat_Of_Towers == Phase1_Strats_Of_Towers.Fixed_H1H2R2_Priority_For_Rest_固定H1H2D4剩余人优先级)
+                        else
                         {
+                            var myTowerIndex = myIndex - 1;
+                            Vector3 standbyPosition = new Vector3(100, 0, 100);
+                            Vector3 towerPosition = new Vector3(100, 0, 100);
 
-                            bool fixedPartyMember = false;
-
-                            if (myIndex == 2)
+                            if (Phase1_Strat_Of_Towers == Phase1_Strats_Of_Towers.Completely_Based_On_Priority_完全根据优先级_莫灵喵)
                             {
 
-                                fixedPartyMember = true;
+                                if (myTowerIndex > 0 && myTowerIndex <= P1塔[0]) standbyPosition = new(eastTower ? 102f : 98f, 0, 90.81f);
+                                if (myTowerIndex > P1塔[0] && myTowerIndex <= P1塔[0] + P1塔[1]) standbyPosition = new(eastTower ? 102f : 98f, 0, 100f);
+                                if (myTowerIndex > P1塔[0] + P1塔[1] && myTowerIndex <= P1塔[0] + P1塔[1] + P1塔[2]) standbyPosition = new(eastTower ? 102f : 98f, 0, 109.18f);
 
-                                standbyPosition = new(eastTower ? 102f : 98f, 0, 90.81f);
-                                towerPosition = new(eastTower ? 113.08f : 86.92f, 0, 90.81f);
+                                if (myTowerIndex > 0 && myTowerIndex <= P1塔[0]) towerPosition = new(eastTower ? 113.08f : 86.92f, 0, 90.81f);
+                                if (myTowerIndex > P1塔[0] && myTowerIndex <= P1塔[0] + P1塔[1]) towerPosition = new(eastTower ? 115.98f : 84.02f, 0, 100f);
+                                if (myTowerIndex > P1塔[0] + P1塔[1] && myTowerIndex <= P1塔[0] + P1塔[1] + P1塔[2]) towerPosition = new(eastTower ? 113.08f : 86.92f, 0, 109.18f);
 
                             }
 
-                            if (myIndex == 3)
+                            if (Phase1_Strat_Of_Towers == Phase1_Strats_Of_Towers.Fixed_H1H2R2_Priority_For_Rest_固定H1H2D4剩余人优先级)
                             {
 
-                                fixedPartyMember = true;
+                                bool fixedPartyMember = false;
 
-                                standbyPosition = new(eastTower ? 102f : 98f, 0, 100f);
-                                towerPosition = new(eastTower ? 115.98f : 84.02f, 0, 100f);
-
-                            }
-
-                            if (myIndex == 7)
-                            {
-
-                                fixedPartyMember = true;
-
-                                standbyPosition = new(eastTower ? 102f : 98f, 0, 109.18f);
-                                towerPosition = new(eastTower ? 113.08f : 86.92f, 0, 109.18f);
-
-                            }
-
-                            if (!fixedPartyMember)
-                            {
-
-                                int newTower0 = P1塔[0] - 1;
-                                int newTower1 = P1塔[1] - 1;
-                                int newTower2 = P1塔[2] - 1;
-                                int myNewTowerIndex = myIndex - 3;
-
-                                if (Enable_Developer_Mode)
+                                if (myIndex == 2)
                                 {
 
-                                    accessory.Method.SendChat($"""
-                                                               /e 
-                                                               newTower0={newTower0}
-                                                               newTower1={newTower1}
-                                                               newTower2={newTower2}
-                                                               myNewTowerIndex={myNewTowerIndex}
-
-                                                               """);
-
-                                }
-
-                                if (newTower0 > 0
-                                    &&
-                                    0 < myNewTowerIndex && myNewTowerIndex <= newTower0)
-                                {
+                                    fixedPartyMember = true;
 
                                     standbyPosition = new(eastTower ? 102f : 98f, 0, 90.81f);
                                     towerPosition = new(eastTower ? 113.08f : 86.92f, 0, 90.81f);
 
                                 }
 
-                                if (newTower1 > 0
-                                   &&
-                                   newTower0 < myNewTowerIndex && myNewTowerIndex <= newTower0 + newTower1)
+                                if (myIndex == 3)
                                 {
+
+                                    fixedPartyMember = true;
 
                                     standbyPosition = new(eastTower ? 102f : 98f, 0, 100f);
                                     towerPosition = new(eastTower ? 115.98f : 84.02f, 0, 100f);
 
                                 }
 
-                                if (newTower2 > 0
-                                   &&
-                                   newTower0 + newTower1 < myNewTowerIndex && myNewTowerIndex <= newTower0 + newTower1 + newTower2)
+                                if (myIndex == 7)
                                 {
+
+                                    fixedPartyMember = true;
 
                                     standbyPosition = new(eastTower ? 102f : 98f, 0, 109.18f);
                                     towerPosition = new(eastTower ? 113.08f : 86.92f, 0, 109.18f);
 
                                 }
 
-                            }
-
-                        }
-
-                        if (Phase1_Strat_Of_Towers == Phase1_Strats_Of_Towers.Fixed_H1H2R2_Rest_Fill_Vacancies_固定H1H2D4剩余人补位_MMW)
-                        {
-                            // Same as before, the following credits to @abigseal. Appreciate!
-
-                            bool fixedPartyMember = false;
-
-                            if (myIndex == 2)
-                            {
-
-                                fixedPartyMember = true;
-
-                                standbyPosition = new(eastTower ? 102f : 98f, 0, 90.81f);
-                                towerPosition = new(eastTower ? 113.08f : 86.92f, 0, 90.81f);
-
-                            }
-
-                            if (myIndex == 3)
-                            {
-
-                                fixedPartyMember = true;
-
-                                standbyPosition = new(eastTower ? 102f : 98f, 0, 100f);
-                                towerPosition = new(eastTower ? 115.98f : 84.02f, 0, 100f);
-
-                            }
-
-                            if (myIndex == 7)
-                            {
-
-                                fixedPartyMember = true;
-
-                                standbyPosition = new(eastTower ? 102f : 98f, 0, 109.18f);
-                                towerPosition = new(eastTower ? 113.08f : 86.92f, 0, 109.18f);
-
-                            }
-
-                            if (!fixedPartyMember)
-                            {
-
-                                if (Enable_Developer_Mode)
+                                if (!fixedPartyMember)
                                 {
 
-                                    accessory.Method.SendChat($"""
-                                                               /e 
-                                                               P1塔[0]={P1塔[0]}
-                                                               P1塔[1]={P1塔[1]}
-                                                               P1塔[2]={P1塔[2]}
-                                                               myTowerIndex={myTowerIndex}
+                                    int newTower0 = P1塔[0] - 1;
+                                    int newTower1 = P1塔[1] - 1;
+                                    int newTower2 = P1塔[2] - 1;
+                                    int myNewTowerIndex = myIndex - 3;
 
-                                                               """);
+                                    if (Enable_Developer_Mode)
+                                    {
 
-                                }
+                                        if (IsMe(accessory, 视角)) accessory.Method.SendChat($"""
+                                                                   /e 
+                                                                   newTower0={newTower0}
+                                                                   newTower1={newTower1}
+                                                                   newTower2={newTower2}
+                                                                   myNewTowerIndex={myNewTowerIndex}
 
-                                if (myIndex == 4)
-                                {
+                                                                   """);
 
-                                    if (P1塔[0] >= 2)
+                                    }
+
+                                    if (newTower0 > 0
+                                        &&
+                                        0 < myNewTowerIndex && myNewTowerIndex <= newTower0)
                                     {
 
                                         standbyPosition = new(eastTower ? 102f : 98f, 0, 90.81f);
@@ -3873,33 +3833,9 @@ namespace CicerosKodakkuAssist.FuturesRewrittenUltimate.LPDU
 
                                     }
 
-                                    else
-                                    {
-
-                                        if (P1塔[1] >= 3)
-                                        {
-
-                                            standbyPosition = new(eastTower ? 102f : 98f, 0, 100f);
-                                            towerPosition = new(eastTower ? 115.98f : 84.02f, 0, 100f);
-
-                                        }
-
-                                        if (P1塔[2] >= 3)
-                                        {
-
-                                            standbyPosition = new(eastTower ? 102f : 98f, 0, 109.18f);
-                                            towerPosition = new(eastTower ? 113.08f : 86.92f, 0, 109.18f);
-
-                                        }
-
-                                    }
-
-                                }
-
-                                if (myIndex == 5)
-                                {
-
-                                    if (P1塔[1] >= 2)
+                                    if (newTower1 > 0
+                                       &&
+                                       newTower0 < myNewTowerIndex && myNewTowerIndex <= newTower0 + newTower1)
                                     {
 
                                         standbyPosition = new(eastTower ? 102f : 98f, 0, 100f);
@@ -3907,33 +3843,9 @@ namespace CicerosKodakkuAssist.FuturesRewrittenUltimate.LPDU
 
                                     }
 
-                                    else
-                                    {
-
-                                        if (P1塔[0] >= 3)
-                                        {
-
-                                            standbyPosition = new(eastTower ? 102f : 98f, 0, 90.81f);
-                                            towerPosition = new(eastTower ? 113.08f : 86.92f, 0, 90.81f);
-
-                                        }
-
-                                        if (P1塔[2] >= 3)
-                                        {
-
-                                            standbyPosition = new(eastTower ? 102f : 98f, 0, 109.18f);
-                                            towerPosition = new(eastTower ? 113.08f : 86.92f, 0, 109.18f);
-
-                                        }
-
-                                    }
-
-                                }
-
-                                if (myIndex == 6)
-                                {
-
-                                    if (P1塔[2] >= 2)
+                                    if (newTower2 > 0
+                                       &&
+                                       newTower0 + newTower1 < myNewTowerIndex && myNewTowerIndex <= newTower0 + newTower1 + newTower2)
                                     {
 
                                         standbyPosition = new(eastTower ? 102f : 98f, 0, 109.18f);
@@ -3941,10 +3853,67 @@ namespace CicerosKodakkuAssist.FuturesRewrittenUltimate.LPDU
 
                                     }
 
-                                    else
+                                }
+
+                            }
+
+                            if (Phase1_Strat_Of_Towers == Phase1_Strats_Of_Towers.Fixed_H1H2R2_Rest_Fill_Vacancies_固定H1H2D4剩余人补位_MMW)
+                            {
+                                // Same as before, the following credits to @abigseal. Appreciate!
+
+                                bool fixedPartyMember = false;
+
+                                if (myIndex == 2)
+                                {
+
+                                    fixedPartyMember = true;
+
+                                    standbyPosition = new(eastTower ? 102f : 98f, 0, 90.81f);
+                                    towerPosition = new(eastTower ? 113.08f : 86.92f, 0, 90.81f);
+
+                                }
+
+                                if (myIndex == 3)
+                                {
+
+                                    fixedPartyMember = true;
+
+                                    standbyPosition = new(eastTower ? 102f : 98f, 0, 100f);
+                                    towerPosition = new(eastTower ? 115.98f : 84.02f, 0, 100f);
+
+                                }
+
+                                if (myIndex == 7)
+                                {
+
+                                    fixedPartyMember = true;
+
+                                    standbyPosition = new(eastTower ? 102f : 98f, 0, 109.18f);
+                                    towerPosition = new(eastTower ? 113.08f : 86.92f, 0, 109.18f);
+
+                                }
+
+                                if (!fixedPartyMember)
+                                {
+
+                                    if (Enable_Developer_Mode)
                                     {
 
-                                        if (P1塔[0] >= 3)
+                                        if (IsMe(accessory, 视角)) accessory.Method.SendChat($"""
+                                                                   /e 
+                                                                   P1塔[0]={P1塔[0]}
+                                                                   P1塔[1]={P1塔[1]}
+                                                                   P1塔[2]={P1塔[2]}
+                                                                   myTowerIndex={myTowerIndex}
+
+                                                                   """);
+
+                                    }
+
+                                    if (myIndex == 4)
+                                    {
+
+                                        if (P1塔[0] >= 2)
                                         {
 
                                             standbyPosition = new(eastTower ? 102f : 98f, 0, 90.81f);
@@ -3952,11 +3921,92 @@ namespace CicerosKodakkuAssist.FuturesRewrittenUltimate.LPDU
 
                                         }
 
-                                        if (P1塔[1] >= 3)
+                                        else
+                                        {
+
+                                            if (P1塔[1] >= 3)
+                                            {
+
+                                                standbyPosition = new(eastTower ? 102f : 98f, 0, 100f);
+                                                towerPosition = new(eastTower ? 115.98f : 84.02f, 0, 100f);
+
+                                            }
+
+                                            if (P1塔[2] >= 3)
+                                            {
+
+                                                standbyPosition = new(eastTower ? 102f : 98f, 0, 109.18f);
+                                                towerPosition = new(eastTower ? 113.08f : 86.92f, 0, 109.18f);
+
+                                            }
+
+                                        }
+
+                                    }
+
+                                    if (myIndex == 5)
+                                    {
+
+                                        if (P1塔[1] >= 2)
                                         {
 
                                             standbyPosition = new(eastTower ? 102f : 98f, 0, 100f);
                                             towerPosition = new(eastTower ? 115.98f : 84.02f, 0, 100f);
+
+                                        }
+
+                                        else
+                                        {
+
+                                            if (P1塔[0] >= 3)
+                                            {
+
+                                                standbyPosition = new(eastTower ? 102f : 98f, 0, 90.81f);
+                                                towerPosition = new(eastTower ? 113.08f : 86.92f, 0, 90.81f);
+
+                                            }
+
+                                            if (P1塔[2] >= 3)
+                                            {
+
+                                                standbyPosition = new(eastTower ? 102f : 98f, 0, 109.18f);
+                                                towerPosition = new(eastTower ? 113.08f : 86.92f, 0, 109.18f);
+
+                                            }
+
+                                        }
+
+                                    }
+
+                                    if (myIndex == 6)
+                                    {
+
+                                        if (P1塔[2] >= 2)
+                                        {
+
+                                            standbyPosition = new(eastTower ? 102f : 98f, 0, 109.18f);
+                                            towerPosition = new(eastTower ? 113.08f : 86.92f, 0, 109.18f);
+
+                                        }
+
+                                        else
+                                        {
+
+                                            if (P1塔[0] >= 3)
+                                            {
+
+                                                standbyPosition = new(eastTower ? 102f : 98f, 0, 90.81f);
+                                                towerPosition = new(eastTower ? 113.08f : 86.92f, 0, 90.81f);
+
+                                            }
+
+                                            if (P1塔[1] >= 3)
+                                            {
+
+                                                standbyPosition = new(eastTower ? 102f : 98f, 0, 100f);
+                                                towerPosition = new(eastTower ? 115.98f : 84.02f, 0, 100f);
+
+                                            }
 
                                         }
 
@@ -3966,45 +4016,44 @@ namespace CicerosKodakkuAssist.FuturesRewrittenUltimate.LPDU
 
                             }
 
+                            if (Enable_Developer_Mode)
+                            {
+
+                                if (IsMe(accessory, 视角)) accessory.Method.SendChat($"""
+                                                           /e 
+                                                           standbyPosition={standbyPosition}
+                                                           towerPosition={towerPosition}
+
+                                                           """);
+
+                            }
+
+                            if (standbyPosition.Equals(new Vector3(100, 0, 100)) || towerPosition.Equals(new Vector3(100, 0, 100)))
+                            {
+
+                                return;
+
+                            }
+
+                            var dp = accessory.Data.GetDefaultDrawProperties();
+                            dp.Name = $"P1_火塔_塔处理位置_ND-{视角}";
+                            dp.Scale = new(2);
+                            dp.Owner = GuidanceOwner(accessory, 视角);
+                            dp.TargetPosition = standbyPosition;
+                            dp.ScaleMode |= ScaleMode.YByDistance;
+                            dp.Color = accessory.Data.DefaultSafeColor;
+                            dp.DestoryAt = 9000;
+                            accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
+
+                            dp = accessory.Data.GetDefaultDrawProperties();
+                            dp.Name = $"P1_火塔_塔_ND-{视角}";
+                            dp.Scale = new(4);
+                            dp.Position = towerPosition;
+                            dp.Color = accessory.Data.DefaultSafeColor;
+                            dp.DestoryAt = 10500;
+                            accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Circle, dp);
+
                         }
-
-                        if (Enable_Developer_Mode)
-                        {
-
-                            accessory.Method.SendChat($"""
-                                                       /e 
-                                                       standbyPosition={standbyPosition}
-                                                       towerPosition={towerPosition}
-
-                                                       """);
-
-                        }
-
-                        if (standbyPosition.Equals(new Vector3(100, 0, 100)) || towerPosition.Equals(new Vector3(100, 0, 100)))
-                        {
-
-                            return;
-
-                        }
-
-                        var dp = accessory.Data.GetDefaultDrawProperties();
-                        dp.Name = "P1_火塔_塔处理位置_ND";
-                        dp.Scale = new(2);
-                        dp.Owner = accessory.Data.Me;
-                        dp.TargetPosition = standbyPosition;
-                        dp.ScaleMode |= ScaleMode.YByDistance;
-                        dp.Color = accessory.Data.DefaultSafeColor;
-                        dp.DestoryAt = 9000;
-                        accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
-
-                        dp = accessory.Data.GetDefaultDrawProperties();
-                        dp.Name = "P1_火塔_塔_ND";
-                        dp.Scale = new(4);
-                        dp.Position = towerPosition;
-                        dp.Color = accessory.Data.DefaultSafeColor;
-                        dp.DestoryAt = 10500;
-                        accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Circle, dp);
-
                     }
                 }
             });
@@ -4094,18 +4143,18 @@ namespace CicerosKodakkuAssist.FuturesRewrittenUltimate.LPDU
                 switch (_usamiPd.ActionCount)
                 {
                     case 1:
-                        if (tidx == myIndex) FallOfFaithGuidance(sa, tetherType == lightning ? 4 : 5);
+                        if (Debugging || tidx == myIndex) FallOfFaithGuidance(sa, tidx, tetherType == lightning ? 4 : 5);
                         break;
                     case 2:
-                        if (tidx == myIndex) FallOfFaithGuidance(sa, tetherType == lightning ? 6 : 7);
+                        if (Debugging || tidx == myIndex) FallOfFaithGuidance(sa, tidx, tetherType == lightning ? 6 : 7);
                         break;
                     case 3:
                         // 因为此时有5个闲人，减1消除偏移
-                        if (tidx == myIndex) FallOfFaithGuidance(sa, (_usamiPd.FindPriorityIndexOfKey(tidx) - 1) % 2 == 0 ? 4 : 5);
+                        if (Debugging || tidx == myIndex) FallOfFaithGuidance(sa, tidx, (_usamiPd.FindPriorityIndexOfKey(tidx) - 1) % 2 == 0 ? 4 : 5);
                         break;
                     case 4:
                         // 此时有4个闲人
-                        if (tidx == myIndex) FallOfFaithGuidance(sa, _usamiPd.FindPriorityIndexOfKey(tidx) % 2 == 0 ? 6 : 7);
+                        if (Debugging || tidx == myIndex) FallOfFaithGuidance(sa, tidx, _usamiPd.FindPriorityIndexOfKey(tidx) % 2 == 0 ? 6 : 7);
                         break;
                 }
             }
@@ -4115,28 +4164,33 @@ namespace CicerosKodakkuAssist.FuturesRewrittenUltimate.LPDU
 
             Thread.MemoryBarrier();
 
-            var myPriority = _usamiPd.FindPriorityIndexOfKey(myIndex);
+            foreach (var 视角 in GuidanceIndices(sa)) 指路(视角);
 
-            // 雷火线交换提示。取优先级值十位数，若相差1，不换；相差2，换。
-            if (myPriority >= 4)
+            void 指路(int 视角)
             {
-                var myPriVal = _usamiPd.SelectSpecificPriorityIndex(myPriority).Value;
-                var ptPriority = myPriority % 2 == 0 ? myPriority + 1 : myPriority - 1;
-                var ptPriVal = _usamiPd.SelectSpecificPriorityIndex(ptPriority).Value;
-                var subtract = Math.Abs(myPriVal / 10 % 10 - ptPriVal / 10 % 10);
-                sa.DebugMsg($"优先级 (({myPriority}){myPriVal} - ({ptPriority}){ptPriVal}) / 10 % 10 = {subtract}", Enable_Developer_Mode);
-                if (subtract != 2) return;
-                FallOfFaithGuidance(sa, myPriority, true);
-                if (Enable_Text_Prompts) sa.Method.TextInfo($"连线玩家准备交换", 3000, true);
-            }
-            else
-            {
-                // 闲人指路
-                FallOfFaithGuidance(sa, myPriority);
+                var myPriority = _usamiPd.FindPriorityIndexOfKey(视角);
+
+                // 雷火线交换提示。取优先级值十位数，若相差1，不换；相差2，换。
+                if (myPriority >= 4)
+                {
+                    var myPriVal = _usamiPd.SelectSpecificPriorityIndex(myPriority).Value;
+                    var ptPriority = myPriority % 2 == 0 ? myPriority + 1 : myPriority - 1;
+                    var ptPriVal = _usamiPd.SelectSpecificPriorityIndex(ptPriority).Value;
+                    var subtract = Math.Abs(myPriVal / 10 % 10 - ptPriVal / 10 % 10);
+                    sa.DebugMsg($"优先级 (({myPriority}){myPriVal} - ({ptPriority}){ptPriVal}) / 10 % 10 = {subtract}", Enable_Developer_Mode);
+                    if (subtract != 2) return;
+                    FallOfFaithGuidance(sa, 视角, myPriority, true);
+                    if (IsMe(sa, 视角)) if (Enable_Text_Prompts) sa.Method.TextInfo($"连线玩家准备交换", 3000, true);
+                }
+                else
+                {
+                    // 闲人指路
+                    FallOfFaithGuidance(sa, 视角, myPriority);
+                }
             }
         }
 
-        private void FallOfFaithGuidance(ScriptAccessory accessory, int priority, bool swapHint = false)
+        private void FallOfFaithGuidance(ScriptAccessory accessory, int idx, int priority, bool swapHint = false)
         {
             const int lightLeft = 4;
             const int fireLeft = 5;
@@ -4169,7 +4223,7 @@ namespace CicerosKodakkuAssist.FuturesRewrittenUltimate.LPDU
 
             if (!swapHint)
             {
-                var dp = accessory.DrawGuidance(tpos, 0, 20000, $"Usami-罪壤堕初始优先级{priority}指路");
+                var dp = accessory.DrawGuidance(GuidanceOwner(accessory, idx), tpos, 0, 20000, $"Usami-罪壤堕初始优先级{priority}指路-{idx}");
                 accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
             }
 
@@ -4184,7 +4238,7 @@ namespace CicerosKodakkuAssist.FuturesRewrittenUltimate.LPDU
                     _ => baseMiddlePos,
                 };
 
-                var dp = accessory.DrawGuidance(tpos, swapPos, 0, 20000, $"Usami-罪壤堕交换优先级{priority}指路", isSafe: false);
+                var dp = accessory.DrawGuidance(tpos, swapPos, 0, 20000, $"Usami-罪壤堕交换优先级{priority}指路-{idx}", isSafe: false);
                 accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
             }
         }
@@ -4267,7 +4321,7 @@ namespace CicerosKodakkuAssist.FuturesRewrittenUltimate.LPDU
 
             phase2_bossId = @event["SourceId"];
             Phase2_Positions_Of_Icicle_Impact.Clear();
-            phase2_positionToBeKnockedBack = new Vector3(100, 0, 100);
+            phase2_positionToBeKnockedBack = new Vector3[8];
             phase2_semaphoreOfGuidanceBeforeKnockback = new System.Threading.AutoResetEvent(false);
             phase2_semaphoreOfGuidanceAfterKnockback = new System.Threading.AutoResetEvent(false);
 
@@ -4367,8 +4421,8 @@ namespace CicerosKodakkuAssist.FuturesRewrittenUltimate.LPDU
             if (ParsTargetIcon(@event["Id"]) != 127) return;
             if (parse!=21) return;
             if (!ParseObjectId(@event["TargetId"], out var tid)) return;
-            if (tid != accessory.Data.Me) return;
-            var myIndex = accessory.Data.PartyList.IndexOf(accessory.Data.Me);
+            if (!Debugging && tid != accessory.Data.Me) return;
+            var myIndex = accessory.Data.PartyList.IndexOf((uint)tid);
             var rot = myIndex switch
             {
                 0 => 6,
@@ -4388,17 +4442,17 @@ namespace CicerosKodakkuAssist.FuturesRewrittenUltimate.LPDU
             var dealpos1 = RotatePoint(epos1, new(100, 0, 100), float.Pi / 4 * (rot + dr));
             var dealpos2 = RotatePoint(epos2, new(100, 0, 100), float.Pi / 4 * (rot + dr));
             var dp = accessory.Data.GetDefaultDrawProperties();
-            dp.Name = "P2_钻石星尘_冰花放置位置1";
+            dp.Name = $"P2_钻石星尘_冰花放置位置1-{myIndex}";
             dp.Scale = new(2);
             dp.ScaleMode |= ScaleMode.YByDistance;
-            dp.Owner = accessory.Data.Me;
+            dp.Owner = GuidanceOwner(accessory, myIndex);
             dp.TargetPosition = dealpos1;
             dp.Color = accessory.Data.DefaultSafeColor;
             dp.DestoryAt = 5500;
             accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
 
             dp = accessory.Data.GetDefaultDrawProperties();
-            dp.Name = "P2_钻石星尘_冰花放置位置2";
+            dp.Name = $"P2_钻石星尘_冰花放置位置2-{myIndex}";
             dp.Scale = new(2);
             dp.ScaleMode |= ScaleMode.YByDistance;
             dp.Position = dealpos1;
@@ -4408,10 +4462,10 @@ namespace CicerosKodakkuAssist.FuturesRewrittenUltimate.LPDU
             accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
 
             dp = accessory.Data.GetDefaultDrawProperties();
-            dp.Name = "P2_钻石星尘_冰花放置位置3";
+            dp.Name = $"P2_钻石星尘_冰花放置位置3-{myIndex}";
             dp.Scale = new(2);
             dp.ScaleMode |= ScaleMode.YByDistance;
-            dp.Owner = accessory.Data.Me;
+            dp.Owner = GuidanceOwner(accessory, myIndex);
             dp.TargetPosition = dealpos2;
             dp.Color = accessory.Data.DefaultSafeColor;
             dp.Delay = 5500;
@@ -4462,34 +4516,39 @@ namespace CicerosKodakkuAssist.FuturesRewrittenUltimate.LPDU
             if (ParsTargetIcon(@event["Id"]) != 127) return;
             if (parse!=21) return;
             if (!ParseObjectId(@event["TargetId"], out var tid)) return;
-            var myIndex = accessory.Data.PartyList.IndexOf(accessory.Data.Me);
-            int[] group = [6, 7, 4, 5, 2, 3, 0, 1];
-            if (accessory.Data.PartyList.IndexOf(((uint)tid)) != group[myIndex]) return;
-            var rot = myIndex switch
+            foreach (var 视角 in GuidanceIndices(accessory)) 指路(视角);
+
+            void 指路(int 视角)
             {
-                0 => 6,
-                1 => 0,
-                2 => 4,
-                3 => 2,
-                4 => 4,
-                5 => 2,
-                6 => 6,
-                7 => 0,
-                _ => 0,
-            };
-            var dir8 = Phase2_Positions_Of_Icicle_Impact.FirstOrDefault() % 4;
-            var dr = dir8 == 0 || dir8 == 2 ? 0 : -1;
-            Vector3 epos = P2DDDircle ? new(116.5f, 0, 100f) : new(101f, 0, 100f);
-            var dealpos = RotatePoint(epos, new(100, 0, 100), float.Pi / 4 * (rot + dr));
-            var dp = accessory.Data.GetDefaultDrawProperties();
-            dp.Name = "P2_钻石星尘_扇形引导位置";
-            dp.Scale = new(2);
-            dp.ScaleMode |= ScaleMode.YByDistance;
-            dp.Owner = accessory.Data.Me;
-            dp.TargetPosition = dealpos;
-            dp.Color = accessory.Data.DefaultSafeColor;
-            dp.DestoryAt = 6500;
-            accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
+                var myIndex = 视角;
+                int[] group = [6, 7, 4, 5, 2, 3, 0, 1];
+                if (accessory.Data.PartyList.IndexOf(((uint)tid)) != group[myIndex]) return;
+                var rot = myIndex switch
+                {
+                    0 => 6,
+                    1 => 0,
+                    2 => 4,
+                    3 => 2,
+                    4 => 4,
+                    5 => 2,
+                    6 => 6,
+                    7 => 0,
+                    _ => 0,
+                };
+                var dir8 = Phase2_Positions_Of_Icicle_Impact.FirstOrDefault() % 4;
+                var dr = dir8 == 0 || dir8 == 2 ? 0 : -1;
+                Vector3 epos = P2DDDircle ? new(116.5f, 0, 100f) : new(101f, 0, 100f);
+                var dealpos = RotatePoint(epos, new(100, 0, 100), float.Pi / 4 * (rot + dr));
+                var dp = accessory.Data.GetDefaultDrawProperties();
+                dp.Name = $"P2_钻石星尘_扇形引导位置-{视角}";
+                dp.Scale = new(2);
+                dp.ScaleMode |= ScaleMode.YByDistance;
+                dp.Owner = GuidanceOwner(accessory, 视角);
+                dp.TargetPosition = dealpos;
+                dp.Color = accessory.Data.DefaultSafeColor;
+                dp.DestoryAt = 6500;
+                accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
+            }
         }
 
         [ScriptMethod(name: "Phase2 Record Positions Of Icicle Impact 记录冰柱冲击(冰圈)的位置",
@@ -4555,7 +4614,6 @@ namespace CicerosKodakkuAssist.FuturesRewrittenUltimate.LPDU
             }
 
             int firstIcicleImpact = Phase2_Positions_Of_Icicle_Impact.First() % 4;
-            bool inStGroup = ((int[])[1, 3, 5, 7]).Contains(accessory.Data.PartyList.IndexOf(accessory.Data.Me));
             int rotation = firstIcicleImpact switch
             {
                 0 => 2,
@@ -4563,9 +4621,13 @@ namespace CicerosKodakkuAssist.FuturesRewrittenUltimate.LPDU
                 2 => 0,
                 3 => 1,
             };
-            rotation += ((inStGroup) ? (4) : (0));
 
-            phase2_positionToBeKnockedBack = RotatePoint(new Vector3(95, 0, 100), new(100, 0, 100), float.Pi / 4 * rotation);
+            // 按位次各算一份：MT 组和 ST 组击退位置相对
+            for (int i = 0; i < phase2_positionToBeKnockedBack.Length; ++i)
+            {
+                bool inStGroup = ((int[])[1, 3, 5, 7]).Contains(i);
+                phase2_positionToBeKnockedBack[i] = RotatePoint(new Vector3(95, 0, 100), new(100, 0, 100), float.Pi / 4 * (rotation + (inStGroup ? 4 : 0)));
+            }
 
             System.Threading.Thread.MemoryBarrier();
 
@@ -4602,18 +4664,23 @@ namespace CicerosKodakkuAssist.FuturesRewrittenUltimate.LPDU
 
             System.Threading.Thread.MemoryBarrier();
 
-            var currentProperty = accessory.Data.GetDefaultDrawProperties();
+            foreach (var 视角 in GuidanceIndices(accessory)) 指路(视角);
 
-            currentProperty.Name = "Phase2_Guidance_Of_The_Position_To_Be_Knocked_Back_击退位置指路";
-            currentProperty.Scale = new(2);
-            currentProperty.ScaleMode |= ScaleMode.YByDistance;
-            currentProperty.Owner = accessory.Data.Me;
-            currentProperty.TargetPosition = phase2_positionToBeKnockedBack;
-            currentProperty.Color = accessory.Data.DefaultSafeColor;
-            currentProperty.DestoryAt = 4500;
+            void 指路(int 视角)
+            {
+                var currentProperty = accessory.Data.GetDefaultDrawProperties();
 
-            accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentProperty);
+                currentProperty.Name = $"Phase2_Guidance_Of_The_Position_To_Be_Knocked_Back_击退位置指路-{视角}";
+                currentProperty.Scale = new(2);
+                currentProperty.ScaleMode |= ScaleMode.YByDistance;
+                currentProperty.Owner = GuidanceOwner(accessory, 视角);
+                currentProperty.TargetPosition = phase2_positionToBeKnockedBack[视角];
+                currentProperty.Color = accessory.Data.DefaultSafeColor;
+                currentProperty.DestoryAt = 4500;
 
+                accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentProperty);
+
+            }
         }
 
         [ScriptMethod(name: "Phase2 Guidance After Knockback 击退后指路",
@@ -4645,63 +4712,133 @@ namespace CicerosKodakkuAssist.FuturesRewrittenUltimate.LPDU
 
             Vector3 positionOfTheReflection = JsonConvert.DeserializeObject<Vector3>(@event["SourcePosition"]);
             int proteanPositionOfTheReflection = PositionTo8Dir(positionOfTheReflection, new(100, 0, 100));
-            int proteanPositionOfTheCurrentGroup = PositionTo8Dir(phase2_positionToBeKnockedBack, new(100, 0, 100));
-            int proteanPositionOfTheOppositeGroup = phase2_getOppositeProteanPosition(proteanPositionOfTheCurrentGroup);
-            bool propertyHasBeenConfirmed = false;
-            var currentProperty = accessory.Data.GetDefaultDrawProperties();
-            string prompt = "";
+            foreach (var 视角 in GuidanceIndices(accessory)) 指路(视角);
 
-            if (Enable_Developer_Mode)
+            void 指路(int 视角)
             {
+                int proteanPositionOfTheCurrentGroup = PositionTo8Dir(phase2_positionToBeKnockedBack[视角], new(100, 0, 100));
+                int proteanPositionOfTheOppositeGroup = phase2_getOppositeProteanPosition(proteanPositionOfTheCurrentGroup);
+                bool propertyHasBeenConfirmed = false;
+                var currentProperty = accessory.Data.GetDefaultDrawProperties();
+                string prompt = "";
 
-                accessory.Method.SendChat($"""
-                                           /e 
-                                           positionOfTheReflection={positionOfTheReflection}
-                                           proteanPositionOfTheReflection={proteanPositionOfTheReflection}
-                                           proteanPositionOfTheCurrentGroup={proteanPositionOfTheCurrentGroup}
-                                           proteanPositionOfTheOppositeGroup={proteanPositionOfTheOppositeGroup}
-                                           
-                                           """);
-
-            }
-
-            currentProperty.Name = "Phase2_Guidance_After_Knockback_击退后指路";
-            currentProperty.Scale = new(20);
-            currentProperty.InnerScale = new(19);
-            currentProperty.Position = new Vector3(100, 0, 100);
-            currentProperty.Rotation = float.Pi - (float.Pi / 4 * proteanPositionOfTheCurrentGroup);
-            currentProperty.Color = accessory.Data.DefaultSafeColor.WithW(25f);
-            currentProperty.DestoryAt = 14250;
-
-            if (Phase2_Strat_After_Knockback == Phase2_Strats_After_Knockback.Clockwise_One_Group_Counterclockwise_总是顺时针单组逆时针)
-            {
-
-                if (((proteanPositionOfTheCurrentGroup + 1) % 8) == proteanPositionOfTheReflection)
+                if (Enable_Developer_Mode)
                 {
 
-                    currentProperty.Radian = float.Pi / 2 - float.Pi / 18;
-                    currentProperty.Rotation += (float.Pi / 2 - float.Pi / 18) / 2;
+                    if (IsMe(accessory, 视角)) accessory.Method.SendChat($"""
+                                               /e 
+                                               positionOfTheReflection={positionOfTheReflection}
+                                               proteanPositionOfTheReflection={proteanPositionOfTheReflection}
+                                               proteanPositionOfTheCurrentGroup={proteanPositionOfTheCurrentGroup}
+                                               proteanPositionOfTheOppositeGroup={proteanPositionOfTheOppositeGroup}
 
-                    if (Language_Of_Prompts == Languages_Of_Prompts.Simplified_Chinese_简体中文)
-                    {
-
-                        prompt = "逆时针80度,遇见对组";
-
-                    }
-
-                    if (Language_Of_Prompts == Languages_Of_Prompts.English_英文)
-                    {
-
-                        prompt = "Counterclockwise 80 degrees, encountering the opposite group";
-
-                    }
+                                               """);
 
                 }
 
-                else
+                currentProperty.Name = $"Phase2_Guidance_After_Knockback_击退后指路-{视角}";
+                currentProperty.Scale = new(20);
+                currentProperty.InnerScale = new(19);
+                currentProperty.Position = new Vector3(100, 0, 100);
+                currentProperty.Rotation = float.Pi - (float.Pi / 4 * proteanPositionOfTheCurrentGroup);
+                currentProperty.Color = accessory.Data.DefaultSafeColor.WithW(25f);
+                currentProperty.DestoryAt = 14250;
+
+                if (Phase2_Strat_After_Knockback == Phase2_Strats_After_Knockback.Clockwise_One_Group_Counterclockwise_总是顺时针单组逆时针)
                 {
 
-                    if (((proteanPositionOfTheOppositeGroup + 1) % 8) == proteanPositionOfTheReflection)
+                    if (((proteanPositionOfTheCurrentGroup + 1) % 8) == proteanPositionOfTheReflection)
+                    {
+
+                        currentProperty.Radian = float.Pi / 2 - float.Pi / 18;
+                        currentProperty.Rotation += (float.Pi / 2 - float.Pi / 18) / 2;
+
+                        if (Language_Of_Prompts == Languages_Of_Prompts.Simplified_Chinese_简体中文)
+                        {
+
+                            prompt = "逆时针80度,遇见对组";
+
+                        }
+
+                        if (Language_Of_Prompts == Languages_Of_Prompts.English_英文)
+                        {
+
+                            prompt = "Counterclockwise 80 degrees, encountering the opposite group";
+
+                        }
+
+                    }
+
+                    else
+                    {
+
+                        if (((proteanPositionOfTheOppositeGroup + 1) % 8) == proteanPositionOfTheReflection)
+                        {
+
+                            currentProperty.Radian = float.Pi / 2 - float.Pi / 18;
+                            currentProperty.Rotation += -((float.Pi / 2 - float.Pi / 18) / 2);
+
+                            if (Language_Of_Prompts == Languages_Of_Prompts.Simplified_Chinese_简体中文)
+                            {
+
+                                prompt = "顺时针80度,遇见对组";
+
+                            }
+
+                            if (Language_Of_Prompts == Languages_Of_Prompts.English_英文)
+                            {
+
+                                prompt = "Clockwise 80 degrees, encountering the opposite group";
+
+                            }
+
+                        }
+
+                        else
+                        {
+
+                            int rotationOfThePath = 1;
+
+                            while (((proteanPositionOfTheCurrentGroup + rotationOfThePath) % 8) != proteanPositionOfTheReflection
+                                  &&
+                                  ((proteanPositionOfTheCurrentGroup + rotationOfThePath) % 8) != phase2_getOppositeProteanPosition(proteanPositionOfTheReflection))
+                            {
+
+                                ++rotationOfThePath;
+
+                            }
+
+                            currentProperty.Radian = float.Pi / 4 * rotationOfThePath;
+                            currentProperty.Rotation += -((float.Pi / 4 * rotationOfThePath) / 2);
+
+                            rotationOfThePath *= 45;
+
+                            if (Language_Of_Prompts == Languages_Of_Prompts.Simplified_Chinese_简体中文)
+                            {
+
+                                prompt = $"顺时针{rotationOfThePath}度";
+
+                            }
+
+                            if (Language_Of_Prompts == Languages_Of_Prompts.English_英文)
+                            {
+
+                                prompt = $"Clockwise {rotationOfThePath} degrees";
+
+                            }
+
+                        }
+
+                    }
+
+                    propertyHasBeenConfirmed = true;
+
+                }
+
+                if (Phase2_Strat_After_Knockback == Phase2_Strats_After_Knockback.Counterclockwise_One_Group_Clockwise_总是逆时针单组顺时针)
+                {
+
+                    if (((proteanPositionOfTheCurrentGroup - 1 + 8) % 8) == proteanPositionOfTheReflection)
                     {
 
                         currentProperty.Radian = float.Pi / 2 - float.Pi / 18;
@@ -4718,6 +4855,99 @@ namespace CicerosKodakkuAssist.FuturesRewrittenUltimate.LPDU
                         {
 
                             prompt = "Clockwise 80 degrees, encountering the opposite group";
+
+                        }
+
+                    }
+
+                    else
+                    {
+
+                        if (((proteanPositionOfTheOppositeGroup - 1 + 8) % 8) == proteanPositionOfTheReflection)
+                        {
+
+                            currentProperty.Radian = float.Pi / 2 - float.Pi / 18;
+                            currentProperty.Rotation += (float.Pi / 2 - float.Pi / 18) / 2;
+
+                            if (Language_Of_Prompts == Languages_Of_Prompts.Simplified_Chinese_简体中文)
+                            {
+
+                                prompt = "逆时针80度,遇见对组";
+
+                            }
+
+                            if (Language_Of_Prompts == Languages_Of_Prompts.English_英文)
+                            {
+
+                                prompt = "Counterclockwise 80 degrees, encountering the opposite group";
+
+                            }
+
+                        }
+
+                        else
+                        {
+
+                            int rotationOfThePath = 1;
+
+                            while (((proteanPositionOfTheCurrentGroup - rotationOfThePath + 8) % 8) != proteanPositionOfTheReflection
+                                  &&
+                                  ((proteanPositionOfTheCurrentGroup - rotationOfThePath + 8) % 8) != phase2_getOppositeProteanPosition(proteanPositionOfTheReflection))
+                            {
+
+                                ++rotationOfThePath;
+
+                            }
+
+                            currentProperty.Radian = float.Pi / 4 * rotationOfThePath;
+                            currentProperty.Rotation += (float.Pi / 4 * rotationOfThePath) / 2;
+
+                            rotationOfThePath *= 45;
+
+                            if (Language_Of_Prompts == Languages_Of_Prompts.Simplified_Chinese_简体中文)
+                            {
+
+                                prompt = $"逆时针{rotationOfThePath}度";
+
+                            }
+
+                            if (Language_Of_Prompts == Languages_Of_Prompts.English_英文)
+                            {
+
+                                prompt = $"Counterclockwise {rotationOfThePath} degrees";
+
+                            }
+
+                        }
+
+                    }
+
+                    propertyHasBeenConfirmed = true;
+
+                }
+
+                if (Phase2_Strat_After_Knockback == Phase2_Strats_After_Knockback.Clockwise_Both_Groups_Counterclockwise_总是顺时针双组逆时针_莫灵喵与MMW)
+                {
+
+                    if (((proteanPositionOfTheCurrentGroup + 1) % 8) == proteanPositionOfTheReflection
+                       ||
+                       ((proteanPositionOfTheOppositeGroup + 1) % 8) == proteanPositionOfTheReflection)
+                    {
+
+                        currentProperty.Radian = float.Pi / 4 * 3;
+                        currentProperty.Rotation += (float.Pi / 4 * 3) / 2;
+
+                        if (Language_Of_Prompts == Languages_Of_Prompts.Simplified_Chinese_简体中文)
+                        {
+
+                            prompt = "逆时针135度";
+
+                        }
+
+                        if (Language_Of_Prompts == Languages_Of_Prompts.English_英文)
+                        {
+
+                            prompt = "Counterclockwise 135 degrees";
 
                         }
 
@@ -4758,57 +4988,32 @@ namespace CicerosKodakkuAssist.FuturesRewrittenUltimate.LPDU
 
                     }
 
-                }
-
-                propertyHasBeenConfirmed = true;
-
-            }
-
-            if (Phase2_Strat_After_Knockback == Phase2_Strats_After_Knockback.Counterclockwise_One_Group_Clockwise_总是逆时针单组顺时针)
-            {
-
-                if (((proteanPositionOfTheCurrentGroup - 1 + 8) % 8) == proteanPositionOfTheReflection)
-                {
-
-                    currentProperty.Radian = float.Pi / 2 - float.Pi / 18;
-                    currentProperty.Rotation += -((float.Pi / 2 - float.Pi / 18) / 2);
-
-                    if (Language_Of_Prompts == Languages_Of_Prompts.Simplified_Chinese_简体中文)
-                    {
-
-                        prompt = "顺时针80度,遇见对组";
-
-                    }
-
-                    if (Language_Of_Prompts == Languages_Of_Prompts.English_英文)
-                    {
-
-                        prompt = "Clockwise 80 degrees, encountering the opposite group";
-
-                    }
+                    propertyHasBeenConfirmed = true;
 
                 }
 
-                else
+                if (Phase2_Strat_After_Knockback == Phase2_Strats_After_Knockback.Counterclockwise_Both_Groups_Clockwise_总是逆时针双组顺时针)
                 {
 
-                    if (((proteanPositionOfTheOppositeGroup - 1 + 8) % 8) == proteanPositionOfTheReflection)
+                    if (((proteanPositionOfTheCurrentGroup - 1 + 8) % 8) == proteanPositionOfTheReflection
+                       ||
+                       ((proteanPositionOfTheOppositeGroup - 1 + 8) % 8) == proteanPositionOfTheReflection)
                     {
 
-                        currentProperty.Radian = float.Pi / 2 - float.Pi / 18;
-                        currentProperty.Rotation += (float.Pi / 2 - float.Pi / 18) / 2;
+                        currentProperty.Radian = float.Pi / 4 * 3;
+                        currentProperty.Rotation += -((float.Pi / 4 * 3) / 2);
 
                         if (Language_Of_Prompts == Languages_Of_Prompts.Simplified_Chinese_简体中文)
                         {
 
-                            prompt = "逆时针80度,遇见对组";
+                            prompt = "顺时针135度";
 
                         }
 
                         if (Language_Of_Prompts == Languages_Of_Prompts.English_英文)
                         {
 
-                            prompt = "Counterclockwise 80 degrees, encountering the opposite group";
+                            prompt = "Clockwise 135 degrees";
 
                         }
 
@@ -4849,170 +5054,37 @@ namespace CicerosKodakkuAssist.FuturesRewrittenUltimate.LPDU
 
                     }
 
-                }
-
-                propertyHasBeenConfirmed = true;
-
-            }
-
-            if (Phase2_Strat_After_Knockback == Phase2_Strats_After_Knockback.Clockwise_Both_Groups_Counterclockwise_总是顺时针双组逆时针_莫灵喵与MMW)
-            {
-
-                if (((proteanPositionOfTheCurrentGroup + 1) % 8) == proteanPositionOfTheReflection
-                   ||
-                   ((proteanPositionOfTheOppositeGroup + 1) % 8) == proteanPositionOfTheReflection)
-                {
-
-                    currentProperty.Radian = float.Pi / 4 * 3;
-                    currentProperty.Rotation += (float.Pi / 4 * 3) / 2;
-
-                    if (Language_Of_Prompts == Languages_Of_Prompts.Simplified_Chinese_简体中文)
-                    {
-
-                        prompt = "逆时针135度";
-
-                    }
-
-                    if (Language_Of_Prompts == Languages_Of_Prompts.English_英文)
-                    {
-
-                        prompt = "Counterclockwise 135 degrees";
-
-                    }
+                    propertyHasBeenConfirmed = true;
 
                 }
 
-                else
+                if (propertyHasBeenConfirmed)
                 {
 
-                    int rotationOfThePath = 1;
-
-                    while (((proteanPositionOfTheCurrentGroup + rotationOfThePath) % 8) != proteanPositionOfTheReflection
-                          &&
-                          ((proteanPositionOfTheCurrentGroup + rotationOfThePath) % 8) != phase2_getOppositeProteanPosition(proteanPositionOfTheReflection))
-                    {
-
-                        ++rotationOfThePath;
-
-                    }
-
-                    currentProperty.Radian = float.Pi / 4 * rotationOfThePath;
-                    currentProperty.Rotation += -((float.Pi / 4 * rotationOfThePath) / 2);
-
-                    rotationOfThePath *= 45;
-
-                    if (Language_Of_Prompts == Languages_Of_Prompts.Simplified_Chinese_简体中文)
-                    {
-
-                        prompt = $"顺时针{rotationOfThePath}度";
-
-                    }
-
-                    if (Language_Of_Prompts == Languages_Of_Prompts.English_英文)
-                    {
-
-                        prompt = $"Clockwise {rotationOfThePath} degrees";
-
-                    }
+                    accessory.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Donut, currentProperty);
 
                 }
 
-                propertyHasBeenConfirmed = true;
-
-            }
-
-            if (Phase2_Strat_After_Knockback == Phase2_Strats_After_Knockback.Counterclockwise_Both_Groups_Clockwise_总是逆时针双组顺时针)
-            {
-
-                if (((proteanPositionOfTheCurrentGroup - 1 + 8) % 8) == proteanPositionOfTheReflection
-                   ||
-                   ((proteanPositionOfTheOppositeGroup - 1 + 8) % 8) == proteanPositionOfTheReflection)
+                if (!prompt.Equals(""))
                 {
 
-                    currentProperty.Radian = float.Pi / 4 * 3;
-                    currentProperty.Rotation += -((float.Pi / 4 * 3) / 2);
-
-                    if (Language_Of_Prompts == Languages_Of_Prompts.Simplified_Chinese_简体中文)
+                    if (Enable_Text_Prompts)
                     {
 
-                        prompt = "顺时针135度";
+                        if (IsMe(accessory, 视角)) accessory.Method.TextInfo(prompt, 9000);
 
                     }
 
-                    if (Language_Of_Prompts == Languages_Of_Prompts.English_英文)
+                    if (Enable_Vanilla_TTS || Enable_Daily_Routines_TTS)
                     {
 
-                        prompt = "Clockwise 135 degrees";
+                        if (IsMe(accessory, 视角)) accessory.TTS(prompt, Enable_Vanilla_TTS, Enable_Daily_Routines_TTS);
 
                     }
-
-                }
-
-                else
-                {
-
-                    int rotationOfThePath = 1;
-
-                    while (((proteanPositionOfTheCurrentGroup - rotationOfThePath + 8) % 8) != proteanPositionOfTheReflection
-                          &&
-                          ((proteanPositionOfTheCurrentGroup - rotationOfThePath + 8) % 8) != phase2_getOppositeProteanPosition(proteanPositionOfTheReflection))
-                    {
-
-                        ++rotationOfThePath;
-
-                    }
-
-                    currentProperty.Radian = float.Pi / 4 * rotationOfThePath;
-                    currentProperty.Rotation += (float.Pi / 4 * rotationOfThePath) / 2;
-
-                    rotationOfThePath *= 45;
-
-                    if (Language_Of_Prompts == Languages_Of_Prompts.Simplified_Chinese_简体中文)
-                    {
-
-                        prompt = $"逆时针{rotationOfThePath}度";
-
-                    }
-
-                    if (Language_Of_Prompts == Languages_Of_Prompts.English_英文)
-                    {
-
-                        prompt = $"Counterclockwise {rotationOfThePath} degrees";
-
-                    }
-
-                }
-
-                propertyHasBeenConfirmed = true;
-
-            }
-
-            if (propertyHasBeenConfirmed)
-            {
-
-                accessory.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Donut, currentProperty);
-
-            }
-
-            if (!prompt.Equals(""))
-            {
-
-                if (Enable_Text_Prompts)
-                {
-
-                    accessory.Method.TextInfo(prompt, 9000);
-
-                }
-
-                if (Enable_Vanilla_TTS || Enable_Daily_Routines_TTS)
-                {
-
-                    accessory.TTS(prompt, Enable_Vanilla_TTS, Enable_Daily_Routines_TTS);
 
                 }
 
             }
-
             if (!ParseObjectId(@event["SourceId"], out var sourceId))
             {
 
@@ -5020,7 +5092,7 @@ namespace CicerosKodakkuAssist.FuturesRewrittenUltimate.LPDU
 
             }
 
-            currentProperty = accessory.Data.GetDefaultDrawProperties();
+            var currentProperty = accessory.Data.GetDefaultDrawProperties();
 
             currentProperty.Name = "Phase2_Front_Central_Axis_Of_Oracles_Reflection_神使的倒影前中轴线";
             currentProperty.Scale = new(0.5f, 50f);
@@ -5086,17 +5158,22 @@ namespace CicerosKodakkuAssist.FuturesRewrittenUltimate.LPDU
 
             }
 
-            var currentProperty = accessory.Data.GetDefaultDrawProperties();
+            foreach (var 视角 in GuidanceIndices(accessory)) 指路(视角);
 
-            currentProperty.Name = "Phase2_Prediction_Of_Skating_滑冰预测";
-            currentProperty.Scale = new(2f, 32f);
-            currentProperty.Owner = accessory.Data.Me;
-            currentProperty.Color = accessory.Data.DefaultDangerColor.WithW(3f);
-            currentProperty.Delay = 14250;
-            currentProperty.DestoryAt = 9000;
+            void 指路(int 视角)
+            {
+                var currentProperty = accessory.Data.GetDefaultDrawProperties();
 
-            accessory.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Displacement, currentProperty);
+                currentProperty.Name = $"Phase2_Prediction_Of_Skating_滑冰预测-{视角}";
+                currentProperty.Scale = new(2f, 32f);
+                currentProperty.Owner = GuidanceOwner(accessory, 视角);
+                currentProperty.Color = accessory.Data.DefaultDangerColor.WithW(3f);
+                currentProperty.Delay = 14250;
+                currentProperty.DestoryAt = 9000;
 
+                accessory.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Displacement, currentProperty);
+
+            }
         }
 
         [ScriptMethod(name: "P2_钻石星尘_连续剑范围", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:regex:^4019[34]$"])]
@@ -5156,17 +5233,22 @@ namespace CicerosKodakkuAssist.FuturesRewrittenUltimate.LPDU
             if (parse!=21) return;
             if (!ParseObjectId(phase2_bossId, out var sid)) return;
 
-            var dp = accessory.Data.GetDefaultDrawProperties();
-            dp.Name = "P2_钻石星尘_Boss背对";
-            dp.Scale = new(5);
-            dp.Owner = accessory.Data.Me;
-            dp.TargetObject = sid;
-            dp.Color = accessory.Data.DefaultDangerColor;
-            dp.Delay = 3000;
-            dp.DestoryAt = 6000;
-            accessory.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.SightAvoid, dp);
+            foreach (var 视角 in GuidanceIndices(accessory)) 指路(视角);
+
+            void 指路(int 视角)
+            {
+                var dp = accessory.Data.GetDefaultDrawProperties();
+                dp.Name = $"P2_钻石星尘_Boss背对-{视角}";
+                dp.Scale = new(5);
+                dp.Owner = GuidanceOwner(accessory, 视角);
+                dp.TargetObject = sid;
+                dp.Color = accessory.Data.DefaultDangerColor;
+                dp.Delay = 3000;
+                dp.DestoryAt = 6000;
+                accessory.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.SightAvoid, dp);
 
 
+            }
         }
 
         [ScriptMethod(name: "Phase2 Reset Semaphores After Diamond Dust 钻石星尘后重置信号灯",
@@ -5487,59 +5569,64 @@ namespace CicerosKodakkuAssist.FuturesRewrittenUltimate.LPDU
 
             --proteanPosition;
 
-            int myIndex = accessory.Data.PartyList.IndexOf(accessory.Data.Me);
-            Vector3 rawPosition = new(100, 0, 100);
-            bool isMeleeGroup = true;
+            foreach (var 视角 in GuidanceIndices(accessory)) 指路(视角);
 
-            if (myIndex == 0
-               ||
-               myIndex == 1
-               ||
-               myIndex == 4
-               ||
-               myIndex == 5)
+            void 指路(int 视角)
             {
+                int myIndex = 视角;
+                Vector3 rawPosition = new(100, 0, 100);
+                bool isMeleeGroup = true;
 
-                isMeleeGroup = true;
-                rawPosition = new(100, 0, 85);
+                if (myIndex == 0
+                   ||
+                   myIndex == 1
+                   ||
+                   myIndex == 4
+                   ||
+                   myIndex == 5)
+                {
+
+                    isMeleeGroup = true;
+                    rawPosition = new(100, 0, 85);
+
+                }
+
+                if (myIndex == 2
+                   ||
+                   myIndex == 3
+                   ||
+                   myIndex == 6
+                   ||
+                   myIndex == 7)
+                {
+
+                    isMeleeGroup = false;
+                    rawPosition = new(100, 0, 80.5f);
+
+                }
+
+                if (rawPosition.Equals(new Vector3(100, 0, 100)))
+                {
+
+                    return;
+
+                }
+
+                Vector3 targetPosition = RotatePoint(rawPosition, new(100, 0, 100), float.Pi / 4 * (proteanPosition + ((isMeleeGroup) ? (4) : (0))));
+
+                var currentProperty = accessory.Data.GetDefaultDrawProperties();
+
+                currentProperty.Name = $"Phase2_Rough_Guidance_Of_The_Colourless_Mirror_无色镜子粗略指路-{视角}";
+                currentProperty.Scale = new(2);
+                currentProperty.ScaleMode |= ScaleMode.YByDistance;
+                currentProperty.Owner = GuidanceOwner(accessory, 视角);
+                currentProperty.TargetPosition = targetPosition;
+                currentProperty.Color = Phase2_Colour_Of_Mirror_Rough_Guidance.V4.WithW(1f);
+                currentProperty.DestoryAt = 13000;
+
+                accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentProperty);
 
             }
-
-            if (myIndex == 2
-               ||
-               myIndex == 3
-               ||
-               myIndex == 6
-               ||
-               myIndex == 7)
-            {
-
-                isMeleeGroup = false;
-                rawPosition = new(100, 0, 80.5f);
-
-            }
-
-            if (rawPosition.Equals(new Vector3(100, 0, 100)))
-            {
-
-                return;
-
-            }
-
-            Vector3 targetPosition = RotatePoint(rawPosition, new(100, 0, 100), float.Pi / 4 * (proteanPosition + ((isMeleeGroup) ? (4) : (0))));
-
-            var currentProperty = accessory.Data.GetDefaultDrawProperties();
-
-            currentProperty.Name = "Phase2_Rough_Guidance_Of_The_Colourless_Mirror_无色镜子粗略指路";
-            currentProperty.Scale = new(2);
-            currentProperty.ScaleMode |= ScaleMode.YByDistance;
-            currentProperty.Owner = accessory.Data.Me;
-            currentProperty.TargetPosition = targetPosition;
-            currentProperty.Color = Phase2_Colour_Of_Mirror_Rough_Guidance.V4.WithW(1f);
-            currentProperty.DestoryAt = 13000;
-
-            accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentProperty);
-
             if (!ParseObjectId(phase2_bossId, out var bossId))
             {
 
@@ -5547,7 +5634,7 @@ namespace CicerosKodakkuAssist.FuturesRewrittenUltimate.LPDU
 
             }
 
-            currentProperty = accessory.Data.GetDefaultDrawProperties();
+            var currentProperty = accessory.Data.GetDefaultDrawProperties();
 
             currentProperty.Name = "Phase2_Potential_Dangerous_Zone_Of_The_Colourless_Mirror_无色镜子潜在危险区";
             currentProperty.Scale = new(4);
@@ -5714,302 +5801,307 @@ namespace CicerosKodakkuAssist.FuturesRewrittenUltimate.LPDU
 
             }
 
-            int myIndex = accessory.Data.PartyList.IndexOf(accessory.Data.Me);
-            bool isMeleeGroup = true;
+            foreach (var 视角 in GuidanceIndices(accessory)) 指路(视角);
 
-            if (myIndex == 0
-               ||
-               myIndex == 1
-               ||
-               myIndex == 4
-               ||
-               myIndex == 5)
+            void 指路(int 视角)
             {
+                int myIndex = 视角;
+                bool isMeleeGroup = true;
 
-                isMeleeGroup = true;
+                if (myIndex == 0
+                   ||
+                   myIndex == 1
+                   ||
+                   myIndex == 4
+                   ||
+                   myIndex == 5)
+                {
+
+                    isMeleeGroup = true;
+
+                }
+
+                if (myIndex == 2
+                   ||
+                   myIndex == 3
+                   ||
+                   myIndex == 6
+                   ||
+                   myIndex == 7)
+                {
+
+                    isMeleeGroup = false;
+
+                }
+
+                var currentProperty = accessory.Data.GetDefaultDrawProperties();
+
+                if (((leftMirror + 1) % 8) == colourlessMirror
+                   ||
+                   ((leftMirror + 1) % 8) == phase2_getOppositeProteanPosition(colourlessMirror))
+                {
+
+                    if (Phase2_Strat_Of_Mirror_Mirror == Phase2_Strats_Of_Mirror_Mirror.Melee_Group_Left_Red_近战组去左红色镜子
+                       ||
+                       Phase2_Strat_Of_Mirror_Mirror == Phase2_Strats_Of_Mirror_Mirror.Melee_Group_Closest_Red_Left_If_Same_近战组最近红色镜子距离相同则左)
+                    {
+
+                        Vector3 targetPosition = new Vector3(100, 0, 100);
+
+                        if (isMeleeGroup)
+                        {
+
+                            targetPosition = RotatePoint(new Vector3(100, 0, 80.5f), new(100, 0, 100), float.Pi / 4 * leftMirror);
+
+                        }
+
+                        else
+                        {
+
+                            targetPosition = RotatePoint(new Vector3(100, 0, 80.5f), new(100, 0, 100), float.Pi / 4 * rightMirror);
+
+                        }
+
+                        currentProperty = accessory.Data.GetDefaultDrawProperties();
+
+                        currentProperty.Name = $"Phase2_Rough_Guidance_Of_Red_Mirrors_红色镜子粗略指路-{视角}";
+                        currentProperty.Scale = new(2);
+                        currentProperty.ScaleMode |= ScaleMode.YByDistance;
+                        currentProperty.Owner = GuidanceOwner(accessory, 视角);
+                        currentProperty.TargetPosition = targetPosition;
+                        currentProperty.Color = Phase2_Colour_Of_Mirror_Rough_Guidance.V4.WithW(1f);
+                        currentProperty.Delay = 13500;
+                        currentProperty.DestoryAt = 9500;
+
+                        accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentProperty);
+
+                    }
+
+                    if (Phase2_Strat_Of_Mirror_Mirror == Phase2_Strats_Of_Mirror_Mirror.Melee_Group_Right_Red_近战组去右红色镜子
+                       ||
+                       Phase2_Strat_Of_Mirror_Mirror == Phase2_Strats_Of_Mirror_Mirror.Melee_Group_Closest_Red_Right_If_Same_近战组最近红色镜子距离相同则右_莫灵喵与MMW)
+                    {
+
+                        Vector3 targetPosition = new Vector3(100, 0, 100);
+
+                        if (isMeleeGroup)
+                        {
+
+                            targetPosition = RotatePoint(new Vector3(100, 0, 80.5f), new(100, 0, 100), float.Pi / 4 * rightMirror);
+
+                        }
+
+                        else
+                        {
+
+                            targetPosition = RotatePoint(new Vector3(100, 0, 80.5f), new(100, 0, 100), float.Pi / 4 * leftMirror);
+
+                        }
+
+                        currentProperty = accessory.Data.GetDefaultDrawProperties();
+
+                        currentProperty.Name = $"Phase2_Rough_Guidance_Of_Red_Mirrors_红色镜子粗略指路-{视角}";
+                        currentProperty.Scale = new(2);
+                        currentProperty.ScaleMode |= ScaleMode.YByDistance;
+                        currentProperty.Owner = GuidanceOwner(accessory, 视角);
+                        currentProperty.TargetPosition = targetPosition;
+                        currentProperty.Color = Phase2_Colour_Of_Mirror_Rough_Guidance.V4.WithW(1f);
+                        currentProperty.Delay = 13500;
+                        currentProperty.DestoryAt = 9500;
+
+                        accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentProperty);
+
+                    }
+
+                }
+
+                else
+                {
+
+                    if (Phase2_Strat_Of_Mirror_Mirror == Phase2_Strats_Of_Mirror_Mirror.Melee_Group_Left_Red_近战组去左红色镜子)
+                    {
+
+                        Vector3 targetPosition = new Vector3(100, 0, 100);
+
+                        if (isMeleeGroup)
+                        {
+
+                            targetPosition = RotatePoint(new Vector3(100, 0, 80.5f), new(100, 0, 100), float.Pi / 4 * leftMirror);
+
+                        }
+
+                        else
+                        {
+
+                            targetPosition = RotatePoint(new Vector3(100, 0, 80.5f), new(100, 0, 100), float.Pi / 4 * rightMirror);
+
+                        }
+
+                        currentProperty = accessory.Data.GetDefaultDrawProperties();
+
+                        currentProperty.Name = $"Phase2_Rough_Guidance_Of_Red_Mirrors_红色镜子粗略指路-{视角}";
+                        currentProperty.Scale = new(2);
+                        currentProperty.ScaleMode |= ScaleMode.YByDistance;
+                        currentProperty.Owner = GuidanceOwner(accessory, 视角);
+                        currentProperty.TargetPosition = targetPosition;
+                        currentProperty.Color = Phase2_Colour_Of_Mirror_Rough_Guidance.V4.WithW(1f);
+                        currentProperty.Delay = 13500;
+                        currentProperty.DestoryAt = 9500;
+
+                        accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentProperty);
+
+                    }
+
+                    if (Phase2_Strat_Of_Mirror_Mirror == Phase2_Strats_Of_Mirror_Mirror.Melee_Group_Right_Red_近战组去右红色镜子)
+                    {
+
+                        Vector3 targetPosition = new Vector3(100, 0, 100);
+
+                        if (isMeleeGroup)
+                        {
+
+                            targetPosition = RotatePoint(new Vector3(100, 0, 80.5f), new(100, 0, 100), float.Pi / 4 * rightMirror);
+
+                        }
+
+                        else
+                        {
+
+                            targetPosition = RotatePoint(new Vector3(100, 0, 80.5f), new(100, 0, 100), float.Pi / 4 * leftMirror);
+
+                        }
+
+                        currentProperty = accessory.Data.GetDefaultDrawProperties();
+
+                        currentProperty.Name = $"Phase2_Rough_Guidance_Of_Red_Mirrors_红色镜子粗略指路-{视角}";
+                        currentProperty.Scale = new(2);
+                        currentProperty.ScaleMode |= ScaleMode.YByDistance;
+                        currentProperty.Owner = GuidanceOwner(accessory, 视角);
+                        currentProperty.TargetPosition = targetPosition;
+                        currentProperty.Color = Phase2_Colour_Of_Mirror_Rough_Guidance.V4.WithW(1f);
+                        currentProperty.Delay = 13500;
+                        currentProperty.DestoryAt = 9500;
+
+                        accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentProperty);
+
+                    }
+
+                    int meleeGroup = phase2_getOppositeProteanPosition(colourlessMirror);
+                    int discreteDistanceToTheLeft = 0;
+                    int discreteDistanceToTheRight = 0;
+
+                    while (((meleeGroup + discreteDistanceToTheLeft) % 8) != leftMirror)
+                    {
+
+                        ++discreteDistanceToTheLeft;
+
+                    }
+
+                    while (((meleeGroup - discreteDistanceToTheRight + 8) % 8) != rightMirror)
+                    {
+
+                        ++discreteDistanceToTheRight;
+
+                    }
+
+                    if (Enable_Developer_Mode)
+                    {
+
+                        if (IsMe(accessory, 视角)) accessory.Method.SendChat($"""
+                                                   /e 
+                                                   discreteDistanceToTheLeft={discreteDistanceToTheLeft}
+                                                   discreteDistanceToTheRight={discreteDistanceToTheRight}
+
+                                                   """);
+
+                    }
+
+                    if (discreteDistanceToTheLeft < discreteDistanceToTheRight)
+                    {
+
+                        if (Phase2_Strat_Of_Mirror_Mirror == Phase2_Strats_Of_Mirror_Mirror.Melee_Group_Closest_Red_Left_If_Same_近战组最近红色镜子距离相同则左
+                           ||
+                           Phase2_Strat_Of_Mirror_Mirror == Phase2_Strats_Of_Mirror_Mirror.Melee_Group_Closest_Red_Right_If_Same_近战组最近红色镜子距离相同则右_莫灵喵与MMW)
+                        {
+
+                            Vector3 targetPosition = new Vector3(100, 0, 100);
+
+                            if (isMeleeGroup)
+                            {
+
+                                targetPosition = RotatePoint(new Vector3(100, 0, 80.5f), new(100, 0, 100), float.Pi / 4 * leftMirror);
+
+                            }
+
+                            else
+                            {
+
+                                targetPosition = RotatePoint(new Vector3(100, 0, 80.5f), new(100, 0, 100), float.Pi / 4 * rightMirror);
+
+                            }
+
+                            currentProperty = accessory.Data.GetDefaultDrawProperties();
+
+                            currentProperty.Name = $"Phase2_Rough_Guidance_Of_Red_Mirrors_红色镜子粗略指路-{视角}";
+                            currentProperty.Scale = new(2);
+                            currentProperty.ScaleMode |= ScaleMode.YByDistance;
+                            currentProperty.Owner = GuidanceOwner(accessory, 视角);
+                            currentProperty.TargetPosition = targetPosition;
+                            currentProperty.Color = Phase2_Colour_Of_Mirror_Rough_Guidance.V4.WithW(1f);
+                            currentProperty.Delay = 13500;
+                            currentProperty.DestoryAt = 9500;
+
+                            accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentProperty);
+
+                        }
+
+                    }
+
+                    if (discreteDistanceToTheLeft > discreteDistanceToTheRight)
+                    {
+
+                        if (Phase2_Strat_Of_Mirror_Mirror == Phase2_Strats_Of_Mirror_Mirror.Melee_Group_Closest_Red_Left_If_Same_近战组最近红色镜子距离相同则左
+                           ||
+                           Phase2_Strat_Of_Mirror_Mirror == Phase2_Strats_Of_Mirror_Mirror.Melee_Group_Closest_Red_Right_If_Same_近战组最近红色镜子距离相同则右_莫灵喵与MMW)
+                        {
+
+                            Vector3 targetPosition = new Vector3(100, 0, 100);
+
+                            if (isMeleeGroup)
+                            {
+
+                                targetPosition = RotatePoint(new Vector3(100, 0, 80.5f), new(100, 0, 100), float.Pi / 4 * rightMirror);
+
+                            }
+
+                            else
+                            {
+
+                                targetPosition = RotatePoint(new Vector3(100, 0, 80.5f), new(100, 0, 100), float.Pi / 4 * leftMirror);
+
+                            }
+
+                            currentProperty = accessory.Data.GetDefaultDrawProperties();
+
+                            currentProperty.Name = $"Phase2_Rough_Guidance_Of_Red_Mirrors_红色镜子粗略指路-{视角}";
+                            currentProperty.Scale = new(2);
+                            currentProperty.ScaleMode |= ScaleMode.YByDistance;
+                            currentProperty.Owner = GuidanceOwner(accessory, 视角);
+                            currentProperty.TargetPosition = targetPosition;
+                            currentProperty.Color = Phase2_Colour_Of_Mirror_Rough_Guidance.V4.WithW(1f);
+                            currentProperty.Delay = 13500;
+                            currentProperty.DestoryAt = 9500;
+
+                            accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentProperty);
+
+                        }
+
+                    }
+
+                }
 
             }
-
-            if (myIndex == 2
-               ||
-               myIndex == 3
-               ||
-               myIndex == 6
-               ||
-               myIndex == 7)
-            {
-
-                isMeleeGroup = false;
-
-            }
-
             var currentProperty = accessory.Data.GetDefaultDrawProperties();
-
-            if (((leftMirror + 1) % 8) == colourlessMirror
-               ||
-               ((leftMirror + 1) % 8) == phase2_getOppositeProteanPosition(colourlessMirror))
-            {
-
-                if (Phase2_Strat_Of_Mirror_Mirror == Phase2_Strats_Of_Mirror_Mirror.Melee_Group_Left_Red_近战组去左红色镜子
-                   ||
-                   Phase2_Strat_Of_Mirror_Mirror == Phase2_Strats_Of_Mirror_Mirror.Melee_Group_Closest_Red_Left_If_Same_近战组最近红色镜子距离相同则左)
-                {
-
-                    Vector3 targetPosition = new Vector3(100, 0, 100);
-
-                    if (isMeleeGroup)
-                    {
-
-                        targetPosition = RotatePoint(new Vector3(100, 0, 80.5f), new(100, 0, 100), float.Pi / 4 * leftMirror);
-
-                    }
-
-                    else
-                    {
-
-                        targetPosition = RotatePoint(new Vector3(100, 0, 80.5f), new(100, 0, 100), float.Pi / 4 * rightMirror);
-
-                    }
-
-                    currentProperty = accessory.Data.GetDefaultDrawProperties();
-
-                    currentProperty.Name = "Phase2_Rough_Guidance_Of_Red_Mirrors_红色镜子粗略指路";
-                    currentProperty.Scale = new(2);
-                    currentProperty.ScaleMode |= ScaleMode.YByDistance;
-                    currentProperty.Owner = accessory.Data.Me;
-                    currentProperty.TargetPosition = targetPosition;
-                    currentProperty.Color = Phase2_Colour_Of_Mirror_Rough_Guidance.V4.WithW(1f);
-                    currentProperty.Delay = 13500;
-                    currentProperty.DestoryAt = 9500;
-
-                    accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentProperty);
-
-                }
-
-                if (Phase2_Strat_Of_Mirror_Mirror == Phase2_Strats_Of_Mirror_Mirror.Melee_Group_Right_Red_近战组去右红色镜子
-                   ||
-                   Phase2_Strat_Of_Mirror_Mirror == Phase2_Strats_Of_Mirror_Mirror.Melee_Group_Closest_Red_Right_If_Same_近战组最近红色镜子距离相同则右_莫灵喵与MMW)
-                {
-
-                    Vector3 targetPosition = new Vector3(100, 0, 100);
-
-                    if (isMeleeGroup)
-                    {
-
-                        targetPosition = RotatePoint(new Vector3(100, 0, 80.5f), new(100, 0, 100), float.Pi / 4 * rightMirror);
-
-                    }
-
-                    else
-                    {
-
-                        targetPosition = RotatePoint(new Vector3(100, 0, 80.5f), new(100, 0, 100), float.Pi / 4 * leftMirror);
-
-                    }
-
-                    currentProperty = accessory.Data.GetDefaultDrawProperties();
-
-                    currentProperty.Name = "Phase2_Rough_Guidance_Of_Red_Mirrors_红色镜子粗略指路";
-                    currentProperty.Scale = new(2);
-                    currentProperty.ScaleMode |= ScaleMode.YByDistance;
-                    currentProperty.Owner = accessory.Data.Me;
-                    currentProperty.TargetPosition = targetPosition;
-                    currentProperty.Color = Phase2_Colour_Of_Mirror_Rough_Guidance.V4.WithW(1f);
-                    currentProperty.Delay = 13500;
-                    currentProperty.DestoryAt = 9500;
-
-                    accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentProperty);
-
-                }
-
-            }
-
-            else
-            {
-
-                if (Phase2_Strat_Of_Mirror_Mirror == Phase2_Strats_Of_Mirror_Mirror.Melee_Group_Left_Red_近战组去左红色镜子)
-                {
-
-                    Vector3 targetPosition = new Vector3(100, 0, 100);
-
-                    if (isMeleeGroup)
-                    {
-
-                        targetPosition = RotatePoint(new Vector3(100, 0, 80.5f), new(100, 0, 100), float.Pi / 4 * leftMirror);
-
-                    }
-
-                    else
-                    {
-
-                        targetPosition = RotatePoint(new Vector3(100, 0, 80.5f), new(100, 0, 100), float.Pi / 4 * rightMirror);
-
-                    }
-
-                    currentProperty = accessory.Data.GetDefaultDrawProperties();
-
-                    currentProperty.Name = "Phase2_Rough_Guidance_Of_Red_Mirrors_红色镜子粗略指路";
-                    currentProperty.Scale = new(2);
-                    currentProperty.ScaleMode |= ScaleMode.YByDistance;
-                    currentProperty.Owner = accessory.Data.Me;
-                    currentProperty.TargetPosition = targetPosition;
-                    currentProperty.Color = Phase2_Colour_Of_Mirror_Rough_Guidance.V4.WithW(1f);
-                    currentProperty.Delay = 13500;
-                    currentProperty.DestoryAt = 9500;
-
-                    accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentProperty);
-
-                }
-
-                if (Phase2_Strat_Of_Mirror_Mirror == Phase2_Strats_Of_Mirror_Mirror.Melee_Group_Right_Red_近战组去右红色镜子)
-                {
-
-                    Vector3 targetPosition = new Vector3(100, 0, 100);
-
-                    if (isMeleeGroup)
-                    {
-
-                        targetPosition = RotatePoint(new Vector3(100, 0, 80.5f), new(100, 0, 100), float.Pi / 4 * rightMirror);
-
-                    }
-
-                    else
-                    {
-
-                        targetPosition = RotatePoint(new Vector3(100, 0, 80.5f), new(100, 0, 100), float.Pi / 4 * leftMirror);
-
-                    }
-
-                    currentProperty = accessory.Data.GetDefaultDrawProperties();
-
-                    currentProperty.Name = "Phase2_Rough_Guidance_Of_Red_Mirrors_红色镜子粗略指路";
-                    currentProperty.Scale = new(2);
-                    currentProperty.ScaleMode |= ScaleMode.YByDistance;
-                    currentProperty.Owner = accessory.Data.Me;
-                    currentProperty.TargetPosition = targetPosition;
-                    currentProperty.Color = Phase2_Colour_Of_Mirror_Rough_Guidance.V4.WithW(1f);
-                    currentProperty.Delay = 13500;
-                    currentProperty.DestoryAt = 9500;
-
-                    accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentProperty);
-
-                }
-
-                int meleeGroup = phase2_getOppositeProteanPosition(colourlessMirror);
-                int discreteDistanceToTheLeft = 0;
-                int discreteDistanceToTheRight = 0;
-
-                while (((meleeGroup + discreteDistanceToTheLeft) % 8) != leftMirror)
-                {
-
-                    ++discreteDistanceToTheLeft;
-
-                }
-
-                while (((meleeGroup - discreteDistanceToTheRight + 8) % 8) != rightMirror)
-                {
-
-                    ++discreteDistanceToTheRight;
-
-                }
-
-                if (Enable_Developer_Mode)
-                {
-
-                    accessory.Method.SendChat($"""
-                                               /e 
-                                               discreteDistanceToTheLeft={discreteDistanceToTheLeft}
-                                               discreteDistanceToTheRight={discreteDistanceToTheRight}
-
-                                               """);
-
-                }
-
-                if (discreteDistanceToTheLeft < discreteDistanceToTheRight)
-                {
-
-                    if (Phase2_Strat_Of_Mirror_Mirror == Phase2_Strats_Of_Mirror_Mirror.Melee_Group_Closest_Red_Left_If_Same_近战组最近红色镜子距离相同则左
-                       ||
-                       Phase2_Strat_Of_Mirror_Mirror == Phase2_Strats_Of_Mirror_Mirror.Melee_Group_Closest_Red_Right_If_Same_近战组最近红色镜子距离相同则右_莫灵喵与MMW)
-                    {
-
-                        Vector3 targetPosition = new Vector3(100, 0, 100);
-
-                        if (isMeleeGroup)
-                        {
-
-                            targetPosition = RotatePoint(new Vector3(100, 0, 80.5f), new(100, 0, 100), float.Pi / 4 * leftMirror);
-
-                        }
-
-                        else
-                        {
-
-                            targetPosition = RotatePoint(new Vector3(100, 0, 80.5f), new(100, 0, 100), float.Pi / 4 * rightMirror);
-
-                        }
-
-                        currentProperty = accessory.Data.GetDefaultDrawProperties();
-
-                        currentProperty.Name = "Phase2_Rough_Guidance_Of_Red_Mirrors_红色镜子粗略指路";
-                        currentProperty.Scale = new(2);
-                        currentProperty.ScaleMode |= ScaleMode.YByDistance;
-                        currentProperty.Owner = accessory.Data.Me;
-                        currentProperty.TargetPosition = targetPosition;
-                        currentProperty.Color = Phase2_Colour_Of_Mirror_Rough_Guidance.V4.WithW(1f);
-                        currentProperty.Delay = 13500;
-                        currentProperty.DestoryAt = 9500;
-
-                        accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentProperty);
-
-                    }
-
-                }
-
-                if (discreteDistanceToTheLeft > discreteDistanceToTheRight)
-                {
-
-                    if (Phase2_Strat_Of_Mirror_Mirror == Phase2_Strats_Of_Mirror_Mirror.Melee_Group_Closest_Red_Left_If_Same_近战组最近红色镜子距离相同则左
-                       ||
-                       Phase2_Strat_Of_Mirror_Mirror == Phase2_Strats_Of_Mirror_Mirror.Melee_Group_Closest_Red_Right_If_Same_近战组最近红色镜子距离相同则右_莫灵喵与MMW)
-                    {
-
-                        Vector3 targetPosition = new Vector3(100, 0, 100);
-
-                        if (isMeleeGroup)
-                        {
-
-                            targetPosition = RotatePoint(new Vector3(100, 0, 80.5f), new(100, 0, 100), float.Pi / 4 * rightMirror);
-
-                        }
-
-                        else
-                        {
-
-                            targetPosition = RotatePoint(new Vector3(100, 0, 80.5f), new(100, 0, 100), float.Pi / 4 * leftMirror);
-
-                        }
-
-                        currentProperty = accessory.Data.GetDefaultDrawProperties();
-
-                        currentProperty.Name = "Phase2_Rough_Guidance_Of_Red_Mirrors_红色镜子粗略指路";
-                        currentProperty.Scale = new(2);
-                        currentProperty.ScaleMode |= ScaleMode.YByDistance;
-                        currentProperty.Owner = accessory.Data.Me;
-                        currentProperty.TargetPosition = targetPosition;
-                        currentProperty.Color = Phase2_Colour_Of_Mirror_Rough_Guidance.V4.WithW(1f);
-                        currentProperty.Delay = 13500;
-                        currentProperty.DestoryAt = 9500;
-
-                        accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentProperty);
-
-                    }
-
-                }
-
-            }
-
-            currentProperty = accessory.Data.GetDefaultDrawProperties();
 
             currentProperty.Name = "Phase2_Potential_Dangerous_Zone_Of_Red_Mirrors_红色镜子潜在危险区";
             currentProperty.Scale = new(4);
@@ -6095,78 +6187,83 @@ namespace CicerosKodakkuAssist.FuturesRewrittenUltimate.LPDU
 
             }
 
-            int myIndex = accessory.Data.PartyList.IndexOf(accessory.Data.Me);
-            double rotation = 0d;
+            foreach (var 视角 in GuidanceIndices(accessory)) 指路(视角);
 
-            if (Phase2_Initial_Protean_Position_Of_Light_Rampant == Phase2_Initial_Protean_Positions_Of_Light_Rampant.Normal_Protean_Tanks_North_East_For_Both_Grey9_常规八方T在东北_灰9用)
+            void 指路(int 视角)
             {
+                int myIndex = 视角;
+                double rotation = 0d;
 
-                rotation = 0d;
-
-                rotation += myIndex switch
+                if (Phase2_Initial_Protean_Position_Of_Light_Rampant == Phase2_Initial_Protean_Positions_Of_Light_Rampant.Normal_Protean_Tanks_North_East_For_Both_Grey9_常规八方T在东北_灰9用)
                 {
-                    0 => 0d,
-                    7 => 1d,
-                    1 => 2d,
-                    5 => 3d,
-                    3 => 4d,
-                    4 => 5d,
-                    2 => 6d,
-                    6 => 7d
-                };
+
+                    rotation = 0d;
+
+                    rotation += myIndex switch
+                    {
+                        0 => 0d,
+                        7 => 1d,
+                        1 => 2d,
+                        5 => 3d,
+                        3 => 4d,
+                        4 => 5d,
+                        2 => 6d,
+                        6 => 7d
+                    };
+
+                }
+
+                if (Phase2_Initial_Protean_Position_Of_Light_Rampant == Phase2_Initial_Protean_Positions_Of_Light_Rampant.Supporters_North_MOTH12_For_JPPF_And_L_蓝绿全部在北MSTH12_日野和L团用)
+                {
+
+                    rotation = -0.5d;
+
+                    rotation += myIndex switch
+                    {
+                        0 => -1d,
+                        1 => 0d,
+                        2 => 1d,
+                        3 => 2d,
+                        7 => 3d,
+                        6 => 4d,
+                        5 => 5d,
+                        4 => 6d
+                    };
+
+                }
+
+                if (Phase2_Initial_Protean_Position_Of_Light_Rampant == Phase2_Initial_Protean_Positions_Of_Light_Rampant.Supporters_North_H12MOT_For_JPPF_And_L_蓝绿全部在北H12MST_日野和L团用)
+                {
+
+                    rotation = -0.5d;
+
+                    rotation += myIndex switch
+                    {
+                        2 => -1d,
+                        3 => 0d,
+                        0 => 1d,
+                        1 => 2d,
+                        7 => 3d,
+                        6 => 4d,
+                        5 => 5d,
+                        4 => 6d
+                    };
+
+                }
+
+                var currentproperty = accessory.Data.GetDefaultDrawProperties();
+
+                currentproperty.Name = $"Phase2_Initial_Positions_Before_Light_Rampant_光之失控前初始站位-{视角}";
+                currentproperty.Scale = new(2);
+                currentproperty.Owner = GuidanceOwner(accessory, 视角);
+                currentproperty.TargetPosition = RotatePoint(new Vector3(100, 0, 95), new Vector3(100, 0, 100), (float)(float.Pi / 4 * rotation)); ;
+                currentproperty.ScaleMode |= ScaleMode.YByDistance;
+                currentproperty.Color = accessory.Data.DefaultSafeColor;
+                currentproperty.DestoryAt = 5000;
+
+                accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentproperty);
 
             }
-
-            if (Phase2_Initial_Protean_Position_Of_Light_Rampant == Phase2_Initial_Protean_Positions_Of_Light_Rampant.Supporters_North_MOTH12_For_JPPF_And_L_蓝绿全部在北MSTH12_日野和L团用)
-            {
-
-                rotation = -0.5d;
-
-                rotation += myIndex switch
-                {
-                    0 => -1d,
-                    1 => 0d,
-                    2 => 1d,
-                    3 => 2d,
-                    7 => 3d,
-                    6 => 4d,
-                    5 => 5d,
-                    4 => 6d
-                };
-
-            }
-
-            if (Phase2_Initial_Protean_Position_Of_Light_Rampant == Phase2_Initial_Protean_Positions_Of_Light_Rampant.Supporters_North_H12MOT_For_JPPF_And_L_蓝绿全部在北H12MST_日野和L团用)
-            {
-
-                rotation = -0.5d;
-
-                rotation += myIndex switch
-                {
-                    2 => -1d,
-                    3 => 0d,
-                    0 => 1d,
-                    1 => 2d,
-                    7 => 3d,
-                    6 => 4d,
-                    5 => 5d,
-                    4 => 6d
-                };
-
-            }
-
-            var currentproperty = accessory.Data.GetDefaultDrawProperties();
-
-            currentproperty.Name = "Phase2_Initial_Positions_Before_Light_Rampant_光之失控前初始站位";
-            currentproperty.Scale = new(2);
-            currentproperty.Owner = accessory.Data.Me;
-            currentproperty.TargetPosition = RotatePoint(new Vector3(100, 0, 95), new Vector3(100, 0, 100), (float)(float.Pi / 4 * rotation)); ;
-            currentproperty.ScaleMode |= ScaleMode.YByDistance;
-            currentproperty.Color = accessory.Data.DefaultSafeColor;
-            currentproperty.DestoryAt = 5000;
-
-            accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentproperty);
-
         }
 
         [ScriptMethod(name: "Phase2 Rough Path Of Luminous Hammer 光流侵蚀(放泥)大致路径",
@@ -6647,630 +6744,635 @@ namespace CicerosKodakkuAssist.FuturesRewrittenUltimate.LPDU
 
             System.Threading.Thread.MemoryBarrier();
 
-            int myIndex = accessory.Data.PartyList.IndexOf(accessory.Data.Me);
+            foreach (var 视角 in GuidanceIndices(accessory)) 指路(视角);
 
-            if (phase2_playersWithLuminousHammer.Contains(myIndex))
+            void 指路(int 视角)
             {
+                int myIndex = 视角;
 
-                return;
-
-            }
-
-            List<int> playersWithTethers = [];
-
-            if (Phase2_Initial_Protean_Position_Of_Light_Rampant == Phase2_Initial_Protean_Positions_Of_Light_Rampant.Normal_Protean_Tanks_North_East_For_Both_Grey9_常规八方T在东北_灰9用)
-            {
-
-                List<int> orderFromTheWestInclusive = [2, 6, 0, 7, 1, 5, 3, 4];
-
-                for (int i = 0; i < orderFromTheWestInclusive.Count; ++i)
+                if (phase2_playersWithLuminousHammer.Contains(myIndex))
                 {
 
-                    if (!phase2_playersWithLuminousHammer.Contains(orderFromTheWestInclusive[i]))
+                    return;
+
+                }
+
+                List<int> playersWithTethers = [];
+
+                if (Phase2_Initial_Protean_Position_Of_Light_Rampant == Phase2_Initial_Protean_Positions_Of_Light_Rampant.Normal_Protean_Tanks_North_East_For_Both_Grey9_常规八方T在东北_灰9用)
+                {
+
+                    List<int> orderFromTheWestInclusive = [2, 6, 0, 7, 1, 5, 3, 4];
+
+                    for (int i = 0; i < orderFromTheWestInclusive.Count; ++i)
                     {
 
-                        playersWithTethers.Add(orderFromTheWestInclusive[i]);
+                        if (!phase2_playersWithLuminousHammer.Contains(orderFromTheWestInclusive[i]))
+                        {
+
+                            playersWithTethers.Add(orderFromTheWestInclusive[i]);
+
+                        }
 
                     }
 
                 }
 
-            }
-
-            if (Phase2_Initial_Protean_Position_Of_Light_Rampant == Phase2_Initial_Protean_Positions_Of_Light_Rampant.Supporters_North_MOTH12_For_JPPF_And_L_蓝绿全部在北MSTH12_日野和L团用)
-            {
-
-                List<int> orderFromTheWestInclusive = [0, 1, 2, 3, 7, 6, 5, 4];
-
-                for (int i = 0; i < orderFromTheWestInclusive.Count; ++i)
+                if (Phase2_Initial_Protean_Position_Of_Light_Rampant == Phase2_Initial_Protean_Positions_Of_Light_Rampant.Supporters_North_MOTH12_For_JPPF_And_L_蓝绿全部在北MSTH12_日野和L团用)
                 {
 
-                    if (!phase2_playersWithLuminousHammer.Contains(orderFromTheWestInclusive[i]))
+                    List<int> orderFromTheWestInclusive = [0, 1, 2, 3, 7, 6, 5, 4];
+
+                    for (int i = 0; i < orderFromTheWestInclusive.Count; ++i)
                     {
 
-                        playersWithTethers.Add(orderFromTheWestInclusive[i]);
+                        if (!phase2_playersWithLuminousHammer.Contains(orderFromTheWestInclusive[i]))
+                        {
+
+                            playersWithTethers.Add(orderFromTheWestInclusive[i]);
+
+                        }
 
                     }
 
                 }
 
-            }
-
-            if (Phase2_Initial_Protean_Position_Of_Light_Rampant == Phase2_Initial_Protean_Positions_Of_Light_Rampant.Supporters_North_H12MOT_For_JPPF_And_L_蓝绿全部在北H12MST_日野和L团用)
-            {
-
-                List<int> orderFromTheWestInclusive = [2, 3, 0, 1, 7, 6, 5, 4];
-
-                for (int i = 0; i < orderFromTheWestInclusive.Count; ++i)
+                if (Phase2_Initial_Protean_Position_Of_Light_Rampant == Phase2_Initial_Protean_Positions_Of_Light_Rampant.Supporters_North_H12MOT_For_JPPF_And_L_蓝绿全部在北H12MST_日野和L团用)
                 {
 
-                    if (!phase2_playersWithLuminousHammer.Contains(orderFromTheWestInclusive[i]))
+                    List<int> orderFromTheWestInclusive = [2, 3, 0, 1, 7, 6, 5, 4];
+
+                    for (int i = 0; i < orderFromTheWestInclusive.Count; ++i)
                     {
 
-                        playersWithTethers.Add(orderFromTheWestInclusive[i]);
+                        if (!phase2_playersWithLuminousHammer.Contains(orderFromTheWestInclusive[i]))
+                        {
+
+                            playersWithTethers.Add(orderFromTheWestInclusive[i]);
+
+                        }
 
                     }
 
                 }
 
-            }
-
-            if (Enable_Developer_Mode)
-            {
-
-                accessory.Method.SendChat($"""
-                                           /e 
-                                           playersWithTethers.Count={playersWithTethers.Count}
-                                           playersWithTethers[]={playersWithTethers[0]},{playersWithTethers[1]},{playersWithTethers[2]},{playersWithTethers[3]},{playersWithTethers[4]},{playersWithTethers[5]} 
-                                           
-                                           """);
-
-            }
-
-            int myTetherIndex = playersWithTethers.IndexOf(myIndex);
-            Vector3 myTower = new Vector3(100, 0, 100);
-            Vector3 myMeetingPoint = new Vector3(100, 0, 100);
-
-            Vector3 tower1 = new Vector3(100.00f, 0, 084.00f);
-            // North.
-            Vector3 tower2 = new Vector3(113.85f, 0, 092.00f);
-            // Northeast.
-            Vector3 tower3 = new Vector3(113.85f, 0, 108.00f);
-            // Southeast.
-            Vector3 tower4 = new Vector3(100.00f, 0, 116.00f);
-            // South.
-            Vector3 tower5 = new Vector3(086.14f, 0, 108.00f);
-            // Southwest.
-            Vector3 tower6 = new Vector3(086.14f, 0, 092.00f);
-            // Northwest.
-
-            Vector3 northMeetingPoint = new Vector3(100.00f, 0, 82.00f);
-            Vector3 eastMeetingPoint = new Vector3(118.00f, 0, 100.00f);
-            Vector3 southMeetingPoint = new Vector3(100.00f, 0, 118.00f);
-            Vector3 westMeetingPoint = new Vector3(82.00f, 0, 100.00f);
-
-            if (Phase2_Strat_Of_Light_Rampant == Phase2_Strats_Of_Light_Rampant.Star_Of_David_Japanese_PF_六芒星日服野队法_莫灵喵与MMW)
-            {
-                accessory.Log.Debug("Star_Of_David_Japanese_PF_六芒星日服野队法_莫灵喵与MMW");
-                myTower = myTetherIndex switch
-                {
-                    1 => tower4,
-                    4 => tower1,
-                    0 => tower6,
-                    2 => tower2,
-                    3 => tower5,
-                    5 => tower3
-                };
-
-                if (Vector3.Distance(myTower, tower1) < 1
-                   ||
-                   Vector3.Distance(myTower, tower2) < 1
-                   ||
-                   Vector3.Distance(myTower, tower6) < 1)
+                if (Enable_Developer_Mode)
                 {
 
-                    myMeetingPoint = northMeetingPoint;
+                    if (IsMe(accessory, 视角)) accessory.Method.SendChat($"""
+                                               /e 
+                                               playersWithTethers.Count={playersWithTethers.Count}
+                                               playersWithTethers[]={playersWithTethers[0]},{playersWithTethers[1]},{playersWithTethers[2]},{playersWithTethers[3]},{playersWithTethers[4]},{playersWithTethers[5]} 
+
+                                               """);
 
                 }
 
-                else
+                int myTetherIndex = playersWithTethers.IndexOf(myIndex);
+                Vector3 myTower = new Vector3(100, 0, 100);
+                Vector3 myMeetingPoint = new Vector3(100, 0, 100);
+
+                Vector3 tower1 = new Vector3(100.00f, 0, 084.00f);
+                // North.
+                Vector3 tower2 = new Vector3(113.85f, 0, 092.00f);
+                // Northeast.
+                Vector3 tower3 = new Vector3(113.85f, 0, 108.00f);
+                // Southeast.
+                Vector3 tower4 = new Vector3(100.00f, 0, 116.00f);
+                // South.
+                Vector3 tower5 = new Vector3(086.14f, 0, 108.00f);
+                // Southwest.
+                Vector3 tower6 = new Vector3(086.14f, 0, 092.00f);
+                // Northwest.
+
+                Vector3 northMeetingPoint = new Vector3(100.00f, 0, 82.00f);
+                Vector3 eastMeetingPoint = new Vector3(118.00f, 0, 100.00f);
+                Vector3 southMeetingPoint = new Vector3(100.00f, 0, 118.00f);
+                Vector3 westMeetingPoint = new Vector3(82.00f, 0, 100.00f);
+
+                if (Phase2_Strat_Of_Light_Rampant == Phase2_Strats_Of_Light_Rampant.Star_Of_David_Japanese_PF_六芒星日服野队法_莫灵喵与MMW)
                 {
-
-                    myMeetingPoint = southMeetingPoint;
-
-                }
-
-            }
-
-            if (Phase2_Strat_Of_Light_Rampant == Phase2_Strats_Of_Light_Rampant.New_Grey9_新灰九法_莫灵喵与MMW)
-            {
-                foreach (var item in phase2_playersWithLuminousHammer)
-                {
-                    accessory.Log.Debug($"{item}");
-                }
-                int numberOfPlayersWithLuminousHammerBefore = 0;
-
-                if (myIndex == 0)
-                {
-
-                    if (Enable_Developer_Mode)
+                    accessory.Log.Debug("Star_Of_David_Japanese_PF_六芒星日服野队法_莫灵喵与MMW");
+                    myTower = myTetherIndex switch
                     {
-
-                        accessory.Method.SendChat($"""
-                                                   /e 
-                                                   numberOfPlayersWithLuminousHammerBefore={numberOfPlayersWithLuminousHammerBefore}
-
-                                                   """);
-
-                    }
-
-                    myTower = tower4;
-
-                }
-
-                numberOfPlayersWithLuminousHammerBefore += (phase2_playersWithLuminousHammer.Contains(0)) ? (1) : (0);
-
-                if (myIndex == 7)
-                {
-
-                    if (Enable_Developer_Mode)
-                    {
-
-                        accessory.Method.SendChat($"""
-                                                   /e 
-                                                   numberOfPlayersWithLuminousHammerBefore={numberOfPlayersWithLuminousHammerBefore}
-
-                                                   """);
-
-                    }
-
-                    myTower = (phase2_playersWithLuminousHammer.Contains(0)) ? (tower4) : (tower6);
-
-                }
-
-                numberOfPlayersWithLuminousHammerBefore += (phase2_playersWithLuminousHammer.Contains(7)) ? (1) : (0);
-
-                if (myIndex == 1)
-                {
-
-                    if (Enable_Developer_Mode)
-                    {
-
-                        accessory.Method.SendChat($"""
-                                                   /e 
-                                                   numberOfPlayersWithLuminousHammerBefore={numberOfPlayersWithLuminousHammerBefore}
-
-                                                   """);
-
-                    }
-
-                    myTower = numberOfPlayersWithLuminousHammerBefore switch
-                    {
-                        0 => tower2,
-                        1 => tower6,
-                        2 => tower4
-                    };
-
-                }
-
-                numberOfPlayersWithLuminousHammerBefore += (phase2_playersWithLuminousHammer.Contains(1)) ? (1) : (0);
-
-                if (myIndex == 5)
-                {
-
-                    if (Enable_Developer_Mode)
-                    {
-
-                        accessory.Method.SendChat($"""
-                                                   /e 
-                                                   numberOfPlayersWithLuminousHammerBefore={numberOfPlayersWithLuminousHammerBefore}
-
-                                                   """);
-
-                    }
-
-                    myTower = numberOfPlayersWithLuminousHammerBefore switch
-                    {
-                        0 => tower5,
-                        1 => tower2,
-                        2 => tower6
-                    };
-
-                }
-
-                numberOfPlayersWithLuminousHammerBefore += (phase2_playersWithLuminousHammer.Contains(5)) ? (1) : (0);
-
-                if (myIndex == 3)
-                {
-
-                    if (Enable_Developer_Mode)
-                    {
-
-                        accessory.Method.SendChat($"""
-                                                   /e 
-                                                   numberOfPlayersWithLuminousHammerBefore={numberOfPlayersWithLuminousHammerBefore}
-
-                                                   """);
-
-                    }
-
-                    myTower = numberOfPlayersWithLuminousHammerBefore switch
-                    {
-                        0 => tower3,
-                        1 => tower5,
-                        2 => tower2
-                    };
-
-                }
-
-                numberOfPlayersWithLuminousHammerBefore += (phase2_playersWithLuminousHammer.Contains(3)) ? (1) : (0);
-
-                if (myIndex == 4)
-                {
-
-                    if (Enable_Developer_Mode)
-                    {
-
-                        accessory.Method.SendChat($"""
-                                                   /e 
-                                                   numberOfPlayersWithLuminousHammerBefore={numberOfPlayersWithLuminousHammerBefore}
-
-                                                   """);
-
-                    }
-
-                    myTower = numberOfPlayersWithLuminousHammerBefore switch
-                    {
-                        0 => tower1,
-                        1 => tower3,
-                        2 => tower5
-                    };
-
-                }
-
-                numberOfPlayersWithLuminousHammerBefore += (phase2_playersWithLuminousHammer.Contains(4)) ? (1) : (0);
-
-                if (myIndex == 2)
-                {
-
-                    if (Enable_Developer_Mode)
-                    {
-
-                        accessory.Method.SendChat($"""
-                                                   /e 
-                                                   numberOfPlayersWithLuminousHammerBefore={numberOfPlayersWithLuminousHammerBefore}
-
-                                                   """);
-
-                    }
-
-                    myTower = (phase2_playersWithLuminousHammer.Contains(6)) ? (tower1) : (tower3);
-
-                }
-
-                numberOfPlayersWithLuminousHammerBefore += (phase2_playersWithLuminousHammer.Contains(2)) ? (1) : (0);
-
-                if (myIndex == 6)
-                {
-
-                    if (Enable_Developer_Mode)
-                    {
-
-                        accessory.Method.SendChat($"""
-                                                   /e 
-                                                   numberOfPlayersWithLuminousHammerBefore={numberOfPlayersWithLuminousHammerBefore}
-
-                                                   """);
-
-                    }
-
-                    myTower = tower1;
-
-                }
-
-                if (Vector3.Distance(myTower, tower2) < 1
-                   ||
-                   Vector3.Distance(myTower, tower3) < 1
-                   ||
-                   Vector3.Distance(myTower, tower4) < 1)
-                {
-
-                    myMeetingPoint = eastMeetingPoint;
-
-                }
-
-                else
-                {
-
-                    myMeetingPoint = westMeetingPoint;
-
-                }
-
-            }
-
-            if (Phase2_Strat_Of_Light_Rampant == Phase2_Strats_Of_Light_Rampant.Lucrezia_L团法)
-            {
-                accessory.Log.Debug("Lucrezia_L团法");
-                myTower = myTetherIndex switch
-                {
-                    1 => tower1,
-                    4 => tower4,
-                    0 => tower5,
-                    2 => tower3,
-                    3 => tower6,
-                    5 => tower2
-                };
-
-                if (Vector3.Distance(myTower, tower1) < 1
-                   ||
-                   Vector3.Distance(myTower, tower2) < 1
-                   ||
-                   Vector3.Distance(myTower, tower6) < 1)
-                {
-
-                    myMeetingPoint = northMeetingPoint;
-
-                }
-
-                else
-                {
-
-                    myMeetingPoint = southMeetingPoint;
-
-                }
-
-            }
-
-            if (Phase2_Strat_Of_Light_Rampant == Phase2_Strats_Of_Light_Rampant.Obsolete_Old_Grey9_已淘汰的旧灰九法_莫灵喵)
-            {
-                accessory.Log.Debug("Obsolete_Old_Grey9_已淘汰的旧灰九法_莫灵喵");
-                int numberOfPlayersWithLuminousHammerBefore = 0;
-
-                if (myIndex == 0)
-                {
-
-                    if (Enable_Developer_Mode)
-                    {
-
-                        accessory.Method.SendChat($"""
-                                                   /e 
-                                                   numberOfPlayersWithLuminousHammerBefore={numberOfPlayersWithLuminousHammerBefore}
-
-                                                   """);
-
-                    }
-
-                    myTower = tower4;
-
-                }
-
-                numberOfPlayersWithLuminousHammerBefore += (phase2_playersWithLuminousHammer.Contains(0)) ? (1) : (0);
-
-                if (myIndex == 7)
-                {
-
-                    if (Enable_Developer_Mode)
-                    {
-
-                        accessory.Method.SendChat($"""
-                                                   /e 
-                                                   numberOfPlayersWithLuminousHammerBefore={numberOfPlayersWithLuminousHammerBefore}
-
-                                                   """);
-
-                    }
-
-                    myTower = (phase2_playersWithLuminousHammer.Contains(0)) ? (tower4) : (tower2);
-
-                }
-
-                numberOfPlayersWithLuminousHammerBefore += (phase2_playersWithLuminousHammer.Contains(7)) ? (1) : (0);
-
-                if (myIndex == 1)
-                {
-
-                    if (Enable_Developer_Mode)
-                    {
-
-                        accessory.Method.SendChat($"""
-                                                   /e 
-                                                   numberOfPlayersWithLuminousHammerBefore={numberOfPlayersWithLuminousHammerBefore}
-
-                                                   """);
-
-                    }
-
-                    myTower = numberOfPlayersWithLuminousHammerBefore switch
-                    {
+                        1 => tower4,
+                        4 => tower1,
                         0 => tower6,
-                        1 => tower2,
-                        2 => tower4
+                        2 => tower2,
+                        3 => tower5,
+                        5 => tower3
                     };
 
-                }
-
-                numberOfPlayersWithLuminousHammerBefore += (phase2_playersWithLuminousHammer.Contains(1)) ? (1) : (0);
-
-                if (myIndex == 5)
-                {
-
-                    if (Enable_Developer_Mode)
+                    if (Vector3.Distance(myTower, tower1) < 1
+                       ||
+                       Vector3.Distance(myTower, tower2) < 1
+                       ||
+                       Vector3.Distance(myTower, tower6) < 1)
                     {
 
-                        accessory.Method.SendChat($"""
-                                                   /e 
-                                                   numberOfPlayersWithLuminousHammerBefore={numberOfPlayersWithLuminousHammerBefore}
-
-                                                   """);
+                        myMeetingPoint = northMeetingPoint;
 
                     }
 
-                    myTower = numberOfPlayersWithLuminousHammerBefore switch
-                    {
-                        0 => tower3,
-                        1 => tower6,
-                        2 => tower2
-                    };
-
-                }
-
-                numberOfPlayersWithLuminousHammerBefore += (phase2_playersWithLuminousHammer.Contains(5)) ? (1) : (0);
-
-                if (myIndex == 3)
-                {
-
-                    if (Enable_Developer_Mode)
+                    else
                     {
 
-                        accessory.Method.SendChat($"""
-                                                   /e 
-                                                   numberOfPlayersWithLuminousHammerBefore={numberOfPlayersWithLuminousHammerBefore}
-
-                                                   """);
+                        myMeetingPoint = southMeetingPoint;
 
                     }
 
-                    myTower = numberOfPlayersWithLuminousHammerBefore switch
+                }
+
+                if (Phase2_Strat_Of_Light_Rampant == Phase2_Strats_Of_Light_Rampant.New_Grey9_新灰九法_莫灵喵与MMW)
+                {
+                    foreach (var item in phase2_playersWithLuminousHammer)
                     {
+                        accessory.Log.Debug($"{item}");
+                    }
+                    int numberOfPlayersWithLuminousHammerBefore = 0;
+
+                    if (myIndex == 0)
+                    {
+
+                        if (Enable_Developer_Mode)
+                        {
+
+                            if (IsMe(accessory, 视角)) accessory.Method.SendChat($"""
+                                                       /e 
+                                                       numberOfPlayersWithLuminousHammerBefore={numberOfPlayersWithLuminousHammerBefore}
+
+                                                       """);
+
+                        }
+
+                        myTower = tower4;
+
+                    }
+
+                    numberOfPlayersWithLuminousHammerBefore += (phase2_playersWithLuminousHammer.Contains(0)) ? (1) : (0);
+
+                    if (myIndex == 7)
+                    {
+
+                        if (Enable_Developer_Mode)
+                        {
+
+                            if (IsMe(accessory, 视角)) accessory.Method.SendChat($"""
+                                                       /e 
+                                                       numberOfPlayersWithLuminousHammerBefore={numberOfPlayersWithLuminousHammerBefore}
+
+                                                       """);
+
+                        }
+
+                        myTower = (phase2_playersWithLuminousHammer.Contains(0)) ? (tower4) : (tower6);
+
+                    }
+
+                    numberOfPlayersWithLuminousHammerBefore += (phase2_playersWithLuminousHammer.Contains(7)) ? (1) : (0);
+
+                    if (myIndex == 1)
+                    {
+
+                        if (Enable_Developer_Mode)
+                        {
+
+                            if (IsMe(accessory, 视角)) accessory.Method.SendChat($"""
+                                                       /e 
+                                                       numberOfPlayersWithLuminousHammerBefore={numberOfPlayersWithLuminousHammerBefore}
+
+                                                       """);
+
+                        }
+
+                        myTower = numberOfPlayersWithLuminousHammerBefore switch
+                        {
+                            0 => tower2,
+                            1 => tower6,
+                            2 => tower4
+                        };
+
+                    }
+
+                    numberOfPlayersWithLuminousHammerBefore += (phase2_playersWithLuminousHammer.Contains(1)) ? (1) : (0);
+
+                    if (myIndex == 5)
+                    {
+
+                        if (Enable_Developer_Mode)
+                        {
+
+                            if (IsMe(accessory, 视角)) accessory.Method.SendChat($"""
+                                                       /e 
+                                                       numberOfPlayersWithLuminousHammerBefore={numberOfPlayersWithLuminousHammerBefore}
+
+                                                       """);
+
+                        }
+
+                        myTower = numberOfPlayersWithLuminousHammerBefore switch
+                        {
+                            0 => tower5,
+                            1 => tower2,
+                            2 => tower6
+                        };
+
+                    }
+
+                    numberOfPlayersWithLuminousHammerBefore += (phase2_playersWithLuminousHammer.Contains(5)) ? (1) : (0);
+
+                    if (myIndex == 3)
+                    {
+
+                        if (Enable_Developer_Mode)
+                        {
+
+                            if (IsMe(accessory, 视角)) accessory.Method.SendChat($"""
+                                                       /e 
+                                                       numberOfPlayersWithLuminousHammerBefore={numberOfPlayersWithLuminousHammerBefore}
+
+                                                       """);
+
+                        }
+
+                        myTower = numberOfPlayersWithLuminousHammerBefore switch
+                        {
+                            0 => tower3,
+                            1 => tower5,
+                            2 => tower2
+                        };
+
+                    }
+
+                    numberOfPlayersWithLuminousHammerBefore += (phase2_playersWithLuminousHammer.Contains(3)) ? (1) : (0);
+
+                    if (myIndex == 4)
+                    {
+
+                        if (Enable_Developer_Mode)
+                        {
+
+                            if (IsMe(accessory, 视角)) accessory.Method.SendChat($"""
+                                                       /e 
+                                                       numberOfPlayersWithLuminousHammerBefore={numberOfPlayersWithLuminousHammerBefore}
+
+                                                       """);
+
+                        }
+
+                        myTower = numberOfPlayersWithLuminousHammerBefore switch
+                        {
+                            0 => tower1,
+                            1 => tower3,
+                            2 => tower5
+                        };
+
+                    }
+
+                    numberOfPlayersWithLuminousHammerBefore += (phase2_playersWithLuminousHammer.Contains(4)) ? (1) : (0);
+
+                    if (myIndex == 2)
+                    {
+
+                        if (Enable_Developer_Mode)
+                        {
+
+                            if (IsMe(accessory, 视角)) accessory.Method.SendChat($"""
+                                                       /e 
+                                                       numberOfPlayersWithLuminousHammerBefore={numberOfPlayersWithLuminousHammerBefore}
+
+                                                       """);
+
+                        }
+
+                        myTower = (phase2_playersWithLuminousHammer.Contains(6)) ? (tower1) : (tower3);
+
+                    }
+
+                    numberOfPlayersWithLuminousHammerBefore += (phase2_playersWithLuminousHammer.Contains(2)) ? (1) : (0);
+
+                    if (myIndex == 6)
+                    {
+
+                        if (Enable_Developer_Mode)
+                        {
+
+                            if (IsMe(accessory, 视角)) accessory.Method.SendChat($"""
+                                                       /e 
+                                                       numberOfPlayersWithLuminousHammerBefore={numberOfPlayersWithLuminousHammerBefore}
+
+                                                       """);
+
+                        }
+
+                        myTower = tower1;
+
+                    }
+
+                    if (Vector3.Distance(myTower, tower2) < 1
+                       ||
+                       Vector3.Distance(myTower, tower3) < 1
+                       ||
+                       Vector3.Distance(myTower, tower4) < 1)
+                    {
+
+                        myMeetingPoint = eastMeetingPoint;
+
+                    }
+
+                    else
+                    {
+
+                        myMeetingPoint = westMeetingPoint;
+
+                    }
+
+                }
+
+                if (Phase2_Strat_Of_Light_Rampant == Phase2_Strats_Of_Light_Rampant.Lucrezia_L团法)
+                {
+                    accessory.Log.Debug("Lucrezia_L团法");
+                    myTower = myTetherIndex switch
+                    {
+                        1 => tower1,
+                        4 => tower4,
                         0 => tower5,
-                        1 => tower3,
-                        2 => tower6
+                        2 => tower3,
+                        3 => tower6,
+                        5 => tower2
                     };
 
-                }
-
-                numberOfPlayersWithLuminousHammerBefore += (phase2_playersWithLuminousHammer.Contains(3)) ? (1) : (0);
-
-                if (myIndex == 4)
-                {
-
-                    if (Enable_Developer_Mode)
+                    if (Vector3.Distance(myTower, tower1) < 1
+                       ||
+                       Vector3.Distance(myTower, tower2) < 1
+                       ||
+                       Vector3.Distance(myTower, tower6) < 1)
                     {
 
-                        accessory.Method.SendChat($"""
-                                                   /e 
-                                                   numberOfPlayersWithLuminousHammerBefore={numberOfPlayersWithLuminousHammerBefore}
-
-                                                   """);
+                        myMeetingPoint = northMeetingPoint;
 
                     }
 
-                    myTower = numberOfPlayersWithLuminousHammerBefore switch
-                    {
-                        0 => tower1,
-                        1 => tower5,
-                        2 => tower3
-                    };
-
-                }
-
-                numberOfPlayersWithLuminousHammerBefore += (phase2_playersWithLuminousHammer.Contains(4)) ? (1) : (0);
-
-                if (myIndex == 2)
-                {
-
-                    if (Enable_Developer_Mode)
+                    else
                     {
 
-                        accessory.Method.SendChat($"""
-                                                   /e 
-                                                   numberOfPlayersWithLuminousHammerBefore={numberOfPlayersWithLuminousHammerBefore}
-
-                                                   """);
+                        myMeetingPoint = southMeetingPoint;
 
                     }
 
-                    myTower = (phase2_playersWithLuminousHammer.Contains(6)) ? (tower1) : (tower5);
-
                 }
 
-                numberOfPlayersWithLuminousHammerBefore += (phase2_playersWithLuminousHammer.Contains(2)) ? (1) : (0);
-
-                if (myIndex == 6)
+                if (Phase2_Strat_Of_Light_Rampant == Phase2_Strats_Of_Light_Rampant.Obsolete_Old_Grey9_已淘汰的旧灰九法_莫灵喵)
                 {
+                    accessory.Log.Debug("Obsolete_Old_Grey9_已淘汰的旧灰九法_莫灵喵");
+                    int numberOfPlayersWithLuminousHammerBefore = 0;
 
-                    if (Enable_Developer_Mode)
+                    if (myIndex == 0)
                     {
 
-                        accessory.Method.SendChat($"""
-                                                   /e 
-                                                   numberOfPlayersWithLuminousHammerBefore={numberOfPlayersWithLuminousHammerBefore}
+                        if (Enable_Developer_Mode)
+                        {
 
-                                                   """);
+                            if (IsMe(accessory, 视角)) accessory.Method.SendChat($"""
+                                                       /e 
+                                                       numberOfPlayersWithLuminousHammerBefore={numberOfPlayersWithLuminousHammerBefore}
+
+                                                       """);
+
+                        }
+
+                        myTower = tower4;
 
                     }
 
-                    myTower = tower1;
+                    numberOfPlayersWithLuminousHammerBefore += (phase2_playersWithLuminousHammer.Contains(0)) ? (1) : (0);
+
+                    if (myIndex == 7)
+                    {
+
+                        if (Enable_Developer_Mode)
+                        {
+
+                            if (IsMe(accessory, 视角)) accessory.Method.SendChat($"""
+                                                       /e 
+                                                       numberOfPlayersWithLuminousHammerBefore={numberOfPlayersWithLuminousHammerBefore}
+
+                                                       """);
+
+                        }
+
+                        myTower = (phase2_playersWithLuminousHammer.Contains(0)) ? (tower4) : (tower2);
+
+                    }
+
+                    numberOfPlayersWithLuminousHammerBefore += (phase2_playersWithLuminousHammer.Contains(7)) ? (1) : (0);
+
+                    if (myIndex == 1)
+                    {
+
+                        if (Enable_Developer_Mode)
+                        {
+
+                            if (IsMe(accessory, 视角)) accessory.Method.SendChat($"""
+                                                       /e 
+                                                       numberOfPlayersWithLuminousHammerBefore={numberOfPlayersWithLuminousHammerBefore}
+
+                                                       """);
+
+                        }
+
+                        myTower = numberOfPlayersWithLuminousHammerBefore switch
+                        {
+                            0 => tower6,
+                            1 => tower2,
+                            2 => tower4
+                        };
+
+                    }
+
+                    numberOfPlayersWithLuminousHammerBefore += (phase2_playersWithLuminousHammer.Contains(1)) ? (1) : (0);
+
+                    if (myIndex == 5)
+                    {
+
+                        if (Enable_Developer_Mode)
+                        {
+
+                            if (IsMe(accessory, 视角)) accessory.Method.SendChat($"""
+                                                       /e 
+                                                       numberOfPlayersWithLuminousHammerBefore={numberOfPlayersWithLuminousHammerBefore}
+
+                                                       """);
+
+                        }
+
+                        myTower = numberOfPlayersWithLuminousHammerBefore switch
+                        {
+                            0 => tower3,
+                            1 => tower6,
+                            2 => tower2
+                        };
+
+                    }
+
+                    numberOfPlayersWithLuminousHammerBefore += (phase2_playersWithLuminousHammer.Contains(5)) ? (1) : (0);
+
+                    if (myIndex == 3)
+                    {
+
+                        if (Enable_Developer_Mode)
+                        {
+
+                            if (IsMe(accessory, 视角)) accessory.Method.SendChat($"""
+                                                       /e 
+                                                       numberOfPlayersWithLuminousHammerBefore={numberOfPlayersWithLuminousHammerBefore}
+
+                                                       """);
+
+                        }
+
+                        myTower = numberOfPlayersWithLuminousHammerBefore switch
+                        {
+                            0 => tower5,
+                            1 => tower3,
+                            2 => tower6
+                        };
+
+                    }
+
+                    numberOfPlayersWithLuminousHammerBefore += (phase2_playersWithLuminousHammer.Contains(3)) ? (1) : (0);
+
+                    if (myIndex == 4)
+                    {
+
+                        if (Enable_Developer_Mode)
+                        {
+
+                            if (IsMe(accessory, 视角)) accessory.Method.SendChat($"""
+                                                       /e 
+                                                       numberOfPlayersWithLuminousHammerBefore={numberOfPlayersWithLuminousHammerBefore}
+
+                                                       """);
+
+                        }
+
+                        myTower = numberOfPlayersWithLuminousHammerBefore switch
+                        {
+                            0 => tower1,
+                            1 => tower5,
+                            2 => tower3
+                        };
+
+                    }
+
+                    numberOfPlayersWithLuminousHammerBefore += (phase2_playersWithLuminousHammer.Contains(4)) ? (1) : (0);
+
+                    if (myIndex == 2)
+                    {
+
+                        if (Enable_Developer_Mode)
+                        {
+
+                            if (IsMe(accessory, 视角)) accessory.Method.SendChat($"""
+                                                       /e 
+                                                       numberOfPlayersWithLuminousHammerBefore={numberOfPlayersWithLuminousHammerBefore}
+
+                                                       """);
+
+                        }
+
+                        myTower = (phase2_playersWithLuminousHammer.Contains(6)) ? (tower1) : (tower5);
+
+                    }
+
+                    numberOfPlayersWithLuminousHammerBefore += (phase2_playersWithLuminousHammer.Contains(2)) ? (1) : (0);
+
+                    if (myIndex == 6)
+                    {
+
+                        if (Enable_Developer_Mode)
+                        {
+
+                            if (IsMe(accessory, 视角)) accessory.Method.SendChat($"""
+                                                       /e 
+                                                       numberOfPlayersWithLuminousHammerBefore={numberOfPlayersWithLuminousHammerBefore}
+
+                                                       """);
+
+                        }
+
+                        myTower = tower1;
+
+                    }
+
+                    if (Vector3.Distance(myTower, tower1) < 1
+                       ||
+                       Vector3.Distance(myTower, tower2) < 1
+                       ||
+                       Vector3.Distance(myTower, tower3) < 1)
+                    {
+
+                        myMeetingPoint = eastMeetingPoint;
+
+                    }
+
+                    else
+                    {
+
+                        myMeetingPoint = westMeetingPoint;
+
+                    }
 
                 }
 
-                if (Vector3.Distance(myTower, tower1) < 1
-                   ||
-                   Vector3.Distance(myTower, tower2) < 1
-                   ||
-                   Vector3.Distance(myTower, tower3) < 1)
-                {
+                var currentProperty = accessory.Data.GetDefaultDrawProperties();
 
-                    myMeetingPoint = eastMeetingPoint;
+                currentProperty.Name = $"Phase2_Guidance_1_Of_Towers_During_Light_Rampant_光之失控踩塔指路1-{视角}";
+                currentProperty.Scale = new(2);
+                currentProperty.ScaleMode |= ScaleMode.YByDistance;
+                currentProperty.Owner = GuidanceOwner(accessory, 视角);
+                currentProperty.TargetPosition = myTower;
+                currentProperty.Color = accessory.Data.DefaultSafeColor;
+                currentProperty.DestoryAt = 10000;
 
-                }
+                accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentProperty);
 
-                else
-                {
+                currentProperty = accessory.Data.GetDefaultDrawProperties();
 
-                    myMeetingPoint = westMeetingPoint;
+                currentProperty.Name = $"Phase2_Highlight_Of_The_Tower_During_Light_Rampant_光之失控塔高亮-{视角}";
+                currentProperty.Scale = new(4);
+                currentProperty.Position = myTower;
+                currentProperty.Color = accessory.Data.DefaultSafeColor;
+                currentProperty.DestoryAt = 10000;
 
-                }
+                accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Circle, currentProperty);
+
+                currentProperty = accessory.Data.GetDefaultDrawProperties();
+
+                currentProperty.Name = $"Phase2_Guidance_2_Preview_Of_Towers_During_Light_Rampant_光之失控踩塔指路2预览-{视角}";
+                currentProperty.Scale = new(2);
+                currentProperty.ScaleMode |= ScaleMode.YByDistance;
+                currentProperty.Position = myTower;
+                currentProperty.TargetPosition = myMeetingPoint;
+                currentProperty.Color = accessory.Data.DefaultSafeColor;
+                currentProperty.DestoryAt = 10000;
+
+                accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentProperty);
+
+                currentProperty = accessory.Data.GetDefaultDrawProperties();
+
+                currentProperty.Name = $"Phase2_Guidance_2_Of_Towers_During_Light_Rampant_光之失控踩塔指路2-{视角}";
+                currentProperty.Scale = new(2);
+                currentProperty.ScaleMode |= ScaleMode.YByDistance;
+                currentProperty.Owner = GuidanceOwner(accessory, 视角);
+                currentProperty.TargetPosition = myMeetingPoint;
+                currentProperty.Color = accessory.Data.DefaultSafeColor;
+                currentProperty.Delay = 10000;
+                currentProperty.DestoryAt = 4000;
+
+                accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentProperty);
 
             }
-
-            var currentProperty = accessory.Data.GetDefaultDrawProperties();
-
-            currentProperty.Name = "Phase2_Guidance_1_Of_Towers_During_Light_Rampant_光之失控踩塔指路1";
-            currentProperty.Scale = new(2);
-            currentProperty.ScaleMode |= ScaleMode.YByDistance;
-            currentProperty.Owner = accessory.Data.Me;
-            currentProperty.TargetPosition = myTower;
-            currentProperty.Color = accessory.Data.DefaultSafeColor;
-            currentProperty.DestoryAt = 10000;
-
-            accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentProperty);
-
-            currentProperty = accessory.Data.GetDefaultDrawProperties();
-
-            currentProperty.Name = "Phase2_Highlight_Of_The_Tower_During_Light_Rampant_光之失控塔高亮";
-            currentProperty.Scale = new(4);
-            currentProperty.Position = myTower;
-            currentProperty.Color = accessory.Data.DefaultSafeColor;
-            currentProperty.DestoryAt = 10000;
-
-            accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Circle, currentProperty);
-
-            currentProperty = accessory.Data.GetDefaultDrawProperties();
-
-            currentProperty.Name = "Phase2_Guidance_2_Preview_Of_Towers_During_Light_Rampant_光之失控踩塔指路2预览";
-            currentProperty.Scale = new(2);
-            currentProperty.ScaleMode |= ScaleMode.YByDistance;
-            currentProperty.Position = myTower;
-            currentProperty.TargetPosition = myMeetingPoint;
-            currentProperty.Color = accessory.Data.DefaultSafeColor;
-            currentProperty.DestoryAt = 10000;
-
-            accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentProperty);
-
-            currentProperty = accessory.Data.GetDefaultDrawProperties();
-
-            currentProperty.Name = "Phase2_Guidance_2_Of_Towers_During_Light_Rampant_光之失控踩塔指路2";
-            currentProperty.Scale = new(2);
-            currentProperty.ScaleMode |= ScaleMode.YByDistance;
-            currentProperty.Owner = accessory.Data.Me;
-            currentProperty.TargetPosition = myMeetingPoint;
-            currentProperty.Color = accessory.Data.DefaultSafeColor;
-            currentProperty.Delay = 10000;
-            currentProperty.DestoryAt = 4000;
-
-            accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentProperty);
-
         }
 
         [ScriptMethod(name: "Phase2 Determine Final Lightsteeped 确定最后的过量光",
@@ -7367,79 +7469,89 @@ namespace CicerosKodakkuAssist.FuturesRewrittenUltimate.LPDU
 
             System.Threading.Thread.MemoryBarrier();
 
-            int myIndex = accessory.Data.PartyList.IndexOf(accessory.Data.Me);
+            foreach (var 视角 in GuidanceIndices(accessory)) 指路(视角);
 
-            if (phase2_stacksOfLightsteeped[myIndex] < 3)
+            void 指路(int 视角)
             {
+                int myIndex = 视角;
 
-                var currentProperty = accessory.Data.GetDefaultDrawProperties();
+                if (phase2_stacksOfLightsteeped[myIndex] < 3)
+                {
 
-                currentProperty.Name = "Phase2_Guidance_Of_The_Last_Tower_During_Light_Rampant_光之失控踩最后塔指路";
-                currentProperty.Scale = new(2);
-                currentProperty.ScaleMode |= ScaleMode.YByDistance;
-                currentProperty.Owner = accessory.Data.Me;
-                currentProperty.TargetPosition = new Vector3(100, 0, 100);
-                currentProperty.Color = accessory.Data.DefaultSafeColor;
-                currentProperty.Delay = 2500;
-                currentProperty.DestoryAt = 5500;
+                    var currentProperty = accessory.Data.GetDefaultDrawProperties();
 
-                accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentProperty);
+                    currentProperty.Name = $"Phase2_Guidance_Of_The_Last_Tower_During_Light_Rampant_光之失控踩最后塔指路-{视角}";
+                    currentProperty.Scale = new(2);
+                    currentProperty.ScaleMode |= ScaleMode.YByDistance;
+                    currentProperty.Owner = GuidanceOwner(accessory, 视角);
+                    currentProperty.TargetPosition = new Vector3(100, 0, 100);
+                    currentProperty.Color = accessory.Data.DefaultSafeColor;
+                    currentProperty.Delay = 2500;
+                    currentProperty.DestoryAt = 5500;
 
-                currentProperty = accessory.Data.GetDefaultDrawProperties();
+                    accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentProperty);
 
-                currentProperty.Name = "Phase2_Highlight_Of_The_Last_Tower_During_Light_Rampant_光之失控踩最后塔高亮";
-                currentProperty.Scale = new(4);
-                currentProperty.Position = new Vector3(100, 0, 100);
-                currentProperty.Color = accessory.Data.DefaultSafeColor;
-                currentProperty.Delay = 2500;
-                currentProperty.DestoryAt = 5500;
+                    currentProperty = accessory.Data.GetDefaultDrawProperties();
 
-                accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Circle, currentProperty);
+                    currentProperty.Name = $"Phase2_Highlight_Of_The_Last_Tower_During_Light_Rampant_光之失控踩最后塔高亮-{视角}";
+                    currentProperty.Scale = new(4);
+                    currentProperty.Position = new Vector3(100, 0, 100);
+                    currentProperty.Color = accessory.Data.DefaultSafeColor;
+                    currentProperty.Delay = 2500;
+                    currentProperty.DestoryAt = 5500;
+
+                    accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Circle, currentProperty);
+
+                }
+
+                if (Enable_Developer_Mode)
+                {
+
+                    if (IsMe(accessory, 视角)) accessory.Method.SendChat($"""
+                                               /e 
+                                               phase2_stacksOfLightsteeped[myIndex]={phase2_stacksOfLightsteeped[myIndex]}
+
+                                               """);
+
+                }
 
             }
-
-            if (Enable_Developer_Mode)
-            {
-
-                accessory.Method.SendChat($"""
-                                           /e 
-                                           phase2_stacksOfLightsteeped[myIndex]={phase2_stacksOfLightsteeped[myIndex]}
-                                           
-                                           """);
-
-            }
-
         }
 
         [ScriptMethod(name: "P2_光之暴走_八方分散位置", eventType: EventTypeEnum.ActionEffect, eventCondition: ["ActionId:regex:^(4022[01])$"])]
         public void P2_光之暴走_八方分散位置(Event @event, ScriptAccessory accessory)
         {
             if (parse!=23) return;
-            var myindex = accessory.Data.PartyList.IndexOf(accessory.Data.Me);
-            var rot8 = myindex switch
+            foreach (var 视角 in GuidanceIndices(accessory)) 指路(视角);
+
+            void 指路(int 视角)
             {
-                0 => 0,
-                1 => 2,
-                2 => 6,
-                3 => 4,
-                4 => 5,
-                5 => 3,
-                6 => 7,
-                7 => 1,
-                _ => 0,
-            };
-            var mPosEnd = RotatePoint(new(100, 0, 95), new(100, 0, 100), float.Pi / 4 * rot8);
+                var myindex = 视角;
+                var rot8 = myindex switch
+                {
+                    0 => 0,
+                    1 => 2,
+                    2 => 6,
+                    3 => 4,
+                    4 => 5,
+                    5 => 3,
+                    6 => 7,
+                    7 => 1,
+                    _ => 0,
+                };
+                var mPosEnd = RotatePoint(new(100, 0, 95), new(100, 0, 100), float.Pi / 4 * rot8);
 
-            var dp = accessory.Data.GetDefaultDrawProperties();
-            dp.Name = "P2_光之暴走_八方分散位置";
-            dp.Scale = new(2);
-            dp.Owner = accessory.Data.Me;
-            dp.TargetPosition = mPosEnd;
-            dp.ScaleMode |= ScaleMode.YByDistance;
-            dp.Color = accessory.Data.DefaultSafeColor;
-            dp.DestoryAt = 9000;
-            accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
+                var dp = accessory.Data.GetDefaultDrawProperties();
+                dp.Name = $"P2_光之暴走_八方分散位置-{视角}";
+                dp.Scale = new(2);
+                dp.Owner = GuidanceOwner(accessory, 视角);
+                dp.TargetPosition = mPosEnd;
+                dp.ScaleMode |= ScaleMode.YByDistance;
+                dp.Color = accessory.Data.DefaultSafeColor;
+                dp.DestoryAt = 9000;
+                accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
 
+            }
         }
 
         [ScriptMethod(name: "Phase2 Reset Semaphores After Light Rampant 光之失控(光暴)后重置信号灯",
@@ -7564,58 +7676,63 @@ namespace CicerosKodakkuAssist.FuturesRewrittenUltimate.LPDU
             // +100将优先级值放到最后两位，小的左(下)，大的右(上)
             var tLeft = _usamiPd.SelectSpecificPriorityIndex(6).Key;
             var tRight = _usamiPd.SelectSpecificPriorityIndex(7).Key;
-            var myIndex = accessory.GetMyIndex();
-            if ((myIndex != tLeft) && (myIndex != tRight)) return;
+            foreach (var 视角 in GuidanceIndices(accessory)) 指路(视角);
 
-            // 此处leftRoute指左/上路线
-            List<Vector3> leftRoute = LightRampageStg switch
+            void 指路(int 视角)
             {
-                LightRampageStgEnum.Grey9_灰9式 =>
-                    [
-                        new Vector3(92, 0, 100),
-                        new Vector3(94.6f, 0, 94),
-                        new Vector3(100, 0, 92),
-                        new Vector3(105.6f, 0, 92),
-                        new Vector3(111.3f, 0, 88.7f)
-                    ],
-                LightRampageStgEnum.Hexagram_正六芒星 =>
-                    [
-                        new Vector3(100, 0, 92).RotatePoint(Center, 22.5f.DegToRad()),
-                        new Vector3(100, 0, 92).RotatePoint(Center, 67.5f.DegToRad()),
-                        new Vector3(100, 0, 92).RotatePoint(Center, 112.5f.DegToRad()),
-                        new Vector3(100, 0, 92).RotatePoint(Center, 157.5f.DegToRad()),
-                        new Vector3(100, 0, 92).RotatePoint(Center, 157.5f.DegToRad()) + new Vector3(0, 0, 8.5f),
-                    ],
-                _ =>
-                    [
-                        new Vector3(92, 0, 100),
-                        new Vector3(94.6f, 0, 94),
-                        new Vector3(100, 0, 92),
-                        new Vector3(105.6f, 0, 92),
-                        new Vector3(111.3f, 0, 88.7f)
-                    ],
-            };
+                var myIndex = 视角;
+                if ((myIndex != tLeft) && (myIndex != tRight)) return;
 
-            List<Vector3> rightRoute =
-            [
-                leftRoute[0].PointCenterSymmetry(Center),
-                leftRoute[1].PointCenterSymmetry(Center),
-                leftRoute[2].PointCenterSymmetry(Center),
-                leftRoute[3].PointCenterSymmetry(Center),
-                leftRoute[4].PointCenterSymmetry(Center),
-            ];
+                // 此处leftRoute指左/上路线
+                List<Vector3> leftRoute = LightRampageStg switch
+                {
+                    LightRampageStgEnum.Grey9_灰9式 =>
+                        [
+                            new Vector3(92, 0, 100),
+                            new Vector3(94.6f, 0, 94),
+                            new Vector3(100, 0, 92),
+                            new Vector3(105.6f, 0, 92),
+                            new Vector3(111.3f, 0, 88.7f)
+                        ],
+                    LightRampageStgEnum.Hexagram_正六芒星 =>
+                        [
+                            new Vector3(100, 0, 92).RotatePoint(Center, 22.5f.DegToRad()),
+                            new Vector3(100, 0, 92).RotatePoint(Center, 67.5f.DegToRad()),
+                            new Vector3(100, 0, 92).RotatePoint(Center, 112.5f.DegToRad()),
+                            new Vector3(100, 0, 92).RotatePoint(Center, 157.5f.DegToRad()),
+                            new Vector3(100, 0, 92).RotatePoint(Center, 157.5f.DegToRad()) + new Vector3(0, 0, 8.5f),
+                        ],
+                    _ =>
+                        [
+                            new Vector3(92, 0, 100),
+                            new Vector3(94.6f, 0, 94),
+                            new Vector3(100, 0, 92),
+                            new Vector3(105.6f, 0, 92),
+                            new Vector3(111.3f, 0, 88.7f)
+                        ],
+                };
 
-            for (var i = 0; i < 4; i++)
-            {
-                var dp1 = accessory.DrawGuidance(leftRoute[i], leftRoute[i + 1], 0, 14000, $"Usami-光爆左{i}{i + 1}", isSafe: myIndex == tLeft);
-                accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Arrow, dp1);
-                var dp2 = accessory.DrawGuidance(rightRoute[i], rightRoute[i + 1], 0, 14000, $"Usami-光爆右{i}{i + 1}", isSafe: myIndex == tRight);
-                accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Arrow, dp2);
+                List<Vector3> rightRoute =
+                [
+                    leftRoute[0].PointCenterSymmetry(Center),
+                    leftRoute[1].PointCenterSymmetry(Center),
+                    leftRoute[2].PointCenterSymmetry(Center),
+                    leftRoute[3].PointCenterSymmetry(Center),
+                    leftRoute[4].PointCenterSymmetry(Center),
+                ];
+
+                for (var i = 0; i < 4; i++)
+                {
+                    var dp1 = accessory.DrawGuidance(leftRoute[i], leftRoute[i + 1], 0, 14000, $"Usami-光爆左{i}{i + 1}-{视角}", isSafe: myIndex == tLeft);
+                    accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Arrow, dp1);
+                    var dp2 = accessory.DrawGuidance(rightRoute[i], rightRoute[i + 1], 0, 14000, $"Usami-光爆右{i}{i + 1}-{视角}", isSafe: myIndex == tRight);
+                    accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Arrow, dp2);
+                }
+
+                var dp = accessory.DrawGuidance(GuidanceOwner(accessory, 视角), myIndex == tLeft ? leftRoute[0] : rightRoute[0], 0, 8000, $"Usami-光爆初始-{视角}");
+                accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
+
             }
-
-            var dp = accessory.DrawGuidance(myIndex == tLeft ? leftRoute[0] : rightRoute[0], 0, 8000, $"Usami-光爆初始");
-            accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
-
         }
 
         [ScriptMethod(name: "光爆球爆炸时间", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:regex:^(40219)$"],
@@ -7870,203 +7987,41 @@ namespace CicerosKodakkuAssist.FuturesRewrittenUltimate.LPDU
         public void P3_时间压缩_Buff处理位置(Event @event, ScriptAccessory accessory)
         {
             if (parse!=31) return;
-            var myIndex = accessory.Data.PartyList.IndexOf(accessory.Data.Me);
-            if (myIndex == -1) return;
-            var myDir8 = MyLampIndex(myIndex);
-            //accessory.Log.Debug($"myDir8 {myDir8}");
-            if (myDir8 == -1) return;
-            var myRot = myDir8 * float.Pi / 4;
+            foreach (var 视角 in GuidanceIndices(accessory)) 指路(视角);
 
-            Vector3 centre = new(100, 0, 100);
-            Vector3 fireN = new(100, 0, 84.5f);
-            Vector3 returnPosN = P3WaterBuff[myIndex] == 2 ? new(100, 0, 91.5f) : new(100, 0, 98);
-            Vector3 stopPos = new(100, 0, 101);
-            //火
-            var myFire = P3FireBuff[myIndex];
-            //短火
-            if (myFire == 1)
+            void 指路(int 视角)
             {
-                var dp = accessory.Data.GetDefaultDrawProperties();
-                dp.Name = "P3_时间压缩_短火_放火";
-                dp.Scale = new(2);
-                dp.ScaleMode |= ScaleMode.YByDistance;
-                dp.Owner = accessory.Data.Me;
-                dp.TargetPosition = RotatePoint(fireN, centre, myRot);
-                dp.Color = accessory.Data.DefaultSafeColor;
-                dp.DestoryAt = 7500;
-                accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
+                var myIndex = 视角;
+                if (myIndex == -1) return;
+                var myDir8 = MyLampIndex(myIndex);
+                //accessory.Log.Debug($"myDir8 {myDir8}");
+                if (myDir8 == -1) return;
+                var myRot = myDir8 * float.Pi / 4;
 
-                dp = accessory.Data.GetDefaultDrawProperties();
-                dp.Name = "P3_时间压缩_短火_放回溯";
-                dp.Scale = new(2);
-                dp.ScaleMode |= ScaleMode.YByDistance;
-                dp.Owner = accessory.Data.Me;
-                dp.TargetPosition = RotatePoint(returnPosN, centre, myRot);
-                dp.Color = accessory.Data.DefaultSafeColor;
-                dp.Delay = 7500;
-                dp.DestoryAt = 5000;
-                accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
-
-                dp = accessory.Data.GetDefaultDrawProperties();
-                dp.Name = "P3_时间压缩_短火_场中分摊";
-                dp.Scale = new(2);
-                dp.ScaleMode |= ScaleMode.YByDistance;
-                dp.Owner = accessory.Data.Me;
-                dp.TargetPosition = centre;
-                dp.Color = accessory.Data.DefaultSafeColor;
-                dp.Delay = 12500;
-                dp.DestoryAt = 5000;
-                accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
-
-
-                dp = accessory.Data.GetDefaultDrawProperties();
-                dp.Name = "P3_时间压缩_短火_输出位置";
-                dp.Scale = new(2);
-                dp.ScaleMode |= ScaleMode.YByDistance;
-                dp.Owner = accessory.Data.Me;
-                dp.TargetPosition = RotatePoint(stopPos, centre, myRot);
-                dp.Color = accessory.Data.DefaultSafeColor;
-                dp.Delay = 22500;
-                dp.DestoryAt = 15000;
-                accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
-            }
-
-            //中火
-            if (myFire == 2)
-            {
-                var dp = accessory.Data.GetDefaultDrawProperties();
-                dp.Name = "P3_时间压缩_中火_中场分摊";
-                dp.Scale = new(2);
-                dp.ScaleMode |= ScaleMode.YByDistance;
-                dp.Owner = accessory.Data.Me;
-                dp.TargetPosition = centre;
-                dp.Color = accessory.Data.DefaultSafeColor;
-                dp.DestoryAt = 7500;
-                accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
-
-                dp = accessory.Data.GetDefaultDrawProperties();
-                dp.Name = "P3_时间压缩_中火_放回溯";
-                dp.Scale = new(2);
-                dp.ScaleMode |= ScaleMode.YByDistance;
-                dp.Owner = accessory.Data.Me;
-                dp.TargetPosition = RotatePoint(returnPosN, centre, myRot);
-                dp.Color = accessory.Data.DefaultSafeColor;
-                dp.Delay = 7500;
-                dp.DestoryAt = 5000;
-                accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
-
-                dp = accessory.Data.GetDefaultDrawProperties();
-                dp.Name = "P3_时间压缩_中火_放火";
-                dp.Scale = new(2);
-                dp.ScaleMode |= ScaleMode.YByDistance;
-                dp.Owner = accessory.Data.Me;
-                dp.TargetPosition = RotatePoint(fireN, centre, myRot);
-                dp.Color = accessory.Data.DefaultSafeColor;
-                dp.Delay = 12500;
-                dp.DestoryAt = 5000;
-                accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
-
-                dp = accessory.Data.GetDefaultDrawProperties();
-                dp.Name = "P3_时间压缩_中火_中场";
-                dp.Scale = new(2);
-                dp.ScaleMode |= ScaleMode.YByDistance;
-                dp.Owner = accessory.Data.Me;
-                dp.TargetPosition = centre;
-                dp.Color = accessory.Data.DefaultSafeColor;
-                dp.Delay = 17500;
-                dp.DestoryAt = 10000;
-                accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
-
-                dp = accessory.Data.GetDefaultDrawProperties();
-                dp.Name = "P3_时间压缩_中火_输出位置";
-                dp.Scale = new(2);
-                dp.ScaleMode |= ScaleMode.YByDistance;
-                dp.Owner = accessory.Data.Me;
-                dp.TargetPosition = RotatePoint(stopPos, centre, myRot);
-                dp.Color = accessory.Data.DefaultSafeColor;
-                dp.Delay = 32500;
-                dp.DestoryAt = 5000;
-                accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
-
-            }
-
-            //长火
-            if (myFire == 3)
-            {
-                var dp = accessory.Data.GetDefaultDrawProperties();
-                dp.Name = "P3_时间压缩_长火_中场分摊";
-                dp.Scale = new(2);
-                dp.ScaleMode |= ScaleMode.YByDistance;
-                dp.Owner = accessory.Data.Me;
-                dp.TargetPosition = centre;
-                dp.Color = accessory.Data.DefaultSafeColor;
-                dp.DestoryAt = 7500;
-                accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
-
-                dp = accessory.Data.GetDefaultDrawProperties();
-                dp.Name = "P3_时间压缩_长火_中场分摊";
-                dp.Scale = new(2);
-                dp.ScaleMode |= ScaleMode.YByDistance;
-                dp.Owner = accessory.Data.Me;
-                dp.TargetPosition = centre;
-                dp.Color = accessory.Data.DefaultSafeColor;
-                dp.Delay = 12500;
-                dp.DestoryAt = 5000;
-                accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
-
-                dp = accessory.Data.GetDefaultDrawProperties();
-                dp.Name = "P3_时间压缩_长火_回溯";
-                dp.Scale = new(2);
-                dp.ScaleMode |= ScaleMode.YByDistance;
-                dp.Owner = accessory.Data.Me;
-                dp.TargetPosition = RotatePoint(returnPosN, centre, myRot);
-                dp.Color = accessory.Data.DefaultSafeColor;
-                dp.Delay = 17500;
-                dp.DestoryAt = 5000;
-                accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
-
-                dp = accessory.Data.GetDefaultDrawProperties();
-                dp.Name = "P3_时间压缩_长火_放火";
-                dp.Scale = new(2);
-                dp.ScaleMode |= ScaleMode.YByDistance;
-                dp.Owner = accessory.Data.Me;
-                dp.TargetPosition = RotatePoint(fireN, centre, myRot);
-                dp.Color = accessory.Data.DefaultSafeColor;
-                dp.Delay = 22500;
-                dp.DestoryAt = 5000;
-                accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
-
-                dp = accessory.Data.GetDefaultDrawProperties();
-                dp.Name = "P3_时间压缩_长火_输出";
-                dp.Scale = new(2);
-                dp.ScaleMode |= ScaleMode.YByDistance;
-                dp.Owner = accessory.Data.Me;
-                dp.TargetPosition = RotatePoint(stopPos, centre, myRot);
-                dp.Color = accessory.Data.DefaultSafeColor;
-                dp.Delay = 27500;
-                dp.DestoryAt = 10000;
-                accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
-            }
-
-            if (myFire == 4)
-            {
-                if (myIndex < 4)
+                Vector3 centre = new(100, 0, 100);
+                Vector3 fireN = new(100, 0, 84.5f);
+                Vector3 returnPosN = P3WaterBuff[myIndex] == 2 ? new(100, 0, 91.5f) : new(100, 0, 98);
+                Vector3 stopPos = new(100, 0, 101);
+                //火
+                var myFire = P3FireBuff[myIndex];
+                //短火
+                if (myFire == 1)
                 {
                     var dp = accessory.Data.GetDefaultDrawProperties();
-                    dp.Name = "P3_时间压缩_冰TH_放冰";
+                    dp.Name = $"P3_时间压缩_短火_放火-{视角}";
                     dp.Scale = new(2);
                     dp.ScaleMode |= ScaleMode.YByDistance;
-                    dp.Owner = accessory.Data.Me;
-                    dp.TargetPosition = centre;
+                    dp.Owner = GuidanceOwner(accessory, 视角);
+                    dp.TargetPosition = RotatePoint(fireN, centre, myRot);
                     dp.Color = accessory.Data.DefaultSafeColor;
                     dp.DestoryAt = 7500;
                     accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
 
                     dp = accessory.Data.GetDefaultDrawProperties();
-                    dp.Name = "P3_时间压缩_冰TH_放回溯";
+                    dp.Name = $"P3_时间压缩_短火_放回溯-{视角}";
                     dp.Scale = new(2);
                     dp.ScaleMode |= ScaleMode.YByDistance;
-                    dp.Owner = accessory.Data.Me;
+                    dp.Owner = GuidanceOwner(accessory, 视角);
                     dp.TargetPosition = RotatePoint(returnPosN, centre, myRot);
                     dp.Color = accessory.Data.DefaultSafeColor;
                     dp.Delay = 7500;
@@ -8074,10 +8029,10 @@ namespace CicerosKodakkuAssist.FuturesRewrittenUltimate.LPDU
                     accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
 
                     dp = accessory.Data.GetDefaultDrawProperties();
-                    dp.Name = "P3_时间压缩_冰TH_场中分摊";
+                    dp.Name = $"P3_时间压缩_短火_场中分摊-{视角}";
                     dp.Scale = new(2);
                     dp.ScaleMode |= ScaleMode.YByDistance;
-                    dp.Owner = accessory.Data.Me;
+                    dp.Owner = GuidanceOwner(accessory, 视角);
                     dp.TargetPosition = centre;
                     dp.Color = accessory.Data.DefaultSafeColor;
                     dp.Delay = 12500;
@@ -8086,33 +8041,94 @@ namespace CicerosKodakkuAssist.FuturesRewrittenUltimate.LPDU
 
 
                     dp = accessory.Data.GetDefaultDrawProperties();
-                    dp.Name = "P3_时间压缩_冰TH_输出位置";
+                    dp.Name = $"P3_时间压缩_短火_输出位置-{视角}";
                     dp.Scale = new(2);
                     dp.ScaleMode |= ScaleMode.YByDistance;
-                    dp.Owner = accessory.Data.Me;
+                    dp.Owner = GuidanceOwner(accessory, 视角);
                     dp.TargetPosition = RotatePoint(stopPos, centre, myRot);
                     dp.Color = accessory.Data.DefaultSafeColor;
                     dp.Delay = 22500;
                     dp.DestoryAt = 15000;
                     accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
                 }
-                else
+
+                //中火
+                if (myFire == 2)
                 {
                     var dp = accessory.Data.GetDefaultDrawProperties();
-                    dp.Name = "P3_时间压缩_冰D_中场分摊";
+                    dp.Name = $"P3_时间压缩_中火_中场分摊-{视角}";
                     dp.Scale = new(2);
                     dp.ScaleMode |= ScaleMode.YByDistance;
-                    dp.Owner = accessory.Data.Me;
+                    dp.Owner = GuidanceOwner(accessory, 视角);
                     dp.TargetPosition = centre;
                     dp.Color = accessory.Data.DefaultSafeColor;
                     dp.DestoryAt = 7500;
                     accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
 
                     dp = accessory.Data.GetDefaultDrawProperties();
-                    dp.Name = "P3_时间压缩_冰D_中场分摊";
+                    dp.Name = $"P3_时间压缩_中火_放回溯-{视角}";
                     dp.Scale = new(2);
                     dp.ScaleMode |= ScaleMode.YByDistance;
-                    dp.Owner = accessory.Data.Me;
+                    dp.Owner = GuidanceOwner(accessory, 视角);
+                    dp.TargetPosition = RotatePoint(returnPosN, centre, myRot);
+                    dp.Color = accessory.Data.DefaultSafeColor;
+                    dp.Delay = 7500;
+                    dp.DestoryAt = 5000;
+                    accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
+
+                    dp = accessory.Data.GetDefaultDrawProperties();
+                    dp.Name = $"P3_时间压缩_中火_放火-{视角}";
+                    dp.Scale = new(2);
+                    dp.ScaleMode |= ScaleMode.YByDistance;
+                    dp.Owner = GuidanceOwner(accessory, 视角);
+                    dp.TargetPosition = RotatePoint(fireN, centre, myRot);
+                    dp.Color = accessory.Data.DefaultSafeColor;
+                    dp.Delay = 12500;
+                    dp.DestoryAt = 5000;
+                    accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
+
+                    dp = accessory.Data.GetDefaultDrawProperties();
+                    dp.Name = $"P3_时间压缩_中火_中场-{视角}";
+                    dp.Scale = new(2);
+                    dp.ScaleMode |= ScaleMode.YByDistance;
+                    dp.Owner = GuidanceOwner(accessory, 视角);
+                    dp.TargetPosition = centre;
+                    dp.Color = accessory.Data.DefaultSafeColor;
+                    dp.Delay = 17500;
+                    dp.DestoryAt = 10000;
+                    accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
+
+                    dp = accessory.Data.GetDefaultDrawProperties();
+                    dp.Name = $"P3_时间压缩_中火_输出位置-{视角}";
+                    dp.Scale = new(2);
+                    dp.ScaleMode |= ScaleMode.YByDistance;
+                    dp.Owner = GuidanceOwner(accessory, 视角);
+                    dp.TargetPosition = RotatePoint(stopPos, centre, myRot);
+                    dp.Color = accessory.Data.DefaultSafeColor;
+                    dp.Delay = 32500;
+                    dp.DestoryAt = 5000;
+                    accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
+
+                }
+
+                //长火
+                if (myFire == 3)
+                {
+                    var dp = accessory.Data.GetDefaultDrawProperties();
+                    dp.Name = $"P3_时间压缩_长火_中场分摊-{视角}";
+                    dp.Scale = new(2);
+                    dp.ScaleMode |= ScaleMode.YByDistance;
+                    dp.Owner = GuidanceOwner(accessory, 视角);
+                    dp.TargetPosition = centre;
+                    dp.Color = accessory.Data.DefaultSafeColor;
+                    dp.DestoryAt = 7500;
+                    accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
+
+                    dp = accessory.Data.GetDefaultDrawProperties();
+                    dp.Name = $"P3_时间压缩_长火_中场分摊-{视角}";
+                    dp.Scale = new(2);
+                    dp.ScaleMode |= ScaleMode.YByDistance;
+                    dp.Owner = GuidanceOwner(accessory, 视角);
                     dp.TargetPosition = centre;
                     dp.Color = accessory.Data.DefaultSafeColor;
                     dp.Delay = 12500;
@@ -8120,10 +8136,10 @@ namespace CicerosKodakkuAssist.FuturesRewrittenUltimate.LPDU
                     accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
 
                     dp = accessory.Data.GetDefaultDrawProperties();
-                    dp.Name = "P3_时间压缩_冰D_回溯";
+                    dp.Name = $"P3_时间压缩_长火_回溯-{视角}";
                     dp.Scale = new(2);
                     dp.ScaleMode |= ScaleMode.YByDistance;
-                    dp.Owner = accessory.Data.Me;
+                    dp.Owner = GuidanceOwner(accessory, 视角);
                     dp.TargetPosition = RotatePoint(returnPosN, centre, myRot);
                     dp.Color = accessory.Data.DefaultSafeColor;
                     dp.Delay = 17500;
@@ -8131,26 +8147,132 @@ namespace CicerosKodakkuAssist.FuturesRewrittenUltimate.LPDU
                     accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
 
                     dp = accessory.Data.GetDefaultDrawProperties();
-                    dp.Name = "P3_时间压缩_冰D_放冰";
+                    dp.Name = $"P3_时间压缩_长火_放火-{视角}";
                     dp.Scale = new(2);
                     dp.ScaleMode |= ScaleMode.YByDistance;
-                    dp.Owner = accessory.Data.Me;
-                    dp.TargetPosition = centre;
+                    dp.Owner = GuidanceOwner(accessory, 视角);
+                    dp.TargetPosition = RotatePoint(fireN, centre, myRot);
                     dp.Color = accessory.Data.DefaultSafeColor;
                     dp.Delay = 22500;
                     dp.DestoryAt = 5000;
                     accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
 
                     dp = accessory.Data.GetDefaultDrawProperties();
-                    dp.Name = "P3_时间压缩_长火_输出";
+                    dp.Name = $"P3_时间压缩_长火_输出-{视角}";
                     dp.Scale = new(2);
                     dp.ScaleMode |= ScaleMode.YByDistance;
-                    dp.Owner = accessory.Data.Me;
+                    dp.Owner = GuidanceOwner(accessory, 视角);
                     dp.TargetPosition = RotatePoint(stopPos, centre, myRot);
                     dp.Color = accessory.Data.DefaultSafeColor;
                     dp.Delay = 27500;
                     dp.DestoryAt = 10000;
                     accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
+                }
+
+                if (myFire == 4)
+                {
+                    if (myIndex < 4)
+                    {
+                        var dp = accessory.Data.GetDefaultDrawProperties();
+                        dp.Name = $"P3_时间压缩_冰TH_放冰-{视角}";
+                        dp.Scale = new(2);
+                        dp.ScaleMode |= ScaleMode.YByDistance;
+                        dp.Owner = GuidanceOwner(accessory, 视角);
+                        dp.TargetPosition = centre;
+                        dp.Color = accessory.Data.DefaultSafeColor;
+                        dp.DestoryAt = 7500;
+                        accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
+
+                        dp = accessory.Data.GetDefaultDrawProperties();
+                        dp.Name = $"P3_时间压缩_冰TH_放回溯-{视角}";
+                        dp.Scale = new(2);
+                        dp.ScaleMode |= ScaleMode.YByDistance;
+                        dp.Owner = GuidanceOwner(accessory, 视角);
+                        dp.TargetPosition = RotatePoint(returnPosN, centre, myRot);
+                        dp.Color = accessory.Data.DefaultSafeColor;
+                        dp.Delay = 7500;
+                        dp.DestoryAt = 5000;
+                        accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
+
+                        dp = accessory.Data.GetDefaultDrawProperties();
+                        dp.Name = $"P3_时间压缩_冰TH_场中分摊-{视角}";
+                        dp.Scale = new(2);
+                        dp.ScaleMode |= ScaleMode.YByDistance;
+                        dp.Owner = GuidanceOwner(accessory, 视角);
+                        dp.TargetPosition = centre;
+                        dp.Color = accessory.Data.DefaultSafeColor;
+                        dp.Delay = 12500;
+                        dp.DestoryAt = 5000;
+                        accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
+
+
+                        dp = accessory.Data.GetDefaultDrawProperties();
+                        dp.Name = $"P3_时间压缩_冰TH_输出位置-{视角}";
+                        dp.Scale = new(2);
+                        dp.ScaleMode |= ScaleMode.YByDistance;
+                        dp.Owner = GuidanceOwner(accessory, 视角);
+                        dp.TargetPosition = RotatePoint(stopPos, centre, myRot);
+                        dp.Color = accessory.Data.DefaultSafeColor;
+                        dp.Delay = 22500;
+                        dp.DestoryAt = 15000;
+                        accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
+                    }
+                    else
+                    {
+                        var dp = accessory.Data.GetDefaultDrawProperties();
+                        dp.Name = $"P3_时间压缩_冰D_中场分摊-{视角}";
+                        dp.Scale = new(2);
+                        dp.ScaleMode |= ScaleMode.YByDistance;
+                        dp.Owner = GuidanceOwner(accessory, 视角);
+                        dp.TargetPosition = centre;
+                        dp.Color = accessory.Data.DefaultSafeColor;
+                        dp.DestoryAt = 7500;
+                        accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
+
+                        dp = accessory.Data.GetDefaultDrawProperties();
+                        dp.Name = $"P3_时间压缩_冰D_中场分摊-{视角}";
+                        dp.Scale = new(2);
+                        dp.ScaleMode |= ScaleMode.YByDistance;
+                        dp.Owner = GuidanceOwner(accessory, 视角);
+                        dp.TargetPosition = centre;
+                        dp.Color = accessory.Data.DefaultSafeColor;
+                        dp.Delay = 12500;
+                        dp.DestoryAt = 5000;
+                        accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
+
+                        dp = accessory.Data.GetDefaultDrawProperties();
+                        dp.Name = $"P3_时间压缩_冰D_回溯-{视角}";
+                        dp.Scale = new(2);
+                        dp.ScaleMode |= ScaleMode.YByDistance;
+                        dp.Owner = GuidanceOwner(accessory, 视角);
+                        dp.TargetPosition = RotatePoint(returnPosN, centre, myRot);
+                        dp.Color = accessory.Data.DefaultSafeColor;
+                        dp.Delay = 17500;
+                        dp.DestoryAt = 5000;
+                        accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
+
+                        dp = accessory.Data.GetDefaultDrawProperties();
+                        dp.Name = $"P3_时间压缩_冰D_放冰-{视角}";
+                        dp.Scale = new(2);
+                        dp.ScaleMode |= ScaleMode.YByDistance;
+                        dp.Owner = GuidanceOwner(accessory, 视角);
+                        dp.TargetPosition = centre;
+                        dp.Color = accessory.Data.DefaultSafeColor;
+                        dp.Delay = 22500;
+                        dp.DestoryAt = 5000;
+                        accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
+
+                        dp = accessory.Data.GetDefaultDrawProperties();
+                        dp.Name = $"P3_时间压缩_长火_输出-{视角}";
+                        dp.Scale = new(2);
+                        dp.ScaleMode |= ScaleMode.YByDistance;
+                        dp.Owner = GuidanceOwner(accessory, 视角);
+                        dp.TargetPosition = RotatePoint(stopPos, centre, myRot);
+                        dp.Color = accessory.Data.DefaultSafeColor;
+                        dp.Delay = 27500;
+                        dp.DestoryAt = 10000;
+                        accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
+                    }
                 }
             }
         }
@@ -8161,20 +8283,25 @@ namespace CicerosKodakkuAssist.FuturesRewrittenUltimate.LPDU
             //buff2970, 13 269顺时针 92 348逆时针
             var pos = JsonConvert.DeserializeObject<Vector3>(@event["TargetPosition"]);
             Vector3 centre = new(100, 0, 100);
-            var myIndex = accessory.Data.PartyList.IndexOf(accessory.Data.Me);
-            var dir8 = PositionTo8Dir(pos, centre);
-            Vector3 nPos = @event["StackCount"] == "92" ? new(98, 0, 90) : new(102, 0, 90);
-            if (dir8 == MyLampIndex(myIndex))
+            foreach (var 视角 in GuidanceIndices(accessory)) 指路(视角);
+
+            void 指路(int 视角)
             {
-                var dp = accessory.Data.GetDefaultDrawProperties();
-                dp.Name = "P3_时间压缩_灯处理位置";
-                dp.Scale = new(2);
-                dp.ScaleMode |= ScaleMode.YByDistance;
-                dp.Owner = accessory.Data.Me;
-                dp.TargetPosition = RotatePoint(nPos, centre, dir8 * float.Pi / 4);
-                dp.Color = accessory.Data.DefaultSafeColor;
-                dp.DestoryAt = 4000;
-                accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
+                var myIndex = 视角;
+                var dir8 = PositionTo8Dir(pos, centre);
+                Vector3 nPos = @event["StackCount"] == "92" ? new(98, 0, 90) : new(102, 0, 90);
+                if (dir8 == MyLampIndex(myIndex))
+                {
+                    var dp = accessory.Data.GetDefaultDrawProperties();
+                    dp.Name = $"P3_时间压缩_灯处理位置-{视角}";
+                    dp.Scale = new(2);
+                    dp.ScaleMode |= ScaleMode.YByDistance;
+                    dp.Owner = GuidanceOwner(accessory, 视角);
+                    dp.TargetPosition = RotatePoint(nPos, centre, dir8 * float.Pi / 4);
+                    dp.Color = accessory.Data.DefaultSafeColor;
+                    dp.DestoryAt = 4000;
+                    accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
+                }
             }
         }
 
@@ -8289,63 +8416,68 @@ namespace CicerosKodakkuAssist.FuturesRewrittenUltimate.LPDU
 
             }
 
-            if (accessory.Data.Me != enmityListOfBoss[0])
-            {
+            foreach (var 视角 in GuidanceIndices(accessory)) 指路(视角);
 
-                return;
+            void 指路(int 视角)
+            {
+                if (GuidanceOwner(accessory, 视角) != enmityListOfBoss[0])
+                {
+
+                    return;
+
+                }
+
+                var currentProperty = accessory.Data.GetDefaultDrawProperties();
+
+                currentProperty.Name = $"Phase3_Initial_Orientation_Before_The_Second_Half_二运前的初始面向-{视角}";
+                currentProperty.Scale = new(2);
+                currentProperty.ScaleMode |= ScaleMode.YByDistance;
+                currentProperty.Owner = GuidanceOwner(accessory, 视角);
+                currentProperty.TargetPosition = new Vector3(100, 0, 94);
+                currentProperty.Color = accessory.Data.DefaultSafeColor;
+                currentProperty.DestoryAt = 12500;
+
+                accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentProperty);
+
+                if (Enable_Text_Prompts)
+                {
+
+                    if (Language_Of_Prompts == Languages_Of_Prompts.Simplified_Chinese_简体中文)
+                    {
+
+                        if (IsMe(accessory, 视角)) accessory.Method.TextInfo("让Boss面向正北", 12500);
+
+                    }
+
+                    if (Language_Of_Prompts == Languages_Of_Prompts.English_英文)
+                    {
+
+                        if (IsMe(accessory, 视角)) accessory.Method.TextInfo("Make the Boss orient to the north", 12500);
+
+                    }
+
+                }
+
+                if (Enable_Vanilla_TTS || Enable_Daily_Routines_TTS)
+                {
+
+                    if (Language_Of_Prompts == Languages_Of_Prompts.Simplified_Chinese_简体中文)
+                    {
+
+                        if (IsMe(accessory, 视角)) accessory.TTS("让Boss面向正北", Enable_Vanilla_TTS, Enable_Daily_Routines_TTS);
+
+                    }
+
+                    if (Language_Of_Prompts == Languages_Of_Prompts.English_英文)
+                    {
+
+                        if (IsMe(accessory, 视角)) accessory.TTS("Make the Boss orient to the north", Enable_Vanilla_TTS, Enable_Daily_Routines_TTS);
+
+                    }
+
+                }
 
             }
-
-            var currentProperty = accessory.Data.GetDefaultDrawProperties();
-
-            currentProperty.Name = "Phase3_Initial_Orientation_Before_The_Second_Half_二运前的初始面向";
-            currentProperty.Scale = new(2);
-            currentProperty.ScaleMode |= ScaleMode.YByDistance;
-            currentProperty.Owner = accessory.Data.Me;
-            currentProperty.TargetPosition = new Vector3(100, 0, 94);
-            currentProperty.Color = accessory.Data.DefaultSafeColor;
-            currentProperty.DestoryAt = 12500;
-
-            accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentProperty);
-
-            if (Enable_Text_Prompts)
-            {
-
-                if (Language_Of_Prompts == Languages_Of_Prompts.Simplified_Chinese_简体中文)
-                {
-
-                    accessory.Method.TextInfo("让Boss面向正北", 12500);
-
-                }
-
-                if (Language_Of_Prompts == Languages_Of_Prompts.English_英文)
-                {
-
-                    accessory.Method.TextInfo("Make the Boss orient to the north", 12500);
-
-                }
-
-            }
-
-            if (Enable_Vanilla_TTS || Enable_Daily_Routines_TTS)
-            {
-
-                if (Language_Of_Prompts == Languages_Of_Prompts.Simplified_Chinese_简体中文)
-                {
-
-                    accessory.TTS("让Boss面向正北", Enable_Vanilla_TTS, Enable_Daily_Routines_TTS);
-
-                }
-
-                if (Language_Of_Prompts == Languages_Of_Prompts.English_英文)
-                {
-
-                    accessory.TTS("Make the Boss orient to the north", Enable_Vanilla_TTS, Enable_Daily_Routines_TTS);
-
-                }
-
-            }
-
         }
 
         [ScriptMethod(name: "P3_延迟咏唱回响_分P", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:regex:^(40269)$"], userControl: false)]
@@ -8592,259 +8724,269 @@ namespace CicerosKodakkuAssist.FuturesRewrittenUltimate.LPDU
             if (Phase3_Strat_Of_The_Second_Half == Phase3_Strats_Of_The_Second_Half.Double_Group_双分组法)
             {
 
-                bool goLeft = phase3_doubleGroup_shouldGoLeft(accessory.Data.PartyList.IndexOf(accessory.Data.Me));
-                bool stayInTheGroup = phase3_doubleGroup_shouldStayInTheGroup(accessory.Data.PartyList.IndexOf(accessory.Data.Me));
-                string prompt = "";
-                var currentProperty = accessory.Data.GetDefaultDrawProperties();
+                foreach (var 视角 in GuidanceIndices(accessory)) 指路(视角);
 
-                currentProperty.Name = "Phase3_Prompt_Before_Dark_Water_III_暗黑狂水前提示";
-                currentProperty.Scale = new(2);
-                currentProperty.ScaleMode |= ScaleMode.YByDistance;
-                currentProperty.Owner = accessory.Data.Me;
-                currentProperty.TargetPosition = (goLeft) ? (new Vector3(93, 0, 100)) : (new Vector3(107, 0, 100));
-                currentProperty.Color = accessory.Data.DefaultSafeColor;
-                currentProperty.DestoryAt = 5000;
-
-                accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentProperty);
-
-                if (goLeft)
+                void 指路(int 视角)
                 {
+                    bool goLeft = phase3_doubleGroup_shouldGoLeft(视角);
+                    bool stayInTheGroup = phase3_doubleGroup_shouldStayInTheGroup(视角);
+                    string prompt = "";
+                    var currentProperty = accessory.Data.GetDefaultDrawProperties();
 
-                    if (Language_Of_Prompts == Languages_Of_Prompts.Simplified_Chinese_简体中文)
+                    currentProperty.Name = $"Phase3_Prompt_Before_Dark_Water_III_暗黑狂水前提示-{视角}";
+                    currentProperty.Scale = new(2);
+                    currentProperty.ScaleMode |= ScaleMode.YByDistance;
+                    currentProperty.Owner = GuidanceOwner(accessory, 视角);
+                    currentProperty.TargetPosition = (goLeft) ? (new Vector3(93, 0, 100)) : (new Vector3(107, 0, 100));
+                    currentProperty.Color = accessory.Data.DefaultSafeColor;
+                    currentProperty.DestoryAt = 5000;
+
+                    accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentProperty);
+
+                    if (goLeft)
                     {
 
-                        prompt += "去左组分摊第一第三次，";
+                        if (Language_Of_Prompts == Languages_Of_Prompts.Simplified_Chinese_简体中文)
+                        {
+
+                            prompt += "去左组分摊第一第三次，";
+
+                        }
+
+                        if (Language_Of_Prompts == Languages_Of_Prompts.English_英文)
+                        {
+
+                            prompt += "Go left for the first and third, ";
+
+                        }
 
                     }
 
-                    if (Language_Of_Prompts == Languages_Of_Prompts.English_英文)
+                    else
                     {
 
-                        prompt += "Go left for the first and third, ";
+                        if (Language_Of_Prompts == Languages_Of_Prompts.Simplified_Chinese_简体中文)
+                        {
+
+                            prompt += "去右组分摊第一第三次，";
+
+                        }
+
+                        if (Language_Of_Prompts == Languages_Of_Prompts.English_英文)
+                        {
+
+                            prompt += "Go right for the first and third, ";
+
+                        }
 
                     }
+
+                    if (stayInTheGroup)
+                    {
+
+                        if (Language_Of_Prompts == Languages_Of_Prompts.Simplified_Chinese_简体中文)
+                        {
+
+                            prompt += "第二次留在本组";
+
+                        }
+
+                        if (Language_Of_Prompts == Languages_Of_Prompts.English_英文)
+                        {
+
+                            prompt += "stay in the current group for the second";
+
+                        }
+
+                    }
+
+                    else
+                    {
+
+                        if (Language_Of_Prompts == Languages_Of_Prompts.Simplified_Chinese_简体中文)
+                        {
+
+                            prompt += "第二次换去对组";
+
+                        }
+
+                        if (Language_Of_Prompts == Languages_Of_Prompts.English_英文)
+                        {
+
+                            prompt += "move to the opposite group for the second";
+
+                        }
+
+                    }
+
+                    if (Enable_Text_Prompts)
+                    {
+
+                        if (IsMe(accessory, 视角)) accessory.Method.TextInfo(prompt, 4000);
+
+                    }
+
+                    if (IsMe(accessory, 视角)) accessory.TTS($"{prompt}", Enable_Vanilla_TTS, Enable_Daily_Routines_TTS);
 
                 }
-
-                else
-                {
-
-                    if (Language_Of_Prompts == Languages_Of_Prompts.Simplified_Chinese_简体中文)
-                    {
-
-                        prompt += "去右组分摊第一第三次，";
-
-                    }
-
-                    if (Language_Of_Prompts == Languages_Of_Prompts.English_英文)
-                    {
-
-                        prompt += "Go right for the first and third, ";
-
-                    }
-
-                }
-
-                if (stayInTheGroup)
-                {
-
-                    if (Language_Of_Prompts == Languages_Of_Prompts.Simplified_Chinese_简体中文)
-                    {
-
-                        prompt += "第二次留在本组";
-
-                    }
-
-                    if (Language_Of_Prompts == Languages_Of_Prompts.English_英文)
-                    {
-
-                        prompt += "stay in the current group for the second";
-
-                    }
-
-                }
-
-                else
-                {
-
-                    if (Language_Of_Prompts == Languages_Of_Prompts.Simplified_Chinese_简体中文)
-                    {
-
-                        prompt += "第二次换去对组";
-
-                    }
-
-                    if (Language_Of_Prompts == Languages_Of_Prompts.English_英文)
-                    {
-
-                        prompt += "move to the opposite group for the second";
-
-                    }
-
-                }
-
-                if (Enable_Text_Prompts)
-                {
-
-                    accessory.Method.TextInfo(prompt, 4000);
-
-                }
-
-                accessory.TTS($"{prompt}", Enable_Vanilla_TTS, Enable_Daily_Routines_TTS);
-
             }
 
             if (Phase3_Strat_Of_The_Second_Half == Phase3_Strats_Of_The_Second_Half.High_Priority_As_Locomotives_车头低换法_MMW)
             {
 
-                int myIndex = accessory.Data.PartyList.IndexOf(accessory.Data.Me);
-                bool goLeft = phase3_locomotive_shouldGoLeft(myIndex);
-                string prompt = "";
-                var currentProperty = accessory.Data.GetDefaultDrawProperties();
+                foreach (var 视角 in GuidanceIndices(accessory)) 指路(视角);
 
-                currentProperty.Name = "Phase3_Prompt_Before_Dark_Water_III_暗黑狂水前提示";
-                currentProperty.Scale = new(2);
-                currentProperty.ScaleMode |= ScaleMode.YByDistance;
-                currentProperty.Owner = accessory.Data.Me;
-                currentProperty.TargetPosition = (goLeft) ? (new Vector3(93, 0, 100)) : (new Vector3(107, 0, 100));
-                currentProperty.Color = accessory.Data.DefaultSafeColor;
-                currentProperty.DestoryAt = 5000;
-
-                accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentProperty);
-
-                if (goLeft)
+                void 指路(int 视角)
                 {
+                    int myIndex = 视角;
+                    bool goLeft = phase3_locomotive_shouldGoLeft(myIndex);
+                    string prompt = "";
+                    var currentProperty = accessory.Data.GetDefaultDrawProperties();
 
-                    if (Language_Of_Prompts == Languages_Of_Prompts.Simplified_Chinese_简体中文)
-                    {
+                    currentProperty.Name = $"Phase3_Prompt_Before_Dark_Water_III_暗黑狂水前提示-{视角}";
+                    currentProperty.Scale = new(2);
+                    currentProperty.ScaleMode |= ScaleMode.YByDistance;
+                    currentProperty.Owner = GuidanceOwner(accessory, 视角);
+                    currentProperty.TargetPosition = (goLeft) ? (new Vector3(93, 0, 100)) : (new Vector3(107, 0, 100));
+                    currentProperty.Color = accessory.Data.DefaultSafeColor;
+                    currentProperty.DestoryAt = 5000;
 
-                        prompt += "去左组分摊，";
+                    accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentProperty);
 
-                    }
-
-                    if (Language_Of_Prompts == Languages_Of_Prompts.English_英文)
-                    {
-
-                        prompt += "Go left to stack, ";
-
-                    }
-
-                }
-
-                else
-                {
-
-                    if (Language_Of_Prompts == Languages_Of_Prompts.Simplified_Chinese_简体中文)
-                    {
-
-                        prompt += "去右组分摊，";
-
-                    }
-
-                    if (Language_Of_Prompts == Languages_Of_Prompts.English_英文)
-                    {
-
-                        prompt += "Go right to stack, ";
-
-                    }
-
-                }
-
-                if (Phase3_Branch_Of_The_Locomotive_Strat == Phase3_Branches_Of_The_Locomotive_Strat.MT_And_M1_As_Locomotives_MT和D1为车头_MMW)
-                {
-
-                    if (myIndex != 0 && myIndex != 4)
+                    if (goLeft)
                     {
 
                         if (Language_Of_Prompts == Languages_Of_Prompts.Simplified_Chinese_简体中文)
                         {
 
-                            prompt += (goLeft) ? ("跟随MT") : ("跟随D1");
+                            prompt += "去左组分摊，";
 
                         }
 
                         if (Language_Of_Prompts == Languages_Of_Prompts.English_英文)
                         {
 
-                            prompt += (goLeft) ? ("follow MT") : ("follow M1");
+                            prompt += "Go left to stack, ";
 
                         }
 
                     }
 
-                    if (myIndex == 0 || myIndex == 4)
+                    else
                     {
 
                         if (Language_Of_Prompts == Languages_Of_Prompts.Simplified_Chinese_简体中文)
                         {
 
-                            prompt += "你是车头";
+                            prompt += "去右组分摊，";
 
                         }
 
                         if (Language_Of_Prompts == Languages_Of_Prompts.English_英文)
                         {
 
-                            prompt += "you are the locomotive";
+                            prompt += "Go right to stack, ";
 
                         }
 
                     }
 
-                }
-
-                if (Phase3_Branch_Of_The_Locomotive_Strat == Phase3_Branches_Of_The_Locomotive_Strat.Others_As_Locomotives_Chinese_PF_国服野队人群为车头)
-                {
-
-                    if (myIndex != 0 && myIndex != 4)
+                    if (Phase3_Branch_Of_The_Locomotive_Strat == Phase3_Branches_Of_The_Locomotive_Strat.MT_And_M1_As_Locomotives_MT和D1为车头_MMW)
                     {
 
-                        if (Language_Of_Prompts == Languages_Of_Prompts.Simplified_Chinese_简体中文)
+                        if (myIndex != 0 && myIndex != 4)
                         {
 
-                            prompt += "你是人群车头之一";
+                            if (Language_Of_Prompts == Languages_Of_Prompts.Simplified_Chinese_简体中文)
+                            {
+
+                                prompt += (goLeft) ? ("跟随MT") : ("跟随D1");
+
+                            }
+
+                            if (Language_Of_Prompts == Languages_Of_Prompts.English_英文)
+                            {
+
+                                prompt += (goLeft) ? ("follow MT") : ("follow M1");
+
+                            }
 
                         }
 
-                        if (Language_Of_Prompts == Languages_Of_Prompts.English_英文)
+                        if (myIndex == 0 || myIndex == 4)
                         {
 
-                            prompt += "you are one of the locomotives";
+                            if (Language_Of_Prompts == Languages_Of_Prompts.Simplified_Chinese_简体中文)
+                            {
+
+                                prompt += "你是车头";
+
+                            }
+
+                            if (Language_Of_Prompts == Languages_Of_Prompts.English_英文)
+                            {
+
+                                prompt += "you are the locomotive";
+
+                            }
 
                         }
 
                     }
 
-                    if (myIndex == 0 || myIndex == 4)
+                    if (Phase3_Branch_Of_The_Locomotive_Strat == Phase3_Branches_Of_The_Locomotive_Strat.Others_As_Locomotives_Chinese_PF_国服野队人群为车头)
                     {
 
-                        if (Language_Of_Prompts == Languages_Of_Prompts.Simplified_Chinese_简体中文)
+                        if (myIndex != 0 && myIndex != 4)
                         {
 
-                            prompt += "跟随组内人群";
+                            if (Language_Of_Prompts == Languages_Of_Prompts.Simplified_Chinese_简体中文)
+                            {
+
+                                prompt += "你是人群车头之一";
+
+                            }
+
+                            if (Language_Of_Prompts == Languages_Of_Prompts.English_英文)
+                            {
+
+                                prompt += "you are one of the locomotives";
+
+                            }
 
                         }
 
-                        if (Language_Of_Prompts == Languages_Of_Prompts.English_英文)
+                        if (myIndex == 0 || myIndex == 4)
                         {
 
-                            prompt += "follow others in the group";
+                            if (Language_Of_Prompts == Languages_Of_Prompts.Simplified_Chinese_简体中文)
+                            {
+
+                                prompt += "跟随组内人群";
+
+                            }
+
+                            if (Language_Of_Prompts == Languages_Of_Prompts.English_英文)
+                            {
+
+                                prompt += "follow others in the group";
+
+                            }
 
                         }
 
                     }
 
+                    if (Enable_Text_Prompts)
+                    {
+
+                        if (IsMe(accessory, 视角)) accessory.Method.TextInfo(prompt, 3500);
+
+                    }
+
+                    if (IsMe(accessory, 视角)) accessory.TTS($"{prompt}", Enable_Vanilla_TTS, Enable_Daily_Routines_TTS);
+
                 }
-
-                if (Enable_Text_Prompts)
-                {
-
-                    accessory.Method.TextInfo(prompt, 3500);
-
-                }
-
-                accessory.TTS($"{prompt}", Enable_Vanilla_TTS, Enable_Daily_Routines_TTS);
-
             }
 
             if (Phase3_Strat_Of_The_Second_Half == Phase3_Strats_Of_The_Second_Half.Moglin_Meow_Or_Baby_Wheelchair_Based_On_Signs_根据目标标记的莫灵喵法或宝宝椅法)
@@ -8856,68 +8998,73 @@ namespace CicerosKodakkuAssist.FuturesRewrittenUltimate.LPDU
 
                 System.Threading.Thread.MemoryBarrier();
 
-                int myIndex = accessory.Data.PartyList.IndexOf(accessory.Data.Me);
-                bool goLeft = phase3_moglinMeow_shouldGoLeft(myIndex);
-                string prompt = "";
-                var currentProperty = accessory.Data.GetDefaultDrawProperties();
+                foreach (var 视角 in GuidanceIndices(accessory)) 指路(视角);
 
-                currentProperty.Name = "Phase3_Prompt_Before_Dark_Water_III_暗黑狂水前提示";
-                currentProperty.Scale = new(2);
-                currentProperty.ScaleMode |= ScaleMode.YByDistance;
-                currentProperty.Owner = accessory.Data.Me;
-                currentProperty.TargetPosition = (goLeft) ? (new Vector3(93, 0, 100)) : (new Vector3(107, 0, 100));
-                currentProperty.Color = accessory.Data.DefaultSafeColor;
-                currentProperty.DestoryAt = 5000;
-
-                accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentProperty);
-
-                if (goLeft)
+                void 指路(int 视角)
                 {
+                    int myIndex = 视角;
+                    bool goLeft = phase3_moglinMeow_shouldGoLeft(myIndex);
+                    string prompt = "";
+                    var currentProperty = accessory.Data.GetDefaultDrawProperties();
 
-                    if (Language_Of_Prompts == Languages_Of_Prompts.Simplified_Chinese_简体中文)
+                    currentProperty.Name = $"Phase3_Prompt_Before_Dark_Water_III_暗黑狂水前提示-{视角}";
+                    currentProperty.Scale = new(2);
+                    currentProperty.ScaleMode |= ScaleMode.YByDistance;
+                    currentProperty.Owner = GuidanceOwner(accessory, 视角);
+                    currentProperty.TargetPosition = (goLeft) ? (new Vector3(93, 0, 100)) : (new Vector3(107, 0, 100));
+                    currentProperty.Color = accessory.Data.DefaultSafeColor;
+                    currentProperty.DestoryAt = 5000;
+
+                    accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentProperty);
+
+                    if (goLeft)
                     {
 
-                        prompt += "始终去左组分摊";
+                        if (Language_Of_Prompts == Languages_Of_Prompts.Simplified_Chinese_简体中文)
+                        {
+
+                            prompt += "始终去左组分摊";
+
+                        }
+
+                        if (Language_Of_Prompts == Languages_Of_Prompts.English_英文)
+                        {
+
+                            prompt += "Always stack on the left";
+
+                        }
 
                     }
 
-                    if (Language_Of_Prompts == Languages_Of_Prompts.English_英文)
+                    else
                     {
 
-                        prompt += "Always stack on the left";
+                        if (Language_Of_Prompts == Languages_Of_Prompts.Simplified_Chinese_简体中文)
+                        {
+
+                            prompt += "始终去右组分摊";
+
+                        }
+
+                        if (Language_Of_Prompts == Languages_Of_Prompts.English_英文)
+                        {
+
+                            prompt += "Always stack on the right";
+
+                        }
 
                     }
+
+                    if (Enable_Text_Prompts)
+                    {
+
+                        if (IsMe(accessory, 视角)) accessory.Method.TextInfo(prompt, 3500);
+
+                    }
+
+                    if (IsMe(accessory, 视角)) accessory.TTS($"{prompt}", Enable_Vanilla_TTS, Enable_Daily_Routines_TTS);
 
                 }
-
-                else
-                {
-
-                    if (Language_Of_Prompts == Languages_Of_Prompts.Simplified_Chinese_简体中文)
-                    {
-
-                        prompt += "始终去右组分摊";
-
-                    }
-
-                    if (Language_Of_Prompts == Languages_Of_Prompts.English_英文)
-                    {
-
-                        prompt += "Always stack on the right";
-
-                    }
-
-                }
-
-                if (Enable_Text_Prompts)
-                {
-
-                    accessory.Method.TextInfo(prompt, 3500);
-
-                }
-
-                accessory.TTS($"{prompt}", Enable_Vanilla_TTS, Enable_Daily_Routines_TTS);
-
             }
 
         }
@@ -9344,559 +9491,564 @@ namespace CicerosKodakkuAssist.FuturesRewrittenUltimate.LPDU
 
             }
 
-            bool targetPositionConfirmed = false;
-            string prompt = "";
-            var currentProperty = accessory.Data.GetDefaultDrawProperties();
+            foreach (var 视角 in GuidanceIndices(accessory)) 指路(视角);
 
-            currentProperty.Name = "Phase3_Guidance_Of_Dark_Water_III_黑暗狂水指路";
-            currentProperty.Scale = new(2);
-            currentProperty.ScaleMode |= ScaleMode.YByDistance;
-            currentProperty.Owner = accessory.Data.Me;
-            currentProperty.Color = accessory.Data.DefaultSafeColor;
-            currentProperty.DestoryAt = 5000;
-
-            if (Phase3_Strat_Of_The_Second_Half == Phase3_Strats_Of_The_Second_Half.Double_Group_双分组法)
+            void 指路(int 视角)
             {
+                bool targetPositionConfirmed = false;
+                string prompt = "";
+                var currentProperty = accessory.Data.GetDefaultDrawProperties();
 
-                bool goLeft = phase3_doubleGroup_shouldGoLeft(accessory.Data.PartyList.IndexOf(accessory.Data.Me));
-                bool stayInTheGroup = phase3_doubleGroup_shouldStayInTheGroup(accessory.Data.PartyList.IndexOf(accessory.Data.Me));
+                currentProperty.Name = $"Phase3_Guidance_Of_Dark_Water_III_黑暗狂水指路-{视角}";
+                currentProperty.Scale = new(2);
+                currentProperty.ScaleMode |= ScaleMode.YByDistance;
+                currentProperty.Owner = GuidanceOwner(accessory, 视角);
+                currentProperty.Color = accessory.Data.DefaultSafeColor;
+                currentProperty.DestoryAt = 5000;
 
-                if (Enable_Developer_Mode)
+                if (Phase3_Strat_Of_The_Second_Half == Phase3_Strats_Of_The_Second_Half.Double_Group_双分组法)
                 {
 
-                    accessory.Method.SendChat($"""
-                                               /e 
-                                               goLeft={goLeft}
-                                               stayInTheGroup={stayInTheGroup}
-                                               phase3_roundOfDarkWaterIii={phase3_roundOfDarkWaterIii}
-                                               
-                                               """);
+                    bool goLeft = phase3_doubleGroup_shouldGoLeft(视角);
+                    bool stayInTheGroup = phase3_doubleGroup_shouldStayInTheGroup(视角);
+
+                    if (Enable_Developer_Mode)
+                    {
+
+                        if (IsMe(accessory, 视角)) accessory.Method.SendChat($"""
+                                                   /e 
+                                                   goLeft={goLeft}
+                                                   stayInTheGroup={stayInTheGroup}
+                                                   phase3_roundOfDarkWaterIii={phase3_roundOfDarkWaterIii}
+
+                                                   """);
+
+                    }
+
+                    switch (phase3_roundOfDarkWaterIii)
+                    {
+
+                        case 1:
+                            {
+
+                                currentProperty.TargetPosition = (goLeft) ? (new Vector3(93, 0, 100)) : (new Vector3(107, 0, 100));
+
+                                targetPositionConfirmed = true;
+
+                                if (Language_Of_Prompts == Languages_Of_Prompts.Simplified_Chinese_简体中文)
+                                {
+
+                                    prompt = (goLeft) ? ("左侧分摊") : ("右侧分摊");
+
+                                }
+
+                                if (Language_Of_Prompts == Languages_Of_Prompts.English_英文)
+                                {
+
+                                    prompt = (goLeft) ? ("Stack on the left") : ("Stack on the right");
+
+                                }
+
+                                break;
+
+                            }
+
+                        case 2:
+                            {
+
+                                if (stayInTheGroup)
+                                {
+
+                                    if (0 <= 视角
+                                       &&
+                                       视角 <= 3)
+                                    {
+
+                                        currentProperty.TargetPosition = phase3_doubleGroup_leftPositionToStackOfTheSecondRound;
+
+                                        targetPositionConfirmed = true;
+
+                                    }
+
+                                    if (4 <= 视角
+                                       &&
+                                       视角 <= 7)
+                                    {
+
+                                        currentProperty.TargetPosition = phase3_doubleGroup_rightPositionToStackOfTheSecondRound;
+
+                                        targetPositionConfirmed = true;
+
+                                    }
+
+                                }
+
+                                else
+                                {
+
+                                    if (0 <= 视角
+                                       &&
+                                       视角 <= 3)
+                                    {
+
+                                        currentProperty.TargetPosition = phase3_doubleGroup_rightPositionToStackOfTheSecondRound;
+
+                                        targetPositionConfirmed = true;
+
+                                    }
+
+                                    if (4 <= 视角
+                                       &&
+                                       视角 <= 7)
+                                    {
+
+                                        currentProperty.TargetPosition = phase3_doubleGroup_leftPositionToStackOfTheSecondRound;
+
+                                        targetPositionConfirmed = true;
+
+                                    }
+
+                                }
+
+                                if (Language_Of_Prompts == Languages_Of_Prompts.Simplified_Chinese_简体中文)
+                                {
+
+                                    prompt = (stayInTheGroup) ? ("本组分摊") : ("对组分摊");
+
+                                }
+
+                                if (Language_Of_Prompts == Languages_Of_Prompts.English_英文)
+                                {
+
+                                    prompt = (stayInTheGroup) ? ("Stack in the current group") : ("Stack in the opposite group");
+
+                                }
+
+                                break;
+
+                            }
+
+                        case 3:
+                            {
+
+                                if (ParseObjectId(phase3_bossId, out var bossId))
+                                {
+
+                                    var bossObject = accessory.Data.Objects.SearchById(bossId);
+
+                                    if (bossObject != null)
+                                    {
+
+                                        float currentRotation = bossObject.Rotation;
+                                        currentRotation = -(currentRotation - float.Pi);
+
+                                        Vector3 groupPosition = new Vector3(100, 0, 100);
+
+                                        if (Enable_Developer_Mode)
+                                        {
+
+                                            if (IsMe(accessory, 视角)) accessory.Method.SendChat($"""
+                                                                   /e 
+                                                                   currentRotation={currentRotation}
+
+                                                                   """);
+
+                                        }
+
+                                        if (goLeft)
+                                        {
+
+                                            groupPosition = new Vector3(bossObject.Position.X - 6.89f,
+                                                                      bossObject.Position.Y,
+                                                                      bossObject.Position.Z + 6.89f);
+
+                                        }
+
+                                        else
+                                        {
+
+                                            groupPosition = new Vector3(bossObject.Position.X + 6.89f,
+                                                                      bossObject.Position.Y,
+                                                                      bossObject.Position.Z + 6.89f);
+
+                                        }
+
+                                        groupPosition = RotatePoint(groupPosition, bossObject.Position, currentRotation);
+
+                                        currentProperty.TargetPosition = groupPosition;
+
+                                        targetPositionConfirmed = true;
+
+                                    }
+
+                                }
+
+                                if (Language_Of_Prompts == Languages_Of_Prompts.Simplified_Chinese_简体中文)
+                                {
+
+                                    prompt = (goLeft) ? ("左侧分摊") : ("右侧分摊");
+
+                                }
+
+                                if (Language_Of_Prompts == Languages_Of_Prompts.English_英文)
+                                {
+
+                                    prompt = (goLeft) ? ("Stack on the left") : ("Stack on the right");
+
+                                }
+
+                                break;
+
+                            }
+
+                        default:
+                            {
+                                // Just a placeholder and should never be reached.
+
+                                break;
+
+                            }
+
+                    }
 
                 }
 
-                switch (phase3_roundOfDarkWaterIii)
+                if (Phase3_Strat_Of_The_Second_Half == Phase3_Strats_Of_The_Second_Half.High_Priority_As_Locomotives_车头低换法_MMW)
                 {
 
-                    case 1:
-                        {
+                    bool goLeft = phase3_locomotive_shouldGoLeft(视角);
 
-                            currentProperty.TargetPosition = (goLeft) ? (new Vector3(93, 0, 100)) : (new Vector3(107, 0, 100));
+                    if (Enable_Developer_Mode)
+                    {
 
-                            targetPositionConfirmed = true;
+                        if (IsMe(accessory, 视角)) accessory.Method.SendChat($"""
+                                                   /e 
+                                                   goLeft={goLeft}
+                                                   phase3_roundOfDarkWaterIii={phase3_roundOfDarkWaterIii}
 
-                            if (Language_Of_Prompts == Languages_Of_Prompts.Simplified_Chinese_简体中文)
+                                                   """);
+
+                    }
+
+                    switch (phase3_roundOfDarkWaterIii)
+                    {
+
+                        case 1:
                             {
 
-                                prompt = (goLeft) ? ("左侧分摊") : ("右侧分摊");
+                                currentProperty.TargetPosition = (goLeft) ? (new Vector3(93, 0, 100)) : (new Vector3(107, 0, 100));
 
-                            }
+                                targetPositionConfirmed = true;
 
-                            if (Language_Of_Prompts == Languages_Of_Prompts.English_英文)
-                            {
-
-                                prompt = (goLeft) ? ("Stack on the left") : ("Stack on the right");
-
-                            }
-
-                            break;
-
-                        }
-
-                    case 2:
-                        {
-
-                            if (stayInTheGroup)
-                            {
-
-                                if (0 <= accessory.Data.PartyList.IndexOf(accessory.Data.Me)
-                                   &&
-                                   accessory.Data.PartyList.IndexOf(accessory.Data.Me) <= 3)
+                                if (Language_Of_Prompts == Languages_Of_Prompts.Simplified_Chinese_简体中文)
                                 {
 
-                                    currentProperty.TargetPosition = phase3_doubleGroup_leftPositionToStackOfTheSecondRound;
-
-                                    targetPositionConfirmed = true;
+                                    prompt = (goLeft) ? ("左侧分摊") : ("右侧分摊");
 
                                 }
 
-                                if (4 <= accessory.Data.PartyList.IndexOf(accessory.Data.Me)
-                                   &&
-                                   accessory.Data.PartyList.IndexOf(accessory.Data.Me) <= 7)
+                                if (Language_Of_Prompts == Languages_Of_Prompts.English_英文)
                                 {
 
-                                    currentProperty.TargetPosition = phase3_doubleGroup_rightPositionToStackOfTheSecondRound;
-
-                                    targetPositionConfirmed = true;
+                                    prompt = (goLeft) ? ("Stack on the left") : ("Stack on the right");
 
                                 }
 
+                                break;
+
                             }
 
-                            else
+                        case 2:
                             {
 
-                                if (0 <= accessory.Data.PartyList.IndexOf(accessory.Data.Me)
-                                   &&
-                                   accessory.Data.PartyList.IndexOf(accessory.Data.Me) <= 3)
+                                currentProperty.TargetPosition = (goLeft) ?
+                                    (phase3_locomotive_leftPositionToStackOfTheSecondRound) :
+                                    (phase3_locomotive_rightPositionToStackOfTheSecondRound);
+
+                                targetPositionConfirmed = true;
+
+                                if (Language_Of_Prompts == Languages_Of_Prompts.Simplified_Chinese_简体中文)
                                 {
 
-                                    currentProperty.TargetPosition = phase3_doubleGroup_rightPositionToStackOfTheSecondRound;
-
-                                    targetPositionConfirmed = true;
+                                    prompt = "场中当前侧分摊";
 
                                 }
 
-                                if (4 <= accessory.Data.PartyList.IndexOf(accessory.Data.Me)
-                                   &&
-                                   accessory.Data.PartyList.IndexOf(accessory.Data.Me) <= 7)
+                                if (Language_Of_Prompts == Languages_Of_Prompts.English_英文)
                                 {
 
-                                    currentProperty.TargetPosition = phase3_doubleGroup_leftPositionToStackOfTheSecondRound;
-
-                                    targetPositionConfirmed = true;
+                                    prompt = "Stack on this side of the center";
 
                                 }
 
-                            }
-
-                            if (Language_Of_Prompts == Languages_Of_Prompts.Simplified_Chinese_简体中文)
-                            {
-
-                                prompt = (stayInTheGroup) ? ("本组分摊") : ("对组分摊");
+                                break;
 
                             }
 
-                            if (Language_Of_Prompts == Languages_Of_Prompts.English_英文)
+                        case 3:
                             {
 
-                                prompt = (stayInTheGroup) ? ("Stack in the current group") : ("Stack in the opposite group");
-
-                            }
-
-                            break;
-
-                        }
-
-                    case 3:
-                        {
-
-                            if (ParseObjectId(phase3_bossId, out var bossId))
-                            {
-
-                                var bossObject = accessory.Data.Objects.SearchById(bossId);
-
-                                if (bossObject != null)
+                                if (ParseObjectId(phase3_bossId, out var bossId))
                                 {
 
-                                    float currentRotation = bossObject.Rotation;
-                                    currentRotation = -(currentRotation - float.Pi);
+                                    var bossObject = accessory.Data.Objects.SearchById(bossId);
 
-                                    Vector3 groupPosition = new Vector3(100, 0, 100);
-
-                                    if (Enable_Developer_Mode)
+                                    if (bossObject != null)
                                     {
 
-                                        accessory.Method.SendChat($"""
-                                                               /e 
-                                                               currentRotation={currentRotation}
+                                        float currentRotation = bossObject.Rotation;
+                                        currentRotation = -(currentRotation - float.Pi);
 
-                                                               """);
+                                        Vector3 groupPosition = new Vector3(100, 0, 100);
+
+                                        if (Enable_Developer_Mode)
+                                        {
+
+                                            if (IsMe(accessory, 视角)) accessory.Method.SendChat($"""
+                                                                   /e 
+                                                                   currentRotation={currentRotation}
+
+                                                                   """);
+
+                                        }
+
+                                        if (goLeft)
+                                        {
+
+                                            groupPosition = new Vector3(bossObject.Position.X - 6.89f,
+                                                                      bossObject.Position.Y,
+                                                                      bossObject.Position.Z + 6.89f);
+
+                                        }
+
+                                        else
+                                        {
+
+                                            groupPosition = new Vector3(bossObject.Position.X + 6.89f,
+                                                                      bossObject.Position.Y,
+                                                                      bossObject.Position.Z + 6.89f);
+
+                                        }
+
+                                        groupPosition = RotatePoint(groupPosition, bossObject.Position, currentRotation);
+
+                                        currentProperty.TargetPosition = groupPosition;
+
+                                        targetPositionConfirmed = true;
 
                                     }
 
-                                    if (goLeft)
-                                    {
+                                }
 
-                                        groupPosition = new Vector3(bossObject.Position.X - 6.89f,
-                                                                  bossObject.Position.Y,
-                                                                  bossObject.Position.Z + 6.89f);
+                                if (Language_Of_Prompts == Languages_Of_Prompts.Simplified_Chinese_简体中文)
+                                {
 
-                                    }
-
-                                    else
-                                    {
-
-                                        groupPosition = new Vector3(bossObject.Position.X + 6.89f,
-                                                                  bossObject.Position.Y,
-                                                                  bossObject.Position.Z + 6.89f);
-
-                                    }
-
-                                    groupPosition = RotatePoint(groupPosition, bossObject.Position, currentRotation);
-
-                                    currentProperty.TargetPosition = groupPosition;
-
-                                    targetPositionConfirmed = true;
+                                    prompt = (goLeft) ? ("左侧分摊") : ("右侧分摊");
 
                                 }
 
+                                if (Language_Of_Prompts == Languages_Of_Prompts.English_英文)
+                                {
+
+                                    prompt = (goLeft) ? ("Stack on the left") : ("Stack on the right");
+
+                                }
+
+                                break;
+
                             }
 
-                            if (Language_Of_Prompts == Languages_Of_Prompts.Simplified_Chinese_简体中文)
+                        default:
+                            {
+                                // Just a placeholder and should never be reached.
+
+                                break;
+
+                            }
+
+                    }
+
+                }
+
+                if (Phase3_Strat_Of_The_Second_Half == Phase3_Strats_Of_The_Second_Half.Moglin_Meow_Or_Baby_Wheelchair_Based_On_Signs_根据目标标记的莫灵喵法或宝宝椅法)
+                {
+
+                    bool goLeft = phase3_moglinMeow_shouldGoLeft(视角);
+
+                    if (Enable_Developer_Mode)
+                    {
+
+                        if (IsMe(accessory, 视角)) accessory.Method.SendChat($"""
+                                                   /e 
+                                                   goLeft={goLeft}
+                                                   phase3_roundOfDarkWaterIii={phase3_roundOfDarkWaterIii}
+
+                                                   """);
+
+                    }
+
+                    switch (phase3_roundOfDarkWaterIii)
+                    {
+
+                        case 1:
                             {
 
-                                prompt = (goLeft) ? ("左侧分摊") : ("右侧分摊");
+                                currentProperty.TargetPosition = (goLeft) ? (new Vector3(93, 0, 100)) : (new Vector3(107, 0, 100));
+
+                                targetPositionConfirmed = true;
+
+                                if (Language_Of_Prompts == Languages_Of_Prompts.Simplified_Chinese_简体中文)
+                                {
+
+                                    prompt = (goLeft) ? ("左侧分摊") : ("右侧分摊");
+
+                                }
+
+                                if (Language_Of_Prompts == Languages_Of_Prompts.English_英文)
+                                {
+
+                                    prompt = (goLeft) ? ("Stack on the left") : ("Stack on the right");
+
+                                }
+
+                                break;
 
                             }
 
-                            if (Language_Of_Prompts == Languages_Of_Prompts.English_英文)
+                        case 2:
                             {
 
-                                prompt = (goLeft) ? ("Stack on the left") : ("Stack on the right");
+                                currentProperty.TargetPosition = (goLeft) ?
+                                    (phase3_moglinMeow_leftPositionToStackOfTheSecondRound) :
+                                    (phase3_moglinMeow_rightPositionToStackOfTheSecondRound);
+
+                                targetPositionConfirmed = true;
+
+                                if (Language_Of_Prompts == Languages_Of_Prompts.Simplified_Chinese_简体中文)
+                                {
+
+                                    prompt = "场中当前侧分摊";
+
+                                }
+
+                                if (Language_Of_Prompts == Languages_Of_Prompts.English_英文)
+                                {
+
+                                    prompt = "Stack on this side of the center";
+
+                                }
+
+                                break;
 
                             }
 
-                            break;
+                        case 3:
+                            {
 
-                        }
+                                if (ParseObjectId(phase3_bossId, out var bossId))
+                                {
 
-                    default:
-                        {
-                            // Just a placeholder and should never be reached.
+                                    var bossObject = accessory.Data.Objects.SearchById(bossId);
 
-                            break;
+                                    if (bossObject != null)
+                                    {
 
-                        }
+                                        float currentRotation = bossObject.Rotation;
+                                        currentRotation = -(currentRotation - float.Pi);
+
+                                        Vector3 groupPosition = new Vector3(100, 0, 100);
+
+                                        if (Enable_Developer_Mode)
+                                        {
+
+                                            if (IsMe(accessory, 视角)) accessory.Method.SendChat($"""
+                                                                   /e 
+                                                                   currentRotation={currentRotation}
+
+                                                                   """);
+
+                                        }
+
+                                        if (goLeft)
+                                        {
+
+                                            groupPosition = new Vector3(bossObject.Position.X - 6.89f,
+                                                                      bossObject.Position.Y,
+                                                                      bossObject.Position.Z + 6.89f);
+
+                                        }
+
+                                        else
+                                        {
+
+                                            groupPosition = new Vector3(bossObject.Position.X + 6.89f,
+                                                                      bossObject.Position.Y,
+                                                                      bossObject.Position.Z + 6.89f);
+
+                                        }
+
+                                        groupPosition = RotatePoint(groupPosition, bossObject.Position, currentRotation);
+
+                                        currentProperty.TargetPosition = groupPosition;
+
+                                        targetPositionConfirmed = true;
+
+                                    }
+
+                                }
+
+                                if (Language_Of_Prompts == Languages_Of_Prompts.Simplified_Chinese_简体中文)
+                                {
+
+                                    prompt = (goLeft) ? ("左侧分摊") : ("右侧分摊");
+
+                                }
+
+                                if (Language_Of_Prompts == Languages_Of_Prompts.English_英文)
+                                {
+
+                                    prompt = (goLeft) ? ("Stack on the left") : ("Stack on the right");
+
+                                }
+
+                                break;
+
+                            }
+
+                        default:
+                            {
+                                // Just a placeholder and should never be reached.
+
+                                break;
+
+                            }
+
+                    }
+
+                }
+
+                if (targetPositionConfirmed)
+                {
+
+                    accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentProperty);
+
+                }
+
+                if (!prompt.Equals(""))
+                {
+
+                    if (Enable_Text_Prompts)
+                    {
+
+                        if (IsMe(accessory, 视角)) accessory.Method.TextInfo(prompt, 2500);
+
+                    }
+
+                    if (IsMe(accessory, 视角)) accessory.TTS($"{prompt}", Enable_Vanilla_TTS, Enable_Daily_Routines_TTS);
 
                 }
 
             }
-
-            if (Phase3_Strat_Of_The_Second_Half == Phase3_Strats_Of_The_Second_Half.High_Priority_As_Locomotives_车头低换法_MMW)
-            {
-
-                bool goLeft = phase3_locomotive_shouldGoLeft(accessory.Data.PartyList.IndexOf(accessory.Data.Me));
-
-                if (Enable_Developer_Mode)
-                {
-
-                    accessory.Method.SendChat($"""
-                                               /e 
-                                               goLeft={goLeft}
-                                               phase3_roundOfDarkWaterIii={phase3_roundOfDarkWaterIii}
-                                               
-                                               """);
-
-                }
-
-                switch (phase3_roundOfDarkWaterIii)
-                {
-
-                    case 1:
-                        {
-
-                            currentProperty.TargetPosition = (goLeft) ? (new Vector3(93, 0, 100)) : (new Vector3(107, 0, 100));
-
-                            targetPositionConfirmed = true;
-
-                            if (Language_Of_Prompts == Languages_Of_Prompts.Simplified_Chinese_简体中文)
-                            {
-
-                                prompt = (goLeft) ? ("左侧分摊") : ("右侧分摊");
-
-                            }
-
-                            if (Language_Of_Prompts == Languages_Of_Prompts.English_英文)
-                            {
-
-                                prompt = (goLeft) ? ("Stack on the left") : ("Stack on the right");
-
-                            }
-
-                            break;
-
-                        }
-
-                    case 2:
-                        {
-
-                            currentProperty.TargetPosition = (goLeft) ?
-                                (phase3_locomotive_leftPositionToStackOfTheSecondRound) :
-                                (phase3_locomotive_rightPositionToStackOfTheSecondRound);
-
-                            targetPositionConfirmed = true;
-
-                            if (Language_Of_Prompts == Languages_Of_Prompts.Simplified_Chinese_简体中文)
-                            {
-
-                                prompt = "场中当前侧分摊";
-
-                            }
-
-                            if (Language_Of_Prompts == Languages_Of_Prompts.English_英文)
-                            {
-
-                                prompt = "Stack on this side of the center";
-
-                            }
-
-                            break;
-
-                        }
-
-                    case 3:
-                        {
-
-                            if (ParseObjectId(phase3_bossId, out var bossId))
-                            {
-
-                                var bossObject = accessory.Data.Objects.SearchById(bossId);
-
-                                if (bossObject != null)
-                                {
-
-                                    float currentRotation = bossObject.Rotation;
-                                    currentRotation = -(currentRotation - float.Pi);
-
-                                    Vector3 groupPosition = new Vector3(100, 0, 100);
-
-                                    if (Enable_Developer_Mode)
-                                    {
-
-                                        accessory.Method.SendChat($"""
-                                                               /e 
-                                                               currentRotation={currentRotation}
-
-                                                               """);
-
-                                    }
-
-                                    if (goLeft)
-                                    {
-
-                                        groupPosition = new Vector3(bossObject.Position.X - 6.89f,
-                                                                  bossObject.Position.Y,
-                                                                  bossObject.Position.Z + 6.89f);
-
-                                    }
-
-                                    else
-                                    {
-
-                                        groupPosition = new Vector3(bossObject.Position.X + 6.89f,
-                                                                  bossObject.Position.Y,
-                                                                  bossObject.Position.Z + 6.89f);
-
-                                    }
-
-                                    groupPosition = RotatePoint(groupPosition, bossObject.Position, currentRotation);
-
-                                    currentProperty.TargetPosition = groupPosition;
-
-                                    targetPositionConfirmed = true;
-
-                                }
-
-                            }
-
-                            if (Language_Of_Prompts == Languages_Of_Prompts.Simplified_Chinese_简体中文)
-                            {
-
-                                prompt = (goLeft) ? ("左侧分摊") : ("右侧分摊");
-
-                            }
-
-                            if (Language_Of_Prompts == Languages_Of_Prompts.English_英文)
-                            {
-
-                                prompt = (goLeft) ? ("Stack on the left") : ("Stack on the right");
-
-                            }
-
-                            break;
-
-                        }
-
-                    default:
-                        {
-                            // Just a placeholder and should never be reached.
-
-                            break;
-
-                        }
-
-                }
-
-            }
-
-            if (Phase3_Strat_Of_The_Second_Half == Phase3_Strats_Of_The_Second_Half.Moglin_Meow_Or_Baby_Wheelchair_Based_On_Signs_根据目标标记的莫灵喵法或宝宝椅法)
-            {
-
-                bool goLeft = phase3_moglinMeow_shouldGoLeft(accessory.Data.PartyList.IndexOf(accessory.Data.Me));
-
-                if (Enable_Developer_Mode)
-                {
-
-                    accessory.Method.SendChat($"""
-                                               /e 
-                                               goLeft={goLeft}
-                                               phase3_roundOfDarkWaterIii={phase3_roundOfDarkWaterIii}
-                                               
-                                               """);
-
-                }
-
-                switch (phase3_roundOfDarkWaterIii)
-                {
-
-                    case 1:
-                        {
-
-                            currentProperty.TargetPosition = (goLeft) ? (new Vector3(93, 0, 100)) : (new Vector3(107, 0, 100));
-
-                            targetPositionConfirmed = true;
-
-                            if (Language_Of_Prompts == Languages_Of_Prompts.Simplified_Chinese_简体中文)
-                            {
-
-                                prompt = (goLeft) ? ("左侧分摊") : ("右侧分摊");
-
-                            }
-
-                            if (Language_Of_Prompts == Languages_Of_Prompts.English_英文)
-                            {
-
-                                prompt = (goLeft) ? ("Stack on the left") : ("Stack on the right");
-
-                            }
-
-                            break;
-
-                        }
-
-                    case 2:
-                        {
-
-                            currentProperty.TargetPosition = (goLeft) ?
-                                (phase3_moglinMeow_leftPositionToStackOfTheSecondRound) :
-                                (phase3_moglinMeow_rightPositionToStackOfTheSecondRound);
-
-                            targetPositionConfirmed = true;
-
-                            if (Language_Of_Prompts == Languages_Of_Prompts.Simplified_Chinese_简体中文)
-                            {
-
-                                prompt = "场中当前侧分摊";
-
-                            }
-
-                            if (Language_Of_Prompts == Languages_Of_Prompts.English_英文)
-                            {
-
-                                prompt = "Stack on this side of the center";
-
-                            }
-
-                            break;
-
-                        }
-
-                    case 3:
-                        {
-
-                            if (ParseObjectId(phase3_bossId, out var bossId))
-                            {
-
-                                var bossObject = accessory.Data.Objects.SearchById(bossId);
-
-                                if (bossObject != null)
-                                {
-
-                                    float currentRotation = bossObject.Rotation;
-                                    currentRotation = -(currentRotation - float.Pi);
-
-                                    Vector3 groupPosition = new Vector3(100, 0, 100);
-
-                                    if (Enable_Developer_Mode)
-                                    {
-
-                                        accessory.Method.SendChat($"""
-                                                               /e 
-                                                               currentRotation={currentRotation}
-
-                                                               """);
-
-                                    }
-
-                                    if (goLeft)
-                                    {
-
-                                        groupPosition = new Vector3(bossObject.Position.X - 6.89f,
-                                                                  bossObject.Position.Y,
-                                                                  bossObject.Position.Z + 6.89f);
-
-                                    }
-
-                                    else
-                                    {
-
-                                        groupPosition = new Vector3(bossObject.Position.X + 6.89f,
-                                                                  bossObject.Position.Y,
-                                                                  bossObject.Position.Z + 6.89f);
-
-                                    }
-
-                                    groupPosition = RotatePoint(groupPosition, bossObject.Position, currentRotation);
-
-                                    currentProperty.TargetPosition = groupPosition;
-
-                                    targetPositionConfirmed = true;
-
-                                }
-
-                            }
-
-                            if (Language_Of_Prompts == Languages_Of_Prompts.Simplified_Chinese_简体中文)
-                            {
-
-                                prompt = (goLeft) ? ("左侧分摊") : ("右侧分摊");
-
-                            }
-
-                            if (Language_Of_Prompts == Languages_Of_Prompts.English_英文)
-                            {
-
-                                prompt = (goLeft) ? ("Stack on the left") : ("Stack on the right");
-
-                            }
-
-                            break;
-
-                        }
-
-                    default:
-                        {
-                            // Just a placeholder and should never be reached.
-
-                            break;
-
-                        }
-
-                }
-
-            }
-
-            if (targetPositionConfirmed)
-            {
-
-                accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentProperty);
-
-            }
-
-            if (!prompt.Equals(""))
-            {
-
-                if (Enable_Text_Prompts)
-                {
-
-                    accessory.Method.TextInfo(prompt, 2500);
-
-                }
-
-                accessory.TTS($"{prompt}", Enable_Vanilla_TTS, Enable_Daily_Routines_TTS);
-
-            }
-
         }
 
         private bool phase3_doubleGroup_shouldStayInTheGroup(int currentIndex)
@@ -10197,299 +10349,304 @@ namespace CicerosKodakkuAssist.FuturesRewrittenUltimate.LPDU
 
             }
 
-            bool targetPositionConfirmed = false;
-            var currentProperty = accessory.Data.GetDefaultDrawProperties();
+            foreach (var 视角 in GuidanceIndices(accessory)) 指路(视角);
 
-            currentProperty.Name = "Phase3_Guidance_Of_Spirit_Taker_碎灵一击指路";
-            currentProperty.Scale = new(2);
-            currentProperty.ScaleMode |= ScaleMode.YByDistance;
-            currentProperty.Owner = accessory.Data.Me;
-            currentProperty.Color = accessory.Data.DefaultSafeColor;
-            currentProperty.Delay = 1250;
-            currentProperty.DestoryAt = 2500;
-
-            if (Phase3_Strat_Of_The_Second_Half == Phase3_Strats_Of_The_Second_Half.Double_Group_双分组法)
+            void 指路(int 视角)
             {
+                bool targetPositionConfirmed = false;
+                var currentProperty = accessory.Data.GetDefaultDrawProperties();
 
-                int myDoubleGroupIndex = phase3_doubleGroup_getDoubleGroupIndex(accessory.Data.PartyList.IndexOf(accessory.Data.Me));
+                currentProperty.Name = $"Phase3_Guidance_Of_Spirit_Taker_碎灵一击指路-{视角}";
+                currentProperty.Scale = new(2);
+                currentProperty.ScaleMode |= ScaleMode.YByDistance;
+                currentProperty.Owner = GuidanceOwner(accessory, 视角);
+                currentProperty.Color = accessory.Data.DefaultSafeColor;
+                currentProperty.Delay = 1250;
+                currentProperty.DestoryAt = 2500;
 
-                switch (myDoubleGroupIndex)
+                if (Phase3_Strat_Of_The_Second_Half == Phase3_Strats_Of_The_Second_Half.Double_Group_双分组法)
                 {
 
-                    case 0:
-                        {
-                            // H1
+                    int myDoubleGroupIndex = phase3_doubleGroup_getDoubleGroupIndex(视角);
 
-                            currentProperty.TargetPosition = new Vector3(85, 0, 100);
-                            targetPositionConfirmed = true;
+                    switch (myDoubleGroupIndex)
+                    {
 
-                            break;
-
-                        }
-
-                    case 1:
-                        {
-                            // H2
-
-                            bool goLeft = phase3_doubleGroup_shouldGoLeft(accessory.Data.PartyList.IndexOf(accessory.Data.Me));
-
-                            if (Enable_Developer_Mode)
+                        case 0:
                             {
+                                // H1
 
-                                accessory.Method.SendChat($"""
-                                                       /e 
-                                                       goLeft={goLeft}
+                                currentProperty.TargetPosition = new Vector3(85, 0, 100);
+                                targetPositionConfirmed = true;
 
-                                                       """);
+                                break;
 
                             }
 
-                            currentProperty.TargetPosition = (goLeft) ? (new Vector3(93, 0, 92)) : (new Vector3(107, 0, 92));
-                            targetPositionConfirmed = true;
-
-                            break;
-
-                        }
-
-                    case 2:
-                        {
-                            // MT
-
-                            currentProperty.TargetPosition = new Vector3(100, 0, 92);
-                            targetPositionConfirmed = true;
-
-                            break;
-
-                        }
-
-                    case 3:
-                        {
-                            // OT or ST
-
-                            currentProperty.TargetPosition = new Vector3(100, 0, 100);
-                            targetPositionConfirmed = true;
-
-                            break;
-
-                        }
-
-                    case 4:
-                        {
-                            // M1 or D1
-
-                            bool goLeft = phase3_doubleGroup_shouldGoLeft(accessory.Data.PartyList.IndexOf(accessory.Data.Me));
-
-                            if (Enable_Developer_Mode)
+                        case 1:
                             {
+                                // H2
 
-                                accessory.Method.SendChat($"""
-                                                       /e 
-                                                       goLeft={goLeft}
+                                bool goLeft = phase3_doubleGroup_shouldGoLeft(视角);
 
-                                                       """);
+                                if (Enable_Developer_Mode)
+                                {
+
+                                    if (IsMe(accessory, 视角)) accessory.Method.SendChat($"""
+                                                           /e 
+                                                           goLeft={goLeft}
+
+                                                           """);
+
+                                }
+
+                                currentProperty.TargetPosition = (goLeft) ? (new Vector3(93, 0, 92)) : (new Vector3(107, 0, 92));
+                                targetPositionConfirmed = true;
+
+                                break;
 
                             }
 
-                            currentProperty.TargetPosition = (goLeft) ? (new Vector3(93, 0, 100)) : (new Vector3(107, 0, 100));
-                            targetPositionConfirmed = true;
-
-                            break;
-
-                        }
-
-                    case 5:
-                        {
-                            // M2 or D2
-
-                            currentProperty.TargetPosition = new Vector3(100, 0, 108);
-                            targetPositionConfirmed = true;
-
-                            break;
-
-                        }
-
-                    case 6:
-                        {
-                            // R1 or D3
-
-                            bool goLeft = phase3_doubleGroup_shouldGoLeft(accessory.Data.PartyList.IndexOf(accessory.Data.Me));
-
-                            if (Enable_Developer_Mode)
+                        case 2:
                             {
+                                // MT
 
-                                accessory.Method.SendChat($"""
-                                                       /e 
-                                                       goLeft={goLeft}
+                                currentProperty.TargetPosition = new Vector3(100, 0, 92);
+                                targetPositionConfirmed = true;
 
-                                                       """);
+                                break;
 
                             }
 
-                            currentProperty.TargetPosition = (goLeft) ? (new Vector3(93, 0, 108)) : (new Vector3(107, 0, 108));
-                            targetPositionConfirmed = true;
+                        case 3:
+                            {
+                                // OT or ST
 
-                            break;
+                                currentProperty.TargetPosition = new Vector3(100, 0, 100);
+                                targetPositionConfirmed = true;
 
-                        }
+                                break;
 
-                    case 7:
-                        {
-                            // R2 or D4
+                            }
 
-                            currentProperty.TargetPosition = new Vector3(115, 0, 100);
-                            targetPositionConfirmed = true;
+                        case 4:
+                            {
+                                // M1 or D1
 
-                            break;
+                                bool goLeft = phase3_doubleGroup_shouldGoLeft(视角);
 
-                        }
+                                if (Enable_Developer_Mode)
+                                {
 
-                    default:
-                        {
-                            // Just a placeholder and should never be reached.
+                                    if (IsMe(accessory, 视角)) accessory.Method.SendChat($"""
+                                                           /e 
+                                                           goLeft={goLeft}
 
-                            break;
+                                                           """);
 
-                        }
+                                }
+
+                                currentProperty.TargetPosition = (goLeft) ? (new Vector3(93, 0, 100)) : (new Vector3(107, 0, 100));
+                                targetPositionConfirmed = true;
+
+                                break;
+
+                            }
+
+                        case 5:
+                            {
+                                // M2 or D2
+
+                                currentProperty.TargetPosition = new Vector3(100, 0, 108);
+                                targetPositionConfirmed = true;
+
+                                break;
+
+                            }
+
+                        case 6:
+                            {
+                                // R1 or D3
+
+                                bool goLeft = phase3_doubleGroup_shouldGoLeft(视角);
+
+                                if (Enable_Developer_Mode)
+                                {
+
+                                    if (IsMe(accessory, 视角)) accessory.Method.SendChat($"""
+                                                           /e 
+                                                           goLeft={goLeft}
+
+                                                           """);
+
+                                }
+
+                                currentProperty.TargetPosition = (goLeft) ? (new Vector3(93, 0, 108)) : (new Vector3(107, 0, 108));
+                                targetPositionConfirmed = true;
+
+                                break;
+
+                            }
+
+                        case 7:
+                            {
+                                // R2 or D4
+
+                                currentProperty.TargetPosition = new Vector3(115, 0, 100);
+                                targetPositionConfirmed = true;
+
+                                break;
+
+                            }
+
+                        default:
+                            {
+                                // Just a placeholder and should never be reached.
+
+                                break;
+
+                            }
+
+                    }
+
+                }
+
+                else
+                {
+
+                    var temporaryProperty = accessory.Data.GetDefaultDrawProperties();
+
+                    Vector3 point1 = new Vector3(93f, 0f, 101f);
+                    Vector3 point1Extension = new Vector3(93f, 0f, 109f);
+                    Vector3 point2 = new Vector3(93f, 0f, 99f);
+                    Vector3 point2Extension = new Vector3(93f, 0f, 91f);
+                    Vector3 point3 = new Vector3(92f, 0f, 101f);
+                    Vector3 point3Extension = new Vector3(85.072f, 0f, 105f);
+                    Vector3 point4 = new Vector3(92f, 0f, 99f);
+                    Vector3 point4Extension = new Vector3(85.072f, 0f, 95f);
+                    Vector3 point5 = new Vector3(107f, 0f, 101f);
+                    Vector3 point5Extension = new Vector3(107f, 0f, 109f);
+                    Vector3 point6 = new Vector3(107f, 0f, 99f);
+                    Vector3 point6Extension = new Vector3(107f, 0f, 91f);
+                    Vector3 point7 = new Vector3(108f, 0f, 101f);
+                    Vector3 point7Extension = new Vector3(114.928f, 0f, 105f);
+                    Vector3 point8 = new Vector3(108f, 0f, 99f);
+                    Vector3 point8Extension = new Vector3(114.928f, 0f, 95f);
+
+                    temporaryProperty = accessory.Data.GetDefaultDrawProperties();
+
+                    temporaryProperty.Name = $"Phase3_Rough_Guidance_Of_Spirit_Taker_碎灵一击粗略指路-{视角}";
+                    temporaryProperty.Scale = new(2);
+                    temporaryProperty.Position = point1;
+                    temporaryProperty.TargetPosition = point1Extension;
+                    temporaryProperty.ScaleMode |= ScaleMode.YByDistance;
+                    temporaryProperty.Color = Phase3_Colour_Of_Rough_Guidance.V4.WithW(1f);
+                    temporaryProperty.Delay = 1250;
+                    temporaryProperty.DestoryAt = 2500;
+
+                    accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, temporaryProperty);
+
+                    temporaryProperty = accessory.Data.GetDefaultDrawProperties();
+
+                    temporaryProperty.Name = $"Phase3_Rough_Guidance_Of_Spirit_Taker_碎灵一击粗略指路-{视角}";
+                    temporaryProperty.Scale = new(2);
+                    temporaryProperty.Position = point2;
+                    temporaryProperty.TargetPosition = point2Extension;
+                    temporaryProperty.ScaleMode |= ScaleMode.YByDistance;
+                    temporaryProperty.Color = Phase3_Colour_Of_Rough_Guidance.V4.WithW(1f);
+                    temporaryProperty.Delay = 1250;
+                    temporaryProperty.DestoryAt = 2500;
+
+                    accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, temporaryProperty);
+
+                    temporaryProperty = accessory.Data.GetDefaultDrawProperties();
+
+                    temporaryProperty.Name = $"Phase3_Rough_Guidance_Of_Spirit_Taker_碎灵一击粗略指路-{视角}";
+                    temporaryProperty.Scale = new(2);
+                    temporaryProperty.Position = point3;
+                    temporaryProperty.TargetPosition = point3Extension;
+                    temporaryProperty.ScaleMode |= ScaleMode.YByDistance;
+                    temporaryProperty.Color = Phase3_Colour_Of_Rough_Guidance.V4.WithW(1f);
+                    temporaryProperty.Delay = 1250;
+                    temporaryProperty.DestoryAt = 2500;
+
+                    accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, temporaryProperty);
+
+                    temporaryProperty = accessory.Data.GetDefaultDrawProperties();
+
+                    temporaryProperty.Name = $"Phase3_Rough_Guidance_Of_Spirit_Taker_碎灵一击粗略指路-{视角}";
+                    temporaryProperty.Scale = new(2);
+                    temporaryProperty.Position = point4;
+                    temporaryProperty.TargetPosition = point4Extension;
+                    temporaryProperty.ScaleMode |= ScaleMode.YByDistance;
+                    temporaryProperty.Color = Phase3_Colour_Of_Rough_Guidance.V4.WithW(1f);
+                    temporaryProperty.Delay = 1250;
+                    temporaryProperty.DestoryAt = 2500;
+
+                    accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, temporaryProperty);
+
+                    temporaryProperty = accessory.Data.GetDefaultDrawProperties();
+
+                    temporaryProperty.Name = $"Phase3_Rough_Guidance_Of_Spirit_Taker_碎灵一击粗略指路-{视角}";
+                    temporaryProperty.Scale = new(2);
+                    temporaryProperty.Position = point5;
+                    temporaryProperty.TargetPosition = point5Extension;
+                    temporaryProperty.ScaleMode |= ScaleMode.YByDistance;
+                    temporaryProperty.Color = Phase3_Colour_Of_Rough_Guidance.V4.WithW(1f);
+                    temporaryProperty.Delay = 1250;
+                    temporaryProperty.DestoryAt = 2500;
+
+                    accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, temporaryProperty);
+
+                    temporaryProperty = accessory.Data.GetDefaultDrawProperties();
+
+                    temporaryProperty.Name = $"Phase3_Rough_Guidance_Of_Spirit_Taker_碎灵一击粗略指路-{视角}";
+                    temporaryProperty.Scale = new(2);
+                    temporaryProperty.Position = point6;
+                    temporaryProperty.TargetPosition = point6Extension;
+                    temporaryProperty.ScaleMode |= ScaleMode.YByDistance;
+                    temporaryProperty.Color = Phase3_Colour_Of_Rough_Guidance.V4.WithW(1f);
+                    temporaryProperty.Delay = 1250;
+                    temporaryProperty.DestoryAt = 2500;
+
+                    accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, temporaryProperty);
+
+                    temporaryProperty = accessory.Data.GetDefaultDrawProperties();
+
+                    temporaryProperty.Name = $"Phase3_Rough_Guidance_Of_Spirit_Taker_碎灵一击粗略指路-{视角}";
+                    temporaryProperty.Scale = new(2);
+                    temporaryProperty.Position = point7;
+                    temporaryProperty.TargetPosition = point7Extension;
+                    temporaryProperty.ScaleMode |= ScaleMode.YByDistance;
+                    temporaryProperty.Color = Phase3_Colour_Of_Rough_Guidance.V4.WithW(1f);
+                    temporaryProperty.Delay = 1250;
+                    temporaryProperty.DestoryAt = 2500;
+
+                    accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, temporaryProperty);
+
+                    temporaryProperty = accessory.Data.GetDefaultDrawProperties();
+
+                    temporaryProperty.Name = $"Phase3_Rough_Guidance_Of_Spirit_Taker_碎灵一击粗略指路-{视角}";
+                    temporaryProperty.Scale = new(2);
+                    temporaryProperty.Position = point8;
+                    temporaryProperty.TargetPosition = point8Extension;
+                    temporaryProperty.ScaleMode |= ScaleMode.YByDistance;
+                    temporaryProperty.Color = Phase3_Colour_Of_Rough_Guidance.V4.WithW(1f);
+                    temporaryProperty.Delay = 1250;
+                    temporaryProperty.DestoryAt = 2500;
+
+                    accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, temporaryProperty);
+
+                }
+
+                if (targetPositionConfirmed)
+                {
+
+                    accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentProperty);
 
                 }
 
             }
-
-            else
-            {
-
-                var temporaryProperty = accessory.Data.GetDefaultDrawProperties();
-
-                Vector3 point1 = new Vector3(93f, 0f, 101f);
-                Vector3 point1Extension = new Vector3(93f, 0f, 109f);
-                Vector3 point2 = new Vector3(93f, 0f, 99f);
-                Vector3 point2Extension = new Vector3(93f, 0f, 91f);
-                Vector3 point3 = new Vector3(92f, 0f, 101f);
-                Vector3 point3Extension = new Vector3(85.072f, 0f, 105f);
-                Vector3 point4 = new Vector3(92f, 0f, 99f);
-                Vector3 point4Extension = new Vector3(85.072f, 0f, 95f);
-                Vector3 point5 = new Vector3(107f, 0f, 101f);
-                Vector3 point5Extension = new Vector3(107f, 0f, 109f);
-                Vector3 point6 = new Vector3(107f, 0f, 99f);
-                Vector3 point6Extension = new Vector3(107f, 0f, 91f);
-                Vector3 point7 = new Vector3(108f, 0f, 101f);
-                Vector3 point7Extension = new Vector3(114.928f, 0f, 105f);
-                Vector3 point8 = new Vector3(108f, 0f, 99f);
-                Vector3 point8Extension = new Vector3(114.928f, 0f, 95f);
-
-                temporaryProperty = accessory.Data.GetDefaultDrawProperties();
-
-                temporaryProperty.Name = "Phase3_Rough_Guidance_Of_Spirit_Taker_碎灵一击粗略指路";
-                temporaryProperty.Scale = new(2);
-                temporaryProperty.Position = point1;
-                temporaryProperty.TargetPosition = point1Extension;
-                temporaryProperty.ScaleMode |= ScaleMode.YByDistance;
-                temporaryProperty.Color = Phase3_Colour_Of_Rough_Guidance.V4.WithW(1f);
-                temporaryProperty.Delay = 1250;
-                temporaryProperty.DestoryAt = 2500;
-
-                accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, temporaryProperty);
-
-                temporaryProperty = accessory.Data.GetDefaultDrawProperties();
-
-                temporaryProperty.Name = "Phase3_Rough_Guidance_Of_Spirit_Taker_碎灵一击粗略指路";
-                temporaryProperty.Scale = new(2);
-                temporaryProperty.Position = point2;
-                temporaryProperty.TargetPosition = point2Extension;
-                temporaryProperty.ScaleMode |= ScaleMode.YByDistance;
-                temporaryProperty.Color = Phase3_Colour_Of_Rough_Guidance.V4.WithW(1f);
-                temporaryProperty.Delay = 1250;
-                temporaryProperty.DestoryAt = 2500;
-
-                accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, temporaryProperty);
-
-                temporaryProperty = accessory.Data.GetDefaultDrawProperties();
-
-                temporaryProperty.Name = "Phase3_Rough_Guidance_Of_Spirit_Taker_碎灵一击粗略指路";
-                temporaryProperty.Scale = new(2);
-                temporaryProperty.Position = point3;
-                temporaryProperty.TargetPosition = point3Extension;
-                temporaryProperty.ScaleMode |= ScaleMode.YByDistance;
-                temporaryProperty.Color = Phase3_Colour_Of_Rough_Guidance.V4.WithW(1f);
-                temporaryProperty.Delay = 1250;
-                temporaryProperty.DestoryAt = 2500;
-
-                accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, temporaryProperty);
-
-                temporaryProperty = accessory.Data.GetDefaultDrawProperties();
-
-                temporaryProperty.Name = "Phase3_Rough_Guidance_Of_Spirit_Taker_碎灵一击粗略指路";
-                temporaryProperty.Scale = new(2);
-                temporaryProperty.Position = point4;
-                temporaryProperty.TargetPosition = point4Extension;
-                temporaryProperty.ScaleMode |= ScaleMode.YByDistance;
-                temporaryProperty.Color = Phase3_Colour_Of_Rough_Guidance.V4.WithW(1f);
-                temporaryProperty.Delay = 1250;
-                temporaryProperty.DestoryAt = 2500;
-
-                accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, temporaryProperty);
-
-                temporaryProperty = accessory.Data.GetDefaultDrawProperties();
-
-                temporaryProperty.Name = "Phase3_Rough_Guidance_Of_Spirit_Taker_碎灵一击粗略指路";
-                temporaryProperty.Scale = new(2);
-                temporaryProperty.Position = point5;
-                temporaryProperty.TargetPosition = point5Extension;
-                temporaryProperty.ScaleMode |= ScaleMode.YByDistance;
-                temporaryProperty.Color = Phase3_Colour_Of_Rough_Guidance.V4.WithW(1f);
-                temporaryProperty.Delay = 1250;
-                temporaryProperty.DestoryAt = 2500;
-
-                accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, temporaryProperty);
-
-                temporaryProperty = accessory.Data.GetDefaultDrawProperties();
-
-                temporaryProperty.Name = "Phase3_Rough_Guidance_Of_Spirit_Taker_碎灵一击粗略指路";
-                temporaryProperty.Scale = new(2);
-                temporaryProperty.Position = point6;
-                temporaryProperty.TargetPosition = point6Extension;
-                temporaryProperty.ScaleMode |= ScaleMode.YByDistance;
-                temporaryProperty.Color = Phase3_Colour_Of_Rough_Guidance.V4.WithW(1f);
-                temporaryProperty.Delay = 1250;
-                temporaryProperty.DestoryAt = 2500;
-
-                accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, temporaryProperty);
-
-                temporaryProperty = accessory.Data.GetDefaultDrawProperties();
-
-                temporaryProperty.Name = "Phase3_Rough_Guidance_Of_Spirit_Taker_碎灵一击粗略指路";
-                temporaryProperty.Scale = new(2);
-                temporaryProperty.Position = point7;
-                temporaryProperty.TargetPosition = point7Extension;
-                temporaryProperty.ScaleMode |= ScaleMode.YByDistance;
-                temporaryProperty.Color = Phase3_Colour_Of_Rough_Guidance.V4.WithW(1f);
-                temporaryProperty.Delay = 1250;
-                temporaryProperty.DestoryAt = 2500;
-
-                accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, temporaryProperty);
-
-                temporaryProperty = accessory.Data.GetDefaultDrawProperties();
-
-                temporaryProperty.Name = "Phase3_Rough_Guidance_Of_Spirit_Taker_碎灵一击粗略指路";
-                temporaryProperty.Scale = new(2);
-                temporaryProperty.Position = point8;
-                temporaryProperty.TargetPosition = point8Extension;
-                temporaryProperty.ScaleMode |= ScaleMode.YByDistance;
-                temporaryProperty.Color = Phase3_Colour_Of_Rough_Guidance.V4.WithW(1f);
-                temporaryProperty.Delay = 1250;
-                temporaryProperty.DestoryAt = 2500;
-
-                accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, temporaryProperty);
-
-            }
-
-            if (targetPositionConfirmed)
-            {
-
-                accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentProperty);
-
-            }
-
         }
 
         [ScriptMethod(name: "Phase3 Determine Initial Safe Positions Of Apocalypse 确定启示(地火)初始安全位置",
@@ -11175,101 +11332,106 @@ namespace CicerosKodakkuAssist.FuturesRewrittenUltimate.LPDU
 
             }
 
-            bool targetPositionConfirmed = false;
-            var currentProperty = accessory.Data.GetDefaultDrawProperties();
+            foreach (var 视角 in GuidanceIndices(accessory)) 指路(视角);
 
-            currentProperty.Name = "Phase3_Rough_Guidance_Of_Initial_Safe_Positions_初始安全位置粗略指路";
-            currentProperty.Scale = new(2);
-            currentProperty.ScaleMode |= ScaleMode.YByDistance;
-            currentProperty.Owner = accessory.Data.Me;
-            currentProperty.Color = Phase3_Colour_Of_Rough_Guidance.V4.WithW(1f);
-            currentProperty.Delay = 500;
-            currentProperty.DestoryAt = 6500;
-
-            if (Phase3_Strat_Of_The_Second_Half == Phase3_Strats_Of_The_Second_Half.Double_Group_双分组法)
+            void 指路(int 视角)
             {
+                bool targetPositionConfirmed = false;
+                var currentProperty = accessory.Data.GetDefaultDrawProperties();
 
-                if (0 <= accessory.Data.PartyList.IndexOf(accessory.Data.Me)
-                   &&
-                   accessory.Data.PartyList.IndexOf(accessory.Data.Me) <= 3)
+                currentProperty.Name = $"Phase3_Rough_Guidance_Of_Initial_Safe_Positions_初始安全位置粗略指路-{视角}";
+                currentProperty.Scale = new(2);
+                currentProperty.ScaleMode |= ScaleMode.YByDistance;
+                currentProperty.Owner = GuidanceOwner(accessory, 视角);
+                currentProperty.Color = Phase3_Colour_Of_Rough_Guidance.V4.WithW(1f);
+                currentProperty.Delay = 500;
+                currentProperty.DestoryAt = 6500;
+
+                if (Phase3_Strat_Of_The_Second_Half == Phase3_Strats_Of_The_Second_Half.Double_Group_双分组法)
                 {
 
-                    currentProperty.TargetPosition = phase3_doubleGroup_initialSafePositionOfTheLeftGroup;
+                    if (0 <= 视角
+                       &&
+                       视角 <= 3)
+                    {
 
-                    targetPositionConfirmed = true;
+                        currentProperty.TargetPosition = phase3_doubleGroup_initialSafePositionOfTheLeftGroup;
+
+                        targetPositionConfirmed = true;
+
+                    }
+
+                    if (4 <= 视角
+                       &&
+                       视角 <= 7)
+                    {
+
+                        currentProperty.TargetPosition = phase3_doubleGroup_initialSafePositionOfTheRightGroup;
+
+                        targetPositionConfirmed = true;
+
+                    }
 
                 }
 
-                if (4 <= accessory.Data.PartyList.IndexOf(accessory.Data.Me)
-                   &&
-                   accessory.Data.PartyList.IndexOf(accessory.Data.Me) <= 7)
+                if (Phase3_Strat_Of_The_Second_Half == Phase3_Strats_Of_The_Second_Half.High_Priority_As_Locomotives_车头低换法_MMW)
                 {
 
-                    currentProperty.TargetPosition = phase3_doubleGroup_initialSafePositionOfTheRightGroup;
+                    bool goLeft = phase3_locomotive_shouldGoLeft(视角);
 
-                    targetPositionConfirmed = true;
+                    if (goLeft)
+                    {
+
+                        currentProperty.TargetPosition = phase3_locomotive_initialSafePositionOfTheLeftGroup;
+
+                        targetPositionConfirmed = true;
+
+                    }
+
+                    else
+                    {
+
+                        currentProperty.TargetPosition = phase3_locomotive_initialSafePositionOfTheRightGroup;
+
+                        targetPositionConfirmed = true;
+
+                    }
+
+                }
+
+                if (Phase3_Strat_Of_The_Second_Half == Phase3_Strats_Of_The_Second_Half.Moglin_Meow_Or_Baby_Wheelchair_Based_On_Signs_根据目标标记的莫灵喵法或宝宝椅法)
+                {
+
+                    bool goLeft = phase3_moglinMeow_shouldGoLeft(视角);
+
+                    if (goLeft)
+                    {
+
+                        currentProperty.TargetPosition = phase3_moglinMeow_initialSafePositionOfTheLeftGroup;
+
+                        targetPositionConfirmed = true;
+
+                    }
+
+                    else
+                    {
+
+                        currentProperty.TargetPosition = phase3_moglinMeow_initialSafePositionOfTheRightGroup;
+
+                        targetPositionConfirmed = true;
+
+                    }
+
+                }
+
+                if (targetPositionConfirmed)
+                {
+
+                    accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentProperty);
 
                 }
 
             }
-
-            if (Phase3_Strat_Of_The_Second_Half == Phase3_Strats_Of_The_Second_Half.High_Priority_As_Locomotives_车头低换法_MMW)
-            {
-
-                bool goLeft = phase3_locomotive_shouldGoLeft(accessory.Data.PartyList.IndexOf(accessory.Data.Me));
-
-                if (goLeft)
-                {
-
-                    currentProperty.TargetPosition = phase3_locomotive_initialSafePositionOfTheLeftGroup;
-
-                    targetPositionConfirmed = true;
-
-                }
-
-                else
-                {
-
-                    currentProperty.TargetPosition = phase3_locomotive_initialSafePositionOfTheRightGroup;
-
-                    targetPositionConfirmed = true;
-
-                }
-
-            }
-
-            if (Phase3_Strat_Of_The_Second_Half == Phase3_Strats_Of_The_Second_Half.Moglin_Meow_Or_Baby_Wheelchair_Based_On_Signs_根据目标标记的莫灵喵法或宝宝椅法)
-            {
-
-                bool goLeft = phase3_moglinMeow_shouldGoLeft(accessory.Data.PartyList.IndexOf(accessory.Data.Me));
-
-                if (goLeft)
-                {
-
-                    currentProperty.TargetPosition = phase3_moglinMeow_initialSafePositionOfTheLeftGroup;
-
-                    targetPositionConfirmed = true;
-
-                }
-
-                else
-                {
-
-                    currentProperty.TargetPosition = phase3_moglinMeow_initialSafePositionOfTheRightGroup;
-
-                    targetPositionConfirmed = true;
-
-                }
-
-            }
-
-            if (targetPositionConfirmed)
-            {
-
-                accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentProperty);
-
-            }
-
         }
 
         [ScriptMethod(name: "Phase3 Range Of Darkest Dance 暗夜舞蹈(最远死刑)范围",
@@ -11587,25 +11749,30 @@ namespace CicerosKodakkuAssist.FuturesRewrittenUltimate.LPDU
             if (parse!=32) return;
             if (!ParseObjectId(@event["SourceId"], out var sid)) return;
 
-            var dp = accessory.Data.GetDefaultDrawProperties();
-            dp.Name = "P3_延迟咏唱回响_击退提示1";
-            dp.Scale = new(2, 21);
-            dp.Owner = accessory.Data.Me;
-            dp.TargetObject = sid;
-            dp.Rotation = float.Pi;
-            dp.Color = accessory.Data.DefaultDangerColor.WithW(3);
-            dp.DestoryAt = 3000;
-            accessory.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Displacement, dp);
+            foreach (var 视角 in GuidanceIndices(accessory)) 指路(视角);
 
-            dp = accessory.Data.GetDefaultDrawProperties();
-            dp.Name = "P3_延迟咏唱回响_击退提示2";
-            dp.Scale = new(2);
-            dp.Owner = sid;
-            dp.TargetObject = accessory.Data.Me;
-            dp.ScaleMode |= ScaleMode.YByDistance;
-            dp.Color = accessory.Data.DefaultDangerColor.WithW(3);
-            dp.DestoryAt = 3000;
-            accessory.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Displacement, dp);
+            void 指路(int 视角)
+            {
+                var dp = accessory.Data.GetDefaultDrawProperties();
+                dp.Name = $"P3_延迟咏唱回响_击退提示1-{视角}";
+                dp.Scale = new(2, 21);
+                dp.Owner = GuidanceOwner(accessory, 视角);
+                dp.TargetObject = sid;
+                dp.Rotation = float.Pi;
+                dp.Color = accessory.Data.DefaultDangerColor.WithW(3);
+                dp.DestoryAt = 3000;
+                accessory.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Displacement, dp);
+
+                dp = accessory.Data.GetDefaultDrawProperties();
+                dp.Name = $"P3_延迟咏唱回响_击退提示2-{视角}";
+                dp.Scale = new(2);
+                dp.Owner = sid;
+                dp.TargetObject = GuidanceOwner(accessory, 视角);
+                dp.ScaleMode |= ScaleMode.YByDistance;
+                dp.Color = accessory.Data.DefaultDangerColor.WithW(3);
+                dp.DestoryAt = 3000;
+                accessory.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Displacement, dp);
+            }
         }
         [ScriptMethod(name: "P3_延迟咏唱回响_地火记录", eventType: EventTypeEnum.ObjectEffect, eventCondition: ["Id1:4", "Id2:regex:^(16|64)$"], userControl: false)]
         public void P3_延迟咏唱回响_地火记录(Event @event, ScriptAccessory accessory)
@@ -12069,15 +12236,20 @@ namespace CicerosKodakkuAssist.FuturesRewrittenUltimate.LPDU
             _usamiEvents[(int)EventIdx.ApoGrouping].WaitOne();
             _usamiEvents[(int)EventIdx.ApoPreciseGrouping].WaitOne(1000);
 
-            var myIndex = sa.GetMyIndex();
-            var myPreviousGroup = myIndex < 4 ? 0 : 1;     // 0 左 1 右
-            var myCurrentGroup = _apo.GetMyGroup();
+            foreach (var 视角 in GuidanceIndices(sa)) 指路(视角);
 
-            var dp = sa.DrawGuidance(_apo.IsInLeftGroup(myIndex) ? new Vector3(93, 0, 100) : new Vector3(107, 0, 100), 0, 3000, $"Usami-狂水位置");
-            sa.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
-            var str = _apo.GroupingFixed ? "依照头标" : ApoTankPriorSwap ? "依照优先级(ST>MT)低换" : "依照优先级低换";
-            if (Enable_Text_Prompts) sa.Method.TextInfo($"{(myPreviousGroup == myCurrentGroup ? "不换" : "交换")}({str})", 3000, true);
-            sa.DebugMsg($"{(myPreviousGroup == myCurrentGroup ? "不换" : "交换")}({str})", Enable_Developer_Mode);
+            void 指路(int 视角)
+            {
+                var myIndex = 视角;
+                var myPreviousGroup = myIndex < 4 ? 0 : 1;     // 0 左 1 右
+                var myCurrentGroup = _apo.GetPlayerGroup(myIndex);
+
+                var dp = sa.DrawGuidance(GuidanceOwner(sa, 视角), _apo.IsInLeftGroup(myIndex) ? new Vector3(93, 0, 100) : new Vector3(107, 0, 100), 0, 3000, $"Usami-狂水位置-{视角}");
+                sa.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
+                var str = _apo.GroupingFixed ? "依照头标" : ApoTankPriorSwap ? "依照优先级(ST>MT)低换" : "依照优先级低换";
+                if (IsMe(sa, 视角)) if (Enable_Text_Prompts) sa.Method.TextInfo($"{(myPreviousGroup == myCurrentGroup ? "不换" : "交换")}({str})", 3000, true);
+                sa.DebugMsg($"{(myPreviousGroup == myCurrentGroup ? "不换" : "交换")}({str})", Enable_Developer_Mode);
+            }
         }
 
         [ScriptMethod(name: "碎灵一击范围与分散提示", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:40288"], userControl: true)]
@@ -12121,52 +12293,56 @@ namespace CicerosKodakkuAssist.FuturesRewrittenUltimate.LPDU
         {
             if (_fruPhase != FruPhase.P3B_Apocalypse) return;
 
-            var myIndex = sa.GetMyIndex();
-            var myGroupSafePosIdx = _apo.IsInCrowd(myIndex) ? -1 : 0;
-            int mySafeDir;
-            // 根据玩家所属位置，选择人群安全区位置。
-            if (ApoStg == ApoStgEnum.CrownFirst_MTD1皇帝车头)
-            {
-                // 若玩家在左组，找位于北的皇帝安全区；否则找位于南的皇帝安全区
-                int safeDir = (_apo.SafePoints[1] + 3) % 8;
-                int mySafeDirIdx = _apo.IsInLeftGroup(myIndex) ? (safeDir < 4 ? 1 : 3) : (safeDir >= 4 ? 1 : 3);
-                if (_apo.IsInCrowd(myIndex))
-                    mySafeDirIdx -= 1;
-                mySafeDir = _apo.SafePoints[mySafeDirIdx];
-            }
-            else
-            {
-                // (ApoStg == ApoStgEnum.CrowdFirst_人群车头)
-                // 若玩家在左组，找位于北的人群安全区；否则找位于南的人群安全区
-                int safeDir = (_apo.SafePoints[0] + 3) % 8;
-                int mySafeDirIdx = _apo.IsInLeftGroup(myIndex) ? (safeDir < 4 ? 0 : 2) : (safeDir >= 4 ? 0 : 2);
-                if (!_apo.IsInCrowd(myIndex))
-                    mySafeDirIdx += 1;
-                mySafeDir = _apo.SafePoints[mySafeDirIdx];
-            }
+            foreach (var 视角 in GuidanceIndices(sa)) 指路(视角);
 
-            if (_apo.GroupingFixed && _apo.IsInCrowd(myIndex))
-                myGroupSafePosIdx = _apo.GetMyGroupIdx() / 2 - 1;
-
-            sa.DebugMsg($"玩家的安全方位为{mySafeDir}, 具体分散位置序列为{myGroupSafePosIdx}。", Enable_Developer_Mode);
-
-            for (int i = 0; i < 4; i++)
+            void 指路(int 视角)
             {
-                List<Vector3> safePos = _apo.GetSafePos(_apo.SafePoints[i]);
-                for (int j = 0; j < (i % 2 == 0 ? 3 : 1); j++)
+                var myIndex = 视角;
+                var myGroupSafePosIdx = _apo.IsInCrowd(myIndex) ? -1 : 0;
+                int mySafeDir;
+                // 根据玩家所属位置，选择人群安全区位置。
+                if (ApoStg == ApoStgEnum.CrownFirst_MTD1皇帝车头)
                 {
-                    bool isSafe = mySafeDir == _apo.SafePoints[i];
+                    // 若玩家在左组，找位于北的皇帝安全区；否则找位于南的皇帝安全区
+                    int safeDir = (_apo.SafePoints[1] + 3) % 8;
+                    int mySafeDirIdx = _apo.IsInLeftGroup(myIndex) ? (safeDir < 4 ? 1 : 3) : (safeDir >= 4 ? 1 : 3);
+                    if (_apo.IsInCrowd(myIndex))
+                        mySafeDirIdx -= 1;
+                    mySafeDir = _apo.SafePoints[mySafeDirIdx];
+                }
+                else
+                {
+                    // (ApoStg == ApoStgEnum.CrowdFirst_人群车头)
+                    // 若玩家在左组，找位于北的人群安全区；否则找位于南的人群安全区
+                    int safeDir = (_apo.SafePoints[0] + 3) % 8;
+                    int mySafeDirIdx = _apo.IsInLeftGroup(myIndex) ? (safeDir < 4 ? 0 : 2) : (safeDir >= 4 ? 0 : 2);
+                    if (!_apo.IsInCrowd(myIndex))
+                        mySafeDirIdx += 1;
+                    mySafeDir = _apo.SafePoints[mySafeDirIdx];
+                }
 
-                    if (_apo.GroupingFixed && _apo.IsInCrowd(myIndex))
-                        isSafe &= myGroupSafePosIdx == j;
+                if (_apo.GroupingFixed && _apo.IsInCrowd(myIndex))
+                    myGroupSafePosIdx = _apo.GetPlayerGroupIdx(myIndex) / 2 - 1;
 
-                    var dp = sa.DrawStaticCircle(safePos[j], isSafe ? sa.Data.DefaultSafeColor.WithW(3f) : sa.Data.DefaultDangerColor.WithW(3f), 0, 10000, $"Usami-分散位dir{i}-idx{j}", 0.5f);
-                    sa.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Circle, dp);
+                sa.DebugMsg($"玩家的安全方位为{mySafeDir}, 具体分散位置序列为{myGroupSafePosIdx}。", Enable_Developer_Mode);
 
-                    if (_apo.GroupingFixed && isSafe)
+                for (int i = 0; i < 4; i++)
+                {
+                    List<Vector3> safePos = _apo.GetSafePos(_apo.SafePoints[i]);
+                    for (int j = 0; j < (i % 2 == 0 ? 3 : 1); j++)
                     {
-                        var dp0 = sa.DrawGuidance(safePos[j], 0, 10000, $"Usami-分散位dir{i}-idx{j}指引");
-                        sa.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp0);
+                        bool isSafe = mySafeDir == _apo.SafePoints[i];
+
+                        if (_apo.GroupingFixed && _apo.IsInCrowd(myIndex))
+                            isSafe &= myGroupSafePosIdx == j;
+
+                        if (IsMe(sa, 视角)) sa.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Circle, sa.DrawStaticCircle(safePos[j], isSafe ? sa.Data.DefaultSafeColor.WithW(3f) : sa.Data.DefaultDangerColor.WithW(3f), 0, 10000, $"Usami-分散位dir{i}-idx{j}", 0.5f));
+
+                        if (_apo.GroupingFixed && isSafe)
+                        {
+                            var dp0 = sa.DrawGuidance(GuidanceOwner(sa, 视角), safePos[j], 0, 10000, $"Usami-分散位dir{i}-idx{j}指引-{视角}");
+                            sa.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp0);
+                        }
                     }
                 }
             }
@@ -12547,18 +12723,23 @@ namespace CicerosKodakkuAssist.FuturesRewrittenUltimate.LPDU
 
             }
 
-            currentProperty = accessory.Data.GetDefaultDrawProperties();
+            foreach (var 视角 in GuidanceIndices(accessory)) 指路(视角);
 
-            currentProperty.Name = "Phase4_Initial_Position_Before_Darklit_Dragonsong_暗光龙诗前预站位";
-            currentProperty.Scale = new(2);
-            currentProperty.ScaleMode |= ScaleMode.YByDistance;
-            currentProperty.Owner = accessory.Data.Me;
-            currentProperty.TargetPosition = initialPosition[myIndex];
-            currentProperty.Color = accessory.Data.DefaultSafeColor;
-            currentProperty.DestoryAt = 5500;
+            void 指路(int 视角)
+            {
+                currentProperty = accessory.Data.GetDefaultDrawProperties();
 
-            accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentProperty);
+                currentProperty.Name = $"Phase4_Initial_Position_Before_Darklit_Dragonsong_暗光龙诗前预站位-{视角}";
+                currentProperty.Scale = new(2);
+                currentProperty.ScaleMode |= ScaleMode.YByDistance;
+                currentProperty.Owner = GuidanceOwner(accessory, 视角);
+                currentProperty.TargetPosition = initialPosition[视角];
+                currentProperty.Color = accessory.Data.DefaultSafeColor;
+                currentProperty.DestoryAt = 5500;
 
+                accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentProperty);
+
+            }
         }
 
         [ScriptMethod(name: "P4_暗光龙诗_Buff记录", eventType: EventTypeEnum.StatusAdd, eventCondition: ["StatusID:2461"], userControl: false)]
@@ -12904,7 +13085,7 @@ namespace CicerosKodakkuAssist.FuturesRewrittenUltimate.LPDU
             if (parse!=42) return;
 
             if (!ParseObjectId(@event["SourceId"], out var sid)) return;
-            if (sid != accessory.Data.Me) return;
+            if (!Debugging && sid != accessory.Data.Me) return;
             //accessory.Log.Debug("线");
             
             System.Threading.Thread.MemoryBarrier();
@@ -12955,22 +13136,22 @@ namespace CicerosKodakkuAssist.FuturesRewrittenUltimate.LPDU
                 downGroup.Add(d2Index);
             }
 
-            var myIndex = accessory.Data.PartyList.IndexOf(accessory.Data.Me);
+            var myIndex = accessory.Data.PartyList.IndexOf((uint)sid);
             Vector3 dealpos = upGroup.Contains(myIndex) ? new(100, 0, 92) : new(100, 0, 108);
 
             var dur = 10000;
             var dp = accessory.Data.GetDefaultDrawProperties();
-            dp.Name = "P4_暗光龙诗_塔处理位置";
+            dp.Name = $"P4_暗光龙诗_塔处理位置-{myIndex}";
             dp.Scale = new(2);
             dp.ScaleMode |= ScaleMode.YByDistance;
-            dp.Owner = accessory.Data.Me;
+            dp.Owner = GuidanceOwner(accessory, myIndex);
             dp.TargetPosition = dealpos;
             dp.Color = accessory.Data.DefaultSafeColor;
             dp.DestoryAt = dur;
             accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
 
             dp = accessory.Data.GetDefaultDrawProperties();
-            dp.Name = "P4_暗光龙诗_塔处理位置";
+            dp.Name = $"P4_暗光龙诗_塔处理位置-{myIndex}";
             dp.Scale = new(4);
             dp.ScaleMode |= ScaleMode.YByDistance;
             dp.Position = dealpos;
@@ -12991,169 +13172,174 @@ namespace CicerosKodakkuAssist.FuturesRewrittenUltimate.LPDU
             
             System.Threading.Thread.MemoryBarrier();
             
-            Vector3 dealpos = new();
-            if (Phase4_Strat_Of_The_First_Half == Phase4_Strats_Of_The_First_Half.Double_Swaps_Baiting_First_先引导再双换 || Phase4_Strat_Of_The_First_Half == Phase4_Strats_Of_The_First_Half.Single_Swap_Baiting_First_先引导再单换)
+            foreach (var 视角 in GuidanceIndices(accessory)) 指路(视角);
+
+            void 指路(int 视角)
             {
-                List<int> idles = [];
-                for (int i = 0; i < 8; i++)
+                Vector3 dealpos = new();
+                if (Phase4_Strat_Of_The_First_Half == Phase4_Strats_Of_The_First_Half.Double_Swaps_Baiting_First_先引导再双换 || Phase4_Strat_Of_The_First_Half == Phase4_Strats_Of_The_First_Half.Single_Swap_Baiting_First_先引导再单换)
                 {
-                    if (P4Tether[i] == -1)
+                    List<int> idles = [];
+                    for (int i = 0; i < 8; i++)
                     {
-                        idles.Add(i);
-                    }
-                }
-                var myIndex = accessory.Data.PartyList.IndexOf(accessory.Data.Me);
-                if (!idles.Contains(myIndex)) return;
-                dealpos = idles.IndexOf(myIndex) switch
-                {
-                    0 => new(095.8f, 0, 098.0f),
-                    1 => new(104.2f, 0, 098.0f),
-                    2 => new(095.8f, 0, 102.0f),
-                    3 => new(104.2f, 0, 102.0f),
-                };
-            }
-            if (Phase4_Strat_Of_The_First_Half == Phase4_Strats_Of_The_First_Half.Single_Swap_Baiting_After_先单换再引导_莫灵喵与MMW)
-            {
-                var tIndex = P4Tether[0] == -1 ? 1 : 0;
-                var nIndex = P4Tether[2] == -1 ? 3 : 2;
-                var d1Index = -1;
-                var d2Index = -1;
-                List<int> upGroup = [];
-                List<int> downGroup = [];
-                for (int i = 4; i < 7; i++)
-                {
-                    for (int j = i + 1; j < 8; j++)
-                    {
-                        if (P4Tether[i] != -1 && P4Tether[j] != -1)
+                        if (P4Tether[i] == -1)
                         {
-                            d1Index = i;
-                            d2Index = j;
+                            idles.Add(i);
+                        }
+                    }
+                    var myIndex = 视角;
+                    if (!idles.Contains(myIndex)) return;
+                    dealpos = idles.IndexOf(myIndex) switch
+                    {
+                        0 => new(095.8f, 0, 098.0f),
+                        1 => new(104.2f, 0, 098.0f),
+                        2 => new(095.8f, 0, 102.0f),
+                        3 => new(104.2f, 0, 102.0f),
+                    };
+                }
+                if (Phase4_Strat_Of_The_First_Half == Phase4_Strats_Of_The_First_Half.Single_Swap_Baiting_After_先单换再引导_莫灵喵与MMW)
+                {
+                    var tIndex = P4Tether[0] == -1 ? 1 : 0;
+                    var nIndex = P4Tether[2] == -1 ? 3 : 2;
+                    var d1Index = -1;
+                    var d2Index = -1;
+                    List<int> upGroup = [];
+                    List<int> downGroup = [];
+                    for (int i = 4; i < 7; i++)
+                    {
+                        for (int j = i + 1; j < 8; j++)
+                        {
+                            if (P4Tether[i] != -1 && P4Tether[j] != -1)
+                            {
+                                d1Index = i;
+                                d2Index = j;
+                            }
+                        }
+                    }
+                    // t连线 高d 低d 蝴蝶结
+                    if ((P4Tether[tIndex] == d1Index && P4Tether[d2Index] == tIndex) || (P4Tether[tIndex] == d2Index && P4Tether[d1Index] == tIndex))
+                    {
+                        upGroup.Add(tIndex);
+                        upGroup.Add(nIndex);
+                        downGroup.Add(d1Index);
+                        downGroup.Add(d2Index);
+                    }
+                    // t连线 高d n 方块
+                    if ((P4Tether[tIndex] == d1Index && P4Tether[nIndex] == tIndex) || (P4Tether[d1Index] == tIndex && P4Tether[tIndex] == nIndex))
+                    {
+                        upGroup.Add(d1Index);
+                        upGroup.Add(nIndex);
+                        downGroup.Add(tIndex);
+                        downGroup.Add(d2Index);
+                    }
+                    // t连线 低d n 沙漏
+                    if ((P4Tether[tIndex] == d2Index && P4Tether[nIndex] == tIndex) || (P4Tether[d2Index] == tIndex && P4Tether[tIndex] == nIndex))
+                    {
+                        upGroup.Add(tIndex);
+                        upGroup.Add(d1Index);
+                        downGroup.Add(nIndex);
+                        downGroup.Add(d2Index);
+                    }
+                    //Phase4_Strat_Of_The_First_Half
+                    var stack1 = P4Stack.IndexOf(1);
+                    var stack2 = P4Stack.LastIndexOf(1);
+                    var tetherStack = P4Tether[stack1] == -1 ? stack2 : stack1;
+                    var idleStack = P4Tether[stack1] == -1 ? stack1 : stack2;
+
+                    List<int> idles = [];
+                    for (int i = 0; i < 8; i++)
+                    {
+                        if (P4Tether[i] == -1)
+                        {
+                            idles.Add(i);
+                        }
+                    }
+                    var myIndex = 视角;
+                    var ii = idles.IndexOf(idleStack);
+                    if (upGroup.Contains(tetherStack))
+                    {
+                        //线分摊在上
+                        if (ii == 0)
+                        {
+                            dealpos = idles.IndexOf(myIndex) switch
+                            {
+                                2 => new(095.8f, 0, 098.0f),
+                                1 => new(104.2f, 0, 098.0f),
+                                0 => new(095.8f, 0, 102.0f),
+                                3 => new(104.2f, 0, 102.0f),
+                            };
+                        }
+                        if (ii == 1)
+                        {
+                            dealpos = idles.IndexOf(myIndex) switch
+                            {
+                                0 => new(095.8f, 0, 098.0f),
+                                3 => new(104.2f, 0, 098.0f),
+                                2 => new(095.8f, 0, 102.0f),
+                                1 => new(104.2f, 0, 102.0f),
+                            };
+                        }
+                        if (ii == 2 || ii == 3)
+                        {
+                            dealpos = idles.IndexOf(myIndex) switch
+                            {
+                                0 => new(095.8f, 0, 098.0f),
+                                1 => new(104.2f, 0, 098.0f),
+                                2 => new(095.8f, 0, 102.0f),
+                                3 => new(104.2f, 0, 102.0f),
+                            };
+                        }
+
+                    }
+                    if (downGroup.Contains(tetherStack))
+                    {
+                        //线分摊在下
+                        if (ii == 2)
+                        {
+                            dealpos = idles.IndexOf(myIndex) switch
+                            {
+                                2 => new(095.8f, 0, 098.0f),
+                                1 => new(104.2f, 0, 098.0f),
+                                0 => new(095.8f, 0, 102.0f),
+                                3 => new(104.2f, 0, 102.0f),
+                            };
+                        }
+                        if (ii == 3)
+                        {
+                            dealpos = idles.IndexOf(myIndex) switch
+                            {
+                                0 => new(095.8f, 0, 098.0f),
+                                3 => new(104.2f, 0, 098.0f),
+                                2 => new(095.8f, 0, 102.0f),
+                                1 => new(104.2f, 0, 102.0f),
+                            };
+                        }
+                        if (ii == 0 || ii == 1)
+                        {
+                            dealpos = idles.IndexOf(myIndex) switch
+                            {
+                                0 => new(095.8f, 0, 098.0f),
+                                1 => new(104.2f, 0, 098.0f),
+                                2 => new(095.8f, 0, 102.0f),
+                                3 => new(104.2f, 0, 102.0f),
+                            };
                         }
                     }
                 }
-                // t连线 高d 低d 蝴蝶结
-                if ((P4Tether[tIndex] == d1Index && P4Tether[d2Index] == tIndex) || (P4Tether[tIndex] == d2Index && P4Tether[d1Index] == tIndex))
-                {
-                    upGroup.Add(tIndex);
-                    upGroup.Add(nIndex);
-                    downGroup.Add(d1Index);
-                    downGroup.Add(d2Index);
-                }
-                // t连线 高d n 方块
-                if ((P4Tether[tIndex] == d1Index && P4Tether[nIndex] == tIndex) || (P4Tether[d1Index] == tIndex && P4Tether[tIndex] == nIndex))
-                {
-                    upGroup.Add(d1Index);
-                    upGroup.Add(nIndex);
-                    downGroup.Add(tIndex);
-                    downGroup.Add(d2Index);
-                }
-                // t连线 低d n 沙漏
-                if ((P4Tether[tIndex] == d2Index && P4Tether[nIndex] == tIndex) || (P4Tether[d2Index] == tIndex && P4Tether[tIndex] == nIndex))
-                {
-                    upGroup.Add(tIndex);
-                    upGroup.Add(d1Index);
-                    downGroup.Add(nIndex);
-                    downGroup.Add(d2Index);
-                }
-                //Phase4_Strat_Of_The_First_Half
-                var stack1 = P4Stack.IndexOf(1);
-                var stack2 = P4Stack.LastIndexOf(1);
-                var tetherStack = P4Tether[stack1] == -1 ? stack2 : stack1;
-                var idleStack = P4Tether[stack1] == -1 ? stack1 : stack2;
 
-                List<int> idles = [];
-                for (int i = 0; i < 8; i++)
-                {
-                    if (P4Tether[i] == -1)
-                    {
-                        idles.Add(i);
-                    }
-                }
-                var myIndex = accessory.Data.PartyList.IndexOf(accessory.Data.Me);
-                var ii = idles.IndexOf(idleStack);
-                if (upGroup.Contains(tetherStack))
-                {
-                    //线分摊在上
-                    if (ii == 0)
-                    {
-                        dealpos = idles.IndexOf(myIndex) switch
-                        {
-                            2 => new(095.8f, 0, 098.0f),
-                            1 => new(104.2f, 0, 098.0f),
-                            0 => new(095.8f, 0, 102.0f),
-                            3 => new(104.2f, 0, 102.0f),
-                        };
-                    }
-                    if (ii == 1)
-                    {
-                        dealpos = idles.IndexOf(myIndex) switch
-                        {
-                            0 => new(095.8f, 0, 098.0f),
-                            3 => new(104.2f, 0, 098.0f),
-                            2 => new(095.8f, 0, 102.0f),
-                            1 => new(104.2f, 0, 102.0f),
-                        };
-                    }
-                    if (ii == 2 || ii == 3)
-                    {
-                        dealpos = idles.IndexOf(myIndex) switch
-                        {
-                            0 => new(095.8f, 0, 098.0f),
-                            1 => new(104.2f, 0, 098.0f),
-                            2 => new(095.8f, 0, 102.0f),
-                            3 => new(104.2f, 0, 102.0f),
-                        };
-                    }
 
-                }
-                if (downGroup.Contains(tetherStack))
-                {
-                    //线分摊在下
-                    if (ii == 2)
-                    {
-                        dealpos = idles.IndexOf(myIndex) switch
-                        {
-                            2 => new(095.8f, 0, 098.0f),
-                            1 => new(104.2f, 0, 098.0f),
-                            0 => new(095.8f, 0, 102.0f),
-                            3 => new(104.2f, 0, 102.0f),
-                        };
-                    }
-                    if (ii == 3)
-                    {
-                        dealpos = idles.IndexOf(myIndex) switch
-                        {
-                            0 => new(095.8f, 0, 098.0f),
-                            3 => new(104.2f, 0, 098.0f),
-                            2 => new(095.8f, 0, 102.0f),
-                            1 => new(104.2f, 0, 102.0f),
-                        };
-                    }
-                    if (ii == 0 || ii == 1)
-                    {
-                        dealpos = idles.IndexOf(myIndex) switch
-                        {
-                            0 => new(095.8f, 0, 098.0f),
-                            1 => new(104.2f, 0, 098.0f),
-                            2 => new(095.8f, 0, 102.0f),
-                            3 => new(104.2f, 0, 102.0f),
-                        };
-                    }
-                }
+
+                var dur = 10000;
+                var dp = accessory.Data.GetDefaultDrawProperties();
+                dp.Name = $"P4_暗光龙诗_引导处理位置-{视角}";
+                dp.Scale = new(2);
+                dp.ScaleMode |= ScaleMode.YByDistance;
+                dp.Owner = GuidanceOwner(accessory, 视角);
+                dp.TargetPosition = dealpos;
+                dp.Color = accessory.Data.DefaultSafeColor;
+                dp.DestoryAt = dur;
+                accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
             }
-
-
-
-            var dur = 10000;
-            var dp = accessory.Data.GetDefaultDrawProperties();
-            dp.Name = "P4_暗光龙诗_引导处理位置";
-            dp.Scale = new(2);
-            dp.ScaleMode |= ScaleMode.YByDistance;
-            dp.Owner = accessory.Data.Me;
-            dp.TargetPosition = dealpos;
-            dp.Color = accessory.Data.DefaultSafeColor;
-            dp.DestoryAt = dur;
-            accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
         }
         [ScriptMethod(name: "P4_暗光龙诗_分摊处理位置", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:regex:^(4022[78])$"])]
         public void P4_暗光龙诗_分摊处理位置(Event @event, ScriptAccessory accessory)
@@ -13309,21 +13495,26 @@ namespace CicerosKodakkuAssist.FuturesRewrittenUltimate.LPDU
             }
 
 
-            var myindex = accessory.Data.PartyList.IndexOf(accessory.Data.Me);
+            foreach (var 视角 in GuidanceIndices(accessory)) 指路(视角);
 
-            Vector3 dealpos = new(@event["ActionId"] == "40227" ? 105 : 95, 0, upGroup.Contains(myindex) ? 92.5f : 107.5f);
+            void 指路(int 视角)
+            {
+                var myindex = 视角;
 
-            var dp = accessory.Data.GetDefaultDrawProperties();
-            dp.Name = "P4_暗光龙诗_分摊处理位置";
-            dp.Scale = new(2);
-            dp.ScaleMode |= ScaleMode.YByDistance;
-            dp.Owner = accessory.Data.Me;
-            dp.TargetPosition = dealpos;
-            dp.Color = accessory.Data.DefaultSafeColor;
-            dp.DestoryAt = 5000;
-            accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
+                Vector3 dealpos = new(@event["ActionId"] == "40227" ? 105 : 95, 0, upGroup.Contains(myindex) ? 92.5f : 107.5f);
+
+                var dp = accessory.Data.GetDefaultDrawProperties();
+                dp.Name = $"P4_暗光龙诗_分摊处理位置-{视角}";
+                dp.Scale = new(2);
+                dp.ScaleMode |= ScaleMode.YByDistance;
+                dp.Owner = GuidanceOwner(accessory, 视角);
+                dp.TargetPosition = dealpos;
+                dp.Color = accessory.Data.DefaultSafeColor;
+                dp.DestoryAt = 5000;
+                accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
 
 
+            }
         }
 
         public class CrystallizeTime
@@ -13836,352 +14027,247 @@ namespace CicerosKodakkuAssist.FuturesRewrittenUltimate.LPDU
 
             //buff后3.5s
             if (parse!=43) return;
-            var myIndex = accessory.Data.PartyList.IndexOf(accessory.Data.Me);
-            //短红
-            if (P4ClawBuff[myIndex] == 1)
+            foreach (var 视角 in GuidanceIndices(accessory)) 指路(视角);
+
+            void 指路(int 视角)
             {
-                bool isHigh = true;
-
-                if (Phase4_Priority_Of_The_Players_With_Wyrmclaw == Phase4_Priorities_Of_The_Players_With_Wyrmclaw.In_THD_Order_按THD顺序_莫灵喵)
+                var myIndex = 视角;
+                //短红
+                if (P4ClawBuff[myIndex] == 1)
                 {
+                    bool isHigh = true;
 
-                    isHigh = (P4ClawBuff.IndexOf(1) == myIndex);
-
-                }
-
-                if (Phase4_Priority_Of_The_Players_With_Wyrmclaw == Phase4_Priorities_Of_The_Players_With_Wyrmclaw.In_HTD_Order_按HTD顺序_MMW)
-                {
-
-                    List<int> temporaryPriority = [2, 3, 0, 1, 4, 5, 6, 7];
-
-                    for (int i = 0; i < temporaryPriority.Count; ++i)
+                    if (Phase4_Priority_Of_The_Players_With_Wyrmclaw == Phase4_Priorities_Of_The_Players_With_Wyrmclaw.In_THD_Order_按THD顺序_莫灵喵)
                     {
 
-                        if (P4ClawBuff[temporaryPriority[i]] == 1)
+                        isHigh = (P4ClawBuff.IndexOf(1) == myIndex);
+
+                    }
+
+                    if (Phase4_Priority_Of_The_Players_With_Wyrmclaw == Phase4_Priorities_Of_The_Players_With_Wyrmclaw.In_HTD_Order_按HTD顺序_MMW)
+                    {
+
+                        List<int> temporaryPriority = [2, 3, 0, 1, 4, 5, 6, 7];
+
+                        for (int i = 0; i < temporaryPriority.Count; ++i)
                         {
 
-                            if (temporaryPriority[i] == myIndex)
+                            if (P4ClawBuff[temporaryPriority[i]] == 1)
                             {
 
-                                isHigh = true;
+                                if (temporaryPriority[i] == myIndex)
+                                {
+
+                                    isHigh = true;
+
+                                }
+
+                                else
+                                {
+
+                                    isHigh = false;
+
+                                }
+
+                                break;
 
                             }
-
-                            else
-                            {
-
-                                isHigh = false;
-
-                            }
-
-                            break;
 
                         }
 
                     }
 
-                }
-
-                if (Phase4_Priority_Of_The_Players_With_Wyrmclaw == Phase4_Priorities_Of_The_Players_With_Wyrmclaw.In_H1TDH2_Order_按H1TDH2顺序)
-                {
-
-                    List<int> temporaryPriority = [2, 0, 1, 4, 5, 6, 7, 3];
-
-                    for (int i = 0; i < temporaryPriority.Count; ++i)
+                    if (Phase4_Priority_Of_The_Players_With_Wyrmclaw == Phase4_Priorities_Of_The_Players_With_Wyrmclaw.In_H1TDH2_Order_按H1TDH2顺序)
                     {
 
-                        if (P4ClawBuff[temporaryPriority[i]] == 1)
+                        List<int> temporaryPriority = [2, 0, 1, 4, 5, 6, 7, 3];
+
+                        for (int i = 0; i < temporaryPriority.Count; ++i)
                         {
 
-                            if (temporaryPriority[i] == myIndex)
+                            if (P4ClawBuff[temporaryPriority[i]] == 1)
                             {
 
-                                isHigh = true;
+                                if (temporaryPriority[i] == myIndex)
+                                {
+
+                                    isHigh = true;
+
+                                }
+
+                                else
+                                {
+
+                                    isHigh = false;
+
+                                }
+
+                                break;
 
                             }
-
-                            else
-                            {
-
-                                isHigh = false;
-
-                            }
-
-                            break;
 
                         }
 
                     }
 
-                }
+                    Vector3 dealpos = isHigh ? new(87, 0, 100) : new(113, 0, 100);
 
-                Vector3 dealpos = isHigh ? new(87, 0, 100) : new(113, 0, 100);
-
-                var dp = accessory.Data.GetDefaultDrawProperties();
-                dp.Name = "P4_时间结晶_Buff处理位置_撞龙头";
-                dp.Scale = new(2);
-                dp.ScaleMode |= ScaleMode.YByDistance;
-                dp.Owner = accessory.Data.Me;
-                dp.TargetPosition = dealpos;
-                dp.Color = accessory.Data.DefaultSafeColor;
-                dp.DestoryAt = 10500;
-                accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
-
-                //高分摊 088 085 -> 093 082
-                //高闲   081 103 -> 081 097
-                //低分摊 112 085 -> 107 082
-                //低闲   119 103 -> 119 97
-                Vector3 dealpos2 = isHigh ? (P4BlueTether == 1 ? new(081, 0, 103) : new(088, 0, 085)) : (P4BlueTether == 1 ? new(112, 0, 085) : new(119, 0, 103));
-                Vector3 dealpos3 = isHigh ? (P4BlueTether == 1 ? new(081, 0, 097) : new(093, 0, 082)) : (P4BlueTether == 1 ? new(107, 0, 082) : new(119, 0, 097));
-
-                dp = accessory.Data.GetDefaultDrawProperties();
-                dp.Name = "P4_时间结晶_Buff处理位置_pos2预连线";
-                dp.Scale = new(2);
-                dp.ScaleMode |= ScaleMode.YByDistance;
-                dp.Position = dealpos;
-                dp.TargetPosition = dealpos2;
-                dp.Color = accessory.Data.DefaultSafeColor;
-                dp.DestoryAt = 10500;
-                accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
-
-                dp = accessory.Data.GetDefaultDrawProperties();
-                dp.Name = "P4_时间结晶_Buff处理位置_pos2位置";
-                dp.Scale = new(2);
-                dp.ScaleMode |= ScaleMode.YByDistance;
-                dp.Owner = accessory.Data.Me;
-                dp.TargetPosition = dealpos2;
-                dp.Color = accessory.Data.DefaultSafeColor;
-                dp.Delay = 10500;
-                dp.DestoryAt = 3000;
-                accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
-
-                dp = accessory.Data.GetDefaultDrawProperties();
-                dp.Name = "P4_时间结晶_Buff处理位置_pos3预连线";
-                dp.Scale = new(2);
-                dp.ScaleMode |= ScaleMode.YByDistance;
-                dp.Position = dealpos2;
-                dp.TargetPosition = dealpos3;
-                dp.Color = accessory.Data.DefaultSafeColor;
-                dp.DestoryAt = 13500;
-                accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
-
-                dp = accessory.Data.GetDefaultDrawProperties();
-                dp.Name = "P4_时间结晶_Buff处理位置_pos3位置";
-                dp.Scale = new(2);
-                dp.ScaleMode |= ScaleMode.YByDistance;
-                dp.Owner = accessory.Data.Me;
-                dp.TargetPosition = dealpos3;
-                dp.Color = accessory.Data.DefaultSafeColor;
-                dp.Delay = 13500;
-                dp.DestoryAt = 3000;
-                accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
-            }
-            //长红
-            if (P4ClawBuff[myIndex] == 2)
-            {
-                bool isHigh = true;
-
-                if (Phase4_Priority_Of_The_Players_With_Wyrmclaw == Phase4_Priorities_Of_The_Players_With_Wyrmclaw.In_THD_Order_按THD顺序_莫灵喵)
-                {
-
-                    isHigh = (P4ClawBuff.IndexOf(2) == myIndex);
-
-                }
-
-                if (Phase4_Priority_Of_The_Players_With_Wyrmclaw == Phase4_Priorities_Of_The_Players_With_Wyrmclaw.In_HTD_Order_按HTD顺序_MMW)
-                {
-
-                    List<int> temporaryPriority = [2, 3, 0, 1, 4, 5, 6, 7];
-
-                    for (int i = 0; i < temporaryPriority.Count; ++i)
-                    {
-
-                        if (P4ClawBuff[temporaryPriority[i]] == 2)
-                        {
-
-                            if (temporaryPriority[i] == myIndex)
-                            {
-
-                                isHigh = true;
-
-                            }
-
-                            else
-                            {
-
-                                isHigh = false;
-
-                            }
-
-                            break;
-
-                        }
-
-                    }
-
-                }
-
-                if (Phase4_Priority_Of_The_Players_With_Wyrmclaw == Phase4_Priorities_Of_The_Players_With_Wyrmclaw.In_H1TDH2_Order_按H1TDH2顺序)
-                {
-
-                    List<int> temporaryPriority = [2, 0, 1, 4, 5, 6, 7, 3];
-
-                    for (int i = 0; i < temporaryPriority.Count; ++i)
-                    {
-
-                        if (P4ClawBuff[temporaryPriority[i]] == 2)
-                        {
-
-                            if (temporaryPriority[i] == myIndex)
-                            {
-
-                                isHigh = true;
-
-                            }
-
-                            else
-                            {
-
-                                isHigh = false;
-
-                            }
-
-                            break;
-
-                        }
-
-                    }
-
-                }
-
-                Vector3 dealpos1 = isHigh ? new(088.5f, 0, 115.5f) : new(111.5f, 0, 115.5f);
-                Vector3 dealpos2 = isHigh ? new(090.2f, 0, 117.0f) : new(109.8f, 0, 117.0f);
-                Vector3 dealpos3 = isHigh ? new(092.5f, 0, 118.0f) : new(107.5f, 0, 118.0f);
-                Vector3 dealpos4 = isHigh ? new(092.53f, 0, 110.40f) : new(107.47f, 0, 110.40f);
-                // The previous coordinates were: isHigh ? new(092.0f, 0, 110.0f) : new(108.0f, 0, 110.0f);
-
-                // ----- 0s -> 7.5s -----
-
-                var dp = accessory.Data.GetDefaultDrawProperties();
-                dp.Name = "P4_时间结晶_Buff处理位置_躲ac";
-                dp.Scale = new(2);
-                dp.ScaleMode |= ScaleMode.YByDistance;
-                dp.Owner = accessory.Data.Me;
-                dp.TargetPosition = dealpos1;
-                dp.Color = accessory.Data.DefaultSafeColor;
-                dp.DestoryAt = 7500;
-                accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
-                dp = accessory.Data.GetDefaultDrawProperties();
-                dp.Name = "P4_时间结晶_Buff处理位置_躲ac->击退";
-                dp.Scale = new(2);
-                dp.ScaleMode |= ScaleMode.YByDistance;
-                dp.Position = dealpos1;
-                dp.TargetPosition = dealpos2;
-                dp.Color = accessory.Data.DefaultSafeColor;
-                dp.DestoryAt = 7500;
-                accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
-
-                // ----- -----
-
-                // ----- 7.5s -> 10.5s -----
-
-                dp = accessory.Data.GetDefaultDrawProperties();
-                dp.Name = "P4_时间结晶_Buff处理位置_击退";
-                dp.Scale = new(2);
-                dp.ScaleMode |= ScaleMode.YByDistance;
-                dp.Owner = accessory.Data.Me;
-                dp.TargetPosition = dealpos2;
-                dp.Color = accessory.Data.DefaultSafeColor;
-                dp.Delay = 7500;
-                dp.DestoryAt = 3000;
-                accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
-                dp = accessory.Data.GetDefaultDrawProperties();
-                dp.Name = "P4_时间结晶_Buff处理位置_击退->躲斜点";
-                dp.Scale = new(2);
-                dp.ScaleMode |= ScaleMode.YByDistance;
-                dp.Position = dealpos2;
-                dp.TargetPosition = dealpos3;
-                dp.Color = accessory.Data.DefaultSafeColor;
-                dp.DestoryAt = 10500;
-                accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
-
-                // ----- -----
-
-                // ----- 10.5s -> 13s -----
-
-                dp = accessory.Data.GetDefaultDrawProperties();
-                dp.Name = "P4_时间结晶_Buff处理位置_躲斜点";
-                dp.Scale = new(2);
-                dp.ScaleMode |= ScaleMode.YByDistance;
-                dp.Owner = accessory.Data.Me;
-                dp.TargetPosition = dealpos3;
-                dp.Color = accessory.Data.DefaultSafeColor;
-                dp.Delay = 10500;
-                dp.DestoryAt = 2500;
-                accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
-                dp = accessory.Data.GetDefaultDrawProperties();
-                dp.Name = "P4_时间结晶_Buff处理位置_躲斜点->撞头";
-                dp.Scale = new(2);
-                dp.ScaleMode |= ScaleMode.YByDistance;
-                dp.Position = dealpos3;
-                dp.TargetPosition = dealpos4;
-                dp.Color = accessory.Data.DefaultSafeColor;
-                dp.DestoryAt = 13000;
-                accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
-
-                // ----- -----
-
-                // ----- 13s -> 16s -----
-
-                dp = accessory.Data.GetDefaultDrawProperties();
-                dp.Name = "P4_时间结晶_Buff处理位置_撞头";
-                dp.Scale = new(2);
-                dp.ScaleMode |= ScaleMode.YByDistance;
-                dp.Owner = accessory.Data.Me;
-                dp.TargetPosition = dealpos4;
-                dp.Color = accessory.Data.DefaultSafeColor;
-                dp.Delay = 13000;
-                dp.DestoryAt = 3000;
-                accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
-
-                // ----- -----
-
-                // There were some issues in the guidance here which is for the players with long Wyrmclaw debuff.
-                // Cicero has adjusted the process a little bit, and the issues has been fixed now.
-
-            }
-            //蓝
-            if (P4ClawBuff[myIndex] == 3)
-            {
-                if (P4OtherBuff[myIndex] == 4)
-                {
-                    Vector3 dealpos1 = P4BlueTether == 1 ? new(112, 0, 85) : new(88, 0, 85);
                     var dp = accessory.Data.GetDefaultDrawProperties();
-                    dp.Name = "P4_时间结晶_Buff处理位置_躲灯1";
+                    dp.Name = $"P4_时间结晶_Buff处理位置_撞龙头-{视角}";
                     dp.Scale = new(2);
                     dp.ScaleMode |= ScaleMode.YByDistance;
-                    dp.Owner = accessory.Data.Me;
-                    dp.TargetPosition = dealpos1;
+                    dp.Owner = GuidanceOwner(accessory, 视角);
+                    dp.TargetPosition = dealpos;
                     dp.Color = accessory.Data.DefaultSafeColor;
-                    dp.DestoryAt = 14500;
+                    dp.DestoryAt = 10500;
+                    accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
+
+                    //高分摊 088 085 -> 093 082
+                    //高闲   081 103 -> 081 097
+                    //低分摊 112 085 -> 107 082
+                    //低闲   119 103 -> 119 97
+                    Vector3 dealpos2 = isHigh ? (P4BlueTether == 1 ? new(081, 0, 103) : new(088, 0, 085)) : (P4BlueTether == 1 ? new(112, 0, 085) : new(119, 0, 103));
+                    Vector3 dealpos3 = isHigh ? (P4BlueTether == 1 ? new(081, 0, 097) : new(093, 0, 082)) : (P4BlueTether == 1 ? new(107, 0, 082) : new(119, 0, 097));
+
+                    dp = accessory.Data.GetDefaultDrawProperties();
+                    dp.Name = $"P4_时间结晶_Buff处理位置_pos2预连线-{视角}";
+                    dp.Scale = new(2);
+                    dp.ScaleMode |= ScaleMode.YByDistance;
+                    dp.Position = dealpos;
+                    dp.TargetPosition = dealpos2;
+                    dp.Color = accessory.Data.DefaultSafeColor;
+                    dp.DestoryAt = 10500;
+                    accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
+
+                    dp = accessory.Data.GetDefaultDrawProperties();
+                    dp.Name = $"P4_时间结晶_Buff处理位置_pos2位置-{视角}";
+                    dp.Scale = new(2);
+                    dp.ScaleMode |= ScaleMode.YByDistance;
+                    dp.Owner = GuidanceOwner(accessory, 视角);
+                    dp.TargetPosition = dealpos2;
+                    dp.Color = accessory.Data.DefaultSafeColor;
+                    dp.Delay = 10500;
+                    dp.DestoryAt = 3000;
+                    accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
+
+                    dp = accessory.Data.GetDefaultDrawProperties();
+                    dp.Name = $"P4_时间结晶_Buff处理位置_pos3预连线-{视角}";
+                    dp.Scale = new(2);
+                    dp.ScaleMode |= ScaleMode.YByDistance;
+                    dp.Position = dealpos2;
+                    dp.TargetPosition = dealpos3;
+                    dp.Color = accessory.Data.DefaultSafeColor;
+                    dp.DestoryAt = 13500;
+                    accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
+
+                    dp = accessory.Data.GetDefaultDrawProperties();
+                    dp.Name = $"P4_时间结晶_Buff处理位置_pos3位置-{视角}";
+                    dp.Scale = new(2);
+                    dp.ScaleMode |= ScaleMode.YByDistance;
+                    dp.Owner = GuidanceOwner(accessory, 视角);
+                    dp.TargetPosition = dealpos3;
+                    dp.Color = accessory.Data.DefaultSafeColor;
+                    dp.Delay = 13500;
+                    dp.DestoryAt = 3000;
                     accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
                 }
-                else
+                //长红
+                if (P4ClawBuff[myIndex] == 2)
                 {
-                    Vector3 dealpos1 = P4BlueTether == 1 ? new(88, 0, 115) : new(112, 0, 115);
-                    Vector3 dealpos2 = P4BlueTether == 1 ? new(090.8f, 0, 116.0f) : new(109.2f, 0, 116.0f);
+                    bool isHigh = true;
+
+                    if (Phase4_Priority_Of_The_Players_With_Wyrmclaw == Phase4_Priorities_Of_The_Players_With_Wyrmclaw.In_THD_Order_按THD顺序_莫灵喵)
+                    {
+
+                        isHigh = (P4ClawBuff.IndexOf(2) == myIndex);
+
+                    }
+
+                    if (Phase4_Priority_Of_The_Players_With_Wyrmclaw == Phase4_Priorities_Of_The_Players_With_Wyrmclaw.In_HTD_Order_按HTD顺序_MMW)
+                    {
+
+                        List<int> temporaryPriority = [2, 3, 0, 1, 4, 5, 6, 7];
+
+                        for (int i = 0; i < temporaryPriority.Count; ++i)
+                        {
+
+                            if (P4ClawBuff[temporaryPriority[i]] == 2)
+                            {
+
+                                if (temporaryPriority[i] == myIndex)
+                                {
+
+                                    isHigh = true;
+
+                                }
+
+                                else
+                                {
+
+                                    isHigh = false;
+
+                                }
+
+                                break;
+
+                            }
+
+                        }
+
+                    }
+
+                    if (Phase4_Priority_Of_The_Players_With_Wyrmclaw == Phase4_Priorities_Of_The_Players_With_Wyrmclaw.In_H1TDH2_Order_按H1TDH2顺序)
+                    {
+
+                        List<int> temporaryPriority = [2, 0, 1, 4, 5, 6, 7, 3];
+
+                        for (int i = 0; i < temporaryPriority.Count; ++i)
+                        {
+
+                            if (P4ClawBuff[temporaryPriority[i]] == 2)
+                            {
+
+                                if (temporaryPriority[i] == myIndex)
+                                {
+
+                                    isHigh = true;
+
+                                }
+
+                                else
+                                {
+
+                                    isHigh = false;
+
+                                }
+
+                                break;
+
+                            }
+
+                        }
+
+                    }
+
+                    Vector3 dealpos1 = isHigh ? new(088.5f, 0, 115.5f) : new(111.5f, 0, 115.5f);
+                    Vector3 dealpos2 = isHigh ? new(090.2f, 0, 117.0f) : new(109.8f, 0, 117.0f);
+                    Vector3 dealpos3 = isHigh ? new(092.5f, 0, 118.0f) : new(107.5f, 0, 118.0f);
+                    Vector3 dealpos4 = isHigh ? new(092.53f, 0, 110.40f) : new(107.47f, 0, 110.40f);
+                    // The previous coordinates were: isHigh ? new(092.0f, 0, 110.0f) : new(108.0f, 0, 110.0f);
+
+                    // ----- 0s -> 7.5s -----
+
                     var dp = accessory.Data.GetDefaultDrawProperties();
-                    dp.Name = "P4_时间结晶_Buff处理位置_躲灯ac";
+                    dp.Name = $"P4_时间结晶_Buff处理位置_躲ac-{视角}";
                     dp.Scale = new(2);
                     dp.ScaleMode |= ScaleMode.YByDistance;
-                    dp.Owner = accessory.Data.Me;
+                    dp.Owner = GuidanceOwner(accessory, 视角);
                     dp.TargetPosition = dealpos1;
                     dp.Color = accessory.Data.DefaultSafeColor;
                     dp.DestoryAt = 7500;
                     accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
-
                     dp = accessory.Data.GetDefaultDrawProperties();
-                    dp.Name = "P4_时间结晶_Buff处理位置_躲ac->击退";
+                    dp.Name = $"P4_时间结晶_Buff处理位置_躲ac->击退-{视角}";
                     dp.Scale = new(2);
                     dp.ScaleMode |= ScaleMode.YByDistance;
                     dp.Position = dealpos1;
@@ -14189,16 +14275,126 @@ namespace CicerosKodakkuAssist.FuturesRewrittenUltimate.LPDU
                     dp.Color = accessory.Data.DefaultSafeColor;
                     dp.DestoryAt = 7500;
                     accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
+
+                    // ----- -----
+
+                    // ----- 7.5s -> 10.5s -----
+
                     dp = accessory.Data.GetDefaultDrawProperties();
-                    dp.Name = "P4_时间结晶_Buff处理位置_击退";
+                    dp.Name = $"P4_时间结晶_Buff处理位置_击退-{视角}";
                     dp.Scale = new(2);
                     dp.ScaleMode |= ScaleMode.YByDistance;
-                    dp.Owner = accessory.Data.Me;
+                    dp.Owner = GuidanceOwner(accessory, 视角);
                     dp.TargetPosition = dealpos2;
                     dp.Color = accessory.Data.DefaultSafeColor;
                     dp.Delay = 7500;
                     dp.DestoryAt = 3000;
                     accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
+                    dp = accessory.Data.GetDefaultDrawProperties();
+                    dp.Name = $"P4_时间结晶_Buff处理位置_击退->躲斜点-{视角}";
+                    dp.Scale = new(2);
+                    dp.ScaleMode |= ScaleMode.YByDistance;
+                    dp.Position = dealpos2;
+                    dp.TargetPosition = dealpos3;
+                    dp.Color = accessory.Data.DefaultSafeColor;
+                    dp.DestoryAt = 10500;
+                    accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
+
+                    // ----- -----
+
+                    // ----- 10.5s -> 13s -----
+
+                    dp = accessory.Data.GetDefaultDrawProperties();
+                    dp.Name = $"P4_时间结晶_Buff处理位置_躲斜点-{视角}";
+                    dp.Scale = new(2);
+                    dp.ScaleMode |= ScaleMode.YByDistance;
+                    dp.Owner = GuidanceOwner(accessory, 视角);
+                    dp.TargetPosition = dealpos3;
+                    dp.Color = accessory.Data.DefaultSafeColor;
+                    dp.Delay = 10500;
+                    dp.DestoryAt = 2500;
+                    accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
+                    dp = accessory.Data.GetDefaultDrawProperties();
+                    dp.Name = $"P4_时间结晶_Buff处理位置_躲斜点->撞头-{视角}";
+                    dp.Scale = new(2);
+                    dp.ScaleMode |= ScaleMode.YByDistance;
+                    dp.Position = dealpos3;
+                    dp.TargetPosition = dealpos4;
+                    dp.Color = accessory.Data.DefaultSafeColor;
+                    dp.DestoryAt = 13000;
+                    accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
+
+                    // ----- -----
+
+                    // ----- 13s -> 16s -----
+
+                    dp = accessory.Data.GetDefaultDrawProperties();
+                    dp.Name = $"P4_时间结晶_Buff处理位置_撞头-{视角}";
+                    dp.Scale = new(2);
+                    dp.ScaleMode |= ScaleMode.YByDistance;
+                    dp.Owner = GuidanceOwner(accessory, 视角);
+                    dp.TargetPosition = dealpos4;
+                    dp.Color = accessory.Data.DefaultSafeColor;
+                    dp.Delay = 13000;
+                    dp.DestoryAt = 3000;
+                    accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
+
+                    // ----- -----
+
+                    // There were some issues in the guidance here which is for the players with long Wyrmclaw debuff.
+                    // Cicero has adjusted the process a little bit, and the issues has been fixed now.
+
+                }
+                //蓝
+                if (P4ClawBuff[myIndex] == 3)
+                {
+                    if (P4OtherBuff[myIndex] == 4)
+                    {
+                        Vector3 dealpos1 = P4BlueTether == 1 ? new(112, 0, 85) : new(88, 0, 85);
+                        var dp = accessory.Data.GetDefaultDrawProperties();
+                        dp.Name = $"P4_时间结晶_Buff处理位置_躲灯1-{视角}";
+                        dp.Scale = new(2);
+                        dp.ScaleMode |= ScaleMode.YByDistance;
+                        dp.Owner = GuidanceOwner(accessory, 视角);
+                        dp.TargetPosition = dealpos1;
+                        dp.Color = accessory.Data.DefaultSafeColor;
+                        dp.DestoryAt = 14500;
+                        accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
+                    }
+                    else
+                    {
+                        Vector3 dealpos1 = P4BlueTether == 1 ? new(88, 0, 115) : new(112, 0, 115);
+                        Vector3 dealpos2 = P4BlueTether == 1 ? new(090.8f, 0, 116.0f) : new(109.2f, 0, 116.0f);
+                        var dp = accessory.Data.GetDefaultDrawProperties();
+                        dp.Name = $"P4_时间结晶_Buff处理位置_躲灯ac-{视角}";
+                        dp.Scale = new(2);
+                        dp.ScaleMode |= ScaleMode.YByDistance;
+                        dp.Owner = GuidanceOwner(accessory, 视角);
+                        dp.TargetPosition = dealpos1;
+                        dp.Color = accessory.Data.DefaultSafeColor;
+                        dp.DestoryAt = 7500;
+                        accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
+
+                        dp = accessory.Data.GetDefaultDrawProperties();
+                        dp.Name = $"P4_时间结晶_Buff处理位置_躲ac->击退-{视角}";
+                        dp.Scale = new(2);
+                        dp.ScaleMode |= ScaleMode.YByDistance;
+                        dp.Position = dealpos1;
+                        dp.TargetPosition = dealpos2;
+                        dp.Color = accessory.Data.DefaultSafeColor;
+                        dp.DestoryAt = 7500;
+                        accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
+                        dp = accessory.Data.GetDefaultDrawProperties();
+                        dp.Name = $"P4_时间结晶_Buff处理位置_击退-{视角}";
+                        dp.Scale = new(2);
+                        dp.ScaleMode |= ScaleMode.YByDistance;
+                        dp.Owner = GuidanceOwner(accessory, 视角);
+                        dp.TargetPosition = dealpos2;
+                        dp.Color = accessory.Data.DefaultSafeColor;
+                        dp.Delay = 7500;
+                        dp.DestoryAt = 3000;
+                        accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
+                    }
                 }
             }
         }
@@ -14209,107 +14405,112 @@ namespace CicerosKodakkuAssist.FuturesRewrittenUltimate.LPDU
             var pos = JsonConvert.DeserializeObject<Vector3>(@event["SourcePosition"]);
             P4WaterPos.Add(pos);
             if (P4WaterPos.Count == 1) return;
-            var myindex = accessory.Data.PartyList.IndexOf(accessory.Data.Me);
-            Vector3 centre = new(100, 0, 100);
-            if (Phase4_Position_Before_Knockback == Phase4_Positions_Before_Knockback.Normal_正攻_莫灵喵与MMW)
-            {
-                var dir8 = PositionTo8Dir((P4WaterPos[0] + P4WaterPos[1]) / 2, centre) - 1;
-                Vector3 mtPos = new(107, 0, 88);
-                Vector3 stPos = new(112, 0, 93);
-                Vector3 mtgPos = new(106, 0, 92);
-                Vector3 stgPos = new(108, 0, 94);
-                if (myindex == 0)
-                {
-                    var dp = accessory.Data.GetDefaultDrawProperties();
-                    dp.Name = "P4_时间结晶_放回返位置_MT";
-                    dp.Scale = new(2);
-                    dp.ScaleMode |= ScaleMode.YByDistance;
-                    dp.Owner = accessory.Data.Me;
-                    dp.TargetPosition = RotatePoint(mtPos, centre, float.Pi / 4 * dir8);
-                    dp.Color = accessory.Data.DefaultSafeColor;
-                    dp.DestoryAt = 9000;
-                    accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
-                }
-                if (myindex == 1)
-                {
-                    var dp = accessory.Data.GetDefaultDrawProperties();
-                    dp.Name = "P4_时间结晶_放回返位置_ST";
-                    dp.Scale = new(2);
-                    dp.ScaleMode |= ScaleMode.YByDistance;
-                    dp.Owner = accessory.Data.Me;
-                    dp.TargetPosition = RotatePoint(stPos, centre, float.Pi / 4 * dir8);
-                    dp.Color = accessory.Data.DefaultSafeColor;
-                    dp.DestoryAt = 9000;
-                    accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
-                }
-                if (myindex == 2 || myindex == 4 || myindex == 6)
-                {
-                    var dp = accessory.Data.GetDefaultDrawProperties();
-                    dp.Name = "P4_时间结晶_放回返位置_MTG";
-                    dp.Scale = new(2);
-                    dp.ScaleMode |= ScaleMode.YByDistance;
-                    dp.Owner = accessory.Data.Me;
-                    dp.TargetPosition = RotatePoint(mtgPos, centre, float.Pi / 4 * dir8);
-                    dp.Color = accessory.Data.DefaultSafeColor;
-                    dp.DestoryAt = 9000;
-                    accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
-                }
-                if (myindex == 3 || myindex == 5 || myindex == 7)
-                {
-                    var dp = accessory.Data.GetDefaultDrawProperties();
-                    dp.Name = "P4_时间结晶_放回返位置_STG";
-                    dp.Scale = new(2);
-                    dp.ScaleMode |= ScaleMode.YByDistance;
-                    dp.Owner = accessory.Data.Me;
-                    dp.TargetPosition = RotatePoint(stgPos, centre, float.Pi / 4 * dir8);
-                    dp.Color = accessory.Data.DefaultSafeColor;
-                    dp.DestoryAt = 9000;
-                    accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
-                }
-            }
-            if (Phase4_Position_Before_Knockback == Phase4_Positions_Before_Knockback.Y_Formation_Japanese_PF_日服野队Y字队形)
-            {
-                Vector3 mtPos = P4WaterPos[1].Z < 100 ? new(92, 0, 90) : new(108, 0, 110);
-                Vector3 stPos = P4WaterPos[1].Z < 100 ? new(108, 0, 90) : new(92, 0, 110);
-                Vector3 gPos = P4WaterPos[1].Z < 100 ? new(100, 0, 96) : new(100, 0, 104);
-                if (myindex == 0)
-                {
-                    var dp = accessory.Data.GetDefaultDrawProperties();
-                    dp.Name = "P4_时间结晶_放回返位置_MT";
-                    dp.Scale = new(2);
-                    dp.ScaleMode |= ScaleMode.YByDistance;
-                    dp.Owner = accessory.Data.Me;
-                    dp.TargetPosition = mtPos;
-                    dp.Color = accessory.Data.DefaultSafeColor;
-                    dp.DestoryAt = 9000;
-                    accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
-                }
-                if (myindex == 1)
-                {
-                    var dp = accessory.Data.GetDefaultDrawProperties();
-                    dp.Name = "P4_时间结晶_放回返位置_ST";
-                    dp.Scale = new(2);
-                    dp.ScaleMode |= ScaleMode.YByDistance;
-                    dp.Owner = accessory.Data.Me;
-                    dp.TargetPosition = stPos;
-                    dp.Color = accessory.Data.DefaultSafeColor;
-                    dp.DestoryAt = 9000;
-                    accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
-                }
-                if (myindex == 2 || myindex == 3 || myindex == 4 || myindex == 5 || myindex == 6 || myindex == 7)
-                {
-                    var dp = accessory.Data.GetDefaultDrawProperties();
-                    dp.Name = "P4_时间结晶_放回返位置_MTG";
-                    dp.Scale = new(2);
-                    dp.ScaleMode |= ScaleMode.YByDistance;
-                    dp.Owner = accessory.Data.Me;
-                    dp.TargetPosition = gPos;
-                    dp.Color = accessory.Data.DefaultSafeColor;
-                    dp.DestoryAt = 9000;
-                    accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
-                }
-            }
+            foreach (var 视角 in GuidanceIndices(accessory)) 指路(视角);
 
+            void 指路(int 视角)
+            {
+                var myindex = 视角;
+                Vector3 centre = new(100, 0, 100);
+                if (Phase4_Position_Before_Knockback == Phase4_Positions_Before_Knockback.Normal_正攻_莫灵喵与MMW)
+                {
+                    var dir8 = PositionTo8Dir((P4WaterPos[0] + P4WaterPos[1]) / 2, centre) - 1;
+                    Vector3 mtPos = new(107, 0, 88);
+                    Vector3 stPos = new(112, 0, 93);
+                    Vector3 mtgPos = new(106, 0, 92);
+                    Vector3 stgPos = new(108, 0, 94);
+                    if (myindex == 0)
+                    {
+                        var dp = accessory.Data.GetDefaultDrawProperties();
+                        dp.Name = $"P4_时间结晶_放回返位置_MT-{视角}";
+                        dp.Scale = new(2);
+                        dp.ScaleMode |= ScaleMode.YByDistance;
+                        dp.Owner = GuidanceOwner(accessory, 视角);
+                        dp.TargetPosition = RotatePoint(mtPos, centre, float.Pi / 4 * dir8);
+                        dp.Color = accessory.Data.DefaultSafeColor;
+                        dp.DestoryAt = 9000;
+                        accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
+                    }
+                    if (myindex == 1)
+                    {
+                        var dp = accessory.Data.GetDefaultDrawProperties();
+                        dp.Name = $"P4_时间结晶_放回返位置_ST-{视角}";
+                        dp.Scale = new(2);
+                        dp.ScaleMode |= ScaleMode.YByDistance;
+                        dp.Owner = GuidanceOwner(accessory, 视角);
+                        dp.TargetPosition = RotatePoint(stPos, centre, float.Pi / 4 * dir8);
+                        dp.Color = accessory.Data.DefaultSafeColor;
+                        dp.DestoryAt = 9000;
+                        accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
+                    }
+                    if (myindex == 2 || myindex == 4 || myindex == 6)
+                    {
+                        var dp = accessory.Data.GetDefaultDrawProperties();
+                        dp.Name = $"P4_时间结晶_放回返位置_MTG-{视角}";
+                        dp.Scale = new(2);
+                        dp.ScaleMode |= ScaleMode.YByDistance;
+                        dp.Owner = GuidanceOwner(accessory, 视角);
+                        dp.TargetPosition = RotatePoint(mtgPos, centre, float.Pi / 4 * dir8);
+                        dp.Color = accessory.Data.DefaultSafeColor;
+                        dp.DestoryAt = 9000;
+                        accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
+                    }
+                    if (myindex == 3 || myindex == 5 || myindex == 7)
+                    {
+                        var dp = accessory.Data.GetDefaultDrawProperties();
+                        dp.Name = $"P4_时间结晶_放回返位置_STG-{视角}";
+                        dp.Scale = new(2);
+                        dp.ScaleMode |= ScaleMode.YByDistance;
+                        dp.Owner = GuidanceOwner(accessory, 视角);
+                        dp.TargetPosition = RotatePoint(stgPos, centre, float.Pi / 4 * dir8);
+                        dp.Color = accessory.Data.DefaultSafeColor;
+                        dp.DestoryAt = 9000;
+                        accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
+                    }
+                }
+                if (Phase4_Position_Before_Knockback == Phase4_Positions_Before_Knockback.Y_Formation_Japanese_PF_日服野队Y字队形)
+                {
+                    Vector3 mtPos = P4WaterPos[1].Z < 100 ? new(92, 0, 90) : new(108, 0, 110);
+                    Vector3 stPos = P4WaterPos[1].Z < 100 ? new(108, 0, 90) : new(92, 0, 110);
+                    Vector3 gPos = P4WaterPos[1].Z < 100 ? new(100, 0, 96) : new(100, 0, 104);
+                    if (myindex == 0)
+                    {
+                        var dp = accessory.Data.GetDefaultDrawProperties();
+                        dp.Name = $"P4_时间结晶_放回返位置_MT-{视角}";
+                        dp.Scale = new(2);
+                        dp.ScaleMode |= ScaleMode.YByDistance;
+                        dp.Owner = GuidanceOwner(accessory, 视角);
+                        dp.TargetPosition = mtPos;
+                        dp.Color = accessory.Data.DefaultSafeColor;
+                        dp.DestoryAt = 9000;
+                        accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
+                    }
+                    if (myindex == 1)
+                    {
+                        var dp = accessory.Data.GetDefaultDrawProperties();
+                        dp.Name = $"P4_时间结晶_放回返位置_ST-{视角}";
+                        dp.Scale = new(2);
+                        dp.ScaleMode |= ScaleMode.YByDistance;
+                        dp.Owner = GuidanceOwner(accessory, 视角);
+                        dp.TargetPosition = stPos;
+                        dp.Color = accessory.Data.DefaultSafeColor;
+                        dp.DestoryAt = 9000;
+                        accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
+                    }
+                    if (myindex == 2 || myindex == 3 || myindex == 4 || myindex == 5 || myindex == 6 || myindex == 7)
+                    {
+                        var dp = accessory.Data.GetDefaultDrawProperties();
+                        dp.Name = $"P4_时间结晶_放回返位置_MTG-{视角}";
+                        dp.Scale = new(2);
+                        dp.ScaleMode |= ScaleMode.YByDistance;
+                        dp.Owner = GuidanceOwner(accessory, 视角);
+                        dp.TargetPosition = gPos;
+                        dp.Color = accessory.Data.DefaultSafeColor;
+                        dp.DestoryAt = 9000;
+                        accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
+                    }
+                }
+
+            }
         }
 
         [ScriptMethod(name: "Phase4 Acquire IDs Of Drachen Wanderers 获取圣龙气息(龙头)ID",
@@ -14758,94 +14959,99 @@ namespace CicerosKodakkuAssist.FuturesRewrittenUltimate.LPDU
 
             }
 
-            int myIndex = accessory.Data.PartyList.IndexOf(accessory.Data.Me);
-            Phase4_Relative_Positions_Of_Residues relativePositionOfMyResidue = phase4_getRelativePosition(myIndex);
-            ulong idOfMyResidue = phase4_getResidueId(relativePositionOfMyResidue);
+            foreach (var 视角 in GuidanceIndices(accessory)) 指路(视角);
 
-            if (Enable_Developer_Mode)
+            void 指路(int 视角)
             {
+                int myIndex = 视角;
+                Phase4_Relative_Positions_Of_Residues relativePositionOfMyResidue = phase4_getRelativePosition(myIndex);
+                ulong idOfMyResidue = phase4_getResidueId(relativePositionOfMyResidue);
 
-                if (Phase4_Logic_Of_Residue_Guidance == Phase4_Logics_Of_Residue_Guidance.According_To_Signs_On_Me_根据我身上的目标标记_莫灵喵和MMW)
+                if (Enable_Developer_Mode)
                 {
 
-                    accessory.Method.SendChat($"""
-                                               /e 
-                                               phase4_residueIdsFromEastToWest[]={phase4_residueIdsFromEastToWest[0]},{phase4_residueIdsFromEastToWest[1]},{phase4_residueIdsFromEastToWest[2]},{phase4_residueIdsFromEastToWest[3]}
-                                               phase4_marksOfPlayersWithWyrmfang[myIndex]={phase4_marksOfPlayersWithWyrmfang[myIndex]}
-                                               relativePositionOfMyResidue={relativePositionOfMyResidue}
-                                               idOfMyResidue={idOfMyResidue}
-
-                                               """);
-
-                }
-
-                else
-                {
-
-                    accessory.Method.SendChat($"""
-                                               /e 
-                                               phase4_residueIdsFromEastToWest[]={phase4_residueIdsFromEastToWest[0]},{phase4_residueIdsFromEastToWest[1]},{phase4_residueIdsFromEastToWest[2]},{phase4_residueIdsFromEastToWest[3]}
-                                               P4ClawBuff={P4ClawBuff[myIndex]}
-                                               P4OtherBuff={P4OtherBuff[myIndex]}
-                                               relativePositionOfMyResidue={relativePositionOfMyResidue}
-                                               idOfMyResidue={idOfMyResidue}
-
-                                               """);
-
-                }
-
-            }
-
-            if (relativePositionOfMyResidue != Phase4_Relative_Positions_Of_Residues.Unknown_未知
-               &&
-               idOfMyResidue != 0)
-            {
-
-                var currentProperty = accessory.Data.GetDefaultDrawProperties();
-
-                currentProperty.Name = "Phase4_Guidance_Of_Residues_白圈指路";
-                currentProperty.Scale = new(2);
-                currentProperty.ScaleMode |= ScaleMode.YByDistance;
-                currentProperty.Owner = accessory.Data.Me;
-                currentProperty.Color = Phase4_Colour_Of_Residue_Guidance.V4.WithW(1f);
-                currentProperty.DestoryAt = 23000;
-
-                var residueObject = accessory.Data.Objects.SearchById(idOfMyResidue);
-
-                if (residueObject != null)
-                {
-
-                    phase4_guidanceOfResiduesHasBeenGenerated = true;
-
-                    currentProperty.TargetPosition = residueObject.Position;
-
-                    accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentProperty);
-
-                    if (Enable_Text_Prompts)
+                    if (Phase4_Logic_Of_Residue_Guidance == Phase4_Logics_Of_Residue_Guidance.According_To_Signs_On_Me_根据我身上的目标标记_莫灵喵和MMW)
                     {
 
-                        accessory.Method.TextInfo(phase4_getResidueDescription(relativePositionOfMyResidue), 2500);
+                        if (IsMe(accessory, 视角)) accessory.Method.SendChat($"""
+                                                   /e 
+                                                   phase4_residueIdsFromEastToWest[]={phase4_residueIdsFromEastToWest[0]},{phase4_residueIdsFromEastToWest[1]},{phase4_residueIdsFromEastToWest[2]},{phase4_residueIdsFromEastToWest[3]}
+                                                   phase4_marksOfPlayersWithWyrmfang[myIndex]={phase4_marksOfPlayersWithWyrmfang[myIndex]}
+                                                   relativePositionOfMyResidue={relativePositionOfMyResidue}
+                                                   idOfMyResidue={idOfMyResidue}
+
+                                                   """);
 
                     }
 
-                    accessory.TTS($"{phase4_getResidueDescription(relativePositionOfMyResidue)}",
-                                    Enable_Vanilla_TTS, Enable_Daily_Routines_TTS);
-
-                    if (Enable_Developer_Mode)
+                    else
                     {
 
-                        accessory.Method.SendChat($"""
+                        if (IsMe(accessory, 视角)) accessory.Method.SendChat($"""
                                                    /e 
-                                                   residueObject.Position={residueObject.Position}
-                                                   
+                                                   phase4_residueIdsFromEastToWest[]={phase4_residueIdsFromEastToWest[0]},{phase4_residueIdsFromEastToWest[1]},{phase4_residueIdsFromEastToWest[2]},{phase4_residueIdsFromEastToWest[3]}
+                                                   P4ClawBuff={P4ClawBuff[myIndex]}
+                                                   P4OtherBuff={P4OtherBuff[myIndex]}
+                                                   relativePositionOfMyResidue={relativePositionOfMyResidue}
+                                                   idOfMyResidue={idOfMyResidue}
+
                                                    """);
 
                     }
 
                 }
 
-            }
+                if (relativePositionOfMyResidue != Phase4_Relative_Positions_Of_Residues.Unknown_未知
+                   &&
+                   idOfMyResidue != 0)
+                {
 
+                    var currentProperty = accessory.Data.GetDefaultDrawProperties();
+
+                    currentProperty.Name = $"Phase4_Guidance_Of_Residues_白圈指路-{视角}";
+                    currentProperty.Scale = new(2);
+                    currentProperty.ScaleMode |= ScaleMode.YByDistance;
+                    currentProperty.Owner = GuidanceOwner(accessory, 视角);
+                    currentProperty.Color = Phase4_Colour_Of_Residue_Guidance.V4.WithW(1f);
+                    currentProperty.DestoryAt = 23000;
+
+                    var residueObject = accessory.Data.Objects.SearchById(idOfMyResidue);
+
+                    if (residueObject != null)
+                    {
+
+                        phase4_guidanceOfResiduesHasBeenGenerated = true;
+
+                        currentProperty.TargetPosition = residueObject.Position;
+
+                        accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentProperty);
+
+                        if (Enable_Text_Prompts)
+                        {
+
+                            if (IsMe(accessory, 视角)) accessory.Method.TextInfo(phase4_getResidueDescription(relativePositionOfMyResidue), 2500);
+
+                        }
+
+                        if (IsMe(accessory, 视角)) accessory.TTS($"{phase4_getResidueDescription(relativePositionOfMyResidue)}",
+                                        Enable_Vanilla_TTS, Enable_Daily_Routines_TTS);
+
+                        if (Enable_Developer_Mode)
+                        {
+
+                            if (IsMe(accessory, 视角)) accessory.Method.SendChat($"""
+                                                       /e 
+                                                       residueObject.Position={residueObject.Position}
+
+                                                       """);
+
+                        }
+
+                    }
+
+                }
+
+            }
         }
 
         [ScriptMethod(name: "Phase4 Remove Guidance Of Residues 移除白圈指路",
@@ -14870,14 +15076,14 @@ namespace CicerosKodakkuAssist.FuturesRewrittenUltimate.LPDU
 
             }
 
-            if (targetId != accessory.Data.Me)
+            if (!Debugging && targetId != accessory.Data.Me)
             {
 
                 return;
 
             }
 
-            accessory.Method.RemoveDraw("Phase4_Guidance_Of_Residues_白圈指路");
+            accessory.Method.RemoveDraw($"Phase4_Guidance_Of_Residues_白圈指路-{accessory.Data.PartyList.IndexOf((uint)targetId)}");
 
         }
 
@@ -14954,17 +15160,22 @@ namespace CicerosKodakkuAssist.FuturesRewrittenUltimate.LPDU
 
             accessory.Method.RemoveDraw($"Phase4_Highlight_Of_Residues_白圈高亮_{sourceId}");
 
-            ulong idOfMyResidue = phase4_getResidueId(phase4_getRelativePosition(accessory.Data.PartyList.IndexOf(accessory.Data.Me)));
+            foreach (var 视角 in GuidanceIndices(accessory)) 指路(视角);
 
-            if (idOfMyResidue != 0
-               &&
-               idOfMyResidue == sourceId)
+            void 指路(int 视角)
             {
+                ulong idOfMyResidue = phase4_getResidueId(phase4_getRelativePosition(视角));
 
-                accessory.Method.RemoveDraw("Phase4_Guidance_Of_Residues_白圈指路");
+                if (idOfMyResidue != 0
+                   &&
+                   idOfMyResidue == sourceId)
+                {
+
+                    accessory.Method.RemoveDraw($"Phase4_Guidance_Of_Residues_白圈指路-{视角}");
+
+                }
 
             }
-
         }
 
         [ScriptMethod(name: "Phase4 Remove Highlights Of Residues In Advance 提前移除白圈高亮",
@@ -15037,22 +15248,27 @@ namespace CicerosKodakkuAssist.FuturesRewrittenUltimate.LPDU
 
                 accessory.Method.RemoveDraw($"Phase4_Highlight_Of_Residues_白圈高亮_{phase4_residueIdsFromEastToWest[closestResidue]}");
 
-                if (targetId != accessory.Data.Me)
+                foreach (var 视角 in GuidanceIndices(accessory)) 指路(视角);
+
+                void 指路(int 视角)
                 {
-
-                    ulong idOfMyResidue = phase4_getResidueId(phase4_getRelativePosition(accessory.Data.PartyList.IndexOf(accessory.Data.Me)));
-
-                    if (idOfMyResidue != 0
-                       &&
-                       idOfMyResidue == phase4_residueIdsFromEastToWest[closestResidue])
+                    if (targetId != GuidanceOwner(accessory, 视角))
                     {
 
-                        accessory.Method.RemoveDraw("Phase4_Guidance_Of_Residues_白圈指路");
+                        ulong idOfMyResidue = phase4_getResidueId(phase4_getRelativePosition(视角));
+
+                        if (idOfMyResidue != 0
+                           &&
+                           idOfMyResidue == phase4_residueIdsFromEastToWest[closestResidue])
+                        {
+
+                            accessory.Method.RemoveDraw($"Phase4_Guidance_Of_Residues_白圈指路-{视角}");
+
+                        }
 
                     }
 
                 }
-
             }
 
         }
@@ -15559,15 +15775,20 @@ namespace CicerosKodakkuAssist.FuturesRewrittenUltimate.LPDU
 
         private static void 死亡轮回连线(ScriptAccessory accessory, ulong bossId, string name)
         {
-            var dp = accessory.Data.GetDefaultDrawProperties();
-            dp.Name = name;
-            dp.Owner = accessory.Data.Me;
-            dp.Color = accessory.Data.DefaultSafeColor;
-            dp.ScaleMode |= ScaleMode.YByDistance;
-            dp.TargetObject = bossId;
-            dp.Scale = new(1);
-            dp.DestoryAt = 4000;
-            accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
+            foreach (var 视角 in GuidanceIndices(accessory)) 指路(视角);
+
+            void 指路(int 视角)
+            {
+                var dp = accessory.Data.GetDefaultDrawProperties();
+                dp.Name = $"{name}-{视角}";
+                dp.Owner = GuidanceOwner(accessory, 视角);
+                dp.Color = accessory.Data.DefaultSafeColor;
+                dp.ScaleMode |= ScaleMode.YByDistance;
+                dp.TargetObject = bossId;
+                dp.Scale = new(1);
+                dp.DestoryAt = 4000;
+                accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
+            }
         }
 
         // 40229 神圣之翼：二运 Y 字击退，读条 2.5s 后提示防击退
@@ -15755,117 +15976,122 @@ namespace CicerosKodakkuAssist.FuturesRewrittenUltimate.LPDU
                      //每次2000毫秒？
                      int BladeTimes = 2000;
                      //0绿1红
-                     var Goline0 = accessory.Data.GetDefaultDrawProperties();
-                     Goline0.Owner = accessory.Data.Me;
-                     Goline0.DestoryAt = 9000;
-                     Goline0.Color = Phase5_Colour_Of_The_Current_Guidance_Step.V4;
-                     Goline0.Scale = new(2);
-                     Goline0.ScaleMode |= ScaleMode.YByDistance;
-                     Goline0.TargetPosition = Vector3Fucker(BladeRoutes[0]);
-                     accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, Goline0);
+                     foreach (var 视角 in GuidanceIndices(accessory)) 指路(视角);
 
-                     var line1 = accessory.Data.GetDefaultDrawProperties();
-                     line1.Position = Vector3Fucker(BladeRoutes[0]);
-                     line1.DestoryAt = 9000;
-                     line1.Color = Phase5_Colour_Of_The_Next_Guidance_Step.V4;
-                     line1.Scale = new(2);
-                     line1.ScaleMode |= ScaleMode.YByDistance;
-                     line1.TargetPosition = Vector3Fucker(BladeRoutes[1]);
-                     accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, line1);
-                     /////////////////////////////////////1绿放2 基础延迟9000
-                     var Goline1 = accessory.Data.GetDefaultDrawProperties();
-                     Goline1.Owner = accessory.Data.Me;
-                     Goline1.Delay = 9000;
-                     Goline1.DestoryAt = BladeTimes;
-                     Goline1.Color = Phase5_Colour_Of_The_Current_Guidance_Step.V4;
-                     Goline1.Scale = new(2);
-                     Goline1.ScaleMode |= ScaleMode.YByDistance;
-                     Goline1.TargetPosition = Vector3Fucker(BladeRoutes[1]);
-                     accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, Goline1);
+                     void 指路(int 视角)
+                     {
+                         var Goline0 = accessory.Data.GetDefaultDrawProperties();
+                         Goline0.Owner = GuidanceOwner(accessory, 视角);
+                         Goline0.DestoryAt = 9000;
+                         Goline0.Color = Phase5_Colour_Of_The_Current_Guidance_Step.V4;
+                         Goline0.Scale = new(2);
+                         Goline0.ScaleMode |= ScaleMode.YByDistance;
+                         Goline0.TargetPosition = Vector3Fucker(BladeRoutes[0]);
+                         accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, Goline0);
 
-                     var line2 = accessory.Data.GetDefaultDrawProperties();
-                     line2.Position = Vector3Fucker(BladeRoutes[1]);
-                     line2.Delay = 9000;
-                     line2.DestoryAt = BladeTimes;
-                     line2.Color = Phase5_Colour_Of_The_Next_Guidance_Step.V4;
-                     line2.Scale = new(2);
-                     line2.ScaleMode |= ScaleMode.YByDistance;
-                     line2.TargetPosition = Vector3Fucker(BladeRoutes[2]);
-                     accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, line2);
+                         var line1 = accessory.Data.GetDefaultDrawProperties();
+                         line1.Position = Vector3Fucker(BladeRoutes[0]);
+                         line1.DestoryAt = 9000;
+                         line1.Color = Phase5_Colour_Of_The_Next_Guidance_Step.V4;
+                         line1.Scale = new(2);
+                         line1.ScaleMode |= ScaleMode.YByDistance;
+                         line1.TargetPosition = Vector3Fucker(BladeRoutes[1]);
+                         accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, line1);
+                         /////////////////////////////////////1绿放2 基础延迟9000
+                         var Goline1 = accessory.Data.GetDefaultDrawProperties();
+                         Goline1.Owner = GuidanceOwner(accessory, 视角);
+                         Goline1.Delay = 9000;
+                         Goline1.DestoryAt = BladeTimes;
+                         Goline1.Color = Phase5_Colour_Of_The_Current_Guidance_Step.V4;
+                         Goline1.Scale = new(2);
+                         Goline1.ScaleMode |= ScaleMode.YByDistance;
+                         Goline1.TargetPosition = Vector3Fucker(BladeRoutes[1]);
+                         accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, Goline1);
 
-                     /////////////////////////////////////2绿放3 基础延迟9000+bladetime
-                     var Goline2 = accessory.Data.GetDefaultDrawProperties();
-                     Goline2.Owner = accessory.Data.Me;
-                     Goline2.Delay = 9000 + BladeTimes;
-                     Goline2.DestoryAt = BladeTimes;
-                     Goline2.Color = Phase5_Colour_Of_The_Current_Guidance_Step.V4;
-                     Goline2.Scale = new(2);
-                     Goline2.ScaleMode |= ScaleMode.YByDistance;
-                     Goline2.TargetPosition = Vector3Fucker(BladeRoutes[2]);
-                     accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, Goline2);
+                         var line2 = accessory.Data.GetDefaultDrawProperties();
+                         line2.Position = Vector3Fucker(BladeRoutes[1]);
+                         line2.Delay = 9000;
+                         line2.DestoryAt = BladeTimes;
+                         line2.Color = Phase5_Colour_Of_The_Next_Guidance_Step.V4;
+                         line2.Scale = new(2);
+                         line2.ScaleMode |= ScaleMode.YByDistance;
+                         line2.TargetPosition = Vector3Fucker(BladeRoutes[2]);
+                         accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, line2);
 
-                     var line3 = accessory.Data.GetDefaultDrawProperties();
-                     line3.Position = Vector3Fucker(BladeRoutes[2]);
-                     line3.Delay = 9000 + BladeTimes;
-                     line3.DestoryAt = BladeTimes;
-                     line3.Color = Phase5_Colour_Of_The_Next_Guidance_Step.V4;
-                     line3.Scale = new(2);
-                     line3.ScaleMode |= ScaleMode.YByDistance;
-                     line3.TargetPosition = Vector3Fucker(BladeRoutes[3]);
-                     accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, line3);
+                         /////////////////////////////////////2绿放3 基础延迟9000+bladetime
+                         var Goline2 = accessory.Data.GetDefaultDrawProperties();
+                         Goline2.Owner = GuidanceOwner(accessory, 视角);
+                         Goline2.Delay = 9000 + BladeTimes;
+                         Goline2.DestoryAt = BladeTimes;
+                         Goline2.Color = Phase5_Colour_Of_The_Current_Guidance_Step.V4;
+                         Goline2.Scale = new(2);
+                         Goline2.ScaleMode |= ScaleMode.YByDistance;
+                         Goline2.TargetPosition = Vector3Fucker(BladeRoutes[2]);
+                         accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, Goline2);
 
-                     /////////////////////////////////////3绿放4 基础延迟9000+bladetime*2
-                     var Goline3 = accessory.Data.GetDefaultDrawProperties();
-                     Goline3.Owner = accessory.Data.Me;
-                     Goline3.Delay = 9000 + BladeTimes * 2;
-                     Goline3.DestoryAt = BladeTimes;
-                     Goline3.Color = Phase5_Colour_Of_The_Current_Guidance_Step.V4;
-                     Goline3.Scale = new(2);
-                     Goline3.ScaleMode |= ScaleMode.YByDistance;
-                     Goline3.TargetPosition = Vector3Fucker(BladeRoutes[3]);
-                     accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, Goline3);
+                         var line3 = accessory.Data.GetDefaultDrawProperties();
+                         line3.Position = Vector3Fucker(BladeRoutes[2]);
+                         line3.Delay = 9000 + BladeTimes;
+                         line3.DestoryAt = BladeTimes;
+                         line3.Color = Phase5_Colour_Of_The_Next_Guidance_Step.V4;
+                         line3.Scale = new(2);
+                         line3.ScaleMode |= ScaleMode.YByDistance;
+                         line3.TargetPosition = Vector3Fucker(BladeRoutes[3]);
+                         accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, line3);
 
-                     var line4 = accessory.Data.GetDefaultDrawProperties();
-                     line4.Position = Vector3Fucker(BladeRoutes[3]);
-                     line4.Delay = 9000 + BladeTimes * 2;
-                     line4.DestoryAt = BladeTimes;
-                     line4.Color = Phase5_Colour_Of_The_Next_Guidance_Step.V4;
-                     line4.Scale = new(2);
-                     line4.ScaleMode |= ScaleMode.YByDistance;
-                     line4.TargetPosition = Vector3Fucker(BladeRoutes[4]);
-                     accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, line4);
+                         /////////////////////////////////////3绿放4 基础延迟9000+bladetime*2
+                         var Goline3 = accessory.Data.GetDefaultDrawProperties();
+                         Goline3.Owner = GuidanceOwner(accessory, 视角);
+                         Goline3.Delay = 9000 + BladeTimes * 2;
+                         Goline3.DestoryAt = BladeTimes;
+                         Goline3.Color = Phase5_Colour_Of_The_Current_Guidance_Step.V4;
+                         Goline3.Scale = new(2);
+                         Goline3.ScaleMode |= ScaleMode.YByDistance;
+                         Goline3.TargetPosition = Vector3Fucker(BladeRoutes[3]);
+                         accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, Goline3);
 
-                     /////////////////////////////////////4绿放5 基础延迟9000+bladetime*3
-                     var Goline4 = accessory.Data.GetDefaultDrawProperties();
-                     Goline4.Owner = accessory.Data.Me;
-                     Goline4.Delay = 9000 + BladeTimes * 3;
-                     Goline4.DestoryAt = BladeTimes;
-                     Goline4.Color = Phase5_Colour_Of_The_Current_Guidance_Step.V4;
-                     Goline4.Scale = new(2);
-                     Goline4.ScaleMode |= ScaleMode.YByDistance;
-                     Goline4.TargetPosition = Vector3Fucker(BladeRoutes[4]);
-                     accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, Goline4);
+                         var line4 = accessory.Data.GetDefaultDrawProperties();
+                         line4.Position = Vector3Fucker(BladeRoutes[3]);
+                         line4.Delay = 9000 + BladeTimes * 2;
+                         line4.DestoryAt = BladeTimes;
+                         line4.Color = Phase5_Colour_Of_The_Next_Guidance_Step.V4;
+                         line4.Scale = new(2);
+                         line4.ScaleMode |= ScaleMode.YByDistance;
+                         line4.TargetPosition = Vector3Fucker(BladeRoutes[4]);
+                         accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, line4);
 
-                     var line5 = accessory.Data.GetDefaultDrawProperties();
-                     line5.Position = Vector3Fucker(BladeRoutes[4]);
-                     line5.Delay = 9000 + BladeTimes * 3;
-                     line5.DestoryAt = BladeTimes;
-                     line5.Color = Phase5_Colour_Of_The_Next_Guidance_Step.V4;
-                     line5.Scale = new(2);
-                     line5.ScaleMode |= ScaleMode.YByDistance;
-                     line5.TargetPosition = Vector3Fucker(BladeRoutes[5]);
-                     accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, line5);
+                         /////////////////////////////////////4绿放5 基础延迟9000+bladetime*3
+                         var Goline4 = accessory.Data.GetDefaultDrawProperties();
+                         Goline4.Owner = GuidanceOwner(accessory, 视角);
+                         Goline4.Delay = 9000 + BladeTimes * 3;
+                         Goline4.DestoryAt = BladeTimes;
+                         Goline4.Color = Phase5_Colour_Of_The_Current_Guidance_Step.V4;
+                         Goline4.Scale = new(2);
+                         Goline4.ScaleMode |= ScaleMode.YByDistance;
+                         Goline4.TargetPosition = Vector3Fucker(BladeRoutes[4]);
+                         accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, Goline4);
 
-                     /////////////////////////////////////5绿放6 基础延迟9000+bladetime*4
-                     var Goline5 = accessory.Data.GetDefaultDrawProperties();
-                     Goline5.Owner = accessory.Data.Me;
-                     Goline5.Delay = 9000 + BladeTimes * 4;
-                     Goline5.DestoryAt = BladeTimes;
-                     Goline5.Color = Phase5_Colour_Of_The_Current_Guidance_Step.V4;
-                     Goline5.Scale = new(2);
-                     Goline5.ScaleMode |= ScaleMode.YByDistance;
-                     Goline5.TargetPosition = Vector3Fucker(BladeRoutes[5]);
-                     accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, Goline5);
+                         var line5 = accessory.Data.GetDefaultDrawProperties();
+                         line5.Position = Vector3Fucker(BladeRoutes[4]);
+                         line5.Delay = 9000 + BladeTimes * 3;
+                         line5.DestoryAt = BladeTimes;
+                         line5.Color = Phase5_Colour_Of_The_Next_Guidance_Step.V4;
+                         line5.Scale = new(2);
+                         line5.ScaleMode |= ScaleMode.YByDistance;
+                         line5.TargetPosition = Vector3Fucker(BladeRoutes[5]);
+                         accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, line5);
+
+                         /////////////////////////////////////5绿放6 基础延迟9000+bladetime*4
+                         var Goline5 = accessory.Data.GetDefaultDrawProperties();
+                         Goline5.Owner = GuidanceOwner(accessory, 视角);
+                         Goline5.Delay = 9000 + BladeTimes * 4;
+                         Goline5.DestoryAt = BladeTimes;
+                         Goline5.Color = Phase5_Colour_Of_The_Current_Guidance_Step.V4;
+                         Goline5.Scale = new(2);
+                         Goline5.ScaleMode |= ScaleMode.YByDistance;
+                         Goline5.TargetPosition = Vector3Fucker(BladeRoutes[5]);
+                         accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, Goline5);
+                     }
                  }
              }
         }
@@ -16228,58 +16454,63 @@ namespace CicerosKodakkuAssist.FuturesRewrittenUltimate.LPDU
 
             }
 
-            if(accessory.Data.Me!=enmityListOfBoss[0]) {
+            Parallel.ForEach(GuidanceIndices(accessory), 指路);
 
-                return;
+            void 指路(int 视角)
+            {
+                if(GuidanceOwner(accessory, 视角)!=enmityListOfBoss[0]) {
+
+                    return;
+
+                }
+
+                while(!phase5_hasAcquiredTheFirstTower) {
+
+                    System.Threading.Thread.Sleep(1);
+
+                }
+
+                System.Threading.Thread.MemoryBarrier();
+
+                Vector3 positionOfTheFirstTower=new Vector3(100,0,100);
+
+                if(phase5_indexOfTheFirstTower.Equals("00000030")) {
+
+                    positionOfTheFirstTower=new Vector3(93.94f,0,96.50f);
+
+                }
+
+                if(phase5_indexOfTheFirstTower.Equals("00000031")) {
+
+                    positionOfTheFirstTower=new Vector3(106.06f,0,96.50f);
+
+                }
+
+                if(phase5_indexOfTheFirstTower.Equals("00000032")) {
+
+                    positionOfTheFirstTower=new Vector3(100f,0,107f);
+
+                }
+
+                if(positionOfTheFirstTower.Equals(new Vector3(100,0,100))) {
+
+                    return;
+
+                }
+
+                var currentProperty=accessory.Data.GetDefaultDrawProperties();
+
+                currentProperty.Name=$"Phase5_Initial_Position_Of_The_Current_MT_Before_Towers_踩塔前当前MT的起始位置-{视角}";
+                currentProperty.Scale=new(2);
+                currentProperty.Owner=GuidanceOwner(accessory, 视角);
+                currentProperty.TargetPosition=RotatePoint(positionOfTheFirstTower,new Vector3(100,0,100),float.Pi);
+                currentProperty.ScaleMode|=ScaleMode.YByDistance;
+                currentProperty.Color=accessory.Data.DefaultSafeColor;
+                currentProperty.DestoryAt=2300;
+
+                accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Displacement,currentProperty);
 
             }
-
-            while(!phase5_hasAcquiredTheFirstTower) {
-
-                System.Threading.Thread.Sleep(1);
-
-            }
-
-            System.Threading.Thread.MemoryBarrier();
-
-            Vector3 positionOfTheFirstTower=new Vector3(100,0,100);
-
-            if(phase5_indexOfTheFirstTower.Equals("00000030")) {
-
-                positionOfTheFirstTower=new Vector3(93.94f,0,96.50f);
-
-            }
-
-            if(phase5_indexOfTheFirstTower.Equals("00000031")) {
-
-                positionOfTheFirstTower=new Vector3(106.06f,0,96.50f);
-
-            }
-
-            if(phase5_indexOfTheFirstTower.Equals("00000032")) {
-
-                positionOfTheFirstTower=new Vector3(100f,0,107f);
-
-            }
-
-            if(positionOfTheFirstTower.Equals(new Vector3(100,0,100))) {
-
-                return;
-
-            }
-
-            var currentProperty=accessory.Data.GetDefaultDrawProperties();
-
-            currentProperty.Name="Phase5_Initial_Position_Of_The_Current_MT_Before_Towers_踩塔前当前MT的起始位置";
-            currentProperty.Scale=new(2);
-            currentProperty.Owner=accessory.Data.Me;
-            currentProperty.TargetPosition=RotatePoint(positionOfTheFirstTower,new Vector3(100,0,100),float.Pi);
-            currentProperty.ScaleMode|=ScaleMode.YByDistance;
-            currentProperty.Color=accessory.Data.DefaultSafeColor;
-            currentProperty.DestoryAt=2300;
-
-            accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Displacement,currentProperty);
-
         }
 
         [ScriptMethod(name:"Phase5 Guidance For Tanks During Towers 坦克踩塔指路",
@@ -16300,260 +16531,446 @@ namespace CicerosKodakkuAssist.FuturesRewrittenUltimate.LPDU
 
             }
 
-            if(accessory.Data.PartyList.IndexOf(accessory.Data.Me)!=0
-               &&
-               accessory.Data.PartyList.IndexOf(accessory.Data.Me)!=1) {
+            Parallel.ForEach(GuidanceIndices(accessory), 指路);
 
-                return;
+            void 指路(int 视角)
+            {
+                if(视角!=0
+                   &&
+                   视角!=1) {
 
-            }
+                    return;
 
-            bool isCurrentMt=true;
+                }
 
-            if(!ParseObjectId(phase5_bossId, out var bossId)) {
+                bool isCurrentMt=true;
 
-                return;
+                if(!ParseObjectId(phase5_bossId, out var bossId)) {
 
-            }
+                    return;
 
-            if(!accessory.Data.EnmityList.TryGetValue(bossId, out var enmityListOfBoss)) {
+                }
 
-                return;
+                if(!accessory.Data.EnmityList.TryGetValue(bossId, out var enmityListOfBoss)) {
 
-            }
+                    return;
 
-            if(Enable_Developer_Mode) {
+                }
 
-                accessory.Method.SendChat($"""
-                                           /e 
-                                           accessory.Data.Me={accessory.Data.Me}
-                                           enmityListOfTheBoss[0]={enmityListOfBoss[0]}
+                if(Enable_Developer_Mode) {
 
-                                           """);
+                    if (IsMe(accessory, 视角)) accessory.Method.SendChat($"""
+                                               /e 
+                                               GuidanceOwner(accessory, 视角)={GuidanceOwner(accessory, 视角)}
+                                               enmityListOfTheBoss[0]={enmityListOfBoss[0]}
 
-            }
+                                               """);
 
-            if(accessory.Data.Me==enmityListOfBoss[0]) {
+                }
 
-                isCurrentMt=true;
+                if(GuidanceOwner(accessory, 视角)==enmityListOfBoss[0]) {
 
-            }
-
-            else {
-
-                isCurrentMt=false;
-
-            }
-
-            bool isLeftFirstAndFarFirst=true;
-
-            if(@event["ActionId"].Equals("40313")) {
-                // 40313 stands for left first then right, far first then close.
-
-                isLeftFirstAndFarFirst=true;
-
-            }
-
-            if(@event["ActionId"].Equals("40233")) {
-                // 40233 stands for right first then left, close first then far.
-
-                isLeftFirstAndFarFirst=false;
-
-            }
-
-            Vector3 positionOfTheFirstTower=new Vector3(100,0,100);
-
-            if(phase5_indexOfTheFirstTower.Equals("00000030")) {
-
-                positionOfTheFirstTower=new Vector3(93.94f,0,96.50f);
-
-            }
-
-            if(phase5_indexOfTheFirstTower.Equals("00000031")) {
-
-                positionOfTheFirstTower=new Vector3(106.06f,0,96.50f);
-
-            }
-
-            if(phase5_indexOfTheFirstTower.Equals("00000032")) {
-
-                positionOfTheFirstTower=new Vector3(100f,0,107f);
-
-            }
-
-            if(positionOfTheFirstTower.Equals(new Vector3(100,0,100))) {
-
-                return;
-
-            }
-
-            if(Phase5_Strat_Of_Wings_Dark_And_Light==Phase5_Strats_Of_Wings_Dark_And_Light.Grey9_Brain_Dead_MT_First_Tower_Opposite_灰九脑死法MT一塔对侧_莫灵喵与MMW) {
-
-                Vector3 position1OfCurrentMt=RotatePoint(positionOfTheFirstTower,new Vector3(100,0,100),float.Pi);
-                // Just opposite the first tower.
-                Vector3 position2OfCurrentMt=(isLeftFirstAndFarFirst)?
-                    (new((position1OfCurrentMt.X-100)/7+100,0,(position1OfCurrentMt.Z-100)/7+100)):
-                    (new((position1OfCurrentMt.X-100)/7*18+100,0,(position1OfCurrentMt.Z-100)/7*18+100));
-                // The calculations of Position 2 were directly inherited from Karlin's script.
-                // I don't know the mathematical ideas behind the algorithm, but it works and it definitely works great.
-                // So as a result, except the multiplier was adjusted from 15 to 18, I just keep the part as is.
-
-                Vector3 position2OfCurrentOt=RotatePoint(position1OfCurrentMt,new(100,0,100),(isLeftFirstAndFarFirst)?
-                                                                                                          (convertDegree(120f)):
-                                                                                                          (convertDegree(-120f)));
-                Vector3 position1OfCurrentOt=(isLeftFirstAndFarFirst)?
-                    (new((position2OfCurrentOt.X-100)/7*18+100,0,(position2OfCurrentOt.Z-100)/7*18+100)):
-                    (new((position2OfCurrentOt.X-100)/7+100,0,(position2OfCurrentOt.Z-100)/7+100));
-
-                if(isCurrentMt) {
-
-                    var currentProperty=accessory.Data.GetDefaultDrawProperties();
-                    
-                    currentProperty.Name="Phase5_Guidance_1_For_The_Current_MT_During_Towers_当前MT踩塔指路1";
-                    currentProperty.Scale=new(2);
-                    currentProperty.Owner=accessory.Data.Me;
-                    currentProperty.TargetPosition=position1OfCurrentMt;
-                    currentProperty.ScaleMode|=ScaleMode.YByDistance;
-                    currentProperty.Color=accessory.Data.DefaultSafeColor;
-                    currentProperty.DestoryAt=7150;
-                    
-                    accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Displacement,currentProperty);
-
-                    currentProperty=accessory.Data.GetDefaultDrawProperties();
-                    
-                    currentProperty.Name="Phase5_Guidance_2_Preview_For_The_Current_MT_During_Towers_当前MT踩塔指路2预览";
-                    currentProperty.Scale=new(2);
-                    currentProperty.Position=position1OfCurrentMt;
-                    currentProperty.TargetPosition=position2OfCurrentMt;
-                    currentProperty.ScaleMode|=ScaleMode.YByDistance;
-                    currentProperty.Color=accessory.Data.DefaultSafeColor;
-                    currentProperty.DestoryAt=7150;
-                    
-                    accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Displacement,currentProperty);
-
-                    currentProperty=accessory.Data.GetDefaultDrawProperties();
-                    
-                    currentProperty.Name="Phase5_Guidance_2_For_The_Current_MT_During_Towers_当前MT踩塔指路2";
-                    currentProperty.Scale=new(2);
-                    currentProperty.Owner=accessory.Data.Me;
-                    currentProperty.TargetPosition=position2OfCurrentMt;
-                    currentProperty.ScaleMode|=ScaleMode.YByDistance;
-                    currentProperty.Color=accessory.Data.DefaultSafeColor;
-                    currentProperty.Delay=7150;
-                    currentProperty.DestoryAt=4250;
-                    
-                    accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Displacement,currentProperty);
-
-                    if(Phase5_Reminder_To_Provoke_During_Wings_Dark_And_Light) {
-
-                        System.Threading.Thread.Sleep(1500);
-
-                        if(Enable_Text_Prompts) {
-
-                            if(Language_Of_Prompts==Languages_Of_Prompts.Simplified_Chinese_简体中文) {
-
-                                accessory.Method.TextInfo("等待挑衅后退避",2500);
-
-                            }
-
-                            if(Language_Of_Prompts==Languages_Of_Prompts.English_英文) {
-
-                                accessory.Method.TextInfo("Wait for provocation then shirk",2500);
-
-                            }
-
-                        }
-
-                        if(Enable_Vanilla_TTS||Enable_Daily_Routines_TTS) {
-
-                            if(Language_Of_Prompts==Languages_Of_Prompts.Simplified_Chinese_简体中文) {
-
-                                accessory.TTS("等待挑衅后退避",Enable_Vanilla_TTS,Enable_Daily_Routines_TTS);
-
-                            }
-
-                            if(Language_Of_Prompts==Languages_Of_Prompts.English_英文) {
-
-                                accessory.TTS("Wait for provocation then shirk",Enable_Vanilla_TTS,Enable_Daily_Routines_TTS);
-
-                            }
-
-                        }
-
-                    }
+                    isCurrentMt=true;
 
                 }
 
                 else {
 
-                    var currentProperty=accessory.Data.GetDefaultDrawProperties();
-                    
-                    currentProperty.Name="Phase5_Guidance_1_For_The_Current_OT_During_Towers_当前ST踩塔指路1";
-                    currentProperty.Scale=new(2);
-                    currentProperty.Owner=accessory.Data.Me;
-                    currentProperty.TargetPosition=position1OfCurrentOt;
-                    currentProperty.ScaleMode|=ScaleMode.YByDistance;
-                    currentProperty.Color=accessory.Data.DefaultSafeColor;
-                    currentProperty.DestoryAt=7650;
-                    
-                    accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Displacement,currentProperty);
+                    isCurrentMt=false;
 
-                    currentProperty=accessory.Data.GetDefaultDrawProperties();
-                    
-                    currentProperty.Name="Phase5_Guidance_2_Preview_For_The_Current_OT_During_Towers_当前ST踩塔指路2预览";
-                    currentProperty.Scale=new(2);
-                    currentProperty.Position=position1OfCurrentOt;
-                    currentProperty.TargetPosition=position2OfCurrentOt;
-                    currentProperty.ScaleMode|=ScaleMode.YByDistance;
-                    currentProperty.Color=accessory.Data.DefaultSafeColor;
-                    currentProperty.DestoryAt=7650;
-                    
-                    accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Displacement,currentProperty);
+                }
 
-                    currentProperty=accessory.Data.GetDefaultDrawProperties();
-                    
-                    currentProperty.Name="Phase5_Guidance_2_For_The_Current_OT_During_Towers_当前ST踩塔指路2";
-                    currentProperty.Scale=new(2);
-                    currentProperty.Owner=accessory.Data.Me;
-                    currentProperty.TargetPosition=position2OfCurrentOt;
-                    currentProperty.ScaleMode|=ScaleMode.YByDistance;
-                    currentProperty.Color=accessory.Data.DefaultSafeColor;
-                    currentProperty.Delay=7650;
-                    currentProperty.DestoryAt=3750;
-                    
-                    accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Displacement,currentProperty);
+                bool isLeftFirstAndFarFirst=true;
 
-                    if(Phase5_Reminder_To_Provoke_During_Wings_Dark_And_Light) {
+                if(@event["ActionId"].Equals("40313")) {
+                    // 40313 stands for left first then right, far first then close.
 
-                        System.Threading.Thread.Sleep(1000);
+                    isLeftFirstAndFarFirst=true;
 
-                        if(Enable_Text_Prompts) {
+                }
 
-                            if(Language_Of_Prompts==Languages_Of_Prompts.Simplified_Chinese_简体中文) {
+                if(@event["ActionId"].Equals("40233")) {
+                    // 40233 stands for right first then left, close first then far.
 
-                                accessory.Method.TextInfo("立即挑衅！",2500);
+                    isLeftFirstAndFarFirst=false;
+
+                }
+
+                Vector3 positionOfTheFirstTower=new Vector3(100,0,100);
+
+                if(phase5_indexOfTheFirstTower.Equals("00000030")) {
+
+                    positionOfTheFirstTower=new Vector3(93.94f,0,96.50f);
+
+                }
+
+                if(phase5_indexOfTheFirstTower.Equals("00000031")) {
+
+                    positionOfTheFirstTower=new Vector3(106.06f,0,96.50f);
+
+                }
+
+                if(phase5_indexOfTheFirstTower.Equals("00000032")) {
+
+                    positionOfTheFirstTower=new Vector3(100f,0,107f);
+
+                }
+
+                if(positionOfTheFirstTower.Equals(new Vector3(100,0,100))) {
+
+                    return;
+
+                }
+
+                if(Phase5_Strat_Of_Wings_Dark_And_Light==Phase5_Strats_Of_Wings_Dark_And_Light.Grey9_Brain_Dead_MT_First_Tower_Opposite_灰九脑死法MT一塔对侧_莫灵喵与MMW) {
+
+                    Vector3 position1OfCurrentMt=RotatePoint(positionOfTheFirstTower,new Vector3(100,0,100),float.Pi);
+                    // Just opposite the first tower.
+                    Vector3 position2OfCurrentMt=(isLeftFirstAndFarFirst)?
+                        (new((position1OfCurrentMt.X-100)/7+100,0,(position1OfCurrentMt.Z-100)/7+100)):
+                        (new((position1OfCurrentMt.X-100)/7*18+100,0,(position1OfCurrentMt.Z-100)/7*18+100));
+                    // The calculations of Position 2 were directly inherited from Karlin's script.
+                    // I don't know the mathematical ideas behind the algorithm, but it works and it definitely works great.
+                    // So as a result, except the multiplier was adjusted from 15 to 18, I just keep the part as is.
+
+                    Vector3 position2OfCurrentOt=RotatePoint(position1OfCurrentMt,new(100,0,100),(isLeftFirstAndFarFirst)?
+                                                                                                              (convertDegree(120f)):
+                                                                                                              (convertDegree(-120f)));
+                    Vector3 position1OfCurrentOt=(isLeftFirstAndFarFirst)?
+                        (new((position2OfCurrentOt.X-100)/7*18+100,0,(position2OfCurrentOt.Z-100)/7*18+100)):
+                        (new((position2OfCurrentOt.X-100)/7+100,0,(position2OfCurrentOt.Z-100)/7+100));
+
+                    if(isCurrentMt) {
+
+                        var currentProperty=accessory.Data.GetDefaultDrawProperties();
+
+                        currentProperty.Name=$"Phase5_Guidance_1_For_The_Current_MT_During_Towers_当前MT踩塔指路1-{视角}";
+                        currentProperty.Scale=new(2);
+                        currentProperty.Owner=GuidanceOwner(accessory, 视角);
+                        currentProperty.TargetPosition=position1OfCurrentMt;
+                        currentProperty.ScaleMode|=ScaleMode.YByDistance;
+                        currentProperty.Color=accessory.Data.DefaultSafeColor;
+                        currentProperty.DestoryAt=7150;
+
+                        accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Displacement,currentProperty);
+
+                        currentProperty=accessory.Data.GetDefaultDrawProperties();
+
+                        currentProperty.Name=$"Phase5_Guidance_2_Preview_For_The_Current_MT_During_Towers_当前MT踩塔指路2预览-{视角}";
+                        currentProperty.Scale=new(2);
+                        currentProperty.Position=position1OfCurrentMt;
+                        currentProperty.TargetPosition=position2OfCurrentMt;
+                        currentProperty.ScaleMode|=ScaleMode.YByDistance;
+                        currentProperty.Color=accessory.Data.DefaultSafeColor;
+                        currentProperty.DestoryAt=7150;
+
+                        accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Displacement,currentProperty);
+
+                        currentProperty=accessory.Data.GetDefaultDrawProperties();
+
+                        currentProperty.Name=$"Phase5_Guidance_2_For_The_Current_MT_During_Towers_当前MT踩塔指路2-{视角}";
+                        currentProperty.Scale=new(2);
+                        currentProperty.Owner=GuidanceOwner(accessory, 视角);
+                        currentProperty.TargetPosition=position2OfCurrentMt;
+                        currentProperty.ScaleMode|=ScaleMode.YByDistance;
+                        currentProperty.Color=accessory.Data.DefaultSafeColor;
+                        currentProperty.Delay=7150;
+                        currentProperty.DestoryAt=4250;
+
+                        accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Displacement,currentProperty);
+
+                        if(Phase5_Reminder_To_Provoke_During_Wings_Dark_And_Light) {
+
+                            System.Threading.Thread.Sleep(1500);
+
+                            if(Enable_Text_Prompts) {
+
+                                if(Language_Of_Prompts==Languages_Of_Prompts.Simplified_Chinese_简体中文) {
+
+                                    if (IsMe(accessory, 视角)) accessory.Method.TextInfo("等待挑衅后退避",2500);
+
+                                }
+
+                                if(Language_Of_Prompts==Languages_Of_Prompts.English_英文) {
+
+                                    if (IsMe(accessory, 视角)) accessory.Method.TextInfo("Wait for provocation then shirk",2500);
+
+                                }
 
                             }
 
-                            if(Language_Of_Prompts==Languages_Of_Prompts.English_英文) {
+                            if(Enable_Vanilla_TTS||Enable_Daily_Routines_TTS) {
 
-                                accessory.Method.TextInfo("Now provoke!",2500);
+                                if(Language_Of_Prompts==Languages_Of_Prompts.Simplified_Chinese_简体中文) {
+
+                                    if (IsMe(accessory, 视角)) accessory.TTS("等待挑衅后退避",Enable_Vanilla_TTS,Enable_Daily_Routines_TTS);
+
+                                }
+
+                                if(Language_Of_Prompts==Languages_Of_Prompts.English_英文) {
+
+                                    if (IsMe(accessory, 视角)) accessory.TTS("Wait for provocation then shirk",Enable_Vanilla_TTS,Enable_Daily_Routines_TTS);
+
+                                }
 
                             }
 
                         }
 
-                        if(Enable_Vanilla_TTS||Enable_Daily_Routines_TTS) {
+                    }
 
-                            if(Language_Of_Prompts==Languages_Of_Prompts.Simplified_Chinese_简体中文) {
+                    else {
 
-                                accessory.TTS("立即挑衅！",Enable_Vanilla_TTS,Enable_Daily_Routines_TTS);
+                        var currentProperty=accessory.Data.GetDefaultDrawProperties();
+
+                        currentProperty.Name=$"Phase5_Guidance_1_For_The_Current_OT_During_Towers_当前ST踩塔指路1-{视角}";
+                        currentProperty.Scale=new(2);
+                        currentProperty.Owner=GuidanceOwner(accessory, 视角);
+                        currentProperty.TargetPosition=position1OfCurrentOt;
+                        currentProperty.ScaleMode|=ScaleMode.YByDistance;
+                        currentProperty.Color=accessory.Data.DefaultSafeColor;
+                        currentProperty.DestoryAt=7650;
+
+                        accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Displacement,currentProperty);
+
+                        currentProperty=accessory.Data.GetDefaultDrawProperties();
+
+                        currentProperty.Name=$"Phase5_Guidance_2_Preview_For_The_Current_OT_During_Towers_当前ST踩塔指路2预览-{视角}";
+                        currentProperty.Scale=new(2);
+                        currentProperty.Position=position1OfCurrentOt;
+                        currentProperty.TargetPosition=position2OfCurrentOt;
+                        currentProperty.ScaleMode|=ScaleMode.YByDistance;
+                        currentProperty.Color=accessory.Data.DefaultSafeColor;
+                        currentProperty.DestoryAt=7650;
+
+                        accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Displacement,currentProperty);
+
+                        currentProperty=accessory.Data.GetDefaultDrawProperties();
+
+                        currentProperty.Name=$"Phase5_Guidance_2_For_The_Current_OT_During_Towers_当前ST踩塔指路2-{视角}";
+                        currentProperty.Scale=new(2);
+                        currentProperty.Owner=GuidanceOwner(accessory, 视角);
+                        currentProperty.TargetPosition=position2OfCurrentOt;
+                        currentProperty.ScaleMode|=ScaleMode.YByDistance;
+                        currentProperty.Color=accessory.Data.DefaultSafeColor;
+                        currentProperty.Delay=7650;
+                        currentProperty.DestoryAt=3750;
+
+                        accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Displacement,currentProperty);
+
+                        if(Phase5_Reminder_To_Provoke_During_Wings_Dark_And_Light) {
+
+                            System.Threading.Thread.Sleep(1000);
+
+                            if(Enable_Text_Prompts) {
+
+                                if(Language_Of_Prompts==Languages_Of_Prompts.Simplified_Chinese_简体中文) {
+
+                                    if (IsMe(accessory, 视角)) accessory.Method.TextInfo("立即挑衅！",2500);
+
+                                }
+
+                                if(Language_Of_Prompts==Languages_Of_Prompts.English_英文) {
+
+                                    if (IsMe(accessory, 视角)) accessory.Method.TextInfo("Now provoke!",2500);
+
+                                }
 
                             }
 
-                            if(Language_Of_Prompts==Languages_Of_Prompts.English_英文) {
+                            if(Enable_Vanilla_TTS||Enable_Daily_Routines_TTS) {
 
-                                accessory.TTS("Now provoke!",Enable_Vanilla_TTS,Enable_Daily_Routines_TTS);
+                                if(Language_Of_Prompts==Languages_Of_Prompts.Simplified_Chinese_简体中文) {
+
+                                    if (IsMe(accessory, 视角)) accessory.TTS("立即挑衅！",Enable_Vanilla_TTS,Enable_Daily_Routines_TTS);
+
+                                }
+
+                                if(Language_Of_Prompts==Languages_Of_Prompts.English_英文) {
+
+                                    if (IsMe(accessory, 视角)) accessory.TTS("Now provoke!",Enable_Vanilla_TTS,Enable_Daily_Routines_TTS);
+
+                                }
+
+                            }
+
+                        }
+
+                    }
+
+                }
+
+                if(Phase5_Strat_Of_Wings_Dark_And_Light==Phase5_Strats_Of_Wings_Dark_And_Light.Reverse_Triangle_MT_Baits_In_Towers_倒三角法MT在塔中引导) {
+
+                    Vector3 positionOfTheLeftTower=RotatePoint(positionOfTheFirstTower,new Vector3(100,0,100),float.Pi/3*2);
+                    Vector3 positionOfTheRightTower=RotatePoint(positionOfTheFirstTower,new Vector3(100,0,100),-(float.Pi/3*2));
+                    Vector3 oppositeOfTheFirstTower=RotatePoint(positionOfTheFirstTower,new Vector3(100,0,100),float.Pi);
+
+                    Vector3 position1OfCurrentMt=(isLeftFirstAndFarFirst)?(positionOfTheRightTower):(positionOfTheLeftTower);
+                    // Always keep the first hit away from others.
+                    Vector3 position2OfCurrentMt=(isLeftFirstAndFarFirst)?
+                        new Vector3((oppositeOfTheFirstTower.X-100)/7+100,0,(oppositeOfTheFirstTower.Z-100)/7+100):
+                        new Vector3((position1OfCurrentMt.X-100)/7*18+100,0,(position1OfCurrentMt.Z-100)/7*18+100);
+
+                    Vector3 position2OfCurrentOt=(isLeftFirstAndFarFirst)?
+                        (RotatePoint(positionOfTheLeftTower,new Vector3(100,0,100),float.Pi)):
+                        (RotatePoint(positionOfTheRightTower,new Vector3(100,0,100),float.Pi));
+                    // OT would be opposite of the other tower.
+                    Vector3 position1OfCurrentOt=(isLeftFirstAndFarFirst)?
+                        new Vector3((position2OfCurrentOt.X-100)/7*18+100,0,(position2OfCurrentOt.Z-100)/7*18+100):
+                        new Vector3((positionOfTheFirstTower.X-100)/7+100,0,(positionOfTheFirstTower.Z-100)/7+100);
+
+                    if(isCurrentMt) {
+
+                        var currentProperty=accessory.Data.GetDefaultDrawProperties();
+
+                        currentProperty.Name=$"Phase5_Guidance_1_For_The_Current_MT_During_Towers_当前MT踩塔指路1-{视角}";
+                        currentProperty.Scale=new(2);
+                        currentProperty.Owner=GuidanceOwner(accessory, 视角);
+                        currentProperty.TargetPosition=position1OfCurrentMt;
+                        currentProperty.ScaleMode|=ScaleMode.YByDistance;
+                        currentProperty.Color=accessory.Data.DefaultSafeColor;
+                        currentProperty.DestoryAt=7150;
+
+                        accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Displacement,currentProperty);
+
+                        currentProperty=accessory.Data.GetDefaultDrawProperties();
+
+                        currentProperty.Name=$"Phase5_Guidance_2_Preview_For_The_Current_MT_During_Towers_当前MT踩塔指路2预览-{视角}";
+                        currentProperty.Scale=new(2);
+                        currentProperty.Position=position1OfCurrentMt;
+                        currentProperty.TargetPosition=position2OfCurrentMt;
+                        currentProperty.ScaleMode|=ScaleMode.YByDistance;
+                        currentProperty.Color=accessory.Data.DefaultSafeColor;
+                        currentProperty.DestoryAt=7150;
+
+                        accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Displacement,currentProperty);
+
+                        currentProperty=accessory.Data.GetDefaultDrawProperties();
+
+                        currentProperty.Name=$"Phase5_Guidance_2_For_The_Current_MT_During_Towers_当前MT踩塔指路2-{视角}";
+                        currentProperty.Scale=new(2);
+                        currentProperty.Owner=GuidanceOwner(accessory, 视角);
+                        currentProperty.TargetPosition=position2OfCurrentMt;
+                        currentProperty.ScaleMode|=ScaleMode.YByDistance;
+                        currentProperty.Color=accessory.Data.DefaultSafeColor;
+                        currentProperty.Delay=7150;
+                        currentProperty.DestoryAt=4250;
+
+                        accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Displacement,currentProperty);
+
+                        if(Phase5_Reminder_To_Provoke_During_Wings_Dark_And_Light) {
+
+                            System.Threading.Thread.Sleep(1500);
+
+                            if(Enable_Text_Prompts) {
+
+                                if(Language_Of_Prompts==Languages_Of_Prompts.Simplified_Chinese_简体中文) {
+
+                                    if (IsMe(accessory, 视角)) accessory.Method.TextInfo("等待挑衅后退避",2500);
+
+                                }
+
+                                if(Language_Of_Prompts==Languages_Of_Prompts.English_英文) {
+
+                                    if (IsMe(accessory, 视角)) accessory.Method.TextInfo("Wait for provocation then shirk",2500);
+
+                                }
+
+                            }
+
+                            if(Enable_Vanilla_TTS||Enable_Daily_Routines_TTS) {
+
+                                if(Language_Of_Prompts==Languages_Of_Prompts.Simplified_Chinese_简体中文) {
+
+                                    if (IsMe(accessory, 视角)) accessory.TTS("等待挑衅后退避",Enable_Vanilla_TTS,Enable_Daily_Routines_TTS);
+
+                                }
+
+                                if(Language_Of_Prompts==Languages_Of_Prompts.English_英文) {
+
+                                    if (IsMe(accessory, 视角)) accessory.TTS("Wait for provocation then shirk",Enable_Vanilla_TTS,Enable_Daily_Routines_TTS);
+
+                                }
+
+                            }
+
+                        }
+
+                    }
+
+                    else {
+
+                        var currentProperty=accessory.Data.GetDefaultDrawProperties();
+
+                        currentProperty.Name=$"Phase5_Guidance_1_For_The_Current_OT_During_Towers_当前ST踩塔指路1-{视角}";
+                        currentProperty.Scale=new(2);
+                        currentProperty.Owner=GuidanceOwner(accessory, 视角);
+                        currentProperty.TargetPosition=position1OfCurrentOt;
+                        currentProperty.ScaleMode|=ScaleMode.YByDistance;
+                        currentProperty.Color=accessory.Data.DefaultSafeColor;
+                        currentProperty.DestoryAt=7650;
+
+                        accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Displacement,currentProperty);
+
+                        currentProperty=accessory.Data.GetDefaultDrawProperties();
+
+                        currentProperty.Name=$"Phase5_Guidance_2_Preview_For_The_Current_OT_During_Towers_当前ST踩塔指路2预览-{视角}";
+                        currentProperty.Scale=new(2);
+                        currentProperty.Position=position1OfCurrentOt;
+                        currentProperty.TargetPosition=position2OfCurrentOt;
+                        currentProperty.ScaleMode|=ScaleMode.YByDistance;
+                        currentProperty.Color=accessory.Data.DefaultSafeColor;
+                        currentProperty.DestoryAt=7650;
+
+                        accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Displacement,currentProperty);
+
+                        currentProperty=accessory.Data.GetDefaultDrawProperties();
+
+                        currentProperty.Name=$"Phase5_Guidance_2_For_The_Current_OT_During_Towers_当前ST踩塔指路2-{视角}";
+                        currentProperty.Scale=new(2);
+                        currentProperty.Owner=GuidanceOwner(accessory, 视角);
+                        currentProperty.TargetPosition=position2OfCurrentOt;
+                        currentProperty.ScaleMode|=ScaleMode.YByDistance;
+                        currentProperty.Color=accessory.Data.DefaultSafeColor;
+                        currentProperty.Delay=7650;
+                        currentProperty.DestoryAt=3750;
+
+                        accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Displacement,currentProperty);
+
+                        if(Phase5_Reminder_To_Provoke_During_Wings_Dark_And_Light) {
+
+                            System.Threading.Thread.Sleep(1000);
+
+                            if(Enable_Text_Prompts) {
+
+                                if (Language_Of_Prompts==Languages_Of_Prompts.Simplified_Chinese_简体中文) {
+
+                                    if (IsMe(accessory, 视角)) accessory.Method.TextInfo("立即挑衅！",2500);
+
+                                }
+
+                                if(Language_Of_Prompts==Languages_Of_Prompts.English_英文) {
+
+                                    if (IsMe(accessory, 视角)) accessory.Method.TextInfo("Now provoke!",2500);
+
+                                }
+
+                            }
+
+                            if(Enable_Vanilla_TTS||Enable_Daily_Routines_TTS) {
+
+                                if(Language_Of_Prompts==Languages_Of_Prompts.Simplified_Chinese_简体中文) {
+
+                                    if (IsMe(accessory, 视角)) accessory.TTS("立即挑衅！",Enable_Vanilla_TTS,Enable_Daily_Routines_TTS);
+
+                                }
+
+                                if(Language_Of_Prompts==Languages_Of_Prompts.English_英文) {
+
+                                    if (IsMe(accessory, 视角)) accessory.TTS("Now provoke!",Enable_Vanilla_TTS,Enable_Daily_Routines_TTS);
+
+                                }
 
                             }
 
@@ -16564,187 +16981,6 @@ namespace CicerosKodakkuAssist.FuturesRewrittenUltimate.LPDU
                 }
 
             }
-            
-            if(Phase5_Strat_Of_Wings_Dark_And_Light==Phase5_Strats_Of_Wings_Dark_And_Light.Reverse_Triangle_MT_Baits_In_Towers_倒三角法MT在塔中引导) {
-                
-                Vector3 positionOfTheLeftTower=RotatePoint(positionOfTheFirstTower,new Vector3(100,0,100),float.Pi/3*2);
-                Vector3 positionOfTheRightTower=RotatePoint(positionOfTheFirstTower,new Vector3(100,0,100),-(float.Pi/3*2));
-                Vector3 oppositeOfTheFirstTower=RotatePoint(positionOfTheFirstTower,new Vector3(100,0,100),float.Pi);
-
-                Vector3 position1OfCurrentMt=(isLeftFirstAndFarFirst)?(positionOfTheRightTower):(positionOfTheLeftTower);
-                // Always keep the first hit away from others.
-                Vector3 position2OfCurrentMt=(isLeftFirstAndFarFirst)?
-                    new Vector3((oppositeOfTheFirstTower.X-100)/7+100,0,(oppositeOfTheFirstTower.Z-100)/7+100):
-                    new Vector3((position1OfCurrentMt.X-100)/7*18+100,0,(position1OfCurrentMt.Z-100)/7*18+100);
-
-                Vector3 position2OfCurrentOt=(isLeftFirstAndFarFirst)?
-                    (RotatePoint(positionOfTheLeftTower,new Vector3(100,0,100),float.Pi)):
-                    (RotatePoint(positionOfTheRightTower,new Vector3(100,0,100),float.Pi));
-                // OT would be opposite of the other tower.
-                Vector3 position1OfCurrentOt=(isLeftFirstAndFarFirst)?
-                    new Vector3((position2OfCurrentOt.X-100)/7*18+100,0,(position2OfCurrentOt.Z-100)/7*18+100):
-                    new Vector3((positionOfTheFirstTower.X-100)/7+100,0,(positionOfTheFirstTower.Z-100)/7+100);
-
-                if(isCurrentMt) {
-
-                    var currentProperty=accessory.Data.GetDefaultDrawProperties();
-                    
-                    currentProperty.Name="Phase5_Guidance_1_For_The_Current_MT_During_Towers_当前MT踩塔指路1";
-                    currentProperty.Scale=new(2);
-                    currentProperty.Owner=accessory.Data.Me;
-                    currentProperty.TargetPosition=position1OfCurrentMt;
-                    currentProperty.ScaleMode|=ScaleMode.YByDistance;
-                    currentProperty.Color=accessory.Data.DefaultSafeColor;
-                    currentProperty.DestoryAt=7150;
-                    
-                    accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Displacement,currentProperty);
-
-                    currentProperty=accessory.Data.GetDefaultDrawProperties();
-                    
-                    currentProperty.Name="Phase5_Guidance_2_Preview_For_The_Current_MT_During_Towers_当前MT踩塔指路2预览";
-                    currentProperty.Scale=new(2);
-                    currentProperty.Position=position1OfCurrentMt;
-                    currentProperty.TargetPosition=position2OfCurrentMt;
-                    currentProperty.ScaleMode|=ScaleMode.YByDistance;
-                    currentProperty.Color=accessory.Data.DefaultSafeColor;
-                    currentProperty.DestoryAt=7150;
-                    
-                    accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Displacement,currentProperty);
-
-                    currentProperty=accessory.Data.GetDefaultDrawProperties();
-                    
-                    currentProperty.Name="Phase5_Guidance_2_For_The_Current_MT_During_Towers_当前MT踩塔指路2";
-                    currentProperty.Scale=new(2);
-                    currentProperty.Owner=accessory.Data.Me;
-                    currentProperty.TargetPosition=position2OfCurrentMt;
-                    currentProperty.ScaleMode|=ScaleMode.YByDistance;
-                    currentProperty.Color=accessory.Data.DefaultSafeColor;
-                    currentProperty.Delay=7150;
-                    currentProperty.DestoryAt=4250;
-                    
-                    accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Displacement,currentProperty);
-
-                    if(Phase5_Reminder_To_Provoke_During_Wings_Dark_And_Light) {
-
-                        System.Threading.Thread.Sleep(1500);
-
-                        if(Enable_Text_Prompts) {
-
-                            if(Language_Of_Prompts==Languages_Of_Prompts.Simplified_Chinese_简体中文) {
-
-                                accessory.Method.TextInfo("等待挑衅后退避",2500);
-
-                            }
-
-                            if(Language_Of_Prompts==Languages_Of_Prompts.English_英文) {
-
-                                accessory.Method.TextInfo("Wait for provocation then shirk",2500);
-
-                            }
-
-                        }
-
-                        if(Enable_Vanilla_TTS||Enable_Daily_Routines_TTS) {
-
-                            if(Language_Of_Prompts==Languages_Of_Prompts.Simplified_Chinese_简体中文) {
-
-                                accessory.TTS("等待挑衅后退避",Enable_Vanilla_TTS,Enable_Daily_Routines_TTS);
-
-                            }
-
-                            if(Language_Of_Prompts==Languages_Of_Prompts.English_英文) {
-
-                                accessory.TTS("Wait for provocation then shirk",Enable_Vanilla_TTS,Enable_Daily_Routines_TTS);
-
-                            }
-
-                        }
-
-                    }
-
-                }
-
-                else {
-
-                    var currentProperty=accessory.Data.GetDefaultDrawProperties();
-                    
-                    currentProperty.Name="Phase5_Guidance_1_For_The_Current_OT_During_Towers_当前ST踩塔指路1";
-                    currentProperty.Scale=new(2);
-                    currentProperty.Owner=accessory.Data.Me;
-                    currentProperty.TargetPosition=position1OfCurrentOt;
-                    currentProperty.ScaleMode|=ScaleMode.YByDistance;
-                    currentProperty.Color=accessory.Data.DefaultSafeColor;
-                    currentProperty.DestoryAt=7650;
-                    
-                    accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Displacement,currentProperty);
-
-                    currentProperty=accessory.Data.GetDefaultDrawProperties();
-                    
-                    currentProperty.Name="Phase5_Guidance_2_Preview_For_The_Current_OT_During_Towers_当前ST踩塔指路2预览";
-                    currentProperty.Scale=new(2);
-                    currentProperty.Position=position1OfCurrentOt;
-                    currentProperty.TargetPosition=position2OfCurrentOt;
-                    currentProperty.ScaleMode|=ScaleMode.YByDistance;
-                    currentProperty.Color=accessory.Data.DefaultSafeColor;
-                    currentProperty.DestoryAt=7650;
-                    
-                    accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Displacement,currentProperty);
-
-                    currentProperty=accessory.Data.GetDefaultDrawProperties();
-                    
-                    currentProperty.Name="Phase5_Guidance_2_For_The_Current_OT_During_Towers_当前ST踩塔指路2";
-                    currentProperty.Scale=new(2);
-                    currentProperty.Owner=accessory.Data.Me;
-                    currentProperty.TargetPosition=position2OfCurrentOt;
-                    currentProperty.ScaleMode|=ScaleMode.YByDistance;
-                    currentProperty.Color=accessory.Data.DefaultSafeColor;
-                    currentProperty.Delay=7650;
-                    currentProperty.DestoryAt=3750;
-                    
-                    accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Displacement,currentProperty);
-
-                    if(Phase5_Reminder_To_Provoke_During_Wings_Dark_And_Light) {
-
-                        System.Threading.Thread.Sleep(1000);
-
-                        if(Enable_Text_Prompts) {
-
-                            if (Language_Of_Prompts==Languages_Of_Prompts.Simplified_Chinese_简体中文) {
-
-                                accessory.Method.TextInfo("立即挑衅！",2500);
-
-                            }
-
-                            if(Language_Of_Prompts==Languages_Of_Prompts.English_英文) {
-
-                                accessory.Method.TextInfo("Now provoke!",2500);
-
-                            }
-
-                        }
-
-                        if(Enable_Vanilla_TTS||Enable_Daily_Routines_TTS) {
-
-                            if(Language_Of_Prompts==Languages_Of_Prompts.Simplified_Chinese_简体中文) {
-
-                                accessory.TTS("立即挑衅！",Enable_Vanilla_TTS,Enable_Daily_Routines_TTS);
-
-                            }
-
-                            if(Language_Of_Prompts==Languages_Of_Prompts.English_英文) {
-
-                                accessory.TTS("Now provoke!",Enable_Vanilla_TTS,Enable_Daily_Routines_TTS);
-
-                            }
-
-                        }
-
-                    }
-
-                }
-
-            }
-
         }
 
         [ScriptMethod(name:"Phase5 Guidance For Others During Towers 人群踩塔指路",
@@ -16765,1924 +17001,1929 @@ namespace CicerosKodakkuAssist.FuturesRewrittenUltimate.LPDU
 
             }
 
-            if(accessory.Data.PartyList.IndexOf(accessory.Data.Me)==0
-               ||
-               accessory.Data.PartyList.IndexOf(accessory.Data.Me)==1) {
+            foreach (var 视角 in GuidanceIndices(accessory)) 指路(视角);
 
-                return;
-
-            }
-
-            bool isLeftFirstAndFarFirst=true;
-
-            if(@event["ActionId"].Equals("40313")) {
-
-                isLeftFirstAndFarFirst=true;
-
-            }
-
-            if(@event["ActionId"].Equals("40233")) {
-
-                isLeftFirstAndFarFirst=false;
-
-            }
-
-            /*
-            if (Phase5_Strat_Of_Wings_Dark_And_Light == Phase5_Strats_Of_Wings_Dark_And_Light.Grey9_Brain_Dead_MT_First_Tower_Opposite_灰九脑死法MT一塔对侧_莫灵喵与MMW)
+            void 指路(int 视角)
             {
-
-                if (Phase5_Branch_Of_The_Grey9_Brain_Dead_Strat == Phase5_Branches_Of_The_Grey9_Brain_Dead_Strat.Melees_First_Then_Healers_Left_Ranges_Right_近战先然后奶妈左远程右)
-                {
-                    // I'm just too lazy to adjust the indentation here. So I guiltily leave it as it is.
-                    // This branch was not necessary before, but the strat on CN does vary a little bit.
-
-                    var currentProperty = accessory.Data.GetDefaultDrawProperties();
-
-                    if (phase5_indexOfTheFirstTower.Equals("00000030"))
-                    {
-                        // The first tower is in the northwest.
-
-                        if (accessory.Data.PartyList.IndexOf(accessory.Data.Me) == 4
-                           ||
-                           accessory.Data.PartyList.IndexOf(accessory.Data.Me) == 5)
-                        {
-                            // The melee group, that is M1 & M2 or D1 & D2.
-
-                            currentProperty = accessory.Data.GetDefaultDrawProperties();
-
-                            currentProperty.Name = "Phase5_Guidance_1_For_Melees_During_Towers_近战踩塔指路1";
-                            currentProperty.Scale = new(2);
-                            currentProperty.Owner = accessory.Data.Me;
-                            currentProperty.TargetPosition = isLeftFirstAndFarFirst ? phase5_rightSideOfTheNorthwest_asAConstant : phase5_leftSideOfTheNorthwest_asAConstant;
-                            currentProperty.ScaleMode |= ScaleMode.YByDistance;
-                            currentProperty.Color = accessory.Data.DefaultSafeColor;
-                            currentProperty.DestoryAt = 7300;
-
-                            accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentProperty);
-
-                            currentProperty = accessory.Data.GetDefaultDrawProperties();
-
-                            currentProperty.Name = "Phase5_Guidance_2_Preview_For_Melees_During_Towers_近战踩塔指路2预览";
-                            currentProperty.Scale = new(2);
-                            currentProperty.Position = isLeftFirstAndFarFirst ? phase5_rightSideOfTheNorthwest_asAConstant : phase5_leftSideOfTheNorthwest_asAConstant;
-                            currentProperty.TargetPosition = phase5_standbyPointBetweenSouthAndNortheast_asAConstant;
-                            currentProperty.ScaleMode |= ScaleMode.YByDistance;
-                            currentProperty.Color = accessory.Data.DefaultSafeColor;
-                            currentProperty.DestoryAt = 7300;
-
-                            accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentProperty);
-
-                            currentProperty = accessory.Data.GetDefaultDrawProperties();
-
-                            currentProperty.Name = "Phase5_Guidance_2_For_Melees_During_Towers_近战踩塔指路2";
-                            currentProperty.Scale = new(2);
-                            currentProperty.Owner = accessory.Data.Me;
-                            currentProperty.TargetPosition = phase5_standbyPointBetweenSouthAndNortheast_asAConstant;
-                            currentProperty.ScaleMode |= ScaleMode.YByDistance;
-                            currentProperty.Color = accessory.Data.DefaultSafeColor;
-                            currentProperty.Delay = 7300;
-                            currentProperty.DestoryAt = 7100;
-
-                            accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentProperty);
-
-                        }
-
-                        if (accessory.Data.PartyList.IndexOf(accessory.Data.Me) == 6
-                           ||
-                           accessory.Data.PartyList.IndexOf(accessory.Data.Me) == 7)
-                        {
-                            // The range group, that is R1 & R2 or D3 & D4.
-
-                            currentProperty = accessory.Data.GetDefaultDrawProperties();
-
-                            currentProperty.Name = "Phase5_Guidance_1_For_Ranges_During_Towers_远程踩塔指路1";
-                            currentProperty.Scale = new(2);
-                            currentProperty.Owner = accessory.Data.Me;
-                            currentProperty.TargetPosition = isLeftFirstAndFarFirst ? phase5_standbyPointBetweenSouthAndNorthwest_asAConstant : phase5_standbyPointBetweenNortheastAndNorthwest_asAConstant;
-                            currentProperty.ScaleMode |= ScaleMode.YByDistance;
-                            currentProperty.Color = accessory.Data.DefaultSafeColor;
-                            currentProperty.DestoryAt = 6900;
-
-                            accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentProperty);
-
-                            currentProperty = accessory.Data.GetDefaultDrawProperties();
-
-                            currentProperty.Name = "Phase5_Guidance_2_Preview_For_Ranges_During_Towers_远程踩塔指路2预览";
-                            currentProperty.Scale = new(2);
-                            currentProperty.Position = isLeftFirstAndFarFirst ? phase5_standbyPointBetweenSouthAndNorthwest_asAConstant : phase5_standbyPointBetweenNortheastAndNorthwest_asAConstant;
-                            currentProperty.TargetPosition = phase5_rightSideOfTheSouth_asAConstant;
-                            currentProperty.ScaleMode |= ScaleMode.YByDistance;
-                            currentProperty.Color = accessory.Data.DefaultSafeColor;
-                            currentProperty.DestoryAt = 6900;
-
-                            accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentProperty);
-
-                            currentProperty = accessory.Data.GetDefaultDrawProperties();
-
-                            currentProperty.Name = "Phase5_Guidance_2_For_Ranges_During_Towers_远程踩塔指路2";
-                            currentProperty.Scale = new(2);
-                            currentProperty.Owner = accessory.Data.Me;
-                            currentProperty.TargetPosition = phase5_rightSideOfTheSouth_asAConstant;
-                            currentProperty.ScaleMode |= ScaleMode.YByDistance;
-                            currentProperty.Color = accessory.Data.DefaultSafeColor;
-                            currentProperty.Delay = 6900;
-                            currentProperty.DestoryAt = 7500;
-
-                            accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentProperty);
-
-                        }
-
-                        if (accessory.Data.PartyList.IndexOf(accessory.Data.Me) == 2
-                           ||
-                           accessory.Data.PartyList.IndexOf(accessory.Data.Me) == 3)
-                        {
-                            // The healer group, that is H1 & H2.
-
-                            currentProperty = accessory.Data.GetDefaultDrawProperties();
-
-                            currentProperty.Name = "Phase5_Guidance_1_For_Healers_During_Towers_奶妈踩塔指路1";
-                            currentProperty.Scale = new(2);
-                            currentProperty.Owner = accessory.Data.Me;
-                            currentProperty.TargetPosition = isLeftFirstAndFarFirst ? phase5_standbyPointBetweenSouthAndNorthwest_asAConstant : phase5_standbyPointBetweenNortheastAndNorthwest_asAConstant;
-                            currentProperty.ScaleMode |= ScaleMode.YByDistance;
-                            currentProperty.Color = accessory.Data.DefaultSafeColor;
-                            currentProperty.DestoryAt = 6900;
-
-                            accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentProperty);
-
-                            currentProperty = accessory.Data.GetDefaultDrawProperties();
-
-                            currentProperty.Name = "Phase5_Guidance_2_Preview_For_Healers_During_Towers_奶妈踩塔指路2预览";
-                            currentProperty.Scale = new(2);
-                            currentProperty.Position = isLeftFirstAndFarFirst ? phase5_standbyPointBetweenSouthAndNorthwest_asAConstant : phase5_standbyPointBetweenNortheastAndNorthwest_asAConstant;
-                            currentProperty.TargetPosition = phase5_leftSideOfTheNortheast_asAConstant;
-                            currentProperty.ScaleMode |= ScaleMode.YByDistance;
-                            currentProperty.Color = accessory.Data.DefaultSafeColor;
-                            currentProperty.DestoryAt = 6900;
-
-                            accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentProperty);
-
-                            currentProperty = accessory.Data.GetDefaultDrawProperties();
-
-                            currentProperty.Name = "Phase5_Guidance_2_For_Healers_During_Towers_奶妈踩塔指路2";
-                            currentProperty.Scale = new(2);
-                            currentProperty.Owner = accessory.Data.Me;
-                            currentProperty.TargetPosition = phase5_leftSideOfTheNortheast_asAConstant;
-                            currentProperty.ScaleMode |= ScaleMode.YByDistance;
-                            currentProperty.Color = accessory.Data.DefaultSafeColor;
-                            currentProperty.Delay = 6900;
-                            currentProperty.DestoryAt = 7500;
-
-                            accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentProperty);
-
-                        }
-
-                    }
-
-                    if (phase5_indexOfTheFirstTower.Equals("00000031"))
-                    {
-                        // The first tower is in the northeast.
-
-                        if (accessory.Data.PartyList.IndexOf(accessory.Data.Me) == 4
-                           ||
-                           accessory.Data.PartyList.IndexOf(accessory.Data.Me) == 5)
-                        {
-
-                            currentProperty = accessory.Data.GetDefaultDrawProperties();
-
-                            currentProperty.Name = "Phase5_Guidance_1_For_Melees_During_Towers_近战踩塔指路1";
-                            currentProperty.Scale = new(2);
-                            currentProperty.Owner = accessory.Data.Me;
-                            currentProperty.TargetPosition = isLeftFirstAndFarFirst ? phase5_rightSideOfTheNortheast_asAConstant : phase5_leftSideOfTheNortheast_asAConstant;
-                            currentProperty.ScaleMode |= ScaleMode.YByDistance;
-                            currentProperty.Color = accessory.Data.DefaultSafeColor;
-                            currentProperty.DestoryAt = 7300;
-
-                            accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentProperty);
-
-                            currentProperty = accessory.Data.GetDefaultDrawProperties();
-
-                            currentProperty.Name = "Phase5_Guidance_2_Preview_For_Melees_During_Towers_近战踩塔指路2预览";
-                            currentProperty.Scale = new(2);
-                            currentProperty.Position = isLeftFirstAndFarFirst ? phase5_rightSideOfTheNortheast_asAConstant : phase5_leftSideOfTheNortheast_asAConstant;
-                            currentProperty.TargetPosition = phase5_standbyPointBetweenSouthAndNorthwest_asAConstant;
-                            currentProperty.ScaleMode |= ScaleMode.YByDistance;
-                            currentProperty.Color = accessory.Data.DefaultSafeColor;
-                            currentProperty.DestoryAt = 7300;
-
-                            accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentProperty);
-
-                            currentProperty = accessory.Data.GetDefaultDrawProperties();
-
-                            currentProperty.Name = "Phase5_Guidance_2_For_Melees_During_Towers_近战踩塔指路2";
-                            currentProperty.Scale = new(2);
-                            currentProperty.Owner = accessory.Data.Me;
-                            currentProperty.TargetPosition = phase5_standbyPointBetweenSouthAndNorthwest_asAConstant;
-                            currentProperty.ScaleMode |= ScaleMode.YByDistance;
-                            currentProperty.Color = accessory.Data.DefaultSafeColor;
-                            currentProperty.Delay = 7300;
-                            currentProperty.DestoryAt = 7100;
-
-                            accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentProperty);
-
-                        }
-
-                        if (accessory.Data.PartyList.IndexOf(accessory.Data.Me) == 6
-                           ||
-                           accessory.Data.PartyList.IndexOf(accessory.Data.Me) == 7)
-                        {
-
-                            currentProperty = accessory.Data.GetDefaultDrawProperties();
-
-                            currentProperty.Name = "Phase5_Guidance_1_For_Ranges_During_Towers_远程踩塔指路1";
-                            currentProperty.Scale = new(2);
-                            currentProperty.Owner = accessory.Data.Me;
-                            currentProperty.TargetPosition = isLeftFirstAndFarFirst ? phase5_standbyPointBetweenNortheastAndNorthwest_asAConstant : phase5_standbyPointBetweenSouthAndNortheast_asAConstant;
-                            currentProperty.ScaleMode |= ScaleMode.YByDistance;
-                            currentProperty.Color = accessory.Data.DefaultSafeColor;
-                            currentProperty.DestoryAt = 6900;
-
-                            accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentProperty);
-
-                            currentProperty = accessory.Data.GetDefaultDrawProperties();
-
-                            currentProperty.Name = "Phase5_Guidance_2_Preview_For_Ranges_During_Towers_远程踩塔指路2预览";
-                            currentProperty.Scale = new(2);
-                            currentProperty.Position = isLeftFirstAndFarFirst ? phase5_standbyPointBetweenNortheastAndNorthwest_asAConstant : phase5_standbyPointBetweenSouthAndNortheast_asAConstant;
-                            currentProperty.TargetPosition = phase5_rightSideOfTheNorthwest_asAConstant;
-                            currentProperty.ScaleMode |= ScaleMode.YByDistance;
-                            currentProperty.Color = accessory.Data.DefaultSafeColor;
-                            currentProperty.DestoryAt = 6900;
-
-                            accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentProperty);
-
-                            currentProperty = accessory.Data.GetDefaultDrawProperties();
-
-                            currentProperty.Name = "Phase5_Guidance_2_For_Ranges_During_Towers_远程踩塔指路2";
-                            currentProperty.Scale = new(2);
-                            currentProperty.Owner = accessory.Data.Me;
-                            currentProperty.TargetPosition = phase5_rightSideOfTheNorthwest_asAConstant;
-                            currentProperty.ScaleMode |= ScaleMode.YByDistance;
-                            currentProperty.Color = accessory.Data.DefaultSafeColor;
-                            currentProperty.Delay = 6900;
-                            currentProperty.DestoryAt = 7500;
-
-                            accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentProperty);
-
-                        }
-
-                        if (accessory.Data.PartyList.IndexOf(accessory.Data.Me) == 2
-                           ||
-                           accessory.Data.PartyList.IndexOf(accessory.Data.Me) == 3)
-                        {
-
-                            currentProperty = accessory.Data.GetDefaultDrawProperties();
-
-                            currentProperty.Name = "Phase5_Guidance_1_For_Healers_During_Towers_奶妈踩塔指路1";
-                            currentProperty.Scale = new(2);
-                            currentProperty.Owner = accessory.Data.Me;
-                            currentProperty.TargetPosition = isLeftFirstAndFarFirst ? phase5_standbyPointBetweenNortheastAndNorthwest_asAConstant : phase5_standbyPointBetweenSouthAndNortheast_asAConstant;
-                            currentProperty.ScaleMode |= ScaleMode.YByDistance;
-                            currentProperty.Color = accessory.Data.DefaultSafeColor;
-                            currentProperty.DestoryAt = 6900;
-
-                            accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentProperty);
-
-                            currentProperty = accessory.Data.GetDefaultDrawProperties();
-
-                            currentProperty.Name = "Phase5_Guidance_2_Preview_For_Healers_During_Towers_奶妈踩塔指路2预览";
-                            currentProperty.Scale = new(2);
-                            currentProperty.Position = isLeftFirstAndFarFirst ? phase5_standbyPointBetweenNortheastAndNorthwest_asAConstant : phase5_standbyPointBetweenSouthAndNortheast_asAConstant;
-                            currentProperty.TargetPosition = phase5_leftSideOfTheSouth_asAConstant;
-                            currentProperty.ScaleMode |= ScaleMode.YByDistance;
-                            currentProperty.Color = accessory.Data.DefaultSafeColor;
-                            currentProperty.DestoryAt = 6900;
-
-                            accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentProperty);
-
-                            currentProperty = accessory.Data.GetDefaultDrawProperties();
-
-                            currentProperty.Name = "Phase5_Guidance_2_For_Healers_During_Towers_奶妈踩塔指路2";
-                            currentProperty.Scale = new(2);
-                            currentProperty.Owner = accessory.Data.Me;
-                            currentProperty.TargetPosition = phase5_leftSideOfTheSouth_asAConstant;
-                            currentProperty.ScaleMode |= ScaleMode.YByDistance;
-                            currentProperty.Color = accessory.Data.DefaultSafeColor;
-                            currentProperty.Delay = 6900;
-                            currentProperty.DestoryAt = 7500;
-
-                            accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentProperty);
-
-                        }
-
-                    }
-
-                    if (phase5_indexOfTheFirstTower.Equals("00000032"))
-                    {
-                        // The first tower is in the south.
-
-                        if (accessory.Data.PartyList.IndexOf(accessory.Data.Me) == 4
-                           ||
-                           accessory.Data.PartyList.IndexOf(accessory.Data.Me) == 5)
-                        {
-
-                            currentProperty = accessory.Data.GetDefaultDrawProperties();
-
-                            currentProperty.Name = "Phase5_Guidance_1_For_Melees_During_Towers_近战踩塔指路1";
-                            currentProperty.Scale = new(2);
-                            currentProperty.Owner = accessory.Data.Me;
-                            currentProperty.TargetPosition = isLeftFirstAndFarFirst ? phase5_rightSideOfTheSouth_asAConstant : phase5_leftSideOfTheSouth_asAConstant;
-                            currentProperty.ScaleMode |= ScaleMode.YByDistance;
-                            currentProperty.Color = accessory.Data.DefaultSafeColor;
-                            currentProperty.DestoryAt = 7300;
-
-                            accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentProperty);
-
-                            currentProperty = accessory.Data.GetDefaultDrawProperties();
-
-                            currentProperty.Name = "Phase5_Guidance_2_Preview_For_Melees_During_Towers_近战踩塔指路2预览";
-                            currentProperty.Scale = new(2);
-                            currentProperty.Position = isLeftFirstAndFarFirst ? phase5_rightSideOfTheSouth_asAConstant : phase5_leftSideOfTheSouth_asAConstant;
-                            currentProperty.TargetPosition = phase5_standbyPointBetweenNortheastAndNorthwest_asAConstant;
-                            currentProperty.ScaleMode |= ScaleMode.YByDistance;
-                            currentProperty.Color = accessory.Data.DefaultSafeColor;
-                            currentProperty.DestoryAt = 7300;
-
-                            accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentProperty);
-
-                            currentProperty = accessory.Data.GetDefaultDrawProperties();
-
-                            currentProperty.Name = "Phase5_Guidance_2_For_Melees_During_Towers_近战踩塔指路2";
-                            currentProperty.Scale = new(2);
-                            currentProperty.Owner = accessory.Data.Me;
-                            currentProperty.TargetPosition = phase5_standbyPointBetweenNortheastAndNorthwest_asAConstant;
-                            currentProperty.ScaleMode |= ScaleMode.YByDistance;
-                            currentProperty.Color = accessory.Data.DefaultSafeColor;
-                            currentProperty.Delay = 7300;
-                            currentProperty.DestoryAt = 7100;
-
-                            accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentProperty);
-
-                        }
-
-                        if (accessory.Data.PartyList.IndexOf(accessory.Data.Me) == 6
-                           ||
-                           accessory.Data.PartyList.IndexOf(accessory.Data.Me) == 7)
-                        {
-
-                            currentProperty = accessory.Data.GetDefaultDrawProperties();
-
-                            currentProperty.Name = "Phase5_Guidance_1_For_Ranges_During_Towers_远程踩塔指路1";
-                            currentProperty.Scale = new(2);
-                            currentProperty.Owner = accessory.Data.Me;
-                            currentProperty.TargetPosition = isLeftFirstAndFarFirst ? phase5_standbyPointBetweenSouthAndNortheast_asAConstant : phase5_standbyPointBetweenSouthAndNorthwest_asAConstant;
-                            currentProperty.ScaleMode |= ScaleMode.YByDistance;
-                            currentProperty.Color = accessory.Data.DefaultSafeColor;
-                            currentProperty.DestoryAt = 6900;
-
-                            accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentProperty);
-
-                            currentProperty = accessory.Data.GetDefaultDrawProperties();
-
-                            currentProperty.Name = "Phase5_Guidance_2_Preview_For_Ranges_During_Towers_远程踩塔指路2预览";
-                            currentProperty.Scale = new(2);
-                            currentProperty.Position = isLeftFirstAndFarFirst ? phase5_standbyPointBetweenSouthAndNortheast_asAConstant : phase5_standbyPointBetweenSouthAndNorthwest_asAConstant;
-                            currentProperty.TargetPosition = phase5_rightSideOfTheNortheast_asAConstant;
-                            currentProperty.ScaleMode |= ScaleMode.YByDistance;
-                            currentProperty.Color = accessory.Data.DefaultSafeColor;
-                            currentProperty.DestoryAt = 6900;
-
-                            accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentProperty);
-
-                            currentProperty = accessory.Data.GetDefaultDrawProperties();
-
-                            currentProperty.Name = "Phase5_Guidance_2_For_Ranges_During_Towers_远程踩塔指路2";
-                            currentProperty.Scale = new(2);
-                            currentProperty.Owner = accessory.Data.Me;
-                            currentProperty.TargetPosition = phase5_rightSideOfTheNortheast_asAConstant;
-                            currentProperty.ScaleMode |= ScaleMode.YByDistance;
-                            currentProperty.Color = accessory.Data.DefaultSafeColor;
-                            currentProperty.Delay = 6900;
-                            currentProperty.DestoryAt = 7500;
-
-                            accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentProperty);
-
-                        }
-
-                        if (accessory.Data.PartyList.IndexOf(accessory.Data.Me) == 2
-                           ||
-                           accessory.Data.PartyList.IndexOf(accessory.Data.Me) == 3)
-                        {
-
-                            currentProperty = accessory.Data.GetDefaultDrawProperties();
-
-                            currentProperty.Name = "Phase5_Guidance_1_For_Healers_During_Towers_奶妈踩塔指路1";
-                            currentProperty.Scale = new(2);
-                            currentProperty.Owner = accessory.Data.Me;
-                            currentProperty.TargetPosition = isLeftFirstAndFarFirst ? phase5_standbyPointBetweenSouthAndNortheast_asAConstant : phase5_standbyPointBetweenSouthAndNorthwest_asAConstant;
-                            currentProperty.ScaleMode |= ScaleMode.YByDistance;
-                            currentProperty.Color = accessory.Data.DefaultSafeColor;
-                            currentProperty.DestoryAt = 6900;
-
-                            accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentProperty);
-
-                            currentProperty = accessory.Data.GetDefaultDrawProperties();
-
-                            currentProperty.Name = "Phase5_Guidance_2_Preview_For_Healers_During_Towers_奶妈踩塔指路2预览";
-                            currentProperty.Scale = new(2);
-                            currentProperty.Position = isLeftFirstAndFarFirst ? phase5_standbyPointBetweenSouthAndNortheast_asAConstant : phase5_standbyPointBetweenSouthAndNorthwest_asAConstant;
-                            currentProperty.TargetPosition = phase5_leftSideOfTheNorthwest_asAConstant;
-                            currentProperty.ScaleMode |= ScaleMode.YByDistance;
-                            currentProperty.Color = accessory.Data.DefaultSafeColor;
-                            currentProperty.DestoryAt = 6900;
-
-                            accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentProperty);
-
-                            currentProperty = accessory.Data.GetDefaultDrawProperties();
-
-                            currentProperty.Name = "Phase5_Guidance_2_For_Healers_During_Towers_奶妈踩塔指路2";
-                            currentProperty.Scale = new(2);
-                            currentProperty.Owner = accessory.Data.Me;
-                            currentProperty.TargetPosition = phase5_leftSideOfTheNorthwest_asAConstant;
-                            currentProperty.ScaleMode |= ScaleMode.YByDistance;
-                            currentProperty.Color = accessory.Data.DefaultSafeColor;
-                            currentProperty.Delay = 6900;
-                            currentProperty.DestoryAt = 7500;
-
-                            accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentProperty);
-
-                        }
-
-                    }
-                    
-                    Vector3 positionOfTheFirstTower=new Vector3(100,0,100);
-                    Vector3 positionOfTheLeftTower=new Vector3(100,0,100);
-                    Vector3 positionOfTheRightTower=new Vector3(100,0,100);
-                    
-                    if(phase5_indexOfTheFirstTower.Equals("00000030"))positionOfTheFirstTower=new Vector3(93.94f,0,96.50f);
-                    if(phase5_indexOfTheFirstTower.Equals("00000031"))positionOfTheFirstTower=new Vector3(106.06f,0,96.50f);
-                    if(phase5_indexOfTheFirstTower.Equals("00000032"))positionOfTheFirstTower=new Vector3(100,0,107);
-                    if(positionOfTheFirstTower.Equals(new Vector3(100,0,100)))return;
-                    positionOfTheLeftTower=RotatePoint(positionOfTheFirstTower,new Vector3(100,0,100),float.Pi/3*2);
-                    positionOfTheRightTower=RotatePoint(positionOfTheFirstTower,new Vector3(100,0,100),-(float.Pi/3*2));
-
-                    bool isMelee=false,isRange=false,isHealer=false;
-                    
-                    if(accessory.Data.PartyList.IndexOf(accessory.Data.Me)==2||accessory.Data.PartyList.IndexOf(accessory.Data.Me)==3)isHealer=true;
-                    if(accessory.Data.PartyList.IndexOf(accessory.Data.Me)==4||accessory.Data.PartyList.IndexOf(accessory.Data.Me)==5)isMelee=true;
-                    if(accessory.Data.PartyList.IndexOf(accessory.Data.Me)==6||accessory.Data.PartyList.IndexOf(accessory.Data.Me)==7)isRange=true;
-                    
-                    currentProperty=accessory.Data.GetDefaultDrawProperties();
-                    
-                    currentProperty.Name="Phase5_Range_Of_Towers_塔的范围";
-                    currentProperty.Scale=new(3);
-                    currentProperty.Position=positionOfTheFirstTower;
-                    currentProperty.Color=(isMelee)?(accessory.Data.DefaultSafeColor):(accessory.Data.DefaultDangerColor);
-                    currentProperty.DestoryAt=7300;
-                    
-                    accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Circle,currentProperty);
-                    
-                    currentProperty=accessory.Data.GetDefaultDrawProperties();
-                    
-                    currentProperty.Name="Phase5_Range_Of_Towers_塔的范围";
-                    currentProperty.Scale=new(3);
-                    currentProperty.Position=positionOfTheLeftTower;
-                    currentProperty.Color=(isHealer)?(accessory.Data.DefaultSafeColor):(accessory.Data.DefaultDangerColor);
-                    currentProperty.DestoryAt=14400;
-                    
-                    accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Circle,currentProperty);
-                    
-                    currentProperty=accessory.Data.GetDefaultDrawProperties();
-                    
-                    currentProperty.Name="Phase5_Range_Of_Towers_塔的范围";
-                    currentProperty.Scale=new(3);
-                    currentProperty.Position=positionOfTheRightTower;
-                    currentProperty.Color=(isRange)?(accessory.Data.DefaultSafeColor):(accessory.Data.DefaultDangerColor);
-                    currentProperty.DestoryAt=14400;
-                    
-                    accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Circle,currentProperty);
+                if(视角==0
+                   ||
+                   视角==1) {
+
+                    return;
 
                 }
 
-                if (Phase5_Branch_Of_The_Grey9_Brain_Dead_Strat == Phase5_Branches_Of_The_Grey9_Brain_Dead_Strat.Healers_First_Then_Melees_Left_Ranges_Right_奶妈先然后近战左远程右_莫灵喵)
+                bool isLeftFirstAndFarFirst=true;
+
+                if(@event["ActionId"].Equals("40313")) {
+
+                    isLeftFirstAndFarFirst=true;
+
+                }
+
+                if(@event["ActionId"].Equals("40233")) {
+
+                    isLeftFirstAndFarFirst=false;
+
+                }
+
+                /*
+                if (Phase5_Strat_Of_Wings_Dark_And_Light == Phase5_Strats_Of_Wings_Dark_And_Light.Grey9_Brain_Dead_MT_First_Tower_Opposite_灰九脑死法MT一塔对侧_莫灵喵与MMW)
                 {
 
-                    var currentProperty = accessory.Data.GetDefaultDrawProperties();
-
-                    if (phase5_indexOfTheFirstTower.Equals("00000030"))
+                    if (Phase5_Branch_Of_The_Grey9_Brain_Dead_Strat == Phase5_Branches_Of_The_Grey9_Brain_Dead_Strat.Melees_First_Then_Healers_Left_Ranges_Right_近战先然后奶妈左远程右)
                     {
-                        // The first tower is in the northwest.
+                        // I'm just too lazy to adjust the indentation here. So I guiltily leave it as it is.
+                        // This branch was not necessary before, but the strat on CN does vary a little bit.
 
-                        if (accessory.Data.PartyList.IndexOf(accessory.Data.Me) == 2
-                           ||
-                           accessory.Data.PartyList.IndexOf(accessory.Data.Me) == 3)
+                        var currentProperty = accessory.Data.GetDefaultDrawProperties();
+
+                        if (phase5_indexOfTheFirstTower.Equals("00000030"))
                         {
-                            // The healer group, that is H1 & H2.
+                            // The first tower is in the northwest.
 
-                            currentProperty = accessory.Data.GetDefaultDrawProperties();
+                            if (视角 == 4
+                               ||
+                               视角 == 5)
+                            {
+                                // The melee group, that is M1 & M2 or D1 & D2.
 
-                            currentProperty.Name = "Phase5_Guidance_1_For_Melees_During_Towers_近战踩塔指路1";
-                            // I'm also too lazy to change the name of currentProperty. The same below.
-                            // Please always refer to the if statements only.
-                            currentProperty.Scale = new(2);
-                            currentProperty.Owner = accessory.Data.Me;
-                            currentProperty.TargetPosition = isLeftFirstAndFarFirst ? phase5_rightSideOfTheNorthwest_asAConstant : phase5_leftSideOfTheNorthwest_asAConstant;
-                            currentProperty.ScaleMode |= ScaleMode.YByDistance;
-                            currentProperty.Color = accessory.Data.DefaultSafeColor;
-                            currentProperty.DestoryAt = 7300;
+                                currentProperty = accessory.Data.GetDefaultDrawProperties();
 
-                            accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentProperty);
+                                currentProperty.Name = $"Phase5_Guidance_1_For_Melees_During_Towers_近战踩塔指路1-{视角}";
+                                currentProperty.Scale = new(2);
+                                currentProperty.Owner = GuidanceOwner(accessory, 视角);
+                                currentProperty.TargetPosition = isLeftFirstAndFarFirst ? phase5_rightSideOfTheNorthwest_asAConstant : phase5_leftSideOfTheNorthwest_asAConstant;
+                                currentProperty.ScaleMode |= ScaleMode.YByDistance;
+                                currentProperty.Color = accessory.Data.DefaultSafeColor;
+                                currentProperty.DestoryAt = 7300;
 
-                            currentProperty = accessory.Data.GetDefaultDrawProperties();
+                                accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentProperty);
 
-                            currentProperty.Name = "Phase5_Guidance_2_Preview_For_Melees_During_Towers_近战踩塔指路2预览";
-                            currentProperty.Scale = new(2);
-                            currentProperty.Position = isLeftFirstAndFarFirst ? phase5_rightSideOfTheNorthwest_asAConstant : phase5_leftSideOfTheNorthwest_asAConstant;
-                            currentProperty.TargetPosition = phase5_standbyPointBetweenSouthAndNortheast_asAConstant;
-                            currentProperty.ScaleMode |= ScaleMode.YByDistance;
-                            currentProperty.Color = accessory.Data.DefaultSafeColor;
-                            currentProperty.DestoryAt = 7300;
+                                currentProperty = accessory.Data.GetDefaultDrawProperties();
 
-                            accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentProperty);
+                                currentProperty.Name = $"Phase5_Guidance_2_Preview_For_Melees_During_Towers_近战踩塔指路2预览-{视角}";
+                                currentProperty.Scale = new(2);
+                                currentProperty.Position = isLeftFirstAndFarFirst ? phase5_rightSideOfTheNorthwest_asAConstant : phase5_leftSideOfTheNorthwest_asAConstant;
+                                currentProperty.TargetPosition = phase5_standbyPointBetweenSouthAndNortheast_asAConstant;
+                                currentProperty.ScaleMode |= ScaleMode.YByDistance;
+                                currentProperty.Color = accessory.Data.DefaultSafeColor;
+                                currentProperty.DestoryAt = 7300;
 
-                            currentProperty = accessory.Data.GetDefaultDrawProperties();
+                                accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentProperty);
 
-                            currentProperty.Name = "Phase5_Guidance_2_For_Melees_During_Towers_近战踩塔指路2";
-                            currentProperty.Scale = new(2);
-                            currentProperty.Owner = accessory.Data.Me;
-                            currentProperty.TargetPosition = phase5_standbyPointBetweenSouthAndNortheast_asAConstant;
-                            currentProperty.ScaleMode |= ScaleMode.YByDistance;
-                            currentProperty.Color = accessory.Data.DefaultSafeColor;
-                            currentProperty.Delay = 7300;
-                            currentProperty.DestoryAt = 7100;
+                                currentProperty = accessory.Data.GetDefaultDrawProperties();
 
-                            accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentProperty);
+                                currentProperty.Name = $"Phase5_Guidance_2_For_Melees_During_Towers_近战踩塔指路2-{视角}";
+                                currentProperty.Scale = new(2);
+                                currentProperty.Owner = GuidanceOwner(accessory, 视角);
+                                currentProperty.TargetPosition = phase5_standbyPointBetweenSouthAndNortheast_asAConstant;
+                                currentProperty.ScaleMode |= ScaleMode.YByDistance;
+                                currentProperty.Color = accessory.Data.DefaultSafeColor;
+                                currentProperty.Delay = 7300;
+                                currentProperty.DestoryAt = 7100;
+
+                                accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentProperty);
+
+                            }
+
+                            if (视角 == 6
+                               ||
+                               视角 == 7)
+                            {
+                                // The range group, that is R1 & R2 or D3 & D4.
+
+                                currentProperty = accessory.Data.GetDefaultDrawProperties();
+
+                                currentProperty.Name = $"Phase5_Guidance_1_For_Ranges_During_Towers_远程踩塔指路1-{视角}";
+                                currentProperty.Scale = new(2);
+                                currentProperty.Owner = GuidanceOwner(accessory, 视角);
+                                currentProperty.TargetPosition = isLeftFirstAndFarFirst ? phase5_standbyPointBetweenSouthAndNorthwest_asAConstant : phase5_standbyPointBetweenNortheastAndNorthwest_asAConstant;
+                                currentProperty.ScaleMode |= ScaleMode.YByDistance;
+                                currentProperty.Color = accessory.Data.DefaultSafeColor;
+                                currentProperty.DestoryAt = 6900;
+
+                                accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentProperty);
+
+                                currentProperty = accessory.Data.GetDefaultDrawProperties();
+
+                                currentProperty.Name = $"Phase5_Guidance_2_Preview_For_Ranges_During_Towers_远程踩塔指路2预览-{视角}";
+                                currentProperty.Scale = new(2);
+                                currentProperty.Position = isLeftFirstAndFarFirst ? phase5_standbyPointBetweenSouthAndNorthwest_asAConstant : phase5_standbyPointBetweenNortheastAndNorthwest_asAConstant;
+                                currentProperty.TargetPosition = phase5_rightSideOfTheSouth_asAConstant;
+                                currentProperty.ScaleMode |= ScaleMode.YByDistance;
+                                currentProperty.Color = accessory.Data.DefaultSafeColor;
+                                currentProperty.DestoryAt = 6900;
+
+                                accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentProperty);
+
+                                currentProperty = accessory.Data.GetDefaultDrawProperties();
+
+                                currentProperty.Name = $"Phase5_Guidance_2_For_Ranges_During_Towers_远程踩塔指路2-{视角}";
+                                currentProperty.Scale = new(2);
+                                currentProperty.Owner = GuidanceOwner(accessory, 视角);
+                                currentProperty.TargetPosition = phase5_rightSideOfTheSouth_asAConstant;
+                                currentProperty.ScaleMode |= ScaleMode.YByDistance;
+                                currentProperty.Color = accessory.Data.DefaultSafeColor;
+                                currentProperty.Delay = 6900;
+                                currentProperty.DestoryAt = 7500;
+
+                                accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentProperty);
+
+                            }
+
+                            if (视角 == 2
+                               ||
+                               视角 == 3)
+                            {
+                                // The healer group, that is H1 & H2.
+
+                                currentProperty = accessory.Data.GetDefaultDrawProperties();
+
+                                currentProperty.Name = $"Phase5_Guidance_1_For_Healers_During_Towers_奶妈踩塔指路1-{视角}";
+                                currentProperty.Scale = new(2);
+                                currentProperty.Owner = GuidanceOwner(accessory, 视角);
+                                currentProperty.TargetPosition = isLeftFirstAndFarFirst ? phase5_standbyPointBetweenSouthAndNorthwest_asAConstant : phase5_standbyPointBetweenNortheastAndNorthwest_asAConstant;
+                                currentProperty.ScaleMode |= ScaleMode.YByDistance;
+                                currentProperty.Color = accessory.Data.DefaultSafeColor;
+                                currentProperty.DestoryAt = 6900;
+
+                                accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentProperty);
+
+                                currentProperty = accessory.Data.GetDefaultDrawProperties();
+
+                                currentProperty.Name = $"Phase5_Guidance_2_Preview_For_Healers_During_Towers_奶妈踩塔指路2预览-{视角}";
+                                currentProperty.Scale = new(2);
+                                currentProperty.Position = isLeftFirstAndFarFirst ? phase5_standbyPointBetweenSouthAndNorthwest_asAConstant : phase5_standbyPointBetweenNortheastAndNorthwest_asAConstant;
+                                currentProperty.TargetPosition = phase5_leftSideOfTheNortheast_asAConstant;
+                                currentProperty.ScaleMode |= ScaleMode.YByDistance;
+                                currentProperty.Color = accessory.Data.DefaultSafeColor;
+                                currentProperty.DestoryAt = 6900;
+
+                                accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentProperty);
+
+                                currentProperty = accessory.Data.GetDefaultDrawProperties();
+
+                                currentProperty.Name = $"Phase5_Guidance_2_For_Healers_During_Towers_奶妈踩塔指路2-{视角}";
+                                currentProperty.Scale = new(2);
+                                currentProperty.Owner = GuidanceOwner(accessory, 视角);
+                                currentProperty.TargetPosition = phase5_leftSideOfTheNortheast_asAConstant;
+                                currentProperty.ScaleMode |= ScaleMode.YByDistance;
+                                currentProperty.Color = accessory.Data.DefaultSafeColor;
+                                currentProperty.Delay = 6900;
+                                currentProperty.DestoryAt = 7500;
+
+                                accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentProperty);
+
+                            }
 
                         }
 
-                        if (accessory.Data.PartyList.IndexOf(accessory.Data.Me) == 6
-                           ||
-                           accessory.Data.PartyList.IndexOf(accessory.Data.Me) == 7)
+                        if (phase5_indexOfTheFirstTower.Equals("00000031"))
                         {
-                            // The range group, that is R1 & R2 or D3 & D4.
+                            // The first tower is in the northeast.
 
-                            currentProperty = accessory.Data.GetDefaultDrawProperties();
+                            if (视角 == 4
+                               ||
+                               视角 == 5)
+                            {
 
-                            currentProperty.Name = "Phase5_Guidance_1_For_Ranges_During_Towers_远程踩塔指路1";
-                            currentProperty.Scale = new(2);
-                            currentProperty.Owner = accessory.Data.Me;
-                            currentProperty.TargetPosition = isLeftFirstAndFarFirst ? phase5_standbyPointBetweenSouthAndNorthwest_asAConstant : phase5_standbyPointBetweenNortheastAndNorthwest_asAConstant;
-                            currentProperty.ScaleMode |= ScaleMode.YByDistance;
-                            currentProperty.Color = accessory.Data.DefaultSafeColor;
-                            currentProperty.DestoryAt = 6900;
+                                currentProperty = accessory.Data.GetDefaultDrawProperties();
 
-                            accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentProperty);
+                                currentProperty.Name = $"Phase5_Guidance_1_For_Melees_During_Towers_近战踩塔指路1-{视角}";
+                                currentProperty.Scale = new(2);
+                                currentProperty.Owner = GuidanceOwner(accessory, 视角);
+                                currentProperty.TargetPosition = isLeftFirstAndFarFirst ? phase5_rightSideOfTheNortheast_asAConstant : phase5_leftSideOfTheNortheast_asAConstant;
+                                currentProperty.ScaleMode |= ScaleMode.YByDistance;
+                                currentProperty.Color = accessory.Data.DefaultSafeColor;
+                                currentProperty.DestoryAt = 7300;
 
-                            currentProperty = accessory.Data.GetDefaultDrawProperties();
+                                accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentProperty);
 
-                            currentProperty.Name = "Phase5_Guidance_2_Preview_For_Ranges_During_Towers_远程踩塔指路2预览";
-                            currentProperty.Scale = new(2);
-                            currentProperty.Position = isLeftFirstAndFarFirst ? phase5_standbyPointBetweenSouthAndNorthwest_asAConstant : phase5_standbyPointBetweenNortheastAndNorthwest_asAConstant;
-                            currentProperty.TargetPosition = phase5_rightSideOfTheSouth_asAConstant;
-                            currentProperty.ScaleMode |= ScaleMode.YByDistance;
-                            currentProperty.Color = accessory.Data.DefaultSafeColor;
-                            currentProperty.DestoryAt = 6900;
+                                currentProperty = accessory.Data.GetDefaultDrawProperties();
 
-                            accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentProperty);
+                                currentProperty.Name = $"Phase5_Guidance_2_Preview_For_Melees_During_Towers_近战踩塔指路2预览-{视角}";
+                                currentProperty.Scale = new(2);
+                                currentProperty.Position = isLeftFirstAndFarFirst ? phase5_rightSideOfTheNortheast_asAConstant : phase5_leftSideOfTheNortheast_asAConstant;
+                                currentProperty.TargetPosition = phase5_standbyPointBetweenSouthAndNorthwest_asAConstant;
+                                currentProperty.ScaleMode |= ScaleMode.YByDistance;
+                                currentProperty.Color = accessory.Data.DefaultSafeColor;
+                                currentProperty.DestoryAt = 7300;
 
-                            currentProperty = accessory.Data.GetDefaultDrawProperties();
+                                accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentProperty);
 
-                            currentProperty.Name = "Phase5_Guidance_2_For_Ranges_During_Towers_远程踩塔指路2";
-                            currentProperty.Scale = new(2);
-                            currentProperty.Owner = accessory.Data.Me;
-                            currentProperty.TargetPosition = phase5_rightSideOfTheSouth_asAConstant;
-                            currentProperty.ScaleMode |= ScaleMode.YByDistance;
-                            currentProperty.Color = accessory.Data.DefaultSafeColor;
-                            currentProperty.Delay = 6900;
-                            currentProperty.DestoryAt = 7500;
+                                currentProperty = accessory.Data.GetDefaultDrawProperties();
 
-                            accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentProperty);
+                                currentProperty.Name = $"Phase5_Guidance_2_For_Melees_During_Towers_近战踩塔指路2-{视角}";
+                                currentProperty.Scale = new(2);
+                                currentProperty.Owner = GuidanceOwner(accessory, 视角);
+                                currentProperty.TargetPosition = phase5_standbyPointBetweenSouthAndNorthwest_asAConstant;
+                                currentProperty.ScaleMode |= ScaleMode.YByDistance;
+                                currentProperty.Color = accessory.Data.DefaultSafeColor;
+                                currentProperty.Delay = 7300;
+                                currentProperty.DestoryAt = 7100;
+
+                                accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentProperty);
+
+                            }
+
+                            if (视角 == 6
+                               ||
+                               视角 == 7)
+                            {
+
+                                currentProperty = accessory.Data.GetDefaultDrawProperties();
+
+                                currentProperty.Name = $"Phase5_Guidance_1_For_Ranges_During_Towers_远程踩塔指路1-{视角}";
+                                currentProperty.Scale = new(2);
+                                currentProperty.Owner = GuidanceOwner(accessory, 视角);
+                                currentProperty.TargetPosition = isLeftFirstAndFarFirst ? phase5_standbyPointBetweenNortheastAndNorthwest_asAConstant : phase5_standbyPointBetweenSouthAndNortheast_asAConstant;
+                                currentProperty.ScaleMode |= ScaleMode.YByDistance;
+                                currentProperty.Color = accessory.Data.DefaultSafeColor;
+                                currentProperty.DestoryAt = 6900;
+
+                                accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentProperty);
+
+                                currentProperty = accessory.Data.GetDefaultDrawProperties();
+
+                                currentProperty.Name = $"Phase5_Guidance_2_Preview_For_Ranges_During_Towers_远程踩塔指路2预览-{视角}";
+                                currentProperty.Scale = new(2);
+                                currentProperty.Position = isLeftFirstAndFarFirst ? phase5_standbyPointBetweenNortheastAndNorthwest_asAConstant : phase5_standbyPointBetweenSouthAndNortheast_asAConstant;
+                                currentProperty.TargetPosition = phase5_rightSideOfTheNorthwest_asAConstant;
+                                currentProperty.ScaleMode |= ScaleMode.YByDistance;
+                                currentProperty.Color = accessory.Data.DefaultSafeColor;
+                                currentProperty.DestoryAt = 6900;
+
+                                accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentProperty);
+
+                                currentProperty = accessory.Data.GetDefaultDrawProperties();
+
+                                currentProperty.Name = $"Phase5_Guidance_2_For_Ranges_During_Towers_远程踩塔指路2-{视角}";
+                                currentProperty.Scale = new(2);
+                                currentProperty.Owner = GuidanceOwner(accessory, 视角);
+                                currentProperty.TargetPosition = phase5_rightSideOfTheNorthwest_asAConstant;
+                                currentProperty.ScaleMode |= ScaleMode.YByDistance;
+                                currentProperty.Color = accessory.Data.DefaultSafeColor;
+                                currentProperty.Delay = 6900;
+                                currentProperty.DestoryAt = 7500;
+
+                                accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentProperty);
+
+                            }
+
+                            if (视角 == 2
+                               ||
+                               视角 == 3)
+                            {
+
+                                currentProperty = accessory.Data.GetDefaultDrawProperties();
+
+                                currentProperty.Name = $"Phase5_Guidance_1_For_Healers_During_Towers_奶妈踩塔指路1-{视角}";
+                                currentProperty.Scale = new(2);
+                                currentProperty.Owner = GuidanceOwner(accessory, 视角);
+                                currentProperty.TargetPosition = isLeftFirstAndFarFirst ? phase5_standbyPointBetweenNortheastAndNorthwest_asAConstant : phase5_standbyPointBetweenSouthAndNortheast_asAConstant;
+                                currentProperty.ScaleMode |= ScaleMode.YByDistance;
+                                currentProperty.Color = accessory.Data.DefaultSafeColor;
+                                currentProperty.DestoryAt = 6900;
+
+                                accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentProperty);
+
+                                currentProperty = accessory.Data.GetDefaultDrawProperties();
+
+                                currentProperty.Name = $"Phase5_Guidance_2_Preview_For_Healers_During_Towers_奶妈踩塔指路2预览-{视角}";
+                                currentProperty.Scale = new(2);
+                                currentProperty.Position = isLeftFirstAndFarFirst ? phase5_standbyPointBetweenNortheastAndNorthwest_asAConstant : phase5_standbyPointBetweenSouthAndNortheast_asAConstant;
+                                currentProperty.TargetPosition = phase5_leftSideOfTheSouth_asAConstant;
+                                currentProperty.ScaleMode |= ScaleMode.YByDistance;
+                                currentProperty.Color = accessory.Data.DefaultSafeColor;
+                                currentProperty.DestoryAt = 6900;
+
+                                accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentProperty);
+
+                                currentProperty = accessory.Data.GetDefaultDrawProperties();
+
+                                currentProperty.Name = $"Phase5_Guidance_2_For_Healers_During_Towers_奶妈踩塔指路2-{视角}";
+                                currentProperty.Scale = new(2);
+                                currentProperty.Owner = GuidanceOwner(accessory, 视角);
+                                currentProperty.TargetPosition = phase5_leftSideOfTheSouth_asAConstant;
+                                currentProperty.ScaleMode |= ScaleMode.YByDistance;
+                                currentProperty.Color = accessory.Data.DefaultSafeColor;
+                                currentProperty.Delay = 6900;
+                                currentProperty.DestoryAt = 7500;
+
+                                accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentProperty);
+
+                            }
 
                         }
 
-                        if (accessory.Data.PartyList.IndexOf(accessory.Data.Me) == 4
-                           ||
-                           accessory.Data.PartyList.IndexOf(accessory.Data.Me) == 5)
+                        if (phase5_indexOfTheFirstTower.Equals("00000032"))
                         {
-                            // The melee group, that is M1 & M2 or D1 & D2.
+                            // The first tower is in the south.
 
-                            currentProperty = accessory.Data.GetDefaultDrawProperties();
+                            if (视角 == 4
+                               ||
+                               视角 == 5)
+                            {
 
-                            currentProperty.Name = "Phase5_Guidance_1_For_Healers_During_Towers_奶妈踩塔指路1";
-                            currentProperty.Scale = new(2);
-                            currentProperty.Owner = accessory.Data.Me;
-                            currentProperty.TargetPosition = isLeftFirstAndFarFirst ? phase5_standbyPointBetweenSouthAndNorthwest_asAConstant : phase5_standbyPointBetweenNortheastAndNorthwest_asAConstant;
-                            currentProperty.ScaleMode |= ScaleMode.YByDistance;
-                            currentProperty.Color = accessory.Data.DefaultSafeColor;
-                            currentProperty.DestoryAt = 6900;
+                                currentProperty = accessory.Data.GetDefaultDrawProperties();
 
-                            accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentProperty);
+                                currentProperty.Name = $"Phase5_Guidance_1_For_Melees_During_Towers_近战踩塔指路1-{视角}";
+                                currentProperty.Scale = new(2);
+                                currentProperty.Owner = GuidanceOwner(accessory, 视角);
+                                currentProperty.TargetPosition = isLeftFirstAndFarFirst ? phase5_rightSideOfTheSouth_asAConstant : phase5_leftSideOfTheSouth_asAConstant;
+                                currentProperty.ScaleMode |= ScaleMode.YByDistance;
+                                currentProperty.Color = accessory.Data.DefaultSafeColor;
+                                currentProperty.DestoryAt = 7300;
 
-                            currentProperty = accessory.Data.GetDefaultDrawProperties();
+                                accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentProperty);
 
-                            currentProperty.Name = "Phase5_Guidance_2_Preview_For_Healers_During_Towers_奶妈踩塔指路2预览";
-                            currentProperty.Scale = new(2);
-                            currentProperty.Position = isLeftFirstAndFarFirst ? phase5_standbyPointBetweenSouthAndNorthwest_asAConstant : phase5_standbyPointBetweenNortheastAndNorthwest_asAConstant;
-                            currentProperty.TargetPosition = phase5_leftSideOfTheNortheast_asAConstant;
-                            currentProperty.ScaleMode |= ScaleMode.YByDistance;
-                            currentProperty.Color = accessory.Data.DefaultSafeColor;
-                            currentProperty.DestoryAt = 6900;
+                                currentProperty = accessory.Data.GetDefaultDrawProperties();
 
-                            accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentProperty);
+                                currentProperty.Name = $"Phase5_Guidance_2_Preview_For_Melees_During_Towers_近战踩塔指路2预览-{视角}";
+                                currentProperty.Scale = new(2);
+                                currentProperty.Position = isLeftFirstAndFarFirst ? phase5_rightSideOfTheSouth_asAConstant : phase5_leftSideOfTheSouth_asAConstant;
+                                currentProperty.TargetPosition = phase5_standbyPointBetweenNortheastAndNorthwest_asAConstant;
+                                currentProperty.ScaleMode |= ScaleMode.YByDistance;
+                                currentProperty.Color = accessory.Data.DefaultSafeColor;
+                                currentProperty.DestoryAt = 7300;
 
-                            currentProperty = accessory.Data.GetDefaultDrawProperties();
+                                accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentProperty);
 
-                            currentProperty.Name = "Phase5_Guidance_2_For_Healers_During_Towers_奶妈踩塔指路2";
-                            currentProperty.Scale = new(2);
-                            currentProperty.Owner = accessory.Data.Me;
-                            currentProperty.TargetPosition = phase5_leftSideOfTheNortheast_asAConstant;
-                            currentProperty.ScaleMode |= ScaleMode.YByDistance;
-                            currentProperty.Color = accessory.Data.DefaultSafeColor;
-                            currentProperty.Delay = 6900;
-                            currentProperty.DestoryAt = 7500;
+                                currentProperty = accessory.Data.GetDefaultDrawProperties();
 
-                            accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentProperty);
+                                currentProperty.Name = $"Phase5_Guidance_2_For_Melees_During_Towers_近战踩塔指路2-{视角}";
+                                currentProperty.Scale = new(2);
+                                currentProperty.Owner = GuidanceOwner(accessory, 视角);
+                                currentProperty.TargetPosition = phase5_standbyPointBetweenNortheastAndNorthwest_asAConstant;
+                                currentProperty.ScaleMode |= ScaleMode.YByDistance;
+                                currentProperty.Color = accessory.Data.DefaultSafeColor;
+                                currentProperty.Delay = 7300;
+                                currentProperty.DestoryAt = 7100;
+
+                                accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentProperty);
+
+                            }
+
+                            if (视角 == 6
+                               ||
+                               视角 == 7)
+                            {
+
+                                currentProperty = accessory.Data.GetDefaultDrawProperties();
+
+                                currentProperty.Name = $"Phase5_Guidance_1_For_Ranges_During_Towers_远程踩塔指路1-{视角}";
+                                currentProperty.Scale = new(2);
+                                currentProperty.Owner = GuidanceOwner(accessory, 视角);
+                                currentProperty.TargetPosition = isLeftFirstAndFarFirst ? phase5_standbyPointBetweenSouthAndNortheast_asAConstant : phase5_standbyPointBetweenSouthAndNorthwest_asAConstant;
+                                currentProperty.ScaleMode |= ScaleMode.YByDistance;
+                                currentProperty.Color = accessory.Data.DefaultSafeColor;
+                                currentProperty.DestoryAt = 6900;
+
+                                accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentProperty);
+
+                                currentProperty = accessory.Data.GetDefaultDrawProperties();
+
+                                currentProperty.Name = $"Phase5_Guidance_2_Preview_For_Ranges_During_Towers_远程踩塔指路2预览-{视角}";
+                                currentProperty.Scale = new(2);
+                                currentProperty.Position = isLeftFirstAndFarFirst ? phase5_standbyPointBetweenSouthAndNortheast_asAConstant : phase5_standbyPointBetweenSouthAndNorthwest_asAConstant;
+                                currentProperty.TargetPosition = phase5_rightSideOfTheNortheast_asAConstant;
+                                currentProperty.ScaleMode |= ScaleMode.YByDistance;
+                                currentProperty.Color = accessory.Data.DefaultSafeColor;
+                                currentProperty.DestoryAt = 6900;
+
+                                accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentProperty);
+
+                                currentProperty = accessory.Data.GetDefaultDrawProperties();
+
+                                currentProperty.Name = $"Phase5_Guidance_2_For_Ranges_During_Towers_远程踩塔指路2-{视角}";
+                                currentProperty.Scale = new(2);
+                                currentProperty.Owner = GuidanceOwner(accessory, 视角);
+                                currentProperty.TargetPosition = phase5_rightSideOfTheNortheast_asAConstant;
+                                currentProperty.ScaleMode |= ScaleMode.YByDistance;
+                                currentProperty.Color = accessory.Data.DefaultSafeColor;
+                                currentProperty.Delay = 6900;
+                                currentProperty.DestoryAt = 7500;
+
+                                accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentProperty);
+
+                            }
+
+                            if (视角 == 2
+                               ||
+                               视角 == 3)
+                            {
+
+                                currentProperty = accessory.Data.GetDefaultDrawProperties();
+
+                                currentProperty.Name = $"Phase5_Guidance_1_For_Healers_During_Towers_奶妈踩塔指路1-{视角}";
+                                currentProperty.Scale = new(2);
+                                currentProperty.Owner = GuidanceOwner(accessory, 视角);
+                                currentProperty.TargetPosition = isLeftFirstAndFarFirst ? phase5_standbyPointBetweenSouthAndNortheast_asAConstant : phase5_standbyPointBetweenSouthAndNorthwest_asAConstant;
+                                currentProperty.ScaleMode |= ScaleMode.YByDistance;
+                                currentProperty.Color = accessory.Data.DefaultSafeColor;
+                                currentProperty.DestoryAt = 6900;
+
+                                accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentProperty);
+
+                                currentProperty = accessory.Data.GetDefaultDrawProperties();
+
+                                currentProperty.Name = $"Phase5_Guidance_2_Preview_For_Healers_During_Towers_奶妈踩塔指路2预览-{视角}";
+                                currentProperty.Scale = new(2);
+                                currentProperty.Position = isLeftFirstAndFarFirst ? phase5_standbyPointBetweenSouthAndNortheast_asAConstant : phase5_standbyPointBetweenSouthAndNorthwest_asAConstant;
+                                currentProperty.TargetPosition = phase5_leftSideOfTheNorthwest_asAConstant;
+                                currentProperty.ScaleMode |= ScaleMode.YByDistance;
+                                currentProperty.Color = accessory.Data.DefaultSafeColor;
+                                currentProperty.DestoryAt = 6900;
+
+                                accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentProperty);
+
+                                currentProperty = accessory.Data.GetDefaultDrawProperties();
+
+                                currentProperty.Name = $"Phase5_Guidance_2_For_Healers_During_Towers_奶妈踩塔指路2-{视角}";
+                                currentProperty.Scale = new(2);
+                                currentProperty.Owner = GuidanceOwner(accessory, 视角);
+                                currentProperty.TargetPosition = phase5_leftSideOfTheNorthwest_asAConstant;
+                                currentProperty.ScaleMode |= ScaleMode.YByDistance;
+                                currentProperty.Color = accessory.Data.DefaultSafeColor;
+                                currentProperty.Delay = 6900;
+                                currentProperty.DestoryAt = 7500;
+
+                                accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentProperty);
+
+                            }
 
                         }
 
-                    }
-
-                    if (phase5_indexOfTheFirstTower.Equals("00000031"))
-                    {
-                        // The first tower is in the northeast.
-
-                        if (accessory.Data.PartyList.IndexOf(accessory.Data.Me) == 2
-                           ||
-                           accessory.Data.PartyList.IndexOf(accessory.Data.Me) == 3)
-                        {
-
-                            currentProperty = accessory.Data.GetDefaultDrawProperties();
-
-                            currentProperty.Name = "Phase5_Guidance_1_For_Melees_During_Towers_近战踩塔指路1";
-                            currentProperty.Scale = new(2);
-                            currentProperty.Owner = accessory.Data.Me;
-                            currentProperty.TargetPosition = isLeftFirstAndFarFirst ? phase5_rightSideOfTheNortheast_asAConstant : phase5_leftSideOfTheNortheast_asAConstant;
-                            currentProperty.ScaleMode |= ScaleMode.YByDistance;
-                            currentProperty.Color = accessory.Data.DefaultSafeColor;
-                            currentProperty.DestoryAt = 7300;
-
-                            accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentProperty);
-
-                            currentProperty = accessory.Data.GetDefaultDrawProperties();
-
-                            currentProperty.Name = "Phase5_Guidance_2_Preview_For_Melees_During_Towers_近战踩塔指路2预览";
-                            currentProperty.Scale = new(2);
-                            currentProperty.Position = isLeftFirstAndFarFirst ? phase5_rightSideOfTheNortheast_asAConstant : phase5_leftSideOfTheNortheast_asAConstant;
-                            currentProperty.TargetPosition = phase5_standbyPointBetweenSouthAndNorthwest_asAConstant;
-                            currentProperty.ScaleMode |= ScaleMode.YByDistance;
-                            currentProperty.Color = accessory.Data.DefaultSafeColor;
-                            currentProperty.DestoryAt = 7300;
-
-                            accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentProperty);
-
-                            currentProperty = accessory.Data.GetDefaultDrawProperties();
-
-                            currentProperty.Name = "Phase5_Guidance_2_For_Melees_During_Towers_近战踩塔指路2";
-                            currentProperty.Scale = new(2);
-                            currentProperty.Owner = accessory.Data.Me;
-                            currentProperty.TargetPosition = phase5_standbyPointBetweenSouthAndNorthwest_asAConstant;
-                            currentProperty.ScaleMode |= ScaleMode.YByDistance;
-                            currentProperty.Color = accessory.Data.DefaultSafeColor;
-                            currentProperty.Delay = 7300;
-                            currentProperty.DestoryAt = 7100;
-
-                            accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentProperty);
-
-                        }
-
-                        if (accessory.Data.PartyList.IndexOf(accessory.Data.Me) == 6
-                           ||
-                           accessory.Data.PartyList.IndexOf(accessory.Data.Me) == 7)
-                        {
-
-                            currentProperty = accessory.Data.GetDefaultDrawProperties();
-
-                            currentProperty.Name = "Phase5_Guidance_1_For_Ranges_During_Towers_远程踩塔指路1";
-                            currentProperty.Scale = new(2);
-                            currentProperty.Owner = accessory.Data.Me;
-                            currentProperty.TargetPosition = isLeftFirstAndFarFirst ? phase5_standbyPointBetweenNortheastAndNorthwest_asAConstant : phase5_standbyPointBetweenSouthAndNortheast_asAConstant;
-                            currentProperty.ScaleMode |= ScaleMode.YByDistance;
-                            currentProperty.Color = accessory.Data.DefaultSafeColor;
-                            currentProperty.DestoryAt = 6900;
-
-                            accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentProperty);
-
-                            currentProperty = accessory.Data.GetDefaultDrawProperties();
-
-                            currentProperty.Name = "Phase5_Guidance_2_Preview_For_Ranges_During_Towers_远程踩塔指路2预览";
-                            currentProperty.Scale = new(2);
-                            currentProperty.Position = isLeftFirstAndFarFirst ? phase5_standbyPointBetweenNortheastAndNorthwest_asAConstant : phase5_standbyPointBetweenSouthAndNortheast_asAConstant;
-                            currentProperty.TargetPosition = phase5_rightSideOfTheNorthwest_asAConstant;
-                            currentProperty.ScaleMode |= ScaleMode.YByDistance;
-                            currentProperty.Color = accessory.Data.DefaultSafeColor;
-                            currentProperty.DestoryAt = 6900;
-
-                            accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentProperty);
-
-                            currentProperty = accessory.Data.GetDefaultDrawProperties();
-
-                            currentProperty.Name = "Phase5_Guidance_2_For_Ranges_During_Towers_远程踩塔指路2";
-                            currentProperty.Scale = new(2);
-                            currentProperty.Owner = accessory.Data.Me;
-                            currentProperty.TargetPosition = phase5_rightSideOfTheNorthwest_asAConstant;
-                            currentProperty.ScaleMode |= ScaleMode.YByDistance;
-                            currentProperty.Color = accessory.Data.DefaultSafeColor;
-                            currentProperty.Delay = 6900;
-                            currentProperty.DestoryAt = 7500;
-
-                            accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentProperty);
-
-                        }
-
-                        if (accessory.Data.PartyList.IndexOf(accessory.Data.Me) == 4
-                           ||
-                           accessory.Data.PartyList.IndexOf(accessory.Data.Me) == 5)
-                        {
-
-                            currentProperty = accessory.Data.GetDefaultDrawProperties();
-
-                            currentProperty.Name = "Phase5_Guidance_1_For_Healers_During_Towers_奶妈踩塔指路1";
-                            currentProperty.Scale = new(2);
-                            currentProperty.Owner = accessory.Data.Me;
-                            currentProperty.TargetPosition = isLeftFirstAndFarFirst ? phase5_standbyPointBetweenNortheastAndNorthwest_asAConstant : phase5_standbyPointBetweenSouthAndNortheast_asAConstant;
-                            currentProperty.ScaleMode |= ScaleMode.YByDistance;
-                            currentProperty.Color = accessory.Data.DefaultSafeColor;
-                            currentProperty.DestoryAt = 6900;
-
-                            accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentProperty);
-
-                            currentProperty = accessory.Data.GetDefaultDrawProperties();
-
-                            currentProperty.Name = "Phase5_Guidance_2_Preview_For_Healers_During_Towers_奶妈踩塔指路2预览";
-                            currentProperty.Scale = new(2);
-                            currentProperty.Position = isLeftFirstAndFarFirst ? phase5_standbyPointBetweenNortheastAndNorthwest_asAConstant : phase5_standbyPointBetweenSouthAndNortheast_asAConstant;
-                            currentProperty.TargetPosition = phase5_leftSideOfTheSouth_asAConstant;
-                            currentProperty.ScaleMode |= ScaleMode.YByDistance;
-                            currentProperty.Color = accessory.Data.DefaultSafeColor;
-                            currentProperty.DestoryAt = 6900;
-
-                            accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentProperty);
-
-                            currentProperty = accessory.Data.GetDefaultDrawProperties();
-
-                            currentProperty.Name = "Phase5_Guidance_2_For_Healers_During_Towers_奶妈踩塔指路2";
-                            currentProperty.Scale = new(2);
-                            currentProperty.Owner = accessory.Data.Me;
-                            currentProperty.TargetPosition = phase5_leftSideOfTheSouth_asAConstant;
-                            currentProperty.ScaleMode |= ScaleMode.YByDistance;
-                            currentProperty.Color = accessory.Data.DefaultSafeColor;
-                            currentProperty.Delay = 6900;
-                            currentProperty.DestoryAt = 7500;
-
-                            accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentProperty);
-
-                        }
-
-                    }
-
-                    if (phase5_indexOfTheFirstTower.Equals("00000032"))
-                    {
-                        // The first tower is in the south.
-
-                        if (accessory.Data.PartyList.IndexOf(accessory.Data.Me) == 2
-                           ||
-                           accessory.Data.PartyList.IndexOf(accessory.Data.Me) == 3)
-                        {
-
-                            currentProperty = accessory.Data.GetDefaultDrawProperties();
-
-                            currentProperty.Name = "Phase5_Guidance_1_For_Melees_During_Towers_近战踩塔指路1";
-                            currentProperty.Scale = new(2);
-                            currentProperty.Owner = accessory.Data.Me;
-                            currentProperty.TargetPosition = isLeftFirstAndFarFirst ? phase5_rightSideOfTheSouth_asAConstant : phase5_leftSideOfTheSouth_asAConstant;
-                            currentProperty.ScaleMode |= ScaleMode.YByDistance;
-                            currentProperty.Color = accessory.Data.DefaultSafeColor;
-                            currentProperty.DestoryAt = 7300;
-
-                            accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentProperty);
-
-                            currentProperty = accessory.Data.GetDefaultDrawProperties();
-
-                            currentProperty.Name = "Phase5_Guidance_2_Preview_For_Melees_During_Towers_近战踩塔指路2预览";
-                            currentProperty.Scale = new(2);
-                            currentProperty.Position = isLeftFirstAndFarFirst ? phase5_rightSideOfTheSouth_asAConstant : phase5_leftSideOfTheSouth_asAConstant;
-                            currentProperty.TargetPosition = phase5_standbyPointBetweenNortheastAndNorthwest_asAConstant;
-                            currentProperty.ScaleMode |= ScaleMode.YByDistance;
-                            currentProperty.Color = accessory.Data.DefaultSafeColor;
-                            currentProperty.DestoryAt = 7300;
-
-                            accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentProperty);
-
-                            currentProperty = accessory.Data.GetDefaultDrawProperties();
-
-                            currentProperty.Name = "Phase5_Guidance_2_For_Melees_During_Towers_近战踩塔指路2";
-                            currentProperty.Scale = new(2);
-                            currentProperty.Owner = accessory.Data.Me;
-                            currentProperty.TargetPosition = phase5_standbyPointBetweenNortheastAndNorthwest_asAConstant;
-                            currentProperty.ScaleMode |= ScaleMode.YByDistance;
-                            currentProperty.Color = accessory.Data.DefaultSafeColor;
-                            currentProperty.Delay = 7300;
-                            currentProperty.DestoryAt = 7100;
-
-                            accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentProperty);
-
-                        }
-
-                        if (accessory.Data.PartyList.IndexOf(accessory.Data.Me) == 6
-                           ||
-                           accessory.Data.PartyList.IndexOf(accessory.Data.Me) == 7)
-                        {
-
-                            currentProperty = accessory.Data.GetDefaultDrawProperties();
-
-                            currentProperty.Name = "Phase5_Guidance_1_For_Ranges_During_Towers_远程踩塔指路1";
-                            currentProperty.Scale = new(2);
-                            currentProperty.Owner = accessory.Data.Me;
-                            currentProperty.TargetPosition = isLeftFirstAndFarFirst ? phase5_standbyPointBetweenSouthAndNortheast_asAConstant : phase5_standbyPointBetweenSouthAndNorthwest_asAConstant;
-                            currentProperty.ScaleMode |= ScaleMode.YByDistance;
-                            currentProperty.Color = accessory.Data.DefaultSafeColor;
-                            currentProperty.DestoryAt = 6900;
-
-                            accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentProperty);
-
-                            currentProperty = accessory.Data.GetDefaultDrawProperties();
-
-                            currentProperty.Name = "Phase5_Guidance_2_Preview_For_Ranges_During_Towers_远程踩塔指路2预览";
-                            currentProperty.Scale = new(2);
-                            currentProperty.Position = isLeftFirstAndFarFirst ? phase5_standbyPointBetweenSouthAndNortheast_asAConstant : phase5_standbyPointBetweenSouthAndNorthwest_asAConstant;
-                            currentProperty.TargetPosition = phase5_rightSideOfTheNortheast_asAConstant;
-                            currentProperty.ScaleMode |= ScaleMode.YByDistance;
-                            currentProperty.Color = accessory.Data.DefaultSafeColor;
-                            currentProperty.DestoryAt = 6900;
-
-                            accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentProperty);
-
-                            currentProperty = accessory.Data.GetDefaultDrawProperties();
-
-                            currentProperty.Name = "Phase5_Guidance_2_For_Ranges_During_Towers_远程踩塔指路2";
-                            currentProperty.Scale = new(2);
-                            currentProperty.Owner = accessory.Data.Me;
-                            currentProperty.TargetPosition = phase5_rightSideOfTheNortheast_asAConstant;
-                            currentProperty.ScaleMode |= ScaleMode.YByDistance;
-                            currentProperty.Color = accessory.Data.DefaultSafeColor;
-                            currentProperty.Delay = 6900;
-                            currentProperty.DestoryAt = 7500;
-
-                            accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentProperty);
-
-                        }
-
-                        if (accessory.Data.PartyList.IndexOf(accessory.Data.Me) == 4
-                           ||
-                           accessory.Data.PartyList.IndexOf(accessory.Data.Me) == 5)
-                        {
-
-                            currentProperty = accessory.Data.GetDefaultDrawProperties();
-
-                            currentProperty.Name = "Phase5_Guidance_1_For_Healers_During_Towers_奶妈踩塔指路1";
-                            currentProperty.Scale = new(2);
-                            currentProperty.Owner = accessory.Data.Me;
-                            currentProperty.TargetPosition = isLeftFirstAndFarFirst ? phase5_standbyPointBetweenSouthAndNortheast_asAConstant : phase5_standbyPointBetweenSouthAndNorthwest_asAConstant;
-                            currentProperty.ScaleMode |= ScaleMode.YByDistance;
-                            currentProperty.Color = accessory.Data.DefaultSafeColor;
-                            currentProperty.DestoryAt = 6900;
-
-                            accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentProperty);
-
-                            currentProperty = accessory.Data.GetDefaultDrawProperties();
-
-                            currentProperty.Name = "Phase5_Guidance_2_Preview_For_Healers_During_Towers_奶妈踩塔指路2预览";
-                            currentProperty.Scale = new(2);
-                            currentProperty.Position = isLeftFirstAndFarFirst ? phase5_standbyPointBetweenSouthAndNortheast_asAConstant : phase5_standbyPointBetweenSouthAndNorthwest_asAConstant;
-                            currentProperty.TargetPosition = phase5_leftSideOfTheNorthwest_asAConstant;
-                            currentProperty.ScaleMode |= ScaleMode.YByDistance;
-                            currentProperty.Color = accessory.Data.DefaultSafeColor;
-                            currentProperty.DestoryAt = 6900;
-
-                            accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentProperty);
-
-                            currentProperty = accessory.Data.GetDefaultDrawProperties();
-
-                            currentProperty.Name = "Phase5_Guidance_2_For_Healers_During_Towers_奶妈踩塔指路2";
-                            currentProperty.Scale = new(2);
-                            currentProperty.Owner = accessory.Data.Me;
-                            currentProperty.TargetPosition = phase5_leftSideOfTheNorthwest_asAConstant;
-                            currentProperty.ScaleMode |= ScaleMode.YByDistance;
-                            currentProperty.Color = accessory.Data.DefaultSafeColor;
-                            currentProperty.Delay = 6900;
-                            currentProperty.DestoryAt = 7500;
-
-                            accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentProperty);
-
-                        }
-
-                    }
-                    
-                    Vector3 positionOfTheFirstTower=new Vector3(100,0,100);
-                    Vector3 positionOfTheLeftTower=new Vector3(100,0,100);
-                    Vector3 positionOfTheRightTower=new Vector3(100,0,100);
-                    
-                    if(phase5_indexOfTheFirstTower.Equals("00000030"))positionOfTheFirstTower=new Vector3(93.94f,0,96.50f);
-                    if(phase5_indexOfTheFirstTower.Equals("00000031"))positionOfTheFirstTower=new Vector3(106.06f,0,96.50f);
-                    if(phase5_indexOfTheFirstTower.Equals("00000032"))positionOfTheFirstTower=new Vector3(100,0,107);
-                    if(positionOfTheFirstTower.Equals(new Vector3(100,0,100)))return;
-                    positionOfTheLeftTower=RotatePoint(positionOfTheFirstTower,new Vector3(100,0,100),float.Pi/3*2);
-                    positionOfTheRightTower=RotatePoint(positionOfTheFirstTower,new Vector3(100,0,100),-(float.Pi/3*2));
-
-                    bool isMelee=false,isRange=false,isHealer=false;
-                    
-                    if(accessory.Data.PartyList.IndexOf(accessory.Data.Me)==2||accessory.Data.PartyList.IndexOf(accessory.Data.Me)==3)isHealer=true;
-                    if(accessory.Data.PartyList.IndexOf(accessory.Data.Me)==4||accessory.Data.PartyList.IndexOf(accessory.Data.Me)==5)isMelee=true;
-                    if(accessory.Data.PartyList.IndexOf(accessory.Data.Me)==6||accessory.Data.PartyList.IndexOf(accessory.Data.Me)==7)isRange=true;
-                    
-                    currentProperty=accessory.Data.GetDefaultDrawProperties();
-                    
-                    currentProperty.Name="Phase5_Range_Of_Towers_塔的范围";
-                    currentProperty.Scale=new(3);
-                    currentProperty.Position=positionOfTheFirstTower;
-                    currentProperty.Color=(isHealer)?(accessory.Data.DefaultSafeColor):(accessory.Data.DefaultDangerColor);
-                    currentProperty.DestoryAt=7300;
-                    
-                    accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Circle,currentProperty);
-                    
-                    currentProperty=accessory.Data.GetDefaultDrawProperties();
-                    
-                    currentProperty.Name="Phase5_Range_Of_Towers_塔的范围";
-                    currentProperty.Scale=new(3);
-                    currentProperty.Position=positionOfTheLeftTower;
-                    currentProperty.Color=(isMelee)?(accessory.Data.DefaultSafeColor):(accessory.Data.DefaultDangerColor);
-                    currentProperty.DestoryAt=14400;
-                    
-                    accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Circle,currentProperty);
-                    
-                    currentProperty=accessory.Data.GetDefaultDrawProperties();
-                    
-                    currentProperty.Name="Phase5_Range_Of_Towers_塔的范围";
-                    currentProperty.Scale=new(3);
-                    currentProperty.Position=positionOfTheRightTower;
-                    currentProperty.Color=(isRange)?(accessory.Data.DefaultSafeColor):(accessory.Data.DefaultDangerColor);
-                    currentProperty.DestoryAt=14400;
-                    
-                    accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Circle,currentProperty);
-
-                }
-
-            }
-            */
-            
-            if(Phase5_Strat_Of_Wings_Dark_And_Light==Phase5_Strats_Of_Wings_Dark_And_Light.Grey9_Brain_Dead_MT_First_Tower_Opposite_灰九脑死法MT一塔对侧_莫灵喵与MMW) {
-                // The previous spaghetti code is commented out. The entire part was reworked.
-
-                float rotation=0;
-
-                if(phase5_indexOfTheFirstTower.Equals("00000030")) {
-
-                    rotation=float.Pi/3*2;
-
-                }
-
-                if(phase5_indexOfTheFirstTower.Equals("00000031")) {
-                    
-                    rotation=-(float.Pi/3*2);
-
-                }
-
-                if(phase5_indexOfTheFirstTower.Equals("00000032")) {
-
-                    rotation=0;
-
-                }
-
-                Vector3 positionOfTheFirstTower=RotatePoint(new Vector3(100,0,107),new Vector3(100,0,100),rotation);
-                Vector3 positionOfTheLeftTower=RotatePoint(positionOfTheFirstTower,new Vector3(100,0,100),float.Pi/3*2);
-                Vector3 positionOfTheRightTower=RotatePoint(positionOfTheFirstTower,new Vector3(100,0,100),-(float.Pi/3*2));
-                Vector3 leftOfTheFirstTower=RotatePoint(phase5_leftSideOfTheSouth_asAConstant,new Vector3(100,0,100),rotation);
-                Vector3 rightOfTheFirstTower=RotatePoint(phase5_rightSideOfTheSouth_asAConstant,new Vector3(100,0,100),rotation);
-                Vector3 leftOfTheLeftTower=RotatePoint(phase5_leftSideOfTheNorthwest_asAConstant,new Vector3(100,0,100),rotation);
-                Vector3 rightOfTheRightTower=RotatePoint(phase5_rightSideOfTheNortheast_asAConstant,new Vector3(100,0,100),rotation);
-                Vector3 oppositeStandbyPosition=RotatePoint(positionOfTheFirstTower,new Vector3(100,0,100),float.Pi);
-                Vector3 leftStandbyPosition=RotatePoint(phase5_standbyPointBetweenSouthAndNorthwest_asAConstant,new Vector3(100,0,100),rotation);
-                Vector3 rightStandbyPosition=RotatePoint(phase5_standbyPointBetweenSouthAndNortheast_asAConstant,new Vector3(100,0,100),rotation);
-                var currentProperty=accessory.Data.GetDefaultDrawProperties();
-                
-                if(Phase5_Branch_Of_The_Grey9_Brain_Dead_Strat==Phase5_Branches_Of_The_Grey9_Brain_Dead_Strat.Melees_First_Then_Healers_Left_Ranges_Right_近战先然后奶妈左远程右) {
-
-                    bool isMelee=false;
-                    bool isRange=false;
-                    bool isHealer=false;
-                    
-                    if(accessory.Data.PartyList.IndexOf(accessory.Data.Me)==4
-                       ||
-                       accessory.Data.PartyList.IndexOf(accessory.Data.Me)==5) {
-
-                        isMelee=true;
-
-                        currentProperty = accessory.Data.GetDefaultDrawProperties();
-                        
-                        currentProperty.Name="Phase5_Guidance_1_For_Melees_During_Towers_近战踩塔指路1";
-                        currentProperty.Scale=new(2);
-                        currentProperty.Owner=accessory.Data.Me;
-                        currentProperty.TargetPosition=(isLeftFirstAndFarFirst)?(rightOfTheFirstTower):(leftOfTheFirstTower);
-                        currentProperty.ScaleMode|=ScaleMode.YByDistance;
-                        currentProperty.Color=accessory.Data.DefaultSafeColor;
-                        currentProperty.DestoryAt=7300;
-                        
-                        accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Displacement,currentProperty);
+                        Vector3 positionOfTheFirstTower=new Vector3(100,0,100);
+                        Vector3 positionOfTheLeftTower=new Vector3(100,0,100);
+                        Vector3 positionOfTheRightTower=new Vector3(100,0,100);
+
+                        if(phase5_indexOfTheFirstTower.Equals("00000030"))positionOfTheFirstTower=new Vector3(93.94f,0,96.50f);
+                        if(phase5_indexOfTheFirstTower.Equals("00000031"))positionOfTheFirstTower=new Vector3(106.06f,0,96.50f);
+                        if(phase5_indexOfTheFirstTower.Equals("00000032"))positionOfTheFirstTower=new Vector3(100,0,107);
+                        if(positionOfTheFirstTower.Equals(new Vector3(100,0,100)))return;
+                        positionOfTheLeftTower=RotatePoint(positionOfTheFirstTower,new Vector3(100,0,100),float.Pi/3*2);
+                        positionOfTheRightTower=RotatePoint(positionOfTheFirstTower,new Vector3(100,0,100),-(float.Pi/3*2));
+
+                        bool isMelee=false,isRange=false,isHealer=false;
+
+                        if(视角==2||视角==3)isHealer=true;
+                        if(视角==4||视角==5)isMelee=true;
+                        if(视角==6||视角==7)isRange=true;
 
                         currentProperty=accessory.Data.GetDefaultDrawProperties();
 
-                        currentProperty.Name="Phase5_Guidance_2_Preview_For_Melees_During_Towers_近战踩塔指路2预览";
-                        currentProperty.Scale=new(2);
-                        currentProperty.Position=(isLeftFirstAndFarFirst)?(rightOfTheFirstTower):(leftOfTheFirstTower);
-                        currentProperty.TargetPosition=oppositeStandbyPosition;
-                        currentProperty.ScaleMode|=ScaleMode.YByDistance;
-                        currentProperty.Color=accessory.Data.DefaultSafeColor;
-                        currentProperty.DestoryAt=7300;
-
-                        accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Displacement,currentProperty);
-
-                        currentProperty=accessory.Data.GetDefaultDrawProperties();
-
-                        currentProperty.Name="Phase5_Guidance_2_For_Melees_During_Towers_近战踩塔指路2";
-                        currentProperty.Scale=new(2);
-                        currentProperty.Owner=accessory.Data.Me;
-                        currentProperty.TargetPosition=oppositeStandbyPosition;
-                        currentProperty.ScaleMode|=ScaleMode.YByDistance;
-                        currentProperty.Color=accessory.Data.DefaultSafeColor;
-                        currentProperty.Delay=7300;
-                        currentProperty.DestoryAt=7100;
-
-                        accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Displacement,currentProperty);
-
-                    }
-
-                    if(accessory.Data.PartyList.IndexOf(accessory.Data.Me)==6
-                       ||
-                       accessory.Data.PartyList.IndexOf(accessory.Data.Me)==7) {
-
-                        isRange=true;
-                        
-                        currentProperty=accessory.Data.GetDefaultDrawProperties();
-
-                        currentProperty.Name="Phase5_Guidance_1_For_Ranges_During_Towers_远程踩塔指路1";
-                        currentProperty.Scale=new(2);
-                        currentProperty.Owner=accessory.Data.Me;
-                        currentProperty.TargetPosition=(isLeftFirstAndFarFirst)?(rightStandbyPosition):(leftStandbyPosition);
-                        currentProperty.ScaleMode|=ScaleMode.YByDistance;
-                        currentProperty.Color=accessory.Data.DefaultSafeColor;
-                        currentProperty.DestoryAt=6900;
-
-                        accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Displacement,currentProperty);
-
-                        currentProperty=accessory.Data.GetDefaultDrawProperties();
-
-                        currentProperty.Name="Phase5_Guidance_2_Preview_For_Ranges_During_Towers_远程踩塔指路2预览";
-                        currentProperty.Scale=new(2);
-                        currentProperty.Position=(isLeftFirstAndFarFirst)?(rightStandbyPosition):(leftStandbyPosition);
-                        currentProperty.TargetPosition=rightOfTheRightTower;
-                        currentProperty.ScaleMode|=ScaleMode.YByDistance;
-                        currentProperty.Color=accessory.Data.DefaultSafeColor;
-                        currentProperty.DestoryAt=6900;
-
-                        accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Displacement,currentProperty);
-
-                        currentProperty=accessory.Data.GetDefaultDrawProperties();
-
-                        currentProperty.Name="Phase5_Guidance_2_For_Ranges_During_Towers_远程踩塔指路2";
-                        currentProperty.Scale=new(2);
-                        currentProperty.Owner=accessory.Data.Me;
-                        currentProperty.TargetPosition=rightOfTheRightTower;
-                        currentProperty.ScaleMode|=ScaleMode.YByDistance;
-                        currentProperty.Color=accessory.Data.DefaultSafeColor;
-                        currentProperty.Delay=6900;
-                        currentProperty.DestoryAt=7500;
-
-                        accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Displacement,currentProperty);
-
-                    }
-
-                    if(accessory.Data.PartyList.IndexOf(accessory.Data.Me)==2
-                       ||
-                       accessory.Data.PartyList.IndexOf(accessory.Data.Me)==3) {
-
-                        isHealer=true;
-                        
-                        currentProperty=accessory.Data.GetDefaultDrawProperties();
-
-                        currentProperty.Name="Phase5_Guidance_1_For_Healers_During_Towers_奶妈踩塔指路1";
-                        currentProperty.Scale=new(2);
-                        currentProperty.Owner=accessory.Data.Me;
-                        currentProperty.TargetPosition=(isLeftFirstAndFarFirst)?(rightStandbyPosition):(leftStandbyPosition);
-                        currentProperty.ScaleMode|=ScaleMode.YByDistance;
-                        currentProperty.Color=accessory.Data.DefaultSafeColor; 
-                        currentProperty.DestoryAt=6900;
-
-                        accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Displacement,currentProperty);
-
-                        currentProperty=accessory.Data.GetDefaultDrawProperties();
-
-                        currentProperty.Name="Phase5_Guidance_2_Preview_For_Healers_During_Towers_奶妈踩塔指路2预览";
-                        currentProperty.Scale=new(2);
-                        currentProperty.Position=(isLeftFirstAndFarFirst)?(rightStandbyPosition):(leftStandbyPosition);
-                        currentProperty.TargetPosition=leftOfTheLeftTower;
-                        currentProperty.ScaleMode|=ScaleMode.YByDistance;
-                        currentProperty.Color=accessory.Data.DefaultSafeColor;
-                        currentProperty.DestoryAt=6900;
-
-                        accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Displacement,currentProperty);
-
-                        currentProperty=accessory.Data.GetDefaultDrawProperties();
-
-                        currentProperty.Name="Phase5_Guidance_2_For_Healers_During_Towers_奶妈踩塔指路2";
-                        currentProperty.Scale=new(2);
-                        currentProperty.Owner=accessory.Data.Me;
-                        currentProperty.TargetPosition=leftOfTheLeftTower;
-                        currentProperty.ScaleMode|=ScaleMode.YByDistance;
-                        currentProperty.Color=accessory.Data.DefaultSafeColor;
-                        currentProperty.Delay=6900;
-                        currentProperty.DestoryAt=7500;
-
-                        accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Displacement,currentProperty);
-                        
-                    }
-                    
-                    currentProperty=accessory.Data.GetDefaultDrawProperties();
-                    
-                    currentProperty.Name="Phase5_Range_Of_Towers_塔的范围";
-                    currentProperty.Scale=new(3);
-                    currentProperty.Position=positionOfTheFirstTower;
-                    currentProperty.Color=(isMelee)?(accessory.Data.DefaultSafeColor):(accessory.Data.DefaultDangerColor);
-                    currentProperty.DestoryAt=7300;
-                    
-                    accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Circle,currentProperty);
-                    
-                    currentProperty=accessory.Data.GetDefaultDrawProperties();
-                    
-                    currentProperty.Name="Phase5_Range_Of_Towers_塔的范围";
-                    currentProperty.Scale=new(3);
-                    currentProperty.Position=positionOfTheLeftTower;
-                    currentProperty.Color=(isHealer)?(accessory.Data.DefaultSafeColor):(accessory.Data.DefaultDangerColor);
-                    currentProperty.DestoryAt=14400;
-                    
-                    accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Circle,currentProperty);
-                    
-                    currentProperty=accessory.Data.GetDefaultDrawProperties();
-                    
-                    currentProperty.Name="Phase5_Range_Of_Towers_塔的范围";
-                    currentProperty.Scale=new(3);
-                    currentProperty.Position=positionOfTheRightTower;
-                    currentProperty.Color=(isRange)?(accessory.Data.DefaultSafeColor):(accessory.Data.DefaultDangerColor);
-                    currentProperty.DestoryAt=14400;
-                    
-                    accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Circle,currentProperty);
-
-                }
-
-                if(Phase5_Branch_Of_The_Grey9_Brain_Dead_Strat==Phase5_Branches_Of_The_Grey9_Brain_Dead_Strat.Healers_First_Then_Melees_Left_Ranges_Right_奶妈先然后近战左远程右_莫灵喵) {
-                    
-                    bool isMelee=false;
-                    bool isRange=false;
-                    bool isHealer=false;
-                    
-                    if(accessory.Data.PartyList.IndexOf(accessory.Data.Me)==2
-                       ||
-                       accessory.Data.PartyList.IndexOf(accessory.Data.Me)==3) {
-
-                        isHealer=true;
-
-                        currentProperty = accessory.Data.GetDefaultDrawProperties();
-                        
-                        currentProperty.Name="Phase5_Guidance_1_For_Healers_During_Towers_奶妈踩塔指路1";
-                        currentProperty.Scale=new(2);
-                        currentProperty.Owner=accessory.Data.Me;
-                        currentProperty.TargetPosition=(isLeftFirstAndFarFirst)?(rightOfTheFirstTower):(leftOfTheFirstTower);
-                        currentProperty.ScaleMode|=ScaleMode.YByDistance;
-                        currentProperty.Color=accessory.Data.DefaultSafeColor;
-                        currentProperty.DestoryAt=7300;
-                        
-                        accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Displacement,currentProperty);
-
-                        currentProperty=accessory.Data.GetDefaultDrawProperties();
-
-                        currentProperty.Name="Phase5_Guidance_2_Preview_For_Healers_During_Towers_奶妈踩塔指路2预览";
-                        currentProperty.Scale=new(2);
-                        currentProperty.Position=(isLeftFirstAndFarFirst)?(rightOfTheFirstTower):(leftOfTheFirstTower);
-                        currentProperty.TargetPosition=oppositeStandbyPosition;
-                        currentProperty.ScaleMode|=ScaleMode.YByDistance;
-                        currentProperty.Color=accessory.Data.DefaultSafeColor;
-                        currentProperty.DestoryAt=7300;
-
-                        accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Displacement,currentProperty);
-
-                        currentProperty=accessory.Data.GetDefaultDrawProperties();
-
-                        currentProperty.Name="Phase5_Guidance_2_For_Healers_During_Towers_奶妈踩塔指路2";
-                        currentProperty.Scale=new(2);
-                        currentProperty.Owner=accessory.Data.Me;
-                        currentProperty.TargetPosition=oppositeStandbyPosition;
-                        currentProperty.ScaleMode|=ScaleMode.YByDistance;
-                        currentProperty.Color=accessory.Data.DefaultSafeColor;
-                        currentProperty.Delay=7300;
-                        currentProperty.DestoryAt=7100;
-
-                        accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Displacement,currentProperty);
-
-                    }
-
-                    if(accessory.Data.PartyList.IndexOf(accessory.Data.Me)==6
-                       ||
-                       accessory.Data.PartyList.IndexOf(accessory.Data.Me)==7) {
-
-                        isRange=true;
-                        
-                        currentProperty=accessory.Data.GetDefaultDrawProperties();
-
-                        currentProperty.Name="Phase5_Guidance_1_For_Ranges_During_Towers_远程踩塔指路1";
-                        currentProperty.Scale=new(2);
-                        currentProperty.Owner=accessory.Data.Me;
-                        currentProperty.TargetPosition=(isLeftFirstAndFarFirst)?(rightStandbyPosition):(leftStandbyPosition);
-                        currentProperty.ScaleMode|=ScaleMode.YByDistance;
-                        currentProperty.Color=accessory.Data.DefaultSafeColor;
-                        currentProperty.DestoryAt=6900;
-
-                        accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Displacement,currentProperty);
-
-                        currentProperty=accessory.Data.GetDefaultDrawProperties();
-
-                        currentProperty.Name="Phase5_Guidance_2_Preview_For_Ranges_During_Towers_远程踩塔指路2预览";
-                        currentProperty.Scale=new(2);
-                        currentProperty.Position=(isLeftFirstAndFarFirst)?(rightStandbyPosition):(leftStandbyPosition);
-                        currentProperty.TargetPosition=rightOfTheRightTower;
-                        currentProperty.ScaleMode|=ScaleMode.YByDistance;
-                        currentProperty.Color=accessory.Data.DefaultSafeColor;
-                        currentProperty.DestoryAt=6900;
-
-                        accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Displacement,currentProperty);
-
-                        currentProperty=accessory.Data.GetDefaultDrawProperties();
-
-                        currentProperty.Name="Phase5_Guidance_2_For_Ranges_During_Towers_远程踩塔指路2";
-                        currentProperty.Scale=new(2);
-                        currentProperty.Owner=accessory.Data.Me;
-                        currentProperty.TargetPosition=rightOfTheRightTower;
-                        currentProperty.ScaleMode|=ScaleMode.YByDistance;
-                        currentProperty.Color=accessory.Data.DefaultSafeColor;
-                        currentProperty.Delay=6900;
-                        currentProperty.DestoryAt=7500;
-
-                        accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Displacement,currentProperty);
-
-                    }
-
-                    if(accessory.Data.PartyList.IndexOf(accessory.Data.Me)==4
-                       ||
-                       accessory.Data.PartyList.IndexOf(accessory.Data.Me)==5) {
-
-                        isMelee=true;
-                        
-                        currentProperty=accessory.Data.GetDefaultDrawProperties();
-
-                        currentProperty.Name="Phase5_Guidance_1_For_Melees_During_Towers_近战踩塔指路1";
-                        currentProperty.Scale=new(2);
-                        currentProperty.Owner=accessory.Data.Me;
-                        currentProperty.TargetPosition=(isLeftFirstAndFarFirst)?(rightStandbyPosition):(leftStandbyPosition);
-                        currentProperty.ScaleMode|=ScaleMode.YByDistance;
-                        currentProperty.Color=accessory.Data.DefaultSafeColor; 
-                        currentProperty.DestoryAt=6900;
-
-                        accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Displacement,currentProperty);
-
-                        currentProperty=accessory.Data.GetDefaultDrawProperties();
-
-                        currentProperty.Name="Phase5_Guidance_2_Preview_For_Melees_During_Towers_近战踩塔指路2预览";
-                        currentProperty.Scale=new(2);
-                        currentProperty.Position=(isLeftFirstAndFarFirst)?(rightStandbyPosition):(leftStandbyPosition);
-                        currentProperty.TargetPosition=leftOfTheLeftTower;
-                        currentProperty.ScaleMode|=ScaleMode.YByDistance;
-                        currentProperty.Color=accessory.Data.DefaultSafeColor;
-                        currentProperty.DestoryAt=6900;
-
-                        accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Displacement,currentProperty);
-
-                        currentProperty=accessory.Data.GetDefaultDrawProperties();
-
-                        currentProperty.Name="Phase5_Guidance_2_For_Melees_During_Towers_近战踩塔指路2";
-                        currentProperty.Scale=new(2);
-                        currentProperty.Owner=accessory.Data.Me;
-                        currentProperty.TargetPosition=leftOfTheLeftTower;
-                        currentProperty.ScaleMode|=ScaleMode.YByDistance;
-                        currentProperty.Color=accessory.Data.DefaultSafeColor;
-                        currentProperty.Delay=6900;
-                        currentProperty.DestoryAt=7500;
-
-                        accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Displacement,currentProperty);
-                        
-                    }
-                    
-                    currentProperty=accessory.Data.GetDefaultDrawProperties();
-                    
-                    currentProperty.Name="Phase5_Range_Of_Towers_塔的范围";
-                    currentProperty.Scale=new(3);
-                    currentProperty.Position=positionOfTheFirstTower;
-                    currentProperty.Color=(isHealer)?(accessory.Data.DefaultSafeColor):(accessory.Data.DefaultDangerColor);
-                    currentProperty.DestoryAt=7300;
-                    
-                    accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Circle,currentProperty);
-                    
-                    currentProperty=accessory.Data.GetDefaultDrawProperties();
-                    
-                    currentProperty.Name="Phase5_Range_Of_Towers_塔的范围";
-                    currentProperty.Scale=new(3);
-                    currentProperty.Position=positionOfTheLeftTower;
-                    currentProperty.Color=(isMelee)?(accessory.Data.DefaultSafeColor):(accessory.Data.DefaultDangerColor);
-                    currentProperty.DestoryAt=14400;
-                    
-                    accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Circle,currentProperty);
-                    
-                    currentProperty=accessory.Data.GetDefaultDrawProperties();
-                    
-                    currentProperty.Name="Phase5_Range_Of_Towers_塔的范围";
-                    currentProperty.Scale=new(3);
-                    currentProperty.Position=positionOfTheRightTower;
-                    currentProperty.Color=(isRange)?(accessory.Data.DefaultSafeColor):(accessory.Data.DefaultDangerColor);
-                    currentProperty.DestoryAt=14400;
-                    
-                    accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Circle,currentProperty);
-                    
-                }
-
-                if(Phase5_Branch_Of_The_Grey9_Brain_Dead_Strat==Phase5_Branches_Of_The_Grey9_Brain_Dead_Strat.Healer_First_Then_Melees_Farther_Ranges_Closer_奶妈先然后近战远远程近_MMW) {
-                    
-                    Vector3 positionOfTheCloserTower=(isLeftFirstAndFarFirst)?(positionOfTheRightTower):(positionOfTheLeftTower);
-                    Vector3 positionOfTheFartherTower=(isLeftFirstAndFarFirst)?(positionOfTheLeftTower):(positionOfTheRightTower);
-                    Vector3 positionToTakeTheCloserTower=(isLeftFirstAndFarFirst)?(rightOfTheRightTower):(leftOfTheLeftTower);
-                    Vector3 positionToTakeTheFartherTower=(isLeftFirstAndFarFirst)?(leftOfTheLeftTower):(rightOfTheRightTower);
-                    
-                    bool isMelee=false;
-                    bool isRange=false;
-                    bool isHealer=false;
-                    
-                    if(accessory.Data.PartyList.IndexOf(accessory.Data.Me)==2
-                       ||
-                       accessory.Data.PartyList.IndexOf(accessory.Data.Me)==3) {
-
-                        isHealer=true;
-
-                        currentProperty = accessory.Data.GetDefaultDrawProperties();
-                        
-                        currentProperty.Name="Phase5_Guidance_1_For_Healers_During_Towers_奶妈踩塔指路1";
-                        currentProperty.Scale=new(2);
-                        currentProperty.Owner=accessory.Data.Me;
-                        currentProperty.TargetPosition=(isLeftFirstAndFarFirst)?(rightOfTheFirstTower):(leftOfTheFirstTower);
-                        currentProperty.ScaleMode|=ScaleMode.YByDistance;
-                        currentProperty.Color=accessory.Data.DefaultSafeColor;
-                        currentProperty.DestoryAt=7300;
-                        
-                        accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Displacement,currentProperty);
-
-                        currentProperty=accessory.Data.GetDefaultDrawProperties();
-
-                        currentProperty.Name="Phase5_Guidance_2_Preview_For_Healers_During_Towers_奶妈踩塔指路2预览";
-                        currentProperty.Scale=new(2);
-                        currentProperty.Position=(isLeftFirstAndFarFirst)?(rightOfTheFirstTower):(leftOfTheFirstTower);
-                        currentProperty.TargetPosition=oppositeStandbyPosition;
-                        currentProperty.ScaleMode|=ScaleMode.YByDistance;
-                        currentProperty.Color=accessory.Data.DefaultSafeColor;
-                        currentProperty.DestoryAt=7300;
-
-                        accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Displacement,currentProperty);
-
-                        currentProperty=accessory.Data.GetDefaultDrawProperties();
-
-                        currentProperty.Name="Phase5_Guidance_2_For_Healers_During_Towers_奶妈踩塔指路2";
-                        currentProperty.Scale=new(2);
-                        currentProperty.Owner=accessory.Data.Me;
-                        currentProperty.TargetPosition=oppositeStandbyPosition;
-                        currentProperty.ScaleMode|=ScaleMode.YByDistance;
-                        currentProperty.Color=accessory.Data.DefaultSafeColor;
-                        currentProperty.Delay=7300;
-                        currentProperty.DestoryAt=7100;
-
-                        accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Displacement,currentProperty);
-
-                    }
-
-                    if(accessory.Data.PartyList.IndexOf(accessory.Data.Me)==6
-                       ||
-                       accessory.Data.PartyList.IndexOf(accessory.Data.Me)==7) {
-
-                        isRange=true;
-                        
-                        currentProperty=accessory.Data.GetDefaultDrawProperties();
-
-                        currentProperty.Name="Phase5_Guidance_1_For_Ranges_During_Towers_远程踩塔指路1";
-                        currentProperty.Scale=new(2);
-                        currentProperty.Owner=accessory.Data.Me;
-                        currentProperty.TargetPosition=(isLeftFirstAndFarFirst)?(rightStandbyPosition):(leftStandbyPosition);
-                        currentProperty.ScaleMode|=ScaleMode.YByDistance;
-                        currentProperty.Color=accessory.Data.DefaultSafeColor;
-                        currentProperty.DestoryAt=6900;
-
-                        accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Displacement,currentProperty);
-
-                        currentProperty=accessory.Data.GetDefaultDrawProperties();
-
-                        currentProperty.Name="Phase5_Guidance_2_Preview_For_Ranges_During_Towers_远程踩塔指路2预览";
-                        currentProperty.Scale=new(2);
-                        currentProperty.Position=(isLeftFirstAndFarFirst)?(rightStandbyPosition):(leftStandbyPosition);
-                        currentProperty.TargetPosition=positionToTakeTheCloserTower;
-                        currentProperty.ScaleMode|=ScaleMode.YByDistance;
-                        currentProperty.Color=accessory.Data.DefaultSafeColor;
-                        currentProperty.DestoryAt=6900;
-
-                        accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Displacement,currentProperty);
-
-                        currentProperty=accessory.Data.GetDefaultDrawProperties();
-
-                        currentProperty.Name="Phase5_Guidance_2_For_Ranges_During_Towers_远程踩塔指路2";
-                        currentProperty.Scale=new(2);
-                        currentProperty.Owner=accessory.Data.Me;
-                        currentProperty.TargetPosition=positionToTakeTheCloserTower;
-                        currentProperty.ScaleMode|=ScaleMode.YByDistance;
-                        currentProperty.Color=accessory.Data.DefaultSafeColor;
-                        currentProperty.Delay=6900;
-                        currentProperty.DestoryAt=7500;
-
-                        accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Displacement,currentProperty);
-
-                    }
-
-                    if(accessory.Data.PartyList.IndexOf(accessory.Data.Me)==4
-                       ||
-                       accessory.Data.PartyList.IndexOf(accessory.Data.Me)==5) {
-
-                        isMelee=true;
-                        
-                        currentProperty=accessory.Data.GetDefaultDrawProperties();
-
-                        currentProperty.Name="Phase5_Guidance_1_For_Melees_During_Towers_近战踩塔指路1";
-                        currentProperty.Scale=new(2);
-                        currentProperty.Owner=accessory.Data.Me;
-                        currentProperty.TargetPosition=(isLeftFirstAndFarFirst)?(rightStandbyPosition):(leftStandbyPosition);
-                        currentProperty.ScaleMode|=ScaleMode.YByDistance;
-                        currentProperty.Color=accessory.Data.DefaultSafeColor; 
-                        currentProperty.DestoryAt=6900;
-
-                        accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Displacement,currentProperty);
-
-                        currentProperty=accessory.Data.GetDefaultDrawProperties();
-
-                        currentProperty.Name="Phase5_Guidance_2_Preview_For_Melees_During_Towers_近战踩塔指路2预览";
-                        currentProperty.Scale=new(2);
-                        currentProperty.Position=(isLeftFirstAndFarFirst)?(rightStandbyPosition):(leftStandbyPosition);
-                        currentProperty.TargetPosition=positionToTakeTheFartherTower;
-                        currentProperty.ScaleMode|=ScaleMode.YByDistance;
-                        currentProperty.Color=accessory.Data.DefaultSafeColor;
-                        currentProperty.DestoryAt=6900;
-
-                        accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Displacement,currentProperty);
-
-                        currentProperty=accessory.Data.GetDefaultDrawProperties();
-
-                        currentProperty.Name="Phase5_Guidance_2_For_Melees_During_Towers_近战踩塔指路2";
-                        currentProperty.Scale=new(2);
-                        currentProperty.Owner=accessory.Data.Me;
-                        currentProperty.TargetPosition=positionToTakeTheFartherTower;
-                        currentProperty.ScaleMode|=ScaleMode.YByDistance;
-                        currentProperty.Color=accessory.Data.DefaultSafeColor;
-                        currentProperty.Delay=6900;
-                        currentProperty.DestoryAt=7500;
-
-                        accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Displacement,currentProperty);
-                        
-                    }
-                    
-                    currentProperty=accessory.Data.GetDefaultDrawProperties();
-                    
-                    currentProperty.Name="Phase5_Range_Of_Towers_塔的范围";
-                    currentProperty.Scale=new(3);
-                    currentProperty.Position=positionOfTheFirstTower;
-                    currentProperty.Color=(isHealer)?(accessory.Data.DefaultSafeColor):(accessory.Data.DefaultDangerColor);
-                    currentProperty.DestoryAt=7300;
-                    
-                    accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Circle,currentProperty);
-                    
-                    currentProperty=accessory.Data.GetDefaultDrawProperties();
-                    
-                    currentProperty.Name="Phase5_Range_Of_Towers_塔的范围";
-                    currentProperty.Scale=new(3);
-                    currentProperty.Position=positionOfTheFartherTower;
-                    currentProperty.Color=(isMelee)?(accessory.Data.DefaultSafeColor):(accessory.Data.DefaultDangerColor);
-                    currentProperty.DestoryAt=14400;
-                    
-                    accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Circle,currentProperty);
-                    
-                    currentProperty=accessory.Data.GetDefaultDrawProperties();
-                    
-                    currentProperty.Name="Phase5_Range_Of_Towers_塔的范围";
-                    currentProperty.Scale=new(3);
-                    currentProperty.Position=positionOfTheCloserTower;
-                    currentProperty.Color=(isRange)?(accessory.Data.DefaultSafeColor):(accessory.Data.DefaultDangerColor);
-                    currentProperty.DestoryAt=14400;
-                    
-                    accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Circle,currentProperty);
-                    
-                }
-
-            }
-            
-            if(Phase5_Strat_Of_Wings_Dark_And_Light==Phase5_Strats_Of_Wings_Dark_And_Light.Reverse_Triangle_MT_Baits_In_Towers_倒三角法MT在塔中引导) {
-
-                float rotation=0;
-
-                if(phase5_indexOfTheFirstTower.Equals("00000030")) {
-
-                    rotation=float.Pi/3*2;
-
-                }
-
-                if(phase5_indexOfTheFirstTower.Equals("00000031")) {
-                    
-                    rotation=-(float.Pi/3*2);
-
-                }
-
-                if(phase5_indexOfTheFirstTower.Equals("00000032")) {
-
-                    rotation=0;
-
-                }
-
-                Vector3 positionOfTheFirstTower=RotatePoint(new Vector3(100,0,107),new Vector3(100,0,100),rotation);
-                Vector3 positionOfTheLeftTower=RotatePoint(positionOfTheFirstTower,new Vector3(100,0,100),float.Pi/3*2);
-                Vector3 positionOfTheRightTower=RotatePoint(positionOfTheFirstTower,new Vector3(100,0,100),-(float.Pi/3*2));
-                Vector3 leftOfTheLeftTower=RotatePoint(phase5_leftSideOfTheNorthwest_asAConstant,new Vector3(100,0,100),rotation);
-                Vector3 rightOfTheRightTower=RotatePoint(phase5_rightSideOfTheNortheast_asAConstant,new Vector3(100,0,100),rotation);
-                Vector3 oppositeStandbyPosition=RotatePoint(positionOfTheFirstTower,new Vector3(100,0,100),float.Pi);
-                Vector3 leftStandbyPosition=RotatePoint(phase5_standbyPointBetweenSouthAndNorthwest_asAConstant,new Vector3(100,0,100),rotation-(float.Pi/12));
-                Vector3 rightStandbyPosition=RotatePoint(phase5_standbyPointBetweenSouthAndNortheast_asAConstant,new Vector3(100,0,100),rotation+(float.Pi/12));
-                // I won't be so stupid as to enumerate every position anymore.
-                // Maybe it could say that this is some kind of my growth?
-                var currentProperty=accessory.Data.GetDefaultDrawProperties();
-                
-                if(Phase5_Branch_Of_The_Reverse_Triangle_Strat==Phase5_Branches_Of_The_Reverse_Triangle_Strat.Melees_First_Then_Healers_Left_Ranges_Right_近战先然后奶妈左远程右) {
-
-                    bool isMelee=false;
-                    bool isRange=false;
-                    bool isHealer=false;
-                    
-                    if(accessory.Data.PartyList.IndexOf(accessory.Data.Me)==4
-                       ||
-                       accessory.Data.PartyList.IndexOf(accessory.Data.Me)==5) {
-
-                        isMelee=true;
-
-                        currentProperty = accessory.Data.GetDefaultDrawProperties();
-                        
-                        currentProperty.Name="Phase5_Guidance_1_For_Melees_During_Towers_近战踩塔指路1";
-                        currentProperty.Scale=new(2);
-                        currentProperty.Owner=accessory.Data.Me;
-                        currentProperty.TargetPosition=positionOfTheFirstTower;
-                        currentProperty.ScaleMode|=ScaleMode.YByDistance;
-                        currentProperty.Color=accessory.Data.DefaultSafeColor;
-                        currentProperty.DestoryAt=7300;
-                        
-                        accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentProperty);
-
-                        currentProperty=accessory.Data.GetDefaultDrawProperties();
-
-                        currentProperty.Name="Phase5_Guidance_2_Preview_For_Melees_During_Towers_近战踩塔指路2预览";
-                        currentProperty.Scale=new(2);
+                        currentProperty.Name=$"Phase5_Range_Of_Towers_塔的范围-{视角}";
+                        currentProperty.Scale=new(3);
                         currentProperty.Position=positionOfTheFirstTower;
-                        currentProperty.TargetPosition=oppositeStandbyPosition;
-                        currentProperty.ScaleMode|=ScaleMode.YByDistance;
-                        currentProperty.Color=accessory.Data.DefaultSafeColor;
+                        currentProperty.Color=(isMelee)?(accessory.Data.DefaultSafeColor):(accessory.Data.DefaultDangerColor);
                         currentProperty.DestoryAt=7300;
 
-                        accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentProperty);
+                        accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Circle,currentProperty);
 
                         currentProperty=accessory.Data.GetDefaultDrawProperties();
 
-                        currentProperty.Name="Phase5_Guidance_2_For_Melees_During_Towers_近战踩塔指路2";
-                        currentProperty.Scale=new(2);
-                        currentProperty.Owner=accessory.Data.Me;
-                        currentProperty.TargetPosition=oppositeStandbyPosition;
-                        currentProperty.ScaleMode|=ScaleMode.YByDistance;
-                        currentProperty.Color=accessory.Data.DefaultSafeColor;
-                        currentProperty.Delay=7300;
-                        currentProperty.DestoryAt=7100;
+                        currentProperty.Name=$"Phase5_Range_Of_Towers_塔的范围-{视角}";
+                        currentProperty.Scale=new(3);
+                        currentProperty.Position=positionOfTheLeftTower;
+                        currentProperty.Color=(isHealer)?(accessory.Data.DefaultSafeColor):(accessory.Data.DefaultDangerColor);
+                        currentProperty.DestoryAt=14400;
 
-                        accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentProperty);
+                        accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Circle,currentProperty);
+
+                        currentProperty=accessory.Data.GetDefaultDrawProperties();
+
+                        currentProperty.Name=$"Phase5_Range_Of_Towers_塔的范围-{视角}";
+                        currentProperty.Scale=new(3);
+                        currentProperty.Position=positionOfTheRightTower;
+                        currentProperty.Color=(isRange)?(accessory.Data.DefaultSafeColor):(accessory.Data.DefaultDangerColor);
+                        currentProperty.DestoryAt=14400;
+
+                        accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Circle,currentProperty);
 
                     }
 
-                    if(accessory.Data.PartyList.IndexOf(accessory.Data.Me)==6
-                       ||
-                       accessory.Data.PartyList.IndexOf(accessory.Data.Me)==7) {
+                    if (Phase5_Branch_Of_The_Grey9_Brain_Dead_Strat == Phase5_Branches_Of_The_Grey9_Brain_Dead_Strat.Healers_First_Then_Melees_Left_Ranges_Right_奶妈先然后近战左远程右_莫灵喵)
+                    {
 
-                        isRange=true;
-                        
+                        var currentProperty = accessory.Data.GetDefaultDrawProperties();
+
+                        if (phase5_indexOfTheFirstTower.Equals("00000030"))
+                        {
+                            // The first tower is in the northwest.
+
+                            if (视角 == 2
+                               ||
+                               视角 == 3)
+                            {
+                                // The healer group, that is H1 & H2.
+
+                                currentProperty = accessory.Data.GetDefaultDrawProperties();
+
+                                currentProperty.Name = $"Phase5_Guidance_1_For_Melees_During_Towers_近战踩塔指路1-{视角}";
+                                // I'm also too lazy to change the name of currentProperty. The same below.
+                                // Please always refer to the if statements only.
+                                currentProperty.Scale = new(2);
+                                currentProperty.Owner = GuidanceOwner(accessory, 视角);
+                                currentProperty.TargetPosition = isLeftFirstAndFarFirst ? phase5_rightSideOfTheNorthwest_asAConstant : phase5_leftSideOfTheNorthwest_asAConstant;
+                                currentProperty.ScaleMode |= ScaleMode.YByDistance;
+                                currentProperty.Color = accessory.Data.DefaultSafeColor;
+                                currentProperty.DestoryAt = 7300;
+
+                                accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentProperty);
+
+                                currentProperty = accessory.Data.GetDefaultDrawProperties();
+
+                                currentProperty.Name = $"Phase5_Guidance_2_Preview_For_Melees_During_Towers_近战踩塔指路2预览-{视角}";
+                                currentProperty.Scale = new(2);
+                                currentProperty.Position = isLeftFirstAndFarFirst ? phase5_rightSideOfTheNorthwest_asAConstant : phase5_leftSideOfTheNorthwest_asAConstant;
+                                currentProperty.TargetPosition = phase5_standbyPointBetweenSouthAndNortheast_asAConstant;
+                                currentProperty.ScaleMode |= ScaleMode.YByDistance;
+                                currentProperty.Color = accessory.Data.DefaultSafeColor;
+                                currentProperty.DestoryAt = 7300;
+
+                                accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentProperty);
+
+                                currentProperty = accessory.Data.GetDefaultDrawProperties();
+
+                                currentProperty.Name = $"Phase5_Guidance_2_For_Melees_During_Towers_近战踩塔指路2-{视角}";
+                                currentProperty.Scale = new(2);
+                                currentProperty.Owner = GuidanceOwner(accessory, 视角);
+                                currentProperty.TargetPosition = phase5_standbyPointBetweenSouthAndNortheast_asAConstant;
+                                currentProperty.ScaleMode |= ScaleMode.YByDistance;
+                                currentProperty.Color = accessory.Data.DefaultSafeColor;
+                                currentProperty.Delay = 7300;
+                                currentProperty.DestoryAt = 7100;
+
+                                accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentProperty);
+
+                            }
+
+                            if (视角 == 6
+                               ||
+                               视角 == 7)
+                            {
+                                // The range group, that is R1 & R2 or D3 & D4.
+
+                                currentProperty = accessory.Data.GetDefaultDrawProperties();
+
+                                currentProperty.Name = $"Phase5_Guidance_1_For_Ranges_During_Towers_远程踩塔指路1-{视角}";
+                                currentProperty.Scale = new(2);
+                                currentProperty.Owner = GuidanceOwner(accessory, 视角);
+                                currentProperty.TargetPosition = isLeftFirstAndFarFirst ? phase5_standbyPointBetweenSouthAndNorthwest_asAConstant : phase5_standbyPointBetweenNortheastAndNorthwest_asAConstant;
+                                currentProperty.ScaleMode |= ScaleMode.YByDistance;
+                                currentProperty.Color = accessory.Data.DefaultSafeColor;
+                                currentProperty.DestoryAt = 6900;
+
+                                accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentProperty);
+
+                                currentProperty = accessory.Data.GetDefaultDrawProperties();
+
+                                currentProperty.Name = $"Phase5_Guidance_2_Preview_For_Ranges_During_Towers_远程踩塔指路2预览-{视角}";
+                                currentProperty.Scale = new(2);
+                                currentProperty.Position = isLeftFirstAndFarFirst ? phase5_standbyPointBetweenSouthAndNorthwest_asAConstant : phase5_standbyPointBetweenNortheastAndNorthwest_asAConstant;
+                                currentProperty.TargetPosition = phase5_rightSideOfTheSouth_asAConstant;
+                                currentProperty.ScaleMode |= ScaleMode.YByDistance;
+                                currentProperty.Color = accessory.Data.DefaultSafeColor;
+                                currentProperty.DestoryAt = 6900;
+
+                                accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentProperty);
+
+                                currentProperty = accessory.Data.GetDefaultDrawProperties();
+
+                                currentProperty.Name = $"Phase5_Guidance_2_For_Ranges_During_Towers_远程踩塔指路2-{视角}";
+                                currentProperty.Scale = new(2);
+                                currentProperty.Owner = GuidanceOwner(accessory, 视角);
+                                currentProperty.TargetPosition = phase5_rightSideOfTheSouth_asAConstant;
+                                currentProperty.ScaleMode |= ScaleMode.YByDistance;
+                                currentProperty.Color = accessory.Data.DefaultSafeColor;
+                                currentProperty.Delay = 6900;
+                                currentProperty.DestoryAt = 7500;
+
+                                accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentProperty);
+
+                            }
+
+                            if (视角 == 4
+                               ||
+                               视角 == 5)
+                            {
+                                // The melee group, that is M1 & M2 or D1 & D2.
+
+                                currentProperty = accessory.Data.GetDefaultDrawProperties();
+
+                                currentProperty.Name = $"Phase5_Guidance_1_For_Healers_During_Towers_奶妈踩塔指路1-{视角}";
+                                currentProperty.Scale = new(2);
+                                currentProperty.Owner = GuidanceOwner(accessory, 视角);
+                                currentProperty.TargetPosition = isLeftFirstAndFarFirst ? phase5_standbyPointBetweenSouthAndNorthwest_asAConstant : phase5_standbyPointBetweenNortheastAndNorthwest_asAConstant;
+                                currentProperty.ScaleMode |= ScaleMode.YByDistance;
+                                currentProperty.Color = accessory.Data.DefaultSafeColor;
+                                currentProperty.DestoryAt = 6900;
+
+                                accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentProperty);
+
+                                currentProperty = accessory.Data.GetDefaultDrawProperties();
+
+                                currentProperty.Name = $"Phase5_Guidance_2_Preview_For_Healers_During_Towers_奶妈踩塔指路2预览-{视角}";
+                                currentProperty.Scale = new(2);
+                                currentProperty.Position = isLeftFirstAndFarFirst ? phase5_standbyPointBetweenSouthAndNorthwest_asAConstant : phase5_standbyPointBetweenNortheastAndNorthwest_asAConstant;
+                                currentProperty.TargetPosition = phase5_leftSideOfTheNortheast_asAConstant;
+                                currentProperty.ScaleMode |= ScaleMode.YByDistance;
+                                currentProperty.Color = accessory.Data.DefaultSafeColor;
+                                currentProperty.DestoryAt = 6900;
+
+                                accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentProperty);
+
+                                currentProperty = accessory.Data.GetDefaultDrawProperties();
+
+                                currentProperty.Name = $"Phase5_Guidance_2_For_Healers_During_Towers_奶妈踩塔指路2-{视角}";
+                                currentProperty.Scale = new(2);
+                                currentProperty.Owner = GuidanceOwner(accessory, 视角);
+                                currentProperty.TargetPosition = phase5_leftSideOfTheNortheast_asAConstant;
+                                currentProperty.ScaleMode |= ScaleMode.YByDistance;
+                                currentProperty.Color = accessory.Data.DefaultSafeColor;
+                                currentProperty.Delay = 6900;
+                                currentProperty.DestoryAt = 7500;
+
+                                accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentProperty);
+
+                            }
+
+                        }
+
+                        if (phase5_indexOfTheFirstTower.Equals("00000031"))
+                        {
+                            // The first tower is in the northeast.
+
+                            if (视角 == 2
+                               ||
+                               视角 == 3)
+                            {
+
+                                currentProperty = accessory.Data.GetDefaultDrawProperties();
+
+                                currentProperty.Name = $"Phase5_Guidance_1_For_Melees_During_Towers_近战踩塔指路1-{视角}";
+                                currentProperty.Scale = new(2);
+                                currentProperty.Owner = GuidanceOwner(accessory, 视角);
+                                currentProperty.TargetPosition = isLeftFirstAndFarFirst ? phase5_rightSideOfTheNortheast_asAConstant : phase5_leftSideOfTheNortheast_asAConstant;
+                                currentProperty.ScaleMode |= ScaleMode.YByDistance;
+                                currentProperty.Color = accessory.Data.DefaultSafeColor;
+                                currentProperty.DestoryAt = 7300;
+
+                                accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentProperty);
+
+                                currentProperty = accessory.Data.GetDefaultDrawProperties();
+
+                                currentProperty.Name = $"Phase5_Guidance_2_Preview_For_Melees_During_Towers_近战踩塔指路2预览-{视角}";
+                                currentProperty.Scale = new(2);
+                                currentProperty.Position = isLeftFirstAndFarFirst ? phase5_rightSideOfTheNortheast_asAConstant : phase5_leftSideOfTheNortheast_asAConstant;
+                                currentProperty.TargetPosition = phase5_standbyPointBetweenSouthAndNorthwest_asAConstant;
+                                currentProperty.ScaleMode |= ScaleMode.YByDistance;
+                                currentProperty.Color = accessory.Data.DefaultSafeColor;
+                                currentProperty.DestoryAt = 7300;
+
+                                accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentProperty);
+
+                                currentProperty = accessory.Data.GetDefaultDrawProperties();
+
+                                currentProperty.Name = $"Phase5_Guidance_2_For_Melees_During_Towers_近战踩塔指路2-{视角}";
+                                currentProperty.Scale = new(2);
+                                currentProperty.Owner = GuidanceOwner(accessory, 视角);
+                                currentProperty.TargetPosition = phase5_standbyPointBetweenSouthAndNorthwest_asAConstant;
+                                currentProperty.ScaleMode |= ScaleMode.YByDistance;
+                                currentProperty.Color = accessory.Data.DefaultSafeColor;
+                                currentProperty.Delay = 7300;
+                                currentProperty.DestoryAt = 7100;
+
+                                accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentProperty);
+
+                            }
+
+                            if (视角 == 6
+                               ||
+                               视角 == 7)
+                            {
+
+                                currentProperty = accessory.Data.GetDefaultDrawProperties();
+
+                                currentProperty.Name = $"Phase5_Guidance_1_For_Ranges_During_Towers_远程踩塔指路1-{视角}";
+                                currentProperty.Scale = new(2);
+                                currentProperty.Owner = GuidanceOwner(accessory, 视角);
+                                currentProperty.TargetPosition = isLeftFirstAndFarFirst ? phase5_standbyPointBetweenNortheastAndNorthwest_asAConstant : phase5_standbyPointBetweenSouthAndNortheast_asAConstant;
+                                currentProperty.ScaleMode |= ScaleMode.YByDistance;
+                                currentProperty.Color = accessory.Data.DefaultSafeColor;
+                                currentProperty.DestoryAt = 6900;
+
+                                accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentProperty);
+
+                                currentProperty = accessory.Data.GetDefaultDrawProperties();
+
+                                currentProperty.Name = $"Phase5_Guidance_2_Preview_For_Ranges_During_Towers_远程踩塔指路2预览-{视角}";
+                                currentProperty.Scale = new(2);
+                                currentProperty.Position = isLeftFirstAndFarFirst ? phase5_standbyPointBetweenNortheastAndNorthwest_asAConstant : phase5_standbyPointBetweenSouthAndNortheast_asAConstant;
+                                currentProperty.TargetPosition = phase5_rightSideOfTheNorthwest_asAConstant;
+                                currentProperty.ScaleMode |= ScaleMode.YByDistance;
+                                currentProperty.Color = accessory.Data.DefaultSafeColor;
+                                currentProperty.DestoryAt = 6900;
+
+                                accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentProperty);
+
+                                currentProperty = accessory.Data.GetDefaultDrawProperties();
+
+                                currentProperty.Name = $"Phase5_Guidance_2_For_Ranges_During_Towers_远程踩塔指路2-{视角}";
+                                currentProperty.Scale = new(2);
+                                currentProperty.Owner = GuidanceOwner(accessory, 视角);
+                                currentProperty.TargetPosition = phase5_rightSideOfTheNorthwest_asAConstant;
+                                currentProperty.ScaleMode |= ScaleMode.YByDistance;
+                                currentProperty.Color = accessory.Data.DefaultSafeColor;
+                                currentProperty.Delay = 6900;
+                                currentProperty.DestoryAt = 7500;
+
+                                accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentProperty);
+
+                            }
+
+                            if (视角 == 4
+                               ||
+                               视角 == 5)
+                            {
+
+                                currentProperty = accessory.Data.GetDefaultDrawProperties();
+
+                                currentProperty.Name = $"Phase5_Guidance_1_For_Healers_During_Towers_奶妈踩塔指路1-{视角}";
+                                currentProperty.Scale = new(2);
+                                currentProperty.Owner = GuidanceOwner(accessory, 视角);
+                                currentProperty.TargetPosition = isLeftFirstAndFarFirst ? phase5_standbyPointBetweenNortheastAndNorthwest_asAConstant : phase5_standbyPointBetweenSouthAndNortheast_asAConstant;
+                                currentProperty.ScaleMode |= ScaleMode.YByDistance;
+                                currentProperty.Color = accessory.Data.DefaultSafeColor;
+                                currentProperty.DestoryAt = 6900;
+
+                                accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentProperty);
+
+                                currentProperty = accessory.Data.GetDefaultDrawProperties();
+
+                                currentProperty.Name = $"Phase5_Guidance_2_Preview_For_Healers_During_Towers_奶妈踩塔指路2预览-{视角}";
+                                currentProperty.Scale = new(2);
+                                currentProperty.Position = isLeftFirstAndFarFirst ? phase5_standbyPointBetweenNortheastAndNorthwest_asAConstant : phase5_standbyPointBetweenSouthAndNortheast_asAConstant;
+                                currentProperty.TargetPosition = phase5_leftSideOfTheSouth_asAConstant;
+                                currentProperty.ScaleMode |= ScaleMode.YByDistance;
+                                currentProperty.Color = accessory.Data.DefaultSafeColor;
+                                currentProperty.DestoryAt = 6900;
+
+                                accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentProperty);
+
+                                currentProperty = accessory.Data.GetDefaultDrawProperties();
+
+                                currentProperty.Name = $"Phase5_Guidance_2_For_Healers_During_Towers_奶妈踩塔指路2-{视角}";
+                                currentProperty.Scale = new(2);
+                                currentProperty.Owner = GuidanceOwner(accessory, 视角);
+                                currentProperty.TargetPosition = phase5_leftSideOfTheSouth_asAConstant;
+                                currentProperty.ScaleMode |= ScaleMode.YByDistance;
+                                currentProperty.Color = accessory.Data.DefaultSafeColor;
+                                currentProperty.Delay = 6900;
+                                currentProperty.DestoryAt = 7500;
+
+                                accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentProperty);
+
+                            }
+
+                        }
+
+                        if (phase5_indexOfTheFirstTower.Equals("00000032"))
+                        {
+                            // The first tower is in the south.
+
+                            if (视角 == 2
+                               ||
+                               视角 == 3)
+                            {
+
+                                currentProperty = accessory.Data.GetDefaultDrawProperties();
+
+                                currentProperty.Name = $"Phase5_Guidance_1_For_Melees_During_Towers_近战踩塔指路1-{视角}";
+                                currentProperty.Scale = new(2);
+                                currentProperty.Owner = GuidanceOwner(accessory, 视角);
+                                currentProperty.TargetPosition = isLeftFirstAndFarFirst ? phase5_rightSideOfTheSouth_asAConstant : phase5_leftSideOfTheSouth_asAConstant;
+                                currentProperty.ScaleMode |= ScaleMode.YByDistance;
+                                currentProperty.Color = accessory.Data.DefaultSafeColor;
+                                currentProperty.DestoryAt = 7300;
+
+                                accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentProperty);
+
+                                currentProperty = accessory.Data.GetDefaultDrawProperties();
+
+                                currentProperty.Name = $"Phase5_Guidance_2_Preview_For_Melees_During_Towers_近战踩塔指路2预览-{视角}";
+                                currentProperty.Scale = new(2);
+                                currentProperty.Position = isLeftFirstAndFarFirst ? phase5_rightSideOfTheSouth_asAConstant : phase5_leftSideOfTheSouth_asAConstant;
+                                currentProperty.TargetPosition = phase5_standbyPointBetweenNortheastAndNorthwest_asAConstant;
+                                currentProperty.ScaleMode |= ScaleMode.YByDistance;
+                                currentProperty.Color = accessory.Data.DefaultSafeColor;
+                                currentProperty.DestoryAt = 7300;
+
+                                accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentProperty);
+
+                                currentProperty = accessory.Data.GetDefaultDrawProperties();
+
+                                currentProperty.Name = $"Phase5_Guidance_2_For_Melees_During_Towers_近战踩塔指路2-{视角}";
+                                currentProperty.Scale = new(2);
+                                currentProperty.Owner = GuidanceOwner(accessory, 视角);
+                                currentProperty.TargetPosition = phase5_standbyPointBetweenNortheastAndNorthwest_asAConstant;
+                                currentProperty.ScaleMode |= ScaleMode.YByDistance;
+                                currentProperty.Color = accessory.Data.DefaultSafeColor;
+                                currentProperty.Delay = 7300;
+                                currentProperty.DestoryAt = 7100;
+
+                                accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentProperty);
+
+                            }
+
+                            if (视角 == 6
+                               ||
+                               视角 == 7)
+                            {
+
+                                currentProperty = accessory.Data.GetDefaultDrawProperties();
+
+                                currentProperty.Name = $"Phase5_Guidance_1_For_Ranges_During_Towers_远程踩塔指路1-{视角}";
+                                currentProperty.Scale = new(2);
+                                currentProperty.Owner = GuidanceOwner(accessory, 视角);
+                                currentProperty.TargetPosition = isLeftFirstAndFarFirst ? phase5_standbyPointBetweenSouthAndNortheast_asAConstant : phase5_standbyPointBetweenSouthAndNorthwest_asAConstant;
+                                currentProperty.ScaleMode |= ScaleMode.YByDistance;
+                                currentProperty.Color = accessory.Data.DefaultSafeColor;
+                                currentProperty.DestoryAt = 6900;
+
+                                accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentProperty);
+
+                                currentProperty = accessory.Data.GetDefaultDrawProperties();
+
+                                currentProperty.Name = $"Phase5_Guidance_2_Preview_For_Ranges_During_Towers_远程踩塔指路2预览-{视角}";
+                                currentProperty.Scale = new(2);
+                                currentProperty.Position = isLeftFirstAndFarFirst ? phase5_standbyPointBetweenSouthAndNortheast_asAConstant : phase5_standbyPointBetweenSouthAndNorthwest_asAConstant;
+                                currentProperty.TargetPosition = phase5_rightSideOfTheNortheast_asAConstant;
+                                currentProperty.ScaleMode |= ScaleMode.YByDistance;
+                                currentProperty.Color = accessory.Data.DefaultSafeColor;
+                                currentProperty.DestoryAt = 6900;
+
+                                accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentProperty);
+
+                                currentProperty = accessory.Data.GetDefaultDrawProperties();
+
+                                currentProperty.Name = $"Phase5_Guidance_2_For_Ranges_During_Towers_远程踩塔指路2-{视角}";
+                                currentProperty.Scale = new(2);
+                                currentProperty.Owner = GuidanceOwner(accessory, 视角);
+                                currentProperty.TargetPosition = phase5_rightSideOfTheNortheast_asAConstant;
+                                currentProperty.ScaleMode |= ScaleMode.YByDistance;
+                                currentProperty.Color = accessory.Data.DefaultSafeColor;
+                                currentProperty.Delay = 6900;
+                                currentProperty.DestoryAt = 7500;
+
+                                accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentProperty);
+
+                            }
+
+                            if (视角 == 4
+                               ||
+                               视角 == 5)
+                            {
+
+                                currentProperty = accessory.Data.GetDefaultDrawProperties();
+
+                                currentProperty.Name = $"Phase5_Guidance_1_For_Healers_During_Towers_奶妈踩塔指路1-{视角}";
+                                currentProperty.Scale = new(2);
+                                currentProperty.Owner = GuidanceOwner(accessory, 视角);
+                                currentProperty.TargetPosition = isLeftFirstAndFarFirst ? phase5_standbyPointBetweenSouthAndNortheast_asAConstant : phase5_standbyPointBetweenSouthAndNorthwest_asAConstant;
+                                currentProperty.ScaleMode |= ScaleMode.YByDistance;
+                                currentProperty.Color = accessory.Data.DefaultSafeColor;
+                                currentProperty.DestoryAt = 6900;
+
+                                accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentProperty);
+
+                                currentProperty = accessory.Data.GetDefaultDrawProperties();
+
+                                currentProperty.Name = $"Phase5_Guidance_2_Preview_For_Healers_During_Towers_奶妈踩塔指路2预览-{视角}";
+                                currentProperty.Scale = new(2);
+                                currentProperty.Position = isLeftFirstAndFarFirst ? phase5_standbyPointBetweenSouthAndNortheast_asAConstant : phase5_standbyPointBetweenSouthAndNorthwest_asAConstant;
+                                currentProperty.TargetPosition = phase5_leftSideOfTheNorthwest_asAConstant;
+                                currentProperty.ScaleMode |= ScaleMode.YByDistance;
+                                currentProperty.Color = accessory.Data.DefaultSafeColor;
+                                currentProperty.DestoryAt = 6900;
+
+                                accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentProperty);
+
+                                currentProperty = accessory.Data.GetDefaultDrawProperties();
+
+                                currentProperty.Name = $"Phase5_Guidance_2_For_Healers_During_Towers_奶妈踩塔指路2-{视角}";
+                                currentProperty.Scale = new(2);
+                                currentProperty.Owner = GuidanceOwner(accessory, 视角);
+                                currentProperty.TargetPosition = phase5_leftSideOfTheNorthwest_asAConstant;
+                                currentProperty.ScaleMode |= ScaleMode.YByDistance;
+                                currentProperty.Color = accessory.Data.DefaultSafeColor;
+                                currentProperty.Delay = 6900;
+                                currentProperty.DestoryAt = 7500;
+
+                                accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentProperty);
+
+                            }
+
+                        }
+
+                        Vector3 positionOfTheFirstTower=new Vector3(100,0,100);
+                        Vector3 positionOfTheLeftTower=new Vector3(100,0,100);
+                        Vector3 positionOfTheRightTower=new Vector3(100,0,100);
+
+                        if(phase5_indexOfTheFirstTower.Equals("00000030"))positionOfTheFirstTower=new Vector3(93.94f,0,96.50f);
+                        if(phase5_indexOfTheFirstTower.Equals("00000031"))positionOfTheFirstTower=new Vector3(106.06f,0,96.50f);
+                        if(phase5_indexOfTheFirstTower.Equals("00000032"))positionOfTheFirstTower=new Vector3(100,0,107);
+                        if(positionOfTheFirstTower.Equals(new Vector3(100,0,100)))return;
+                        positionOfTheLeftTower=RotatePoint(positionOfTheFirstTower,new Vector3(100,0,100),float.Pi/3*2);
+                        positionOfTheRightTower=RotatePoint(positionOfTheFirstTower,new Vector3(100,0,100),-(float.Pi/3*2));
+
+                        bool isMelee=false,isRange=false,isHealer=false;
+
+                        if(视角==2||视角==3)isHealer=true;
+                        if(视角==4||视角==5)isMelee=true;
+                        if(视角==6||视角==7)isRange=true;
+
                         currentProperty=accessory.Data.GetDefaultDrawProperties();
 
-                        currentProperty.Name="Phase5_Guidance_1_For_Ranges_During_Towers_远程踩塔指路1";
-                        currentProperty.Scale=new(2);
-                        currentProperty.Owner=accessory.Data.Me;
-                        currentProperty.TargetPosition=rightStandbyPosition;
-                        currentProperty.ScaleMode|=ScaleMode.YByDistance;
-                        currentProperty.Color=accessory.Data.DefaultSafeColor;
-                        currentProperty.DestoryAt=6900;
+                        currentProperty.Name=$"Phase5_Range_Of_Towers_塔的范围-{视角}";
+                        currentProperty.Scale=new(3);
+                        currentProperty.Position=positionOfTheFirstTower;
+                        currentProperty.Color=(isHealer)?(accessory.Data.DefaultSafeColor):(accessory.Data.DefaultDangerColor);
+                        currentProperty.DestoryAt=7300;
 
-                        accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Displacement,currentProperty);
+                        accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Circle,currentProperty);
 
                         currentProperty=accessory.Data.GetDefaultDrawProperties();
 
-                        currentProperty.Name="Phase5_Guidance_2_Preview_For_Ranges_During_Towers_远程踩塔指路2预览";
-                        currentProperty.Scale=new(2);
-                        currentProperty.Position=rightStandbyPosition;
-                        currentProperty.TargetPosition=rightOfTheRightTower;
-                        currentProperty.ScaleMode|=ScaleMode.YByDistance;
-                        currentProperty.Color=accessory.Data.DefaultSafeColor;
-                        currentProperty.DestoryAt=6900;
+                        currentProperty.Name=$"Phase5_Range_Of_Towers_塔的范围-{视角}";
+                        currentProperty.Scale=new(3);
+                        currentProperty.Position=positionOfTheLeftTower;
+                        currentProperty.Color=(isMelee)?(accessory.Data.DefaultSafeColor):(accessory.Data.DefaultDangerColor);
+                        currentProperty.DestoryAt=14400;
 
-                        accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Displacement,currentProperty);
+                        accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Circle,currentProperty);
 
                         currentProperty=accessory.Data.GetDefaultDrawProperties();
 
-                        currentProperty.Name="Phase5_Guidance_2_For_Ranges_During_Towers_远程踩塔指路2";
-                        currentProperty.Scale=new(2);
-                        currentProperty.Owner=accessory.Data.Me;
-                        currentProperty.TargetPosition=rightOfTheRightTower;
-                        currentProperty.ScaleMode|=ScaleMode.YByDistance;
-                        currentProperty.Color=accessory.Data.DefaultSafeColor;
-                        currentProperty.Delay=6900;
-                        currentProperty.DestoryAt=7500;
+                        currentProperty.Name=$"Phase5_Range_Of_Towers_塔的范围-{视角}";
+                        currentProperty.Scale=new(3);
+                        currentProperty.Position=positionOfTheRightTower;
+                        currentProperty.Color=(isRange)?(accessory.Data.DefaultSafeColor):(accessory.Data.DefaultDangerColor);
+                        currentProperty.DestoryAt=14400;
 
-                        accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Displacement,currentProperty);
+                        accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Circle,currentProperty);
 
                     }
 
-                    if(accessory.Data.PartyList.IndexOf(accessory.Data.Me)==2
-                       ||
-                       accessory.Data.PartyList.IndexOf(accessory.Data.Me)==3) {
+                }
+                */
 
-                        isHealer=true;
-                        
-                        currentProperty=accessory.Data.GetDefaultDrawProperties();
+                if(Phase5_Strat_Of_Wings_Dark_And_Light==Phase5_Strats_Of_Wings_Dark_And_Light.Grey9_Brain_Dead_MT_First_Tower_Opposite_灰九脑死法MT一塔对侧_莫灵喵与MMW) {
+                    // The previous spaghetti code is commented out. The entire part was reworked.
 
-                        currentProperty.Name="Phase5_Guidance_1_For_Healers_During_Towers_奶妈踩塔指路1";
-                        currentProperty.Scale=new(2);
-                        currentProperty.Owner=accessory.Data.Me;
-                        currentProperty.TargetPosition=leftStandbyPosition;
-                        currentProperty.ScaleMode|=ScaleMode.YByDistance;
-                        currentProperty.Color=accessory.Data.DefaultSafeColor; 
-                        currentProperty.DestoryAt=6900;
+                    float rotation=0;
 
-                        accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Displacement,currentProperty);
+                    if(phase5_indexOfTheFirstTower.Equals("00000030")) {
 
-                        currentProperty=accessory.Data.GetDefaultDrawProperties();
+                        rotation=float.Pi/3*2;
 
-                        currentProperty.Name="Phase5_Guidance_2_Preview_For_Healers_During_Towers_奶妈踩塔指路2预览";
-                        currentProperty.Scale=new(2);
-                        currentProperty.Position=leftStandbyPosition;
-                        currentProperty.TargetPosition=leftOfTheLeftTower;
-                        currentProperty.ScaleMode|=ScaleMode.YByDistance;
-                        currentProperty.Color=accessory.Data.DefaultSafeColor;
-                        currentProperty.DestoryAt=6900;
-
-                        accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Displacement,currentProperty);
-
-                        currentProperty=accessory.Data.GetDefaultDrawProperties();
-
-                        currentProperty.Name="Phase5_Guidance_2_For_Healers_During_Towers_奶妈踩塔指路2";
-                        currentProperty.Scale=new(2);
-                        currentProperty.Owner=accessory.Data.Me;
-                        currentProperty.TargetPosition=leftOfTheLeftTower;
-                        currentProperty.ScaleMode|=ScaleMode.YByDistance;
-                        currentProperty.Color=accessory.Data.DefaultSafeColor;
-                        currentProperty.Delay=6900;
-                        currentProperty.DestoryAt=7500;
-
-                        accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Displacement,currentProperty);
-                        
                     }
-                    
-                    currentProperty=accessory.Data.GetDefaultDrawProperties();
-                    
-                    currentProperty.Name="Phase5_Range_Of_Towers_塔的范围";
-                    currentProperty.Scale=new(3);
-                    currentProperty.Position=positionOfTheFirstTower;
-                    currentProperty.Color=(isMelee)?(accessory.Data.DefaultSafeColor):(accessory.Data.DefaultDangerColor);
-                    currentProperty.DestoryAt=7300;
-                    
-                    accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Circle,currentProperty);
-                    
-                    currentProperty=accessory.Data.GetDefaultDrawProperties();
-                    
-                    currentProperty.Name="Phase5_Range_Of_Towers_塔的范围";
-                    currentProperty.Scale=new(3);
-                    currentProperty.Position=positionOfTheLeftTower;
-                    currentProperty.Color=(isHealer)?(accessory.Data.DefaultSafeColor):(accessory.Data.DefaultDangerColor);
-                    currentProperty.DestoryAt=14400;
-                    
-                    accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Circle,currentProperty);
-                    
-                    currentProperty=accessory.Data.GetDefaultDrawProperties();
-                    
-                    currentProperty.Name="Phase5_Range_Of_Towers_塔的范围";
-                    currentProperty.Scale=new(3);
-                    currentProperty.Position=positionOfTheRightTower;
-                    currentProperty.Color=(isRange)?(accessory.Data.DefaultSafeColor):(accessory.Data.DefaultDangerColor);
-                    currentProperty.DestoryAt=14400;
-                    
-                    accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Circle,currentProperty);
+
+                    if(phase5_indexOfTheFirstTower.Equals("00000031")) {
+
+                        rotation=-(float.Pi/3*2);
+
+                    }
+
+                    if(phase5_indexOfTheFirstTower.Equals("00000032")) {
+
+                        rotation=0;
+
+                    }
+
+                    Vector3 positionOfTheFirstTower=RotatePoint(new Vector3(100,0,107),new Vector3(100,0,100),rotation);
+                    Vector3 positionOfTheLeftTower=RotatePoint(positionOfTheFirstTower,new Vector3(100,0,100),float.Pi/3*2);
+                    Vector3 positionOfTheRightTower=RotatePoint(positionOfTheFirstTower,new Vector3(100,0,100),-(float.Pi/3*2));
+                    Vector3 leftOfTheFirstTower=RotatePoint(phase5_leftSideOfTheSouth_asAConstant,new Vector3(100,0,100),rotation);
+                    Vector3 rightOfTheFirstTower=RotatePoint(phase5_rightSideOfTheSouth_asAConstant,new Vector3(100,0,100),rotation);
+                    Vector3 leftOfTheLeftTower=RotatePoint(phase5_leftSideOfTheNorthwest_asAConstant,new Vector3(100,0,100),rotation);
+                    Vector3 rightOfTheRightTower=RotatePoint(phase5_rightSideOfTheNortheast_asAConstant,new Vector3(100,0,100),rotation);
+                    Vector3 oppositeStandbyPosition=RotatePoint(positionOfTheFirstTower,new Vector3(100,0,100),float.Pi);
+                    Vector3 leftStandbyPosition=RotatePoint(phase5_standbyPointBetweenSouthAndNorthwest_asAConstant,new Vector3(100,0,100),rotation);
+                    Vector3 rightStandbyPosition=RotatePoint(phase5_standbyPointBetweenSouthAndNortheast_asAConstant,new Vector3(100,0,100),rotation);
+                    var currentProperty=accessory.Data.GetDefaultDrawProperties();
+
+                    if(Phase5_Branch_Of_The_Grey9_Brain_Dead_Strat==Phase5_Branches_Of_The_Grey9_Brain_Dead_Strat.Melees_First_Then_Healers_Left_Ranges_Right_近战先然后奶妈左远程右) {
+
+                        bool isMelee=false;
+                        bool isRange=false;
+                        bool isHealer=false;
+
+                        if(视角==4
+                           ||
+                           视角==5) {
+
+                            isMelee=true;
+
+                            currentProperty = accessory.Data.GetDefaultDrawProperties();
+
+                            currentProperty.Name=$"Phase5_Guidance_1_For_Melees_During_Towers_近战踩塔指路1-{视角}";
+                            currentProperty.Scale=new(2);
+                            currentProperty.Owner=GuidanceOwner(accessory, 视角);
+                            currentProperty.TargetPosition=(isLeftFirstAndFarFirst)?(rightOfTheFirstTower):(leftOfTheFirstTower);
+                            currentProperty.ScaleMode|=ScaleMode.YByDistance;
+                            currentProperty.Color=accessory.Data.DefaultSafeColor;
+                            currentProperty.DestoryAt=7300;
+
+                            accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Displacement,currentProperty);
+
+                            currentProperty=accessory.Data.GetDefaultDrawProperties();
+
+                            currentProperty.Name=$"Phase5_Guidance_2_Preview_For_Melees_During_Towers_近战踩塔指路2预览-{视角}";
+                            currentProperty.Scale=new(2);
+                            currentProperty.Position=(isLeftFirstAndFarFirst)?(rightOfTheFirstTower):(leftOfTheFirstTower);
+                            currentProperty.TargetPosition=oppositeStandbyPosition;
+                            currentProperty.ScaleMode|=ScaleMode.YByDistance;
+                            currentProperty.Color=accessory.Data.DefaultSafeColor;
+                            currentProperty.DestoryAt=7300;
+
+                            accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Displacement,currentProperty);
+
+                            currentProperty=accessory.Data.GetDefaultDrawProperties();
+
+                            currentProperty.Name=$"Phase5_Guidance_2_For_Melees_During_Towers_近战踩塔指路2-{视角}";
+                            currentProperty.Scale=new(2);
+                            currentProperty.Owner=GuidanceOwner(accessory, 视角);
+                            currentProperty.TargetPosition=oppositeStandbyPosition;
+                            currentProperty.ScaleMode|=ScaleMode.YByDistance;
+                            currentProperty.Color=accessory.Data.DefaultSafeColor;
+                            currentProperty.Delay=7300;
+                            currentProperty.DestoryAt=7100;
+
+                            accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Displacement,currentProperty);
+
+                        }
+
+                        if(视角==6
+                           ||
+                           视角==7) {
+
+                            isRange=true;
+
+                            currentProperty=accessory.Data.GetDefaultDrawProperties();
+
+                            currentProperty.Name=$"Phase5_Guidance_1_For_Ranges_During_Towers_远程踩塔指路1-{视角}";
+                            currentProperty.Scale=new(2);
+                            currentProperty.Owner=GuidanceOwner(accessory, 视角);
+                            currentProperty.TargetPosition=(isLeftFirstAndFarFirst)?(rightStandbyPosition):(leftStandbyPosition);
+                            currentProperty.ScaleMode|=ScaleMode.YByDistance;
+                            currentProperty.Color=accessory.Data.DefaultSafeColor;
+                            currentProperty.DestoryAt=6900;
+
+                            accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Displacement,currentProperty);
+
+                            currentProperty=accessory.Data.GetDefaultDrawProperties();
+
+                            currentProperty.Name=$"Phase5_Guidance_2_Preview_For_Ranges_During_Towers_远程踩塔指路2预览-{视角}";
+                            currentProperty.Scale=new(2);
+                            currentProperty.Position=(isLeftFirstAndFarFirst)?(rightStandbyPosition):(leftStandbyPosition);
+                            currentProperty.TargetPosition=rightOfTheRightTower;
+                            currentProperty.ScaleMode|=ScaleMode.YByDistance;
+                            currentProperty.Color=accessory.Data.DefaultSafeColor;
+                            currentProperty.DestoryAt=6900;
+
+                            accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Displacement,currentProperty);
+
+                            currentProperty=accessory.Data.GetDefaultDrawProperties();
+
+                            currentProperty.Name=$"Phase5_Guidance_2_For_Ranges_During_Towers_远程踩塔指路2-{视角}";
+                            currentProperty.Scale=new(2);
+                            currentProperty.Owner=GuidanceOwner(accessory, 视角);
+                            currentProperty.TargetPosition=rightOfTheRightTower;
+                            currentProperty.ScaleMode|=ScaleMode.YByDistance;
+                            currentProperty.Color=accessory.Data.DefaultSafeColor;
+                            currentProperty.Delay=6900;
+                            currentProperty.DestoryAt=7500;
+
+                            accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Displacement,currentProperty);
+
+                        }
+
+                        if(视角==2
+                           ||
+                           视角==3) {
+
+                            isHealer=true;
+
+                            currentProperty=accessory.Data.GetDefaultDrawProperties();
+
+                            currentProperty.Name=$"Phase5_Guidance_1_For_Healers_During_Towers_奶妈踩塔指路1-{视角}";
+                            currentProperty.Scale=new(2);
+                            currentProperty.Owner=GuidanceOwner(accessory, 视角);
+                            currentProperty.TargetPosition=(isLeftFirstAndFarFirst)?(rightStandbyPosition):(leftStandbyPosition);
+                            currentProperty.ScaleMode|=ScaleMode.YByDistance;
+                            currentProperty.Color=accessory.Data.DefaultSafeColor; 
+                            currentProperty.DestoryAt=6900;
+
+                            accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Displacement,currentProperty);
+
+                            currentProperty=accessory.Data.GetDefaultDrawProperties();
+
+                            currentProperty.Name=$"Phase5_Guidance_2_Preview_For_Healers_During_Towers_奶妈踩塔指路2预览-{视角}";
+                            currentProperty.Scale=new(2);
+                            currentProperty.Position=(isLeftFirstAndFarFirst)?(rightStandbyPosition):(leftStandbyPosition);
+                            currentProperty.TargetPosition=leftOfTheLeftTower;
+                            currentProperty.ScaleMode|=ScaleMode.YByDistance;
+                            currentProperty.Color=accessory.Data.DefaultSafeColor;
+                            currentProperty.DestoryAt=6900;
+
+                            accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Displacement,currentProperty);
+
+                            currentProperty=accessory.Data.GetDefaultDrawProperties();
+
+                            currentProperty.Name=$"Phase5_Guidance_2_For_Healers_During_Towers_奶妈踩塔指路2-{视角}";
+                            currentProperty.Scale=new(2);
+                            currentProperty.Owner=GuidanceOwner(accessory, 视角);
+                            currentProperty.TargetPosition=leftOfTheLeftTower;
+                            currentProperty.ScaleMode|=ScaleMode.YByDistance;
+                            currentProperty.Color=accessory.Data.DefaultSafeColor;
+                            currentProperty.Delay=6900;
+                            currentProperty.DestoryAt=7500;
+
+                            accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Displacement,currentProperty);
+
+                        }
+
+                        currentProperty=accessory.Data.GetDefaultDrawProperties();
+
+                        currentProperty.Name=$"Phase5_Range_Of_Towers_塔的范围-{视角}";
+                        currentProperty.Scale=new(3);
+                        currentProperty.Position=positionOfTheFirstTower;
+                        currentProperty.Color=(isMelee)?(accessory.Data.DefaultSafeColor):(accessory.Data.DefaultDangerColor);
+                        currentProperty.DestoryAt=7300;
+
+                        accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Circle,currentProperty);
+
+                        currentProperty=accessory.Data.GetDefaultDrawProperties();
+
+                        currentProperty.Name=$"Phase5_Range_Of_Towers_塔的范围-{视角}";
+                        currentProperty.Scale=new(3);
+                        currentProperty.Position=positionOfTheLeftTower;
+                        currentProperty.Color=(isHealer)?(accessory.Data.DefaultSafeColor):(accessory.Data.DefaultDangerColor);
+                        currentProperty.DestoryAt=14400;
+
+                        accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Circle,currentProperty);
+
+                        currentProperty=accessory.Data.GetDefaultDrawProperties();
+
+                        currentProperty.Name=$"Phase5_Range_Of_Towers_塔的范围-{视角}";
+                        currentProperty.Scale=new(3);
+                        currentProperty.Position=positionOfTheRightTower;
+                        currentProperty.Color=(isRange)?(accessory.Data.DefaultSafeColor):(accessory.Data.DefaultDangerColor);
+                        currentProperty.DestoryAt=14400;
+
+                        accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Circle,currentProperty);
+
+                    }
+
+                    if(Phase5_Branch_Of_The_Grey9_Brain_Dead_Strat==Phase5_Branches_Of_The_Grey9_Brain_Dead_Strat.Healers_First_Then_Melees_Left_Ranges_Right_奶妈先然后近战左远程右_莫灵喵) {
+
+                        bool isMelee=false;
+                        bool isRange=false;
+                        bool isHealer=false;
+
+                        if(视角==2
+                           ||
+                           视角==3) {
+
+                            isHealer=true;
+
+                            currentProperty = accessory.Data.GetDefaultDrawProperties();
+
+                            currentProperty.Name=$"Phase5_Guidance_1_For_Healers_During_Towers_奶妈踩塔指路1-{视角}";
+                            currentProperty.Scale=new(2);
+                            currentProperty.Owner=GuidanceOwner(accessory, 视角);
+                            currentProperty.TargetPosition=(isLeftFirstAndFarFirst)?(rightOfTheFirstTower):(leftOfTheFirstTower);
+                            currentProperty.ScaleMode|=ScaleMode.YByDistance;
+                            currentProperty.Color=accessory.Data.DefaultSafeColor;
+                            currentProperty.DestoryAt=7300;
+
+                            accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Displacement,currentProperty);
+
+                            currentProperty=accessory.Data.GetDefaultDrawProperties();
+
+                            currentProperty.Name=$"Phase5_Guidance_2_Preview_For_Healers_During_Towers_奶妈踩塔指路2预览-{视角}";
+                            currentProperty.Scale=new(2);
+                            currentProperty.Position=(isLeftFirstAndFarFirst)?(rightOfTheFirstTower):(leftOfTheFirstTower);
+                            currentProperty.TargetPosition=oppositeStandbyPosition;
+                            currentProperty.ScaleMode|=ScaleMode.YByDistance;
+                            currentProperty.Color=accessory.Data.DefaultSafeColor;
+                            currentProperty.DestoryAt=7300;
+
+                            accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Displacement,currentProperty);
+
+                            currentProperty=accessory.Data.GetDefaultDrawProperties();
+
+                            currentProperty.Name=$"Phase5_Guidance_2_For_Healers_During_Towers_奶妈踩塔指路2-{视角}";
+                            currentProperty.Scale=new(2);
+                            currentProperty.Owner=GuidanceOwner(accessory, 视角);
+                            currentProperty.TargetPosition=oppositeStandbyPosition;
+                            currentProperty.ScaleMode|=ScaleMode.YByDistance;
+                            currentProperty.Color=accessory.Data.DefaultSafeColor;
+                            currentProperty.Delay=7300;
+                            currentProperty.DestoryAt=7100;
+
+                            accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Displacement,currentProperty);
+
+                        }
+
+                        if(视角==6
+                           ||
+                           视角==7) {
+
+                            isRange=true;
+
+                            currentProperty=accessory.Data.GetDefaultDrawProperties();
+
+                            currentProperty.Name=$"Phase5_Guidance_1_For_Ranges_During_Towers_远程踩塔指路1-{视角}";
+                            currentProperty.Scale=new(2);
+                            currentProperty.Owner=GuidanceOwner(accessory, 视角);
+                            currentProperty.TargetPosition=(isLeftFirstAndFarFirst)?(rightStandbyPosition):(leftStandbyPosition);
+                            currentProperty.ScaleMode|=ScaleMode.YByDistance;
+                            currentProperty.Color=accessory.Data.DefaultSafeColor;
+                            currentProperty.DestoryAt=6900;
+
+                            accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Displacement,currentProperty);
+
+                            currentProperty=accessory.Data.GetDefaultDrawProperties();
+
+                            currentProperty.Name=$"Phase5_Guidance_2_Preview_For_Ranges_During_Towers_远程踩塔指路2预览-{视角}";
+                            currentProperty.Scale=new(2);
+                            currentProperty.Position=(isLeftFirstAndFarFirst)?(rightStandbyPosition):(leftStandbyPosition);
+                            currentProperty.TargetPosition=rightOfTheRightTower;
+                            currentProperty.ScaleMode|=ScaleMode.YByDistance;
+                            currentProperty.Color=accessory.Data.DefaultSafeColor;
+                            currentProperty.DestoryAt=6900;
+
+                            accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Displacement,currentProperty);
+
+                            currentProperty=accessory.Data.GetDefaultDrawProperties();
+
+                            currentProperty.Name=$"Phase5_Guidance_2_For_Ranges_During_Towers_远程踩塔指路2-{视角}";
+                            currentProperty.Scale=new(2);
+                            currentProperty.Owner=GuidanceOwner(accessory, 视角);
+                            currentProperty.TargetPosition=rightOfTheRightTower;
+                            currentProperty.ScaleMode|=ScaleMode.YByDistance;
+                            currentProperty.Color=accessory.Data.DefaultSafeColor;
+                            currentProperty.Delay=6900;
+                            currentProperty.DestoryAt=7500;
+
+                            accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Displacement,currentProperty);
+
+                        }
+
+                        if(视角==4
+                           ||
+                           视角==5) {
+
+                            isMelee=true;
+
+                            currentProperty=accessory.Data.GetDefaultDrawProperties();
+
+                            currentProperty.Name=$"Phase5_Guidance_1_For_Melees_During_Towers_近战踩塔指路1-{视角}";
+                            currentProperty.Scale=new(2);
+                            currentProperty.Owner=GuidanceOwner(accessory, 视角);
+                            currentProperty.TargetPosition=(isLeftFirstAndFarFirst)?(rightStandbyPosition):(leftStandbyPosition);
+                            currentProperty.ScaleMode|=ScaleMode.YByDistance;
+                            currentProperty.Color=accessory.Data.DefaultSafeColor; 
+                            currentProperty.DestoryAt=6900;
+
+                            accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Displacement,currentProperty);
+
+                            currentProperty=accessory.Data.GetDefaultDrawProperties();
+
+                            currentProperty.Name=$"Phase5_Guidance_2_Preview_For_Melees_During_Towers_近战踩塔指路2预览-{视角}";
+                            currentProperty.Scale=new(2);
+                            currentProperty.Position=(isLeftFirstAndFarFirst)?(rightStandbyPosition):(leftStandbyPosition);
+                            currentProperty.TargetPosition=leftOfTheLeftTower;
+                            currentProperty.ScaleMode|=ScaleMode.YByDistance;
+                            currentProperty.Color=accessory.Data.DefaultSafeColor;
+                            currentProperty.DestoryAt=6900;
+
+                            accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Displacement,currentProperty);
+
+                            currentProperty=accessory.Data.GetDefaultDrawProperties();
+
+                            currentProperty.Name=$"Phase5_Guidance_2_For_Melees_During_Towers_近战踩塔指路2-{视角}";
+                            currentProperty.Scale=new(2);
+                            currentProperty.Owner=GuidanceOwner(accessory, 视角);
+                            currentProperty.TargetPosition=leftOfTheLeftTower;
+                            currentProperty.ScaleMode|=ScaleMode.YByDistance;
+                            currentProperty.Color=accessory.Data.DefaultSafeColor;
+                            currentProperty.Delay=6900;
+                            currentProperty.DestoryAt=7500;
+
+                            accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Displacement,currentProperty);
+
+                        }
+
+                        currentProperty=accessory.Data.GetDefaultDrawProperties();
+
+                        currentProperty.Name=$"Phase5_Range_Of_Towers_塔的范围-{视角}";
+                        currentProperty.Scale=new(3);
+                        currentProperty.Position=positionOfTheFirstTower;
+                        currentProperty.Color=(isHealer)?(accessory.Data.DefaultSafeColor):(accessory.Data.DefaultDangerColor);
+                        currentProperty.DestoryAt=7300;
+
+                        accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Circle,currentProperty);
+
+                        currentProperty=accessory.Data.GetDefaultDrawProperties();
+
+                        currentProperty.Name=$"Phase5_Range_Of_Towers_塔的范围-{视角}";
+                        currentProperty.Scale=new(3);
+                        currentProperty.Position=positionOfTheLeftTower;
+                        currentProperty.Color=(isMelee)?(accessory.Data.DefaultSafeColor):(accessory.Data.DefaultDangerColor);
+                        currentProperty.DestoryAt=14400;
+
+                        accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Circle,currentProperty);
+
+                        currentProperty=accessory.Data.GetDefaultDrawProperties();
+
+                        currentProperty.Name=$"Phase5_Range_Of_Towers_塔的范围-{视角}";
+                        currentProperty.Scale=new(3);
+                        currentProperty.Position=positionOfTheRightTower;
+                        currentProperty.Color=(isRange)?(accessory.Data.DefaultSafeColor):(accessory.Data.DefaultDangerColor);
+                        currentProperty.DestoryAt=14400;
+
+                        accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Circle,currentProperty);
+
+                    }
+
+                    if(Phase5_Branch_Of_The_Grey9_Brain_Dead_Strat==Phase5_Branches_Of_The_Grey9_Brain_Dead_Strat.Healer_First_Then_Melees_Farther_Ranges_Closer_奶妈先然后近战远远程近_MMW) {
+
+                        Vector3 positionOfTheCloserTower=(isLeftFirstAndFarFirst)?(positionOfTheRightTower):(positionOfTheLeftTower);
+                        Vector3 positionOfTheFartherTower=(isLeftFirstAndFarFirst)?(positionOfTheLeftTower):(positionOfTheRightTower);
+                        Vector3 positionToTakeTheCloserTower=(isLeftFirstAndFarFirst)?(rightOfTheRightTower):(leftOfTheLeftTower);
+                        Vector3 positionToTakeTheFartherTower=(isLeftFirstAndFarFirst)?(leftOfTheLeftTower):(rightOfTheRightTower);
+
+                        bool isMelee=false;
+                        bool isRange=false;
+                        bool isHealer=false;
+
+                        if(视角==2
+                           ||
+                           视角==3) {
+
+                            isHealer=true;
+
+                            currentProperty = accessory.Data.GetDefaultDrawProperties();
+
+                            currentProperty.Name=$"Phase5_Guidance_1_For_Healers_During_Towers_奶妈踩塔指路1-{视角}";
+                            currentProperty.Scale=new(2);
+                            currentProperty.Owner=GuidanceOwner(accessory, 视角);
+                            currentProperty.TargetPosition=(isLeftFirstAndFarFirst)?(rightOfTheFirstTower):(leftOfTheFirstTower);
+                            currentProperty.ScaleMode|=ScaleMode.YByDistance;
+                            currentProperty.Color=accessory.Data.DefaultSafeColor;
+                            currentProperty.DestoryAt=7300;
+
+                            accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Displacement,currentProperty);
+
+                            currentProperty=accessory.Data.GetDefaultDrawProperties();
+
+                            currentProperty.Name=$"Phase5_Guidance_2_Preview_For_Healers_During_Towers_奶妈踩塔指路2预览-{视角}";
+                            currentProperty.Scale=new(2);
+                            currentProperty.Position=(isLeftFirstAndFarFirst)?(rightOfTheFirstTower):(leftOfTheFirstTower);
+                            currentProperty.TargetPosition=oppositeStandbyPosition;
+                            currentProperty.ScaleMode|=ScaleMode.YByDistance;
+                            currentProperty.Color=accessory.Data.DefaultSafeColor;
+                            currentProperty.DestoryAt=7300;
+
+                            accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Displacement,currentProperty);
+
+                            currentProperty=accessory.Data.GetDefaultDrawProperties();
+
+                            currentProperty.Name=$"Phase5_Guidance_2_For_Healers_During_Towers_奶妈踩塔指路2-{视角}";
+                            currentProperty.Scale=new(2);
+                            currentProperty.Owner=GuidanceOwner(accessory, 视角);
+                            currentProperty.TargetPosition=oppositeStandbyPosition;
+                            currentProperty.ScaleMode|=ScaleMode.YByDistance;
+                            currentProperty.Color=accessory.Data.DefaultSafeColor;
+                            currentProperty.Delay=7300;
+                            currentProperty.DestoryAt=7100;
+
+                            accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Displacement,currentProperty);
+
+                        }
+
+                        if(视角==6
+                           ||
+                           视角==7) {
+
+                            isRange=true;
+
+                            currentProperty=accessory.Data.GetDefaultDrawProperties();
+
+                            currentProperty.Name=$"Phase5_Guidance_1_For_Ranges_During_Towers_远程踩塔指路1-{视角}";
+                            currentProperty.Scale=new(2);
+                            currentProperty.Owner=GuidanceOwner(accessory, 视角);
+                            currentProperty.TargetPosition=(isLeftFirstAndFarFirst)?(rightStandbyPosition):(leftStandbyPosition);
+                            currentProperty.ScaleMode|=ScaleMode.YByDistance;
+                            currentProperty.Color=accessory.Data.DefaultSafeColor;
+                            currentProperty.DestoryAt=6900;
+
+                            accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Displacement,currentProperty);
+
+                            currentProperty=accessory.Data.GetDefaultDrawProperties();
+
+                            currentProperty.Name=$"Phase5_Guidance_2_Preview_For_Ranges_During_Towers_远程踩塔指路2预览-{视角}";
+                            currentProperty.Scale=new(2);
+                            currentProperty.Position=(isLeftFirstAndFarFirst)?(rightStandbyPosition):(leftStandbyPosition);
+                            currentProperty.TargetPosition=positionToTakeTheCloserTower;
+                            currentProperty.ScaleMode|=ScaleMode.YByDistance;
+                            currentProperty.Color=accessory.Data.DefaultSafeColor;
+                            currentProperty.DestoryAt=6900;
+
+                            accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Displacement,currentProperty);
+
+                            currentProperty=accessory.Data.GetDefaultDrawProperties();
+
+                            currentProperty.Name=$"Phase5_Guidance_2_For_Ranges_During_Towers_远程踩塔指路2-{视角}";
+                            currentProperty.Scale=new(2);
+                            currentProperty.Owner=GuidanceOwner(accessory, 视角);
+                            currentProperty.TargetPosition=positionToTakeTheCloserTower;
+                            currentProperty.ScaleMode|=ScaleMode.YByDistance;
+                            currentProperty.Color=accessory.Data.DefaultSafeColor;
+                            currentProperty.Delay=6900;
+                            currentProperty.DestoryAt=7500;
+
+                            accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Displacement,currentProperty);
+
+                        }
+
+                        if(视角==4
+                           ||
+                           视角==5) {
+
+                            isMelee=true;
+
+                            currentProperty=accessory.Data.GetDefaultDrawProperties();
+
+                            currentProperty.Name=$"Phase5_Guidance_1_For_Melees_During_Towers_近战踩塔指路1-{视角}";
+                            currentProperty.Scale=new(2);
+                            currentProperty.Owner=GuidanceOwner(accessory, 视角);
+                            currentProperty.TargetPosition=(isLeftFirstAndFarFirst)?(rightStandbyPosition):(leftStandbyPosition);
+                            currentProperty.ScaleMode|=ScaleMode.YByDistance;
+                            currentProperty.Color=accessory.Data.DefaultSafeColor; 
+                            currentProperty.DestoryAt=6900;
+
+                            accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Displacement,currentProperty);
+
+                            currentProperty=accessory.Data.GetDefaultDrawProperties();
+
+                            currentProperty.Name=$"Phase5_Guidance_2_Preview_For_Melees_During_Towers_近战踩塔指路2预览-{视角}";
+                            currentProperty.Scale=new(2);
+                            currentProperty.Position=(isLeftFirstAndFarFirst)?(rightStandbyPosition):(leftStandbyPosition);
+                            currentProperty.TargetPosition=positionToTakeTheFartherTower;
+                            currentProperty.ScaleMode|=ScaleMode.YByDistance;
+                            currentProperty.Color=accessory.Data.DefaultSafeColor;
+                            currentProperty.DestoryAt=6900;
+
+                            accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Displacement,currentProperty);
+
+                            currentProperty=accessory.Data.GetDefaultDrawProperties();
+
+                            currentProperty.Name=$"Phase5_Guidance_2_For_Melees_During_Towers_近战踩塔指路2-{视角}";
+                            currentProperty.Scale=new(2);
+                            currentProperty.Owner=GuidanceOwner(accessory, 视角);
+                            currentProperty.TargetPosition=positionToTakeTheFartherTower;
+                            currentProperty.ScaleMode|=ScaleMode.YByDistance;
+                            currentProperty.Color=accessory.Data.DefaultSafeColor;
+                            currentProperty.Delay=6900;
+                            currentProperty.DestoryAt=7500;
+
+                            accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Displacement,currentProperty);
+
+                        }
+
+                        currentProperty=accessory.Data.GetDefaultDrawProperties();
+
+                        currentProperty.Name=$"Phase5_Range_Of_Towers_塔的范围-{视角}";
+                        currentProperty.Scale=new(3);
+                        currentProperty.Position=positionOfTheFirstTower;
+                        currentProperty.Color=(isHealer)?(accessory.Data.DefaultSafeColor):(accessory.Data.DefaultDangerColor);
+                        currentProperty.DestoryAt=7300;
+
+                        accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Circle,currentProperty);
+
+                        currentProperty=accessory.Data.GetDefaultDrawProperties();
+
+                        currentProperty.Name=$"Phase5_Range_Of_Towers_塔的范围-{视角}";
+                        currentProperty.Scale=new(3);
+                        currentProperty.Position=positionOfTheFartherTower;
+                        currentProperty.Color=(isMelee)?(accessory.Data.DefaultSafeColor):(accessory.Data.DefaultDangerColor);
+                        currentProperty.DestoryAt=14400;
+
+                        accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Circle,currentProperty);
+
+                        currentProperty=accessory.Data.GetDefaultDrawProperties();
+
+                        currentProperty.Name=$"Phase5_Range_Of_Towers_塔的范围-{视角}";
+                        currentProperty.Scale=new(3);
+                        currentProperty.Position=positionOfTheCloserTower;
+                        currentProperty.Color=(isRange)?(accessory.Data.DefaultSafeColor):(accessory.Data.DefaultDangerColor);
+                        currentProperty.DestoryAt=14400;
+
+                        accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Circle,currentProperty);
+
+                    }
 
                 }
 
-                if(Phase5_Branch_Of_The_Reverse_Triangle_Strat==Phase5_Branches_Of_The_Reverse_Triangle_Strat.Healers_First_Then_Melees_Left_Ranges_Right_奶妈先然后近战左远程右) {
-                    
-                    bool isMelee=false;
-                    bool isRange=false;
-                    bool isHealer=false;
-                    
-                    if(accessory.Data.PartyList.IndexOf(accessory.Data.Me)==2
-                       ||
-                       accessory.Data.PartyList.IndexOf(accessory.Data.Me)==3) {
+                if(Phase5_Strat_Of_Wings_Dark_And_Light==Phase5_Strats_Of_Wings_Dark_And_Light.Reverse_Triangle_MT_Baits_In_Towers_倒三角法MT在塔中引导) {
 
-                        isHealer=true;
+                    float rotation=0;
 
-                        currentProperty = accessory.Data.GetDefaultDrawProperties();
-                        
-                        currentProperty.Name="Phase5_Guidance_1_For_Healers_During_Towers_奶妈踩塔指路1";
-                        currentProperty.Scale=new(2);
-                        currentProperty.Owner=accessory.Data.Me;
-                        currentProperty.TargetPosition=positionOfTheFirstTower;
-                        currentProperty.ScaleMode|=ScaleMode.YByDistance;
-                        currentProperty.Color=accessory.Data.DefaultSafeColor;
-                        currentProperty.DestoryAt=7300;
-                        
-                        accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentProperty);
+                    if(phase5_indexOfTheFirstTower.Equals("00000030")) {
+
+                        rotation=float.Pi/3*2;
+
+                    }
+
+                    if(phase5_indexOfTheFirstTower.Equals("00000031")) {
+
+                        rotation=-(float.Pi/3*2);
+
+                    }
+
+                    if(phase5_indexOfTheFirstTower.Equals("00000032")) {
+
+                        rotation=0;
+
+                    }
+
+                    Vector3 positionOfTheFirstTower=RotatePoint(new Vector3(100,0,107),new Vector3(100,0,100),rotation);
+                    Vector3 positionOfTheLeftTower=RotatePoint(positionOfTheFirstTower,new Vector3(100,0,100),float.Pi/3*2);
+                    Vector3 positionOfTheRightTower=RotatePoint(positionOfTheFirstTower,new Vector3(100,0,100),-(float.Pi/3*2));
+                    Vector3 leftOfTheLeftTower=RotatePoint(phase5_leftSideOfTheNorthwest_asAConstant,new Vector3(100,0,100),rotation);
+                    Vector3 rightOfTheRightTower=RotatePoint(phase5_rightSideOfTheNortheast_asAConstant,new Vector3(100,0,100),rotation);
+                    Vector3 oppositeStandbyPosition=RotatePoint(positionOfTheFirstTower,new Vector3(100,0,100),float.Pi);
+                    Vector3 leftStandbyPosition=RotatePoint(phase5_standbyPointBetweenSouthAndNorthwest_asAConstant,new Vector3(100,0,100),rotation-(float.Pi/12));
+                    Vector3 rightStandbyPosition=RotatePoint(phase5_standbyPointBetweenSouthAndNortheast_asAConstant,new Vector3(100,0,100),rotation+(float.Pi/12));
+                    // I won't be so stupid as to enumerate every position anymore.
+                    // Maybe it could say that this is some kind of my growth?
+                    var currentProperty=accessory.Data.GetDefaultDrawProperties();
+
+                    if(Phase5_Branch_Of_The_Reverse_Triangle_Strat==Phase5_Branches_Of_The_Reverse_Triangle_Strat.Melees_First_Then_Healers_Left_Ranges_Right_近战先然后奶妈左远程右) {
+
+                        bool isMelee=false;
+                        bool isRange=false;
+                        bool isHealer=false;
+
+                        if(视角==4
+                           ||
+                           视角==5) {
+
+                            isMelee=true;
+
+                            currentProperty = accessory.Data.GetDefaultDrawProperties();
+
+                            currentProperty.Name=$"Phase5_Guidance_1_For_Melees_During_Towers_近战踩塔指路1-{视角}";
+                            currentProperty.Scale=new(2);
+                            currentProperty.Owner=GuidanceOwner(accessory, 视角);
+                            currentProperty.TargetPosition=positionOfTheFirstTower;
+                            currentProperty.ScaleMode|=ScaleMode.YByDistance;
+                            currentProperty.Color=accessory.Data.DefaultSafeColor;
+                            currentProperty.DestoryAt=7300;
+
+                            accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentProperty);
+
+                            currentProperty=accessory.Data.GetDefaultDrawProperties();
+
+                            currentProperty.Name=$"Phase5_Guidance_2_Preview_For_Melees_During_Towers_近战踩塔指路2预览-{视角}";
+                            currentProperty.Scale=new(2);
+                            currentProperty.Position=positionOfTheFirstTower;
+                            currentProperty.TargetPosition=oppositeStandbyPosition;
+                            currentProperty.ScaleMode|=ScaleMode.YByDistance;
+                            currentProperty.Color=accessory.Data.DefaultSafeColor;
+                            currentProperty.DestoryAt=7300;
+
+                            accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentProperty);
+
+                            currentProperty=accessory.Data.GetDefaultDrawProperties();
+
+                            currentProperty.Name=$"Phase5_Guidance_2_For_Melees_During_Towers_近战踩塔指路2-{视角}";
+                            currentProperty.Scale=new(2);
+                            currentProperty.Owner=GuidanceOwner(accessory, 视角);
+                            currentProperty.TargetPosition=oppositeStandbyPosition;
+                            currentProperty.ScaleMode|=ScaleMode.YByDistance;
+                            currentProperty.Color=accessory.Data.DefaultSafeColor;
+                            currentProperty.Delay=7300;
+                            currentProperty.DestoryAt=7100;
+
+                            accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentProperty);
+
+                        }
+
+                        if(视角==6
+                           ||
+                           视角==7) {
+
+                            isRange=true;
+
+                            currentProperty=accessory.Data.GetDefaultDrawProperties();
+
+                            currentProperty.Name=$"Phase5_Guidance_1_For_Ranges_During_Towers_远程踩塔指路1-{视角}";
+                            currentProperty.Scale=new(2);
+                            currentProperty.Owner=GuidanceOwner(accessory, 视角);
+                            currentProperty.TargetPosition=rightStandbyPosition;
+                            currentProperty.ScaleMode|=ScaleMode.YByDistance;
+                            currentProperty.Color=accessory.Data.DefaultSafeColor;
+                            currentProperty.DestoryAt=6900;
+
+                            accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Displacement,currentProperty);
+
+                            currentProperty=accessory.Data.GetDefaultDrawProperties();
+
+                            currentProperty.Name=$"Phase5_Guidance_2_Preview_For_Ranges_During_Towers_远程踩塔指路2预览-{视角}";
+                            currentProperty.Scale=new(2);
+                            currentProperty.Position=rightStandbyPosition;
+                            currentProperty.TargetPosition=rightOfTheRightTower;
+                            currentProperty.ScaleMode|=ScaleMode.YByDistance;
+                            currentProperty.Color=accessory.Data.DefaultSafeColor;
+                            currentProperty.DestoryAt=6900;
+
+                            accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Displacement,currentProperty);
+
+                            currentProperty=accessory.Data.GetDefaultDrawProperties();
+
+                            currentProperty.Name=$"Phase5_Guidance_2_For_Ranges_During_Towers_远程踩塔指路2-{视角}";
+                            currentProperty.Scale=new(2);
+                            currentProperty.Owner=GuidanceOwner(accessory, 视角);
+                            currentProperty.TargetPosition=rightOfTheRightTower;
+                            currentProperty.ScaleMode|=ScaleMode.YByDistance;
+                            currentProperty.Color=accessory.Data.DefaultSafeColor;
+                            currentProperty.Delay=6900;
+                            currentProperty.DestoryAt=7500;
+
+                            accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Displacement,currentProperty);
+
+                        }
+
+                        if(视角==2
+                           ||
+                           视角==3) {
+
+                            isHealer=true;
+
+                            currentProperty=accessory.Data.GetDefaultDrawProperties();
+
+                            currentProperty.Name=$"Phase5_Guidance_1_For_Healers_During_Towers_奶妈踩塔指路1-{视角}";
+                            currentProperty.Scale=new(2);
+                            currentProperty.Owner=GuidanceOwner(accessory, 视角);
+                            currentProperty.TargetPosition=leftStandbyPosition;
+                            currentProperty.ScaleMode|=ScaleMode.YByDistance;
+                            currentProperty.Color=accessory.Data.DefaultSafeColor; 
+                            currentProperty.DestoryAt=6900;
+
+                            accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Displacement,currentProperty);
+
+                            currentProperty=accessory.Data.GetDefaultDrawProperties();
+
+                            currentProperty.Name=$"Phase5_Guidance_2_Preview_For_Healers_During_Towers_奶妈踩塔指路2预览-{视角}";
+                            currentProperty.Scale=new(2);
+                            currentProperty.Position=leftStandbyPosition;
+                            currentProperty.TargetPosition=leftOfTheLeftTower;
+                            currentProperty.ScaleMode|=ScaleMode.YByDistance;
+                            currentProperty.Color=accessory.Data.DefaultSafeColor;
+                            currentProperty.DestoryAt=6900;
+
+                            accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Displacement,currentProperty);
+
+                            currentProperty=accessory.Data.GetDefaultDrawProperties();
+
+                            currentProperty.Name=$"Phase5_Guidance_2_For_Healers_During_Towers_奶妈踩塔指路2-{视角}";
+                            currentProperty.Scale=new(2);
+                            currentProperty.Owner=GuidanceOwner(accessory, 视角);
+                            currentProperty.TargetPosition=leftOfTheLeftTower;
+                            currentProperty.ScaleMode|=ScaleMode.YByDistance;
+                            currentProperty.Color=accessory.Data.DefaultSafeColor;
+                            currentProperty.Delay=6900;
+                            currentProperty.DestoryAt=7500;
+
+                            accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Displacement,currentProperty);
+
+                        }
 
                         currentProperty=accessory.Data.GetDefaultDrawProperties();
 
-                        currentProperty.Name="Phase5_Guidance_2_Preview_For_Healers_During_Towers_奶妈踩塔指路2预览";
-                        currentProperty.Scale=new(2);
+                        currentProperty.Name=$"Phase5_Range_Of_Towers_塔的范围-{视角}";
+                        currentProperty.Scale=new(3);
                         currentProperty.Position=positionOfTheFirstTower;
-                        currentProperty.TargetPosition=oppositeStandbyPosition;
-                        currentProperty.ScaleMode|=ScaleMode.YByDistance;
-                        currentProperty.Color=accessory.Data.DefaultSafeColor;
+                        currentProperty.Color=(isMelee)?(accessory.Data.DefaultSafeColor):(accessory.Data.DefaultDangerColor);
                         currentProperty.DestoryAt=7300;
 
-                        accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentProperty);
+                        accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Circle,currentProperty);
 
                         currentProperty=accessory.Data.GetDefaultDrawProperties();
 
-                        currentProperty.Name="Phase5_Guidance_2_For_Healers_During_Towers_奶妈踩塔指路2";
-                        currentProperty.Scale=new(2);
-                        currentProperty.Owner=accessory.Data.Me;
-                        currentProperty.TargetPosition=oppositeStandbyPosition;
-                        currentProperty.ScaleMode|=ScaleMode.YByDistance;
-                        currentProperty.Color=accessory.Data.DefaultSafeColor;
-                        currentProperty.Delay=7300;
-                        currentProperty.DestoryAt=7100;
+                        currentProperty.Name=$"Phase5_Range_Of_Towers_塔的范围-{视角}";
+                        currentProperty.Scale=new(3);
+                        currentProperty.Position=positionOfTheLeftTower;
+                        currentProperty.Color=(isHealer)?(accessory.Data.DefaultSafeColor):(accessory.Data.DefaultDangerColor);
+                        currentProperty.DestoryAt=14400;
 
-                        accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentProperty);
+                        accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Circle,currentProperty);
+
+                        currentProperty=accessory.Data.GetDefaultDrawProperties();
+
+                        currentProperty.Name=$"Phase5_Range_Of_Towers_塔的范围-{视角}";
+                        currentProperty.Scale=new(3);
+                        currentProperty.Position=positionOfTheRightTower;
+                        currentProperty.Color=(isRange)?(accessory.Data.DefaultSafeColor):(accessory.Data.DefaultDangerColor);
+                        currentProperty.DestoryAt=14400;
+
+                        accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Circle,currentProperty);
 
                     }
 
-                    if(accessory.Data.PartyList.IndexOf(accessory.Data.Me)==6
-                       ||
-                       accessory.Data.PartyList.IndexOf(accessory.Data.Me)==7) {
+                    if(Phase5_Branch_Of_The_Reverse_Triangle_Strat==Phase5_Branches_Of_The_Reverse_Triangle_Strat.Healers_First_Then_Melees_Left_Ranges_Right_奶妈先然后近战左远程右) {
 
-                        isRange=true;
-                        
+                        bool isMelee=false;
+                        bool isRange=false;
+                        bool isHealer=false;
+
+                        if(视角==2
+                           ||
+                           视角==3) {
+
+                            isHealer=true;
+
+                            currentProperty = accessory.Data.GetDefaultDrawProperties();
+
+                            currentProperty.Name=$"Phase5_Guidance_1_For_Healers_During_Towers_奶妈踩塔指路1-{视角}";
+                            currentProperty.Scale=new(2);
+                            currentProperty.Owner=GuidanceOwner(accessory, 视角);
+                            currentProperty.TargetPosition=positionOfTheFirstTower;
+                            currentProperty.ScaleMode|=ScaleMode.YByDistance;
+                            currentProperty.Color=accessory.Data.DefaultSafeColor;
+                            currentProperty.DestoryAt=7300;
+
+                            accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentProperty);
+
+                            currentProperty=accessory.Data.GetDefaultDrawProperties();
+
+                            currentProperty.Name=$"Phase5_Guidance_2_Preview_For_Healers_During_Towers_奶妈踩塔指路2预览-{视角}";
+                            currentProperty.Scale=new(2);
+                            currentProperty.Position=positionOfTheFirstTower;
+                            currentProperty.TargetPosition=oppositeStandbyPosition;
+                            currentProperty.ScaleMode|=ScaleMode.YByDistance;
+                            currentProperty.Color=accessory.Data.DefaultSafeColor;
+                            currentProperty.DestoryAt=7300;
+
+                            accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentProperty);
+
+                            currentProperty=accessory.Data.GetDefaultDrawProperties();
+
+                            currentProperty.Name=$"Phase5_Guidance_2_For_Healers_During_Towers_奶妈踩塔指路2-{视角}";
+                            currentProperty.Scale=new(2);
+                            currentProperty.Owner=GuidanceOwner(accessory, 视角);
+                            currentProperty.TargetPosition=oppositeStandbyPosition;
+                            currentProperty.ScaleMode|=ScaleMode.YByDistance;
+                            currentProperty.Color=accessory.Data.DefaultSafeColor;
+                            currentProperty.Delay=7300;
+                            currentProperty.DestoryAt=7100;
+
+                            accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentProperty);
+
+                        }
+
+                        if(视角==6
+                           ||
+                           视角==7) {
+
+                            isRange=true;
+
+                            currentProperty=accessory.Data.GetDefaultDrawProperties();
+
+                            currentProperty.Name=$"Phase5_Guidance_1_For_Ranges_During_Towers_远程踩塔指路1-{视角}";
+                            currentProperty.Scale=new(2);
+                            currentProperty.Owner=GuidanceOwner(accessory, 视角);
+                            currentProperty.TargetPosition=rightStandbyPosition;
+                            currentProperty.ScaleMode|=ScaleMode.YByDistance;
+                            currentProperty.Color=accessory.Data.DefaultSafeColor;
+                            currentProperty.DestoryAt=6900;
+
+                            accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Displacement,currentProperty);
+
+                            currentProperty=accessory.Data.GetDefaultDrawProperties();
+
+                            currentProperty.Name=$"Phase5_Guidance_2_Preview_For_Ranges_During_Towers_远程踩塔指路2预览-{视角}";
+                            currentProperty.Scale=new(2);
+                            currentProperty.Position=rightStandbyPosition;
+                            currentProperty.TargetPosition=rightOfTheRightTower;
+                            currentProperty.ScaleMode|=ScaleMode.YByDistance;
+                            currentProperty.Color=accessory.Data.DefaultSafeColor;
+                            currentProperty.DestoryAt=6900;
+
+                            accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Displacement,currentProperty);
+
+                            currentProperty=accessory.Data.GetDefaultDrawProperties();
+
+                            currentProperty.Name=$"Phase5_Guidance_2_For_Ranges_During_Towers_远程踩塔指路2-{视角}";
+                            currentProperty.Scale=new(2);
+                            currentProperty.Owner=GuidanceOwner(accessory, 视角);
+                            currentProperty.TargetPosition=rightOfTheRightTower;
+                            currentProperty.ScaleMode|=ScaleMode.YByDistance;
+                            currentProperty.Color=accessory.Data.DefaultSafeColor;
+                            currentProperty.Delay=6900;
+                            currentProperty.DestoryAt=7500;
+
+                            accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Displacement,currentProperty);
+
+                        }
+
+                        if(视角==4
+                           ||
+                           视角==5) {
+
+                            isMelee=true;
+
+                            currentProperty=accessory.Data.GetDefaultDrawProperties();
+
+                            currentProperty.Name=$"Phase5_Guidance_1_For_Melees_During_Towers_近战踩塔指路1-{视角}";
+                            currentProperty.Scale=new(2);
+                            currentProperty.Owner=GuidanceOwner(accessory, 视角);
+                            currentProperty.TargetPosition=leftStandbyPosition;
+                            currentProperty.ScaleMode|=ScaleMode.YByDistance;
+                            currentProperty.Color=accessory.Data.DefaultSafeColor; 
+                            currentProperty.DestoryAt=6900;
+
+                            accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Displacement,currentProperty);
+
+                            currentProperty=accessory.Data.GetDefaultDrawProperties();
+
+                            currentProperty.Name=$"Phase5_Guidance_2_Preview_For_Melees_During_Towers_近战踩塔指路2预览-{视角}";
+                            currentProperty.Scale=new(2);
+                            currentProperty.Position=leftStandbyPosition;
+                            currentProperty.TargetPosition=leftOfTheLeftTower;
+                            currentProperty.ScaleMode|=ScaleMode.YByDistance;
+                            currentProperty.Color=accessory.Data.DefaultSafeColor;
+                            currentProperty.DestoryAt=6900;
+
+                            accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Displacement,currentProperty);
+
+                            currentProperty=accessory.Data.GetDefaultDrawProperties();
+
+                            currentProperty.Name=$"Phase5_Guidance_2_For_Melees_During_Towers_近战踩塔指路2-{视角}";
+                            currentProperty.Scale=new(2);
+                            currentProperty.Owner=GuidanceOwner(accessory, 视角);
+                            currentProperty.TargetPosition=leftOfTheLeftTower;
+                            currentProperty.ScaleMode|=ScaleMode.YByDistance;
+                            currentProperty.Color=accessory.Data.DefaultSafeColor;
+                            currentProperty.Delay=6900;
+                            currentProperty.DestoryAt=7500;
+
+                            accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Displacement,currentProperty);
+
+                        }
+
                         currentProperty=accessory.Data.GetDefaultDrawProperties();
 
-                        currentProperty.Name="Phase5_Guidance_1_For_Ranges_During_Towers_远程踩塔指路1";
-                        currentProperty.Scale=new(2);
-                        currentProperty.Owner=accessory.Data.Me;
-                        currentProperty.TargetPosition=rightStandbyPosition;
-                        currentProperty.ScaleMode|=ScaleMode.YByDistance;
-                        currentProperty.Color=accessory.Data.DefaultSafeColor;
-                        currentProperty.DestoryAt=6900;
+                        currentProperty.Name=$"Phase5_Range_Of_Towers_塔的范围-{视角}";
+                        currentProperty.Scale=new(3);
+                        currentProperty.Position=positionOfTheFirstTower;
+                        currentProperty.Color=(isHealer)?(accessory.Data.DefaultSafeColor):(accessory.Data.DefaultDangerColor);
+                        currentProperty.DestoryAt=7300;
 
-                        accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Displacement,currentProperty);
+                        accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Circle,currentProperty);
 
                         currentProperty=accessory.Data.GetDefaultDrawProperties();
 
-                        currentProperty.Name="Phase5_Guidance_2_Preview_For_Ranges_During_Towers_远程踩塔指路2预览";
-                        currentProperty.Scale=new(2);
-                        currentProperty.Position=rightStandbyPosition;
-                        currentProperty.TargetPosition=rightOfTheRightTower;
-                        currentProperty.ScaleMode|=ScaleMode.YByDistance;
-                        currentProperty.Color=accessory.Data.DefaultSafeColor;
-                        currentProperty.DestoryAt=6900;
+                        currentProperty.Name=$"Phase5_Range_Of_Towers_塔的范围-{视角}";
+                        currentProperty.Scale=new(3);
+                        currentProperty.Position=positionOfTheLeftTower;
+                        currentProperty.Color=(isMelee)?(accessory.Data.DefaultSafeColor):(accessory.Data.DefaultDangerColor);
+                        currentProperty.DestoryAt=14400;
 
-                        accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Displacement,currentProperty);
+                        accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Circle,currentProperty);
 
                         currentProperty=accessory.Data.GetDefaultDrawProperties();
 
-                        currentProperty.Name="Phase5_Guidance_2_For_Ranges_During_Towers_远程踩塔指路2";
-                        currentProperty.Scale=new(2);
-                        currentProperty.Owner=accessory.Data.Me;
-                        currentProperty.TargetPosition=rightOfTheRightTower;
-                        currentProperty.ScaleMode|=ScaleMode.YByDistance;
-                        currentProperty.Color=accessory.Data.DefaultSafeColor;
-                        currentProperty.Delay=6900;
-                        currentProperty.DestoryAt=7500;
+                        currentProperty.Name=$"Phase5_Range_Of_Towers_塔的范围-{视角}";
+                        currentProperty.Scale=new(3);
+                        currentProperty.Position=positionOfTheRightTower;
+                        currentProperty.Color=(isRange)?(accessory.Data.DefaultSafeColor):(accessory.Data.DefaultDangerColor);
+                        currentProperty.DestoryAt=14400;
 
-                        accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Displacement,currentProperty);
+                        accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Circle,currentProperty);
 
                     }
 
-                    if(accessory.Data.PartyList.IndexOf(accessory.Data.Me)==4
-                       ||
-                       accessory.Data.PartyList.IndexOf(accessory.Data.Me)==5) {
-
-                        isMelee=true;
-                        
-                        currentProperty=accessory.Data.GetDefaultDrawProperties();
-
-                        currentProperty.Name="Phase5_Guidance_1_For_Melees_During_Towers_近战踩塔指路1";
-                        currentProperty.Scale=new(2);
-                        currentProperty.Owner=accessory.Data.Me;
-                        currentProperty.TargetPosition=leftStandbyPosition;
-                        currentProperty.ScaleMode|=ScaleMode.YByDistance;
-                        currentProperty.Color=accessory.Data.DefaultSafeColor; 
-                        currentProperty.DestoryAt=6900;
-
-                        accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Displacement,currentProperty);
-
-                        currentProperty=accessory.Data.GetDefaultDrawProperties();
-
-                        currentProperty.Name="Phase5_Guidance_2_Preview_For_Melees_During_Towers_近战踩塔指路2预览";
-                        currentProperty.Scale=new(2);
-                        currentProperty.Position=leftStandbyPosition;
-                        currentProperty.TargetPosition=leftOfTheLeftTower;
-                        currentProperty.ScaleMode|=ScaleMode.YByDistance;
-                        currentProperty.Color=accessory.Data.DefaultSafeColor;
-                        currentProperty.DestoryAt=6900;
-
-                        accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Displacement,currentProperty);
-
-                        currentProperty=accessory.Data.GetDefaultDrawProperties();
-
-                        currentProperty.Name="Phase5_Guidance_2_For_Melees_During_Towers_近战踩塔指路2";
-                        currentProperty.Scale=new(2);
-                        currentProperty.Owner=accessory.Data.Me;
-                        currentProperty.TargetPosition=leftOfTheLeftTower;
-                        currentProperty.ScaleMode|=ScaleMode.YByDistance;
-                        currentProperty.Color=accessory.Data.DefaultSafeColor;
-                        currentProperty.Delay=6900;
-                        currentProperty.DestoryAt=7500;
-
-                        accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Displacement,currentProperty);
-                        
-                    }
-                    
-                    currentProperty=accessory.Data.GetDefaultDrawProperties();
-                    
-                    currentProperty.Name="Phase5_Range_Of_Towers_塔的范围";
-                    currentProperty.Scale=new(3);
-                    currentProperty.Position=positionOfTheFirstTower;
-                    currentProperty.Color=(isHealer)?(accessory.Data.DefaultSafeColor):(accessory.Data.DefaultDangerColor);
-                    currentProperty.DestoryAt=7300;
-                    
-                    accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Circle,currentProperty);
-                    
-                    currentProperty=accessory.Data.GetDefaultDrawProperties();
-                    
-                    currentProperty.Name="Phase5_Range_Of_Towers_塔的范围";
-                    currentProperty.Scale=new(3);
-                    currentProperty.Position=positionOfTheLeftTower;
-                    currentProperty.Color=(isMelee)?(accessory.Data.DefaultSafeColor):(accessory.Data.DefaultDangerColor);
-                    currentProperty.DestoryAt=14400;
-                    
-                    accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Circle,currentProperty);
-                    
-                    currentProperty=accessory.Data.GetDefaultDrawProperties();
-                    
-                    currentProperty.Name="Phase5_Range_Of_Towers_塔的范围";
-                    currentProperty.Scale=new(3);
-                    currentProperty.Position=positionOfTheRightTower;
-                    currentProperty.Color=(isRange)?(accessory.Data.DefaultSafeColor):(accessory.Data.DefaultDangerColor);
-                    currentProperty.DestoryAt=14400;
-                    
-                    accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Circle,currentProperty);
-                    
                 }
 
             }
-
         }
 
         [ScriptMethod(name: "Phase5 Boss Central Axis During Polarizing Strikes 极化打击(挡枪)期间Boss中轴线",
@@ -18763,103 +19004,147 @@ namespace CicerosKodakkuAssist.FuturesRewrittenUltimate.LPDU
 
             }
 
-            int myIndex = accessory.Data.PartyList.IndexOf(accessory.Data.Me);
-            int myRoundToTakeHits = phase5_getRoundToTakeHits(myIndex);
-            bool inTheLeftGroup = true;
-            int timelineControl = 0;
-            int timeToTakeHits = 0;
-            var currentProperty = accessory.Data.GetDefaultDrawProperties();
+            Parallel.ForEach(GuidanceIndices(accessory), 指路);
 
-            if (myRoundToTakeHits < 1 || myRoundToTakeHits > 4)
+            void 指路(int 视角)
             {
+                int myIndex = 视角;
+                int myRoundToTakeHits = phase5_getRoundToTakeHits(myIndex);
+                bool inTheLeftGroup = true;
+                int timelineControl = 0;
+                int timeToTakeHits = 0;
+                var currentProperty = accessory.Data.GetDefaultDrawProperties();
 
-                return;
+                if (myRoundToTakeHits < 1 || myRoundToTakeHits > 4)
+                {
 
-            }
+                    return;
 
-            if (myIndex == 0
-               ||
-               myIndex == 2
-               ||
-               myIndex == 4
-               ||
-               myIndex == 6)
-            {
+                }
 
-                inTheLeftGroup = true;
+                if (myIndex == 0
+                   ||
+                   myIndex == 2
+                   ||
+                   myIndex == 4
+                   ||
+                   myIndex == 6)
+                {
 
-            }
+                    inTheLeftGroup = true;
 
-            if (myIndex == 1
-               ||
-               myIndex == 3
-               ||
-               myIndex == 5
-               ||
-               myIndex == 7)
-            {
+                }
 
-                inTheLeftGroup = false;
+                if (myIndex == 1
+                   ||
+                   myIndex == 3
+                   ||
+                   myIndex == 5
+                   ||
+                   myIndex == 7)
+                {
 
-            }
+                    inTheLeftGroup = false;
 
-            // ----- Initial guidance -----
+                }
 
-            if (myRoundToTakeHits == 1)
-            {
+                // ----- Initial guidance -----
+
+                if (myRoundToTakeHits == 1)
+                {
+
+                    currentProperty = accessory.Data.GetDefaultDrawProperties();
+
+                    currentProperty.Name = $"Phase5_Initial_Guidance_Of_Polarizing_Strikes_极化打击初始指路-{视角}";
+                    currentProperty.Scale = new(2);
+                    currentProperty.Owner = GuidanceOwner(accessory, 视角);
+                    currentProperty.TargetPosition = inTheLeftGroup ?
+                        RotatePoint(phase5_positionToTakeHitsOnTheLeft_asAConstant, new Vector3(100, 0, 100), currentRotation) :
+                        RotatePoint(phase5_positionToTakeHitsOnTheRight_asAConstant, new Vector3(100, 0, 100), currentRotation);
+                    currentProperty.ScaleMode |= ScaleMode.YByDistance;
+                    currentProperty.Color = accessory.Data.DefaultSafeColor;
+                    currentProperty.DestoryAt = 4550;
+                    timelineControl += 4550;
+
+                    accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentProperty);
+
+                }
+
+                else
+                {
+
+                    currentProperty = accessory.Data.GetDefaultDrawProperties();
+
+                    currentProperty.Name = $"Phase5_Initial_Guidance_Of_Polarizing_Strikes_极化打击初始指路-{视角}";
+                    currentProperty.Scale = new(2);
+                    currentProperty.Owner = GuidanceOwner(accessory, 视角);
+                    currentProperty.TargetPosition = inTheLeftGroup ?
+                        RotatePoint(phase5_positionToBeCoveredOnTheLeft_asAConstant, new Vector3(100, 0, 100), currentRotation) :
+                        RotatePoint(phase5_positionToBeCoveredOnTheRight_asAConstant, new Vector3(100, 0, 100), currentRotation);
+                    currentProperty.ScaleMode |= ScaleMode.YByDistance;
+                    currentProperty.Color = accessory.Data.DefaultSafeColor;
+                    currentProperty.DestoryAt = 4550;
+                    timelineControl += 4550;
+
+                    accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentProperty);
+
+                }
+
+                // ----- Be covered in the current group -----
+
+                for (int i = 1; i < myRoundToTakeHits; ++i)
+                {
+
+                    currentProperty = accessory.Data.GetDefaultDrawProperties();
+
+                    currentProperty.Name = $"Phase5_Inward_Guidance_Of_Polarizing_Strikes_In_The_Current_Group_极化打击当前组进指路-{视角}";
+                    currentProperty.Scale = new(2);
+                    currentProperty.Owner = GuidanceOwner(accessory, 视角);
+                    currentProperty.TargetPosition = inTheLeftGroup ?
+                        RotatePoint(phase5_positionToBeCoveredOnTheLeft_asAConstant, new Vector3(100, 0, 100), currentRotation) :
+                        RotatePoint(phase5_positionToBeCoveredOnTheRight_asAConstant, new Vector3(100, 0, 100), currentRotation);
+                    currentProperty.ScaleMode |= ScaleMode.YByDistance;
+                    currentProperty.Color = accessory.Data.DefaultSafeColor;
+                    currentProperty.Delay = timelineControl;
+                    currentProperty.DestoryAt = 2450;
+                    timelineControl += 2450;
+
+                    accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentProperty);
+
+                    currentProperty = accessory.Data.GetDefaultDrawProperties();
+
+                    currentProperty.Name = $"Phase5_Outward_Guidance_Of_Polarizing_Strikes_In_The_Current_Group_极化打击当前组出指路-{视角}";
+                    currentProperty.Scale = new(2);
+                    currentProperty.Owner = GuidanceOwner(accessory, 视角);
+                    currentProperty.TargetPosition = inTheLeftGroup ?
+                        RotatePoint(phase5_positionToStandbyOnTheLeft_asAConstant, new Vector3(100, 0, 100), currentRotation) :
+                        RotatePoint(phase5_positionToStandbyOnTheRight_asAConstant, new Vector3(100, 0, 100), currentRotation);
+                    currentProperty.ScaleMode |= ScaleMode.YByDistance;
+                    currentProperty.Color = accessory.Data.DefaultSafeColor;
+                    currentProperty.Delay = timelineControl;
+                    currentProperty.DestoryAt = 2250;
+                    timelineControl += 2250;
+
+                    accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentProperty);
+
+                }
+
+                // ----- -----
+
+                // ----- Take hits and swap the group -----
+
+                timeToTakeHits = timelineControl - 250;
 
                 currentProperty = accessory.Data.GetDefaultDrawProperties();
 
-                currentProperty.Name = "Phase5_Initial_Guidance_Of_Polarizing_Strikes_极化打击初始指路";
+                currentProperty.Name = $"Phase5_Inward_Guidance_Of_Polarizing_Strikes_While_Taking_Hits_极化打击挡枪进指路-{视角}";
                 currentProperty.Scale = new(2);
-                currentProperty.Owner = accessory.Data.Me;
+                currentProperty.Owner = GuidanceOwner(accessory, 视角);
                 currentProperty.TargetPosition = inTheLeftGroup ?
                     RotatePoint(phase5_positionToTakeHitsOnTheLeft_asAConstant, new Vector3(100, 0, 100), currentRotation) :
                     RotatePoint(phase5_positionToTakeHitsOnTheRight_asAConstant, new Vector3(100, 0, 100), currentRotation);
                 currentProperty.ScaleMode |= ScaleMode.YByDistance;
                 currentProperty.Color = accessory.Data.DefaultSafeColor;
-                currentProperty.DestoryAt = 4550;
-                timelineControl += 4550;
-
-                accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentProperty);
-
-            }
-
-            else
-            {
-
-                currentProperty = accessory.Data.GetDefaultDrawProperties();
-
-                currentProperty.Name = "Phase5_Initial_Guidance_Of_Polarizing_Strikes_极化打击初始指路";
-                currentProperty.Scale = new(2);
-                currentProperty.Owner = accessory.Data.Me;
-                currentProperty.TargetPosition = inTheLeftGroup ?
-                    RotatePoint(phase5_positionToBeCoveredOnTheLeft_asAConstant, new Vector3(100, 0, 100), currentRotation) :
-                    RotatePoint(phase5_positionToBeCoveredOnTheRight_asAConstant, new Vector3(100, 0, 100), currentRotation);
-                currentProperty.ScaleMode |= ScaleMode.YByDistance;
-                currentProperty.Color = accessory.Data.DefaultSafeColor;
-                currentProperty.DestoryAt = 4550;
-                timelineControl += 4550;
-
-                accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentProperty);
-
-            }
-
-            // ----- Be covered in the current group -----
-
-            for (int i = 1; i < myRoundToTakeHits; ++i)
-            {
-
-                currentProperty = accessory.Data.GetDefaultDrawProperties();
-
-                currentProperty.Name = "Phase5_Inward_Guidance_Of_Polarizing_Strikes_In_The_Current_Group_极化打击当前组进指路";
-                currentProperty.Scale = new(2);
-                currentProperty.Owner = accessory.Data.Me;
-                currentProperty.TargetPosition = inTheLeftGroup ?
-                    RotatePoint(phase5_positionToBeCoveredOnTheLeft_asAConstant, new Vector3(100, 0, 100), currentRotation) :
-                    RotatePoint(phase5_positionToBeCoveredOnTheRight_asAConstant, new Vector3(100, 0, 100), currentRotation);
-                currentProperty.ScaleMode |= ScaleMode.YByDistance;
-                currentProperty.Color = accessory.Data.DefaultSafeColor;
                 currentProperty.Delay = timelineControl;
                 currentProperty.DestoryAt = 2450;
                 timelineControl += 2450;
@@ -18868,88 +19153,9 @@ namespace CicerosKodakkuAssist.FuturesRewrittenUltimate.LPDU
 
                 currentProperty = accessory.Data.GetDefaultDrawProperties();
 
-                currentProperty.Name = "Phase5_Outward_Guidance_Of_Polarizing_Strikes_In_The_Current_Group_极化打击当前组出指路";
+                currentProperty.Name = $"Phase5_Outward_Guidance_Of_Polarizing_Strikes_While_Taking_Hits_极化打击挡枪出指路-{视角}";
                 currentProperty.Scale = new(2);
-                currentProperty.Owner = accessory.Data.Me;
-                currentProperty.TargetPosition = inTheLeftGroup ?
-                    RotatePoint(phase5_positionToStandbyOnTheLeft_asAConstant, new Vector3(100, 0, 100), currentRotation) :
-                    RotatePoint(phase5_positionToStandbyOnTheRight_asAConstant, new Vector3(100, 0, 100), currentRotation);
-                currentProperty.ScaleMode |= ScaleMode.YByDistance;
-                currentProperty.Color = accessory.Data.DefaultSafeColor;
-                currentProperty.Delay = timelineControl;
-                currentProperty.DestoryAt = 2250;
-                timelineControl += 2250;
-
-                accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentProperty);
-
-            }
-
-            // ----- -----
-
-            // ----- Take hits and swap the group -----
-
-            timeToTakeHits = timelineControl - 250;
-
-            currentProperty = accessory.Data.GetDefaultDrawProperties();
-
-            currentProperty.Name = "Phase5_Inward_Guidance_Of_Polarizing_Strikes_While_Taking_Hits_极化打击挡枪进指路";
-            currentProperty.Scale = new(2);
-            currentProperty.Owner = accessory.Data.Me;
-            currentProperty.TargetPosition = inTheLeftGroup ?
-                RotatePoint(phase5_positionToTakeHitsOnTheLeft_asAConstant, new Vector3(100, 0, 100), currentRotation) :
-                RotatePoint(phase5_positionToTakeHitsOnTheRight_asAConstant, new Vector3(100, 0, 100), currentRotation);
-            currentProperty.ScaleMode |= ScaleMode.YByDistance;
-            currentProperty.Color = accessory.Data.DefaultSafeColor;
-            currentProperty.Delay = timelineControl;
-            currentProperty.DestoryAt = 2450;
-            timelineControl += 2450;
-
-            accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentProperty);
-
-            currentProperty = accessory.Data.GetDefaultDrawProperties();
-
-            currentProperty.Name = "Phase5_Outward_Guidance_Of_Polarizing_Strikes_While_Taking_Hits_极化打击挡枪出指路";
-            currentProperty.Scale = new(2);
-            currentProperty.Owner = accessory.Data.Me;
-            currentProperty.TargetPosition = inTheLeftGroup ?
-                RotatePoint(phase5_positionToStandbyOnTheRight_asAConstant, new Vector3(100, 0, 100), currentRotation) :
-                RotatePoint(phase5_positionToStandbyOnTheLeft_asAConstant, new Vector3(100, 0, 100), currentRotation);
-            currentProperty.ScaleMode |= ScaleMode.YByDistance;
-            currentProperty.Color = accessory.Data.DefaultSafeColor;
-            currentProperty.Delay = timelineControl;
-            currentProperty.DestoryAt = 2250;
-            timelineControl += 2250;
-
-            accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentProperty);
-
-            // ----- -----
-
-            // ----- Be covered in the opposite group -----
-
-            for (int i = myRoundToTakeHits + 1; i <= 4; ++i)
-            {
-
-                currentProperty = accessory.Data.GetDefaultDrawProperties();
-
-                currentProperty.Name = "Phase5_Inward_Guidance_Of_Polarizing_Strikes_In_The_Opposite_Group_极化打击对组进指路";
-                currentProperty.Scale = new(2);
-                currentProperty.Owner = accessory.Data.Me;
-                currentProperty.TargetPosition = inTheLeftGroup ?
-                    RotatePoint(phase5_positionToBeCoveredOnTheRight_asAConstant, new Vector3(100, 0, 100), currentRotation) :
-                    RotatePoint(phase5_positionToBeCoveredOnTheLeft_asAConstant, new Vector3(100, 0, 100), currentRotation);
-                currentProperty.ScaleMode |= ScaleMode.YByDistance;
-                currentProperty.Color = accessory.Data.DefaultSafeColor;
-                currentProperty.Delay = timelineControl;
-                currentProperty.DestoryAt = 2450;
-                timelineControl += 2450;
-
-                accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentProperty);
-
-                currentProperty = accessory.Data.GetDefaultDrawProperties();
-
-                currentProperty.Name = "Phase5_Outward_Guidance_Of_Polarizing_Strikes_In_The_Opposite_Group_极化打击对组出指路";
-                currentProperty.Scale = new(2);
-                currentProperty.Owner = accessory.Data.Me;
+                currentProperty.Owner = GuidanceOwner(accessory, 视角);
                 currentProperty.TargetPosition = inTheLeftGroup ?
                     RotatePoint(phase5_positionToStandbyOnTheRight_asAConstant, new Vector3(100, 0, 100), currentRotation) :
                     RotatePoint(phase5_positionToStandbyOnTheLeft_asAConstant, new Vector3(100, 0, 100), currentRotation);
@@ -18961,48 +19167,88 @@ namespace CicerosKodakkuAssist.FuturesRewrittenUltimate.LPDU
 
                 accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentProperty);
 
+                // ----- -----
+
+                // ----- Be covered in the opposite group -----
+
+                for (int i = myRoundToTakeHits + 1; i <= 4; ++i)
+                {
+
+                    currentProperty = accessory.Data.GetDefaultDrawProperties();
+
+                    currentProperty.Name = $"Phase5_Inward_Guidance_Of_Polarizing_Strikes_In_The_Opposite_Group_极化打击对组进指路-{视角}";
+                    currentProperty.Scale = new(2);
+                    currentProperty.Owner = GuidanceOwner(accessory, 视角);
+                    currentProperty.TargetPosition = inTheLeftGroup ?
+                        RotatePoint(phase5_positionToBeCoveredOnTheRight_asAConstant, new Vector3(100, 0, 100), currentRotation) :
+                        RotatePoint(phase5_positionToBeCoveredOnTheLeft_asAConstant, new Vector3(100, 0, 100), currentRotation);
+                    currentProperty.ScaleMode |= ScaleMode.YByDistance;
+                    currentProperty.Color = accessory.Data.DefaultSafeColor;
+                    currentProperty.Delay = timelineControl;
+                    currentProperty.DestoryAt = 2450;
+                    timelineControl += 2450;
+
+                    accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentProperty);
+
+                    currentProperty = accessory.Data.GetDefaultDrawProperties();
+
+                    currentProperty.Name = $"Phase5_Outward_Guidance_Of_Polarizing_Strikes_In_The_Opposite_Group_极化打击对组出指路-{视角}";
+                    currentProperty.Scale = new(2);
+                    currentProperty.Owner = GuidanceOwner(accessory, 视角);
+                    currentProperty.TargetPosition = inTheLeftGroup ?
+                        RotatePoint(phase5_positionToStandbyOnTheRight_asAConstant, new Vector3(100, 0, 100), currentRotation) :
+                        RotatePoint(phase5_positionToStandbyOnTheLeft_asAConstant, new Vector3(100, 0, 100), currentRotation);
+                    currentProperty.ScaleMode |= ScaleMode.YByDistance;
+                    currentProperty.Color = accessory.Data.DefaultSafeColor;
+                    currentProperty.Delay = timelineControl;
+                    currentProperty.DestoryAt = 2250;
+                    timelineControl += 2250;
+
+                    accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentProperty);
+
+                }
+
+                System.Threading.Thread.Sleep(timeToTakeHits);
+
+                if (Enable_Text_Prompts)
+                {
+
+                    if (Language_Of_Prompts == Languages_Of_Prompts.Simplified_Chinese_简体中文)
+                    {
+
+                        if (IsMe(accessory, 视角)) accessory.Method.TextInfo("挡枪然后换组", 1500);
+
+                    }
+
+                    if (Language_Of_Prompts == Languages_Of_Prompts.English_英文)
+                    {
+
+                        if (IsMe(accessory, 视角)) accessory.Method.TextInfo("Take hits and swap the group", 1500);
+
+                    }
+
+                }
+
+                if (Enable_Vanilla_TTS || Enable_Daily_Routines_TTS)
+                {
+
+                    if (Language_Of_Prompts == Languages_Of_Prompts.Simplified_Chinese_简体中文)
+                    {
+
+                        if (IsMe(accessory, 视角)) accessory.TTS("挡枪然后换组", Enable_Vanilla_TTS, Enable_Daily_Routines_TTS);
+
+                    }
+
+                    if (Language_Of_Prompts == Languages_Of_Prompts.English_英文)
+                    {
+
+                        if (IsMe(accessory, 视角)) accessory.TTS("Take hits and swap the group", Enable_Vanilla_TTS, Enable_Daily_Routines_TTS);
+
+                    }
+
+                }
+
             }
-
-            System.Threading.Thread.Sleep(timeToTakeHits);
-
-            if (Enable_Text_Prompts)
-            {
-
-                if (Language_Of_Prompts == Languages_Of_Prompts.Simplified_Chinese_简体中文)
-                {
-
-                    accessory.Method.TextInfo("挡枪然后换组", 1500);
-
-                }
-
-                if (Language_Of_Prompts == Languages_Of_Prompts.English_英文)
-                {
-
-                    accessory.Method.TextInfo("Take hits and swap the group", 1500);
-
-                }
-
-            }
-
-            if (Enable_Vanilla_TTS || Enable_Daily_Routines_TTS)
-            {
-
-                if (Language_Of_Prompts == Languages_Of_Prompts.Simplified_Chinese_简体中文)
-                {
-
-                    accessory.TTS("挡枪然后换组", Enable_Vanilla_TTS, Enable_Daily_Routines_TTS);
-
-                }
-
-                if (Language_Of_Prompts == Languages_Of_Prompts.English_英文)
-                {
-
-                    accessory.TTS("Take hits and swap the group", Enable_Vanilla_TTS, Enable_Daily_Routines_TTS);
-
-                }
-
-            }
-
         }
 
         private int phase5_getRoundToTakeHits(int currentIndex)
