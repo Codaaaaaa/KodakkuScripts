@@ -116,15 +116,13 @@ namespace CicerosKodakkuAssist.FuturesRewrittenUltimate.LPDU
         [UserSetting("P1 燃烧击(火雷直线)特性的颜色")]
         public ScriptColor Phase1_Colour_Of_Burnt_Strike_Characteristics { get; set; } = new() { V4 = new(1f, 1f, 0f, 1f) };
         [UserSetting("P1光轮召唤 分组")]
-        public Phase1_Groups_Of_Turn_Of_The_Heavens Phase1_Group_Of_Turn_Of_The_Heavens { get; set; } = Phase1_Groups_Of_Turn_Of_The_Heavens.MTOTH1H2_Go_North_MTM1_vary_MTSTH1H2去北MTD1换_莫灵喵与MMW;
+        public Phase1_Groups_Of_Turn_Of_The_Heavens Phase1_Group_Of_Turn_Of_The_Heavens { get; set; } = Phase1_Groups_Of_Turn_Of_The_Heavens.MTH1M1R1_Go_North_Same_Group_Preys_TMRH_Swaps_With_Tank_LPDU;
         [UserSetting("P1信仰崩塌(四连抓) 攻略")]
         public Phase1_Strats_Of_Fall_Of_Faith Phase1_Strat_Of_Fall_Of_Faith { get; set; } = Phase1_Strats_Of_Fall_Of_Faith.Single_Line_In_HTD_Order_按HTD顺序单排_莫灵喵;
         [UserSetting("P1信仰崩塌(四连抓) 面向基准")]
         public Phase1_Orientation_Benchmarks_During_Fall_Of_Faith Phase1_Orientation_Benchmark_During_Fall_Of_Faith { get; set; } = Phase1_Orientation_Benchmarks_During_Fall_Of_Faith.High_Priority_Left_Facing_The_Boss_面向Boss左侧高优先级_莫灵喵与MMW;
-        [UserSetting("P1信仰崩塌(四连抓) 罪壤堕指路(DB闲固)的优先级")]
-        public static FallOfFaithPriorityEnum FallOfFaithPriority { get; set; } = FallOfFaithPriorityEnum.H_T_D_H;
         [UserSetting("P1踩塔 攻略")]
-        public Phase1_Strats_Of_Towers Phase1_Strat_Of_Towers { get; set; } = Phase1_Strats_Of_Towers.Completely_Based_On_Priority_完全根据优先级_莫灵喵;
+        public Phase1_Strats_Of_Towers Phase1_Strat_Of_Towers { get; set; } = Phase1_Strats_Of_Towers.Fixed_H1R2H2_Adjust_M1R1M2_LPDU;
 
         [UserSetting("-----P2设置----- (No actual meaning for this setting/此设置无实际意义)")]
         public bool _____Phase2_Settings_____ { get; set; } = true;
@@ -428,13 +426,6 @@ namespace CicerosKodakkuAssist.FuturesRewrittenUltimate.LPDU
 
         #region Enumeration_And_Classes_枚举和类
 
-        public enum FallOfFaithPriorityEnum
-        {
-            H_T_D_H,
-            T_H_D,
-            H_T_D,
-        }
-
         public enum LightRampageStgEnum
         {
             Hexagram_正六芒星,
@@ -567,7 +558,8 @@ namespace CicerosKodakkuAssist.FuturesRewrittenUltimate.LPDU
 
             MTOTH1H2_Go_North_MTM1_vary_MTSTH1H2去北MTD1换_莫灵喵与MMW,
             MTH1M1R1_Go_North_MTOT_vary_MTH1D1D3去北MTST换,
-            MTOTR1R2_Go_North_MTM1_vary_MTSTD3D4去北MTD1换_莫灵喵
+            MTOTR1R2_Go_North_MTM1_vary_MTSTD3D4去北MTD1换_莫灵喵,
+            MTH1M1R1_Go_North_Same_Group_Preys_TMRH_Swaps_With_Tank_LPDU
 
         }
 
@@ -595,7 +587,8 @@ namespace CicerosKodakkuAssist.FuturesRewrittenUltimate.LPDU
 
             Completely_Based_On_Priority_完全根据优先级_莫灵喵,
             Fixed_H1H2R2_Priority_For_Rest_固定H1H2D4剩余人优先级,
-            Fixed_H1H2R2_Rest_Fill_Vacancies_固定H1H2D4剩余人补位_MMW
+            Fixed_H1H2R2_Rest_Fill_Vacancies_固定H1H2D4剩余人补位_MMW,
+            Fixed_H1R2H2_Adjust_M1R1M2_LPDU
 
         }
 
@@ -1926,6 +1919,14 @@ namespace CicerosKodakkuAssist.FuturesRewrittenUltimate.LPDU
 
             }
 
+            if (Phase1_Group_Of_Turn_Of_The_Heavens == Phase1_Groups_Of_Turn_Of_The_Heavens.MTH1M1R1_Go_North_Same_Group_Preys_TMRH_Swaps_With_Tank_LPDU)
+            {
+
+                hasSelectedAStrat = true;
+                membersOfTheNorthGroup = P1光轮召唤LPDU北组(highPriorityStack, lowPriorityStack);
+
+            }
+
             if (!hasSelectedAStrat
                ||
                membersOfTheNorthGroup.Count != 4)
@@ -1958,7 +1959,9 @@ namespace CicerosKodakkuAssist.FuturesRewrittenUltimate.LPDU
             else
             {
 
-                bool inTheNorthGroup = membersOfTheNorthGroup.Contains(accessory.Data.PartyList.IndexOf(accessory.Data.Me));
+                // 跟哪个 Prey 分摊 = 那个 Prey 是否和自己同在北组（LPDU 下北组的 Prey 不一定是下标小的那个）
+                bool inTheNorthGroup = membersOfTheNorthGroup.Contains(accessory.Data.PartyList.IndexOf(accessory.Data.Me))
+                                       == membersOfTheNorthGroup.Contains(highPriorityStack);
                 var currentProperty = accessory.Data.GetDefaultDrawProperties();
 
                 currentProperty.Name = "Phase1_Stack_Range_Of_Turn_Of_The_Heavens_光轮召唤分摊范围";
@@ -2079,6 +2082,8 @@ namespace CicerosKodakkuAssist.FuturesRewrittenUltimate.LPDU
                 if (upGroup.Count < 4 && o1 != 0 && o2 != 0) upGroup.Add(0);
                 if (upGroup.Count < 4 && o1 != 4 && o2 != 4) upGroup.Add(4);
             }
+            if (Phase1_Group_Of_Turn_Of_The_Heavens == Phase1_Groups_Of_Turn_Of_The_Heavens.MTH1M1R1_Go_North_Same_Group_Preys_TMRH_Swaps_With_Tank_LPDU)
+                upGroup = P1光轮召唤LPDU北组(o1, o2);
 
             foreach (var 视角 in GuidanceIndices(accessory)) 指路(视角);
 
@@ -2120,6 +2125,18 @@ namespace CicerosKodakkuAssist.FuturesRewrittenUltimate.LPDU
 
 
             }
+        }
+
+        // LPDU 光轮召唤分组：G1(MT/H1/M1/R1) 北、G2(OT/H2/M2/R2) 南；两个 Prey 同组时，该组按 T>M>R>H 排第一的 Prey 去另一组，另一组的 T 换过来
+        private static List<int> P1光轮召唤LPDU北组(int o1, int o2)
+        {
+            List<int> north = [0, 2, 4, 6];
+            if (north.Contains(o1) != north.Contains(o2)) return north;
+            static int 优先级(int i) => i switch { 0 or 1 => 0, 4 or 5 => 1, 6 or 7 => 2, _ => 3 };
+            var mover = 优先级(o1) <= 优先级(o2) ? o1 : o2;
+            if (north.Contains(o1)) { north.Remove(mover); north.Add(1); }
+            else { north.Remove(0); north.Add(mover); }
+            return north;
         }
 
         [ScriptMethod(name: "Phase1 Fall Of Faith Control 信仰崩塌(四连抓)控制",
@@ -3031,6 +3048,10 @@ namespace CicerosKodakkuAssist.FuturesRewrittenUltimate.LPDU
                             Vector3 standbyPosition = new Vector3(100, 0, 100);
                             Vector3 towerPosition = new Vector3(100, 0, 100);
 
+                            // LPDU：雷塔直接进塔
+                            if (Phase1_Strat_Of_Towers == Phase1_Strats_Of_Towers.Fixed_H1R2H2_Adjust_M1R1M2_LPDU && P1塔LPDU塔序号(myIndex) is var lpduTower and >= 0)
+                                standbyPosition = towerPosition = P1塔位置(lpduTower, eastTower);
+
                             if (Phase1_Strat_Of_Towers == Phase1_Strats_Of_Towers.Completely_Based_On_Priority_完全根据优先级_莫灵喵)
                             {
 
@@ -3386,6 +3407,13 @@ namespace CicerosKodakkuAssist.FuturesRewrittenUltimate.LPDU
                             Vector3 standbyPosition = new Vector3(100, 0, 100);
                             Vector3 towerPosition = new Vector3(100, 0, 100);
 
+                            // LPDU：火塔先在场中同高度待机，击退后进塔
+                            if (Phase1_Strat_Of_Towers == Phase1_Strats_Of_Towers.Fixed_H1R2H2_Adjust_M1R1M2_LPDU && P1塔LPDU塔序号(myIndex) is var lpduTower and >= 0)
+                            {
+                                towerPosition = P1塔位置(lpduTower, eastTower);
+                                standbyPosition = new(eastTower ? 102f : 98f, 0, towerPosition.Z);
+                            }
+
                             if (Phase1_Strat_Of_Towers == Phase1_Strats_Of_Towers.Completely_Based_On_Priority_完全根据优先级_莫灵喵)
                             {
 
@@ -3693,6 +3721,21 @@ namespace CicerosKodakkuAssist.FuturesRewrittenUltimate.LPDU
 
         }
 
+        // LPDU 踩塔：H1 北、R2 中、H2 南固定；M1 北、R1 中、M2 南补位，自己的塔只要 1 人时去要 3 人以上的那座（共 6 人，此时只有一座 ≥3）
+        private int P1塔LPDU塔序号(int idx)
+        {
+            int[] 固定 = [2, 7, 3], 补位 = [4, 6, 5];
+            var t = Array.IndexOf(固定, idx);
+            if (t >= 0) return t;
+            t = Array.IndexOf(补位, idx);
+            if (t < 0) return -1;
+            return P1塔[t] >= 2 ? t : P1塔.FindIndex(0, 3, n => n >= 3);
+        }
+
+        // P1 塔坐标：0 北、1 中、2 南；east 为塔在东侧
+        private static Vector3 P1塔位置(int t, bool east)
+            => new(t == 1 ? (east ? 115.98f : 84.02f) : (east ? 113.08f : 86.92f), 0, t switch { 0 => 90.81f, 1 => 100f, _ => 109.18f });
+
         #region P1 补丁 (Usami / Tetora)
 
         #region P1.1 乐园绝技
@@ -3719,169 +3762,6 @@ namespace CicerosKodakkuAssist.FuturesRewrittenUltimate.LPDU
                 _ => FruPhase.P1B_FallOfFaith
             };
             accessory.DebugMsg($"当前阶段为：{_fruPhase}", Enable_Developer_Mode);
-
-            // 建立罪壤堕设置
-            if (_fruPhase != FruPhase.P1B_FallOfFaith) return;
-            // 初始化优先级class
-            _usamiPd.Init(accessory, "罪壤堕");
-
-            // 优先级设置
-            List<int> priority = FallOfFaithPriority switch
-            {
-                FallOfFaithPriorityEnum.T_H_D => [0, 1, 2, 3, 4, 5, 6, 7],
-                FallOfFaithPriorityEnum.H_T_D => [2, 3, 0, 1, 4, 5, 6, 7],
-                FallOfFaithPriorityEnum.H_T_D_H => [1, 2, 0, 7, 3, 4, 5, 6],
-                _ => [2, 3, 0, 1, 4, 5, 6, 7],
-            };
-
-            _usamiPd.AddPriorities(priority);
-        }
-
-        [ScriptMethod(name: "罪壤堕指路（DB闲固）", eventType: EventTypeEnum.Tether, eventCondition: ["Id:regex:^(00F9|011F)$"],
-            userControl: true)]
-        public void FallOfFaithTetherGuidance(Event ev, ScriptAccessory sa)
-        {
-            /*
-             * 自用，DB闲固
-             * 分为雷组、火组、闲人组
-             * 雷：+10，+20，+30，+40（n）
-             * 火：+80，+70，+60，+50（8-n）
-             * 奇数：+0
-             * 偶数：+100
-             * 数字从小到大，依次对应左、左上、右、右上
-             */
-            // const uint fire = 0x00F9;
-            const uint lightning = 0x011F;
-
-            if (_fruPhase != FruPhase.P1B_FallOfFaith) return;
-            var tid = ev.TargetId;
-            var tidx = sa.GetPlayerIdIndex(tid);
-            var tetherType = ev.Id0();
-            sa.Log.Debug($"罪壤堕 {ev.Id}, {ev.Id0()}");
-
-            // 后续可根据myIndex进行指路
-            var myIndex = sa.GetMyIndex();
-
-            lock (_usamiPd)
-            {
-                // 连线出现先+1
-                _usamiPd.AddActionCount();
-                sa.Log.Debug($"罪壤堕 连线数{_usamiPd.ActionCount} 连了{sa.GetPlayerJobByIndex(tidx)}({tidx}) 是{(tetherType == lightning ? "雷" : "火")}线");
-
-                // 根据注释加对应数值
-                var addNum = _usamiPd.ActionCount % 2 == 0 ? 100 : 0;
-                addNum += 10 * (tetherType == lightning ? _usamiPd.ActionCount : 9 - _usamiPd.ActionCount);
-                _usamiPd.Priorities[tidx] += addNum;
-
-                switch (_usamiPd.ActionCount)
-                {
-                    case 1:
-                        if (Debugging || tidx == myIndex) FallOfFaithGuidance(sa, tidx, tetherType == lightning ? 4 : 5);
-                        break;
-                    case 2:
-                        if (Debugging || tidx == myIndex) FallOfFaithGuidance(sa, tidx, tetherType == lightning ? 6 : 7);
-                        break;
-                    case 3:
-                        // 因为此时有5个闲人，减1消除偏移
-                        if (Debugging || tidx == myIndex) FallOfFaithGuidance(sa, tidx, (_usamiPd.FindPriorityIndexOfKey(tidx) - 1) % 2 == 0 ? 4 : 5);
-                        break;
-                    case 4:
-                        // 此时有4个闲人
-                        if (Debugging || tidx == myIndex) FallOfFaithGuidance(sa, tidx, _usamiPd.FindPriorityIndexOfKey(tidx) % 2 == 0 ? 6 : 7);
-                        break;
-                }
-            }
-
-            if (!_usamiPd.IsActionCountEqualTo(4)) return;
-            _usamiPd.ShowPriorities();
-
-            Thread.MemoryBarrier();
-
-            foreach (var 视角 in GuidanceIndices(sa)) 指路(视角);
-
-            void 指路(int 视角)
-            {
-                var myPriority = _usamiPd.FindPriorityIndexOfKey(视角);
-
-                // 雷火线交换提示。取优先级值十位数，若相差1，不换；相差2，换。
-                if (myPriority >= 4)
-                {
-                    var myPriVal = _usamiPd.SelectSpecificPriorityIndex(myPriority).Value;
-                    var ptPriority = myPriority % 2 == 0 ? myPriority + 1 : myPriority - 1;
-                    var ptPriVal = _usamiPd.SelectSpecificPriorityIndex(ptPriority).Value;
-                    var subtract = Math.Abs(myPriVal / 10 % 10 - ptPriVal / 10 % 10);
-                    sa.DebugMsg($"优先级 (({myPriority}){myPriVal} - ({ptPriority}){ptPriVal}) / 10 % 10 = {subtract}", Enable_Developer_Mode);
-                    if (subtract != 2) return;
-                    FallOfFaithGuidance(sa, 视角, myPriority, true);
-                    if (IsMe(sa, 视角)) if (Enable_Text_Prompts) sa.Method.TextInfo($"连线玩家准备交换", 3000, true);
-                }
-                else
-                {
-                    // 闲人指路
-                    FallOfFaithGuidance(sa, 视角, myPriority);
-                }
-            }
-        }
-
-        private void FallOfFaithGuidance(ScriptAccessory accessory, int idx, int priority, bool swapHint = false)
-        {
-            const int lightLeft = 4;
-            const int fireLeft = 5;
-            const int lightRight = 6;
-            const int fireRight = 7;
-
-            const int freeLeftMiddle = 0;
-            const int freeLeftBottom = 1;
-            const int freeRightBottom = 2;
-            const int freeRightMiddle = 3;
-
-            // baseMiddlePos为左中坐标，bias为偏置坐标，用于上、下、左。
-            var baseMiddlePos = new Vector3(95, 0, 100);
-            const float bias = 2f;
-
-            var tpos = priority switch
-            {
-                lightLeft => baseMiddlePos,
-                lightRight => baseMiddlePos.FoldPointHorizon(Center.X),
-                freeLeftMiddle => baseMiddlePos - new Vector3(bias / 2, 0, 0),
-                freeRightMiddle => (baseMiddlePos - new Vector3(bias / 2, 0, 0)).FoldPointHorizon(Center.X),
-
-                fireLeft => baseMiddlePos - new Vector3(0, 0, bias),
-                fireRight => (baseMiddlePos - new Vector3(0, 0, bias)).FoldPointHorizon(Center.X),
-                freeLeftBottom => (baseMiddlePos - new Vector3(0, 0, bias)).FoldPointVertical(Center.Z),
-                freeRightBottom => (baseMiddlePos - new Vector3(0, 0, bias)).FoldPointHorizon(Center.X).FoldPointVertical(Center.Z),
-
-                _ => baseMiddlePos,
-            };
-
-            if (!swapHint)
-            {
-                var dp = accessory.DrawGuidance(GuidanceOwner(accessory, idx), tpos, 0, 20000, $"Usami-罪壤堕初始优先级{priority}指路-{idx}");
-                accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
-            }
-
-            else
-            {
-                var swapPos = priority switch
-                {
-                    fireLeft => baseMiddlePos,
-                    fireRight => baseMiddlePos.FoldPointHorizon(Center.X),
-                    lightLeft => baseMiddlePos - new Vector3(0, 0, bias),
-                    lightRight => (baseMiddlePos - new Vector3(0, 0, bias)).FoldPointHorizon(Center.X),
-                    _ => baseMiddlePos,
-                };
-
-                var dp = accessory.DrawGuidance(tpos, swapPos, 0, 20000, $"Usami-罪壤堕交换优先级{priority}指路-{idx}", isSafe: false);
-                accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
-            }
-        }
-
-        [ScriptMethod(name: "罪壤堕指路移除（DEBUG ONLY）", eventType: EventTypeEnum.ActionEffect, eventCondition: ["ActionId:40141"],
-            userControl: Debugging, suppress: 10000)]
-        public void FallOfFaithRemove(Event @event, ScriptAccessory accessory)
-        {
-            if (_fruPhase != FruPhase.P1B_FallOfFaith) return;
-            accessory.Method.RemoveDraw($"Usami-罪壤堕.*");
         }
 
         #endregion 罪壤堕
