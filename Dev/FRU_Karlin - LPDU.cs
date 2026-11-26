@@ -136,40 +136,16 @@ namespace CicerosKodakkuAssist.FuturesRewrittenUltimate.LPDU
 
         [UserSetting("-----P4设置----- (No actual meaning for this setting/此设置无实际意义)")]
         public bool _____Phase4_Settings_____ { get; set; } = true;
-        [UserSetting("P4一运 水分摊换位方式")]
-        public Phase4_Strats_Of_The_First_Half Phase4_Strat_Of_The_First_Half { get; set; } = Phase4_Strats_Of_The_First_Half.Single_Swap_Baiting_After_先单换再引导_莫灵喵与MMW;
         [UserSetting("P4一运 忧郁舞蹈(远近死刑)的颜色")]
         public ScriptColor Phase4_Colour_Of_Somber_Dance { get; set; } = new() { V4 = new(1f, 0f, 0f, 1f) };
         [UserSetting("P4 死亡轮回分摊位置连线")]
         public AkhMornEnum AkhMorn { get; set; } = AkhMornEnum.None;
-        [UserSetting("P4二运 圣龙爪(红)玩家优先级")]
-        public Phase4_Priorities_Of_The_Players_With_Wyrmclaw Phase4_Priority_Of_The_Players_With_Wyrmclaw { get; set; } = Phase4_Priorities_Of_The_Players_With_Wyrmclaw.In_THD_Order_按THD顺序_莫灵喵;
         [UserSetting("P4二运 正常灯和延时灯的范围显示时间(second/秒)")]
         public float Phase4_Drawing_Duration_Of_Normal_And_Delayed_Lights { get; set; } = 3f;
         [UserSetting("P4二运 光之潮汐(地火)的颜色")]
         public ScriptColor Phase4_Colour_Of_Tidal_Light { get; set; } = new() { V4 = new(1f, 1f, 0f, 1f) };
-        [UserSetting("P4二运 击退前站位")]
-        public Phase4_Positions_Before_Knockback Phase4_Position_Before_Knockback { get; set; } = Phase4_Positions_Before_Knockback.Normal_正攻_莫灵喵与MMW;
-        [UserSetting("P4二运 白圈指路的逻辑")]
-        public Phase4_Logics_Of_Residue_Guidance Phase4_Logic_Of_Residue_Guidance { get; set; } = Phase4_Logics_Of_Residue_Guidance.According_To_Signs_On_Me_根据我身上的目标标记_莫灵喵和MMW;
         [UserSetting("P4二运 白圈指路的颜色")]
         public ScriptColor Phase4_Colour_Of_Residue_Guidance { get; set; } = new() { V4 = new(1f, 1f, 0f, 1f) };
-        [UserSetting("P4二运 攻击1的白圈 (Sign Setting/目标标记设置)")]
-        public Phase4_Relative_Positions_Of_Residues Phase4_Residue_Belongs_To_Attack1 { get; set; } = Phase4_Relative_Positions_Of_Residues.Eastmost_最东侧;
-        [UserSetting("P4二运 攻击2的白圈 (Sign Setting/目标标记设置)")]
-        public Phase4_Relative_Positions_Of_Residues Phase4_Residue_Belongs_To_Attack2 { get; set; } = Phase4_Relative_Positions_Of_Residues.About_East_次东侧;
-        [UserSetting("P4二运 攻击3的白圈 (Sign Setting/目标标记设置)")]
-        public Phase4_Relative_Positions_Of_Residues Phase4_Residue_Belongs_To_Attack3 { get; set; } = Phase4_Relative_Positions_Of_Residues.About_West_次西侧;
-        [UserSetting("P4二运 攻击4的白圈 (Sign Setting/目标标记设置)")]
-        public Phase4_Relative_Positions_Of_Residues Phase4_Residue_Belongs_To_Attack4 { get; set; } = Phase4_Relative_Positions_Of_Residues.Westmost_最西侧;
-        [UserSetting("P4二运 暗炎喷发(分散)的白圈 (Debuff Setting/Debuff设置)")]
-        public Phase4_Relative_Positions_Of_Residues Phase4_Residue_Belongs_To_Dark_Eruption { get; set; } = Phase4_Relative_Positions_Of_Residues.Eastmost_最东侧;
-        [UserSetting("P4二运 黑暗神圣(后分摊)的白圈 (Debuff Setting/Debuff设置)")]
-        public Phase4_Relative_Positions_Of_Residues Phase4_Residue_Belongs_To_Unholy_Darkness { get; set; } = Phase4_Relative_Positions_Of_Residues.About_East_次东侧;
-        [UserSetting("P4二运 黑暗冰封(月环)的白圈 (Debuff Setting/Debuff设置)")]
-        public Phase4_Relative_Positions_Of_Residues Phase4_Residue_Belongs_To_Dark_Blizzard_III { get; set; } = Phase4_Relative_Positions_Of_Residues.About_West_次西侧;
-        [UserSetting("P4二运 黑暗狂水(先分摊)的白圈 (Debuff Setting/Debuff设置)")]
-        public Phase4_Relative_Positions_Of_Residues Phase4_Residue_Belongs_To_Dark_Water_III { get; set; } = Phase4_Relative_Positions_Of_Residues.Westmost_最西侧;
         [UserSetting("P4二运 圣龙气息(龙头)碰撞箱的长度(meter/米)")]
         public float Phase4_Length_Of_Drachen_Wanderer_Hitboxes { get; set; } = 1.5f;
         [UserSetting("P4二运 圣龙气息(龙头)碰撞箱的颜色")]
@@ -288,16 +264,8 @@ namespace CicerosKodakkuAssist.FuturesRewrittenUltimate.LPDU
         readonly Object phase4_readwriteLockOfIncidentalDebuffCounter_AsAConstant = new Object();
         System.Threading.AutoResetEvent phase4_semaphoreIncidentalDebuffsWereConfirmed = new System.Threading.AutoResetEvent(false);
         List<int> P4OtherBuff = [0, 0, 0, 0, 0, 0, 0, 0];
-        volatile List<MarkType> phase4_marksOfPlayersWithWyrmfang = [
-            MarkType.Cross,
-            MarkType.Cross,
-            MarkType.Cross,
-            MarkType.Cross,
-            MarkType.Cross,
-            MarkType.Cross,
-            MarkType.Cross,
-            MarkType.Cross
-        ];
+        // LPDU 时间结晶同种红 debuff 分东西：按此顺序靠前的去西（与启示录同一套优先级）
+        static readonly int[] P4LPDU东西优先级 = [3, 2, 1, 0, 4, 5, 6, 7];
         int P4BlueTether = 0;
         List<Vector3> P4WaterPos = [];
         volatile string phase4_id1OfTheDrachenWanderers = "";
@@ -488,33 +456,7 @@ namespace CicerosKodakkuAssist.FuturesRewrittenUltimate.LPDU
 
         }
         
-        public enum Phase4_Strats_Of_The_First_Half
-        {
 
-            Single_Swap_Baiting_After_先单换再引导_莫灵喵与MMW,
-            Single_Swap_Baiting_First_先引导再单换,
-            Double_Swaps_Baiting_First_先引导再双换
-
-        }
-
-
-        public enum Phase4_Priorities_Of_The_Players_With_Wyrmclaw
-        {
-
-            In_THD_Order_按THD顺序_莫灵喵,
-            In_HTD_Order_按HTD顺序_MMW,
-            In_H1TDH2_Order_按H1TDH2顺序
-
-        }
-
-
-        public enum Phase4_Logics_Of_Residue_Guidance
-        {
-
-            According_To_Signs_On_Me_根据我身上的目标标记_莫灵喵和MMW,
-            According_To_Debuffs_根据Debuff
-
-        }
 
 
         public enum Phase4_Relative_Positions_Of_Residues
@@ -525,14 +467,6 @@ namespace CicerosKodakkuAssist.FuturesRewrittenUltimate.LPDU
             About_West_次西侧,
             Westmost_最西侧,
             Unknown_未知
-
-        }
-
-        public enum Phase4_Positions_Before_Knockback
-        {
-
-            Normal_正攻_莫灵喵与MMW,
-            Y_Formation_Japanese_PF_日服野队Y字队形
 
         }
 
@@ -686,16 +620,6 @@ namespace CicerosKodakkuAssist.FuturesRewrittenUltimate.LPDU
             phase4_numberOfIncidentalDebuffsHaveBeenCounted = 0;
             phase4_semaphoreIncidentalDebuffsWereConfirmed = new System.Threading.AutoResetEvent(false);
             P4OtherBuff=[0,0,0,0,0,0,0,0];
-            phase4_marksOfPlayersWithWyrmfang = [
-                MarkType.Cross,
-                MarkType.Cross,
-                MarkType.Cross,
-                MarkType.Cross,
-                MarkType.Cross,
-                MarkType.Cross,
-                MarkType.Cross,
-                MarkType.Cross
-            ];
             P4BlueTether=0;
             P4WaterPos=[];
             phase4_id1OfTheDrachenWanderers = "";
@@ -7561,15 +7485,16 @@ namespace CicerosKodakkuAssist.FuturesRewrittenUltimate.LPDU
 
             }
 
+            // LPDU 预站位（真北）：奶在北、T在西、DPS 在南/东（DPS 只为看线方便，可以随便站）
             List<Vector3> initialPosition = [
-                new Vector3(95.5f,0f,94f),
-                new Vector3(98.5f,0f,94f),
-                new Vector3(101.5f,0f,94f),
-                new Vector3(104.5f,0f,94f),
-                new Vector3(95.5f,0f,106f),
-                new Vector3(98.5f,0f,106f),
-                new Vector3(101.5f,0f,106f),
-                new Vector3(104.5f,0f,106f),
+                new Vector3(93f,0f,102f),       // MT
+                new Vector3(93f,0f,104f),       // OT
+                new Vector3(98.7f,0f,97.8f),    // H1
+                new Vector3(101.3f,0f,97.8f),   // H2
+                new Vector3(98f,0f,111.8f),     // M1
+                new Vector3(103.7f,0f,110.9f),  // M2
+                new Vector3(108.1f,0f,103.3f),  // R1
+                new Vector3(106.9f,0f,107.6f),  // R2
             ];
 
             int myIndex = accessory.Data.PartyList.IndexOf(accessory.Data.Me);
@@ -7697,185 +7622,60 @@ namespace CicerosKodakkuAssist.FuturesRewrittenUltimate.LPDU
             accessory.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Rect, dp);
 
         }
+        // LPDU 光暗龙诗分组：连线 4 人固定 1T 1奶 2D，首尾相连成一圈
+        // 塔：奶去北塔，圈里和奶不相连的那个人也去北塔；和奶相连的两人去南塔
+        // 闲人：T奶在西（奶北、T南），DPS 在东（M1>M2>R1>R2 优先级高的在南）
+        // 两个水一个在连线、一个在闲人：闲人的水和塔里的水同在北或同在南时，闲人水所在那一列南北互换
+        // 最后北塔两人 + 西北 + 东北 在北分摊，其余在南
+        // 闲人站位：0 西北、1 西南、2 东北、3 东南
+        private (List<int> 北组, List<int> 南组, int[] 闲人站位) P4龙诗LPDU分组()
+        {
+            var 连线 = Enumerable.Range(0, 8).Where(i => P4Tether[i] != -1).ToList();
+            var 闲人 = Enumerable.Range(0, 8).Where(i => P4Tether[i] == -1).ToList();
+            if (连线.Count != 4 || 闲人.Count != 4) return ([], [], [-1, -1, -1, -1]);
+            int 奶 = 连线.FirstOrDefault(i => i is 2 or 3, 连线[0]);
+            var 南组 = 连线.Where(i => P4Tether[i] == 奶 || P4Tether[奶] == i).ToList();
+            var 北组 = 连线.Except(南组).ToList();
+            var 闲D = 闲人.Where(i => i >= 4).ToList();
+            int[] 站位 = [闲人.FirstOrDefault(i => i is 2 or 3, -1), 闲人.FirstOrDefault(i => i is 0 or 1, -1), 闲D.ElementAtOrDefault(1), 闲D.ElementAtOrDefault(0)];
+            int 线水 = 连线.FirstOrDefault(i => P4Stack[i] == 1, -1);
+            int 闲水位 = Array.FindIndex(站位, i => i >= 0 && P4Stack[i] == 1);
+            if (线水 >= 0 && 闲水位 >= 0 && 北组.Contains(线水) == (闲水位 % 2 == 0))
+            {
+                int 列 = 闲水位 / 2 * 2;
+                (站位[列], 站位[列 + 1]) = (站位[列 + 1], 站位[列]);
+            }
+            北组.AddRange([站位[0], 站位[2]]);
+            南组.AddRange([站位[1], 站位[3]]);
+            return (北组, 南组, 站位);
+        }
+
         [ScriptMethod(name: "P4_暗光龙诗_水分摊", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:regex:^(4022[78])$"])]
         public void P4_暗光龙诗_水分摊(Event @event, ScriptAccessory accessory)
         {
-            var tIndex = P4Tether[0] == -1 ? 1 : 0;
-            var nIndex = P4Tether[2] == -1 ? 3 : 2;
-            var d1Index = -1;
-            var d2Index = -1;
-            List<int> upGroup = [];
-            List<int> downGroup = [];
-            for (int i = 4; i < 7; i++)
-            {
-                for (int j = i + 1; j < 8; j++)
-                {
-                    if (P4Tether[i] != -1 && P4Tether[j] != -1)
-                    {
-                        d1Index = i;
-                        d2Index = j;
-                    }
-                }
-            }
-            // t连线 高d 低d 蝴蝶结
-            if ((P4Tether[tIndex] == d1Index && P4Tether[d2Index] == tIndex) || (P4Tether[tIndex] == d2Index && P4Tether[d1Index] == tIndex))
-            {
-                upGroup.Add(tIndex);
-                upGroup.Add(nIndex);
-                downGroup.Add(d1Index);
-                downGroup.Add(d2Index);
-            }
-            // t连线 高d n 方块
-            if ((P4Tether[tIndex] == d1Index && P4Tether[nIndex] == tIndex) || (P4Tether[d1Index] == tIndex && P4Tether[tIndex] == nIndex))
-            {
-                upGroup.Add(d1Index);
-                upGroup.Add(nIndex);
-                downGroup.Add(tIndex);
-                downGroup.Add(d2Index);
-            }
-            // t连线 低d n 沙漏
-            if ((P4Tether[tIndex] == d2Index && P4Tether[nIndex] == tIndex) || (P4Tether[d2Index] == tIndex && P4Tether[tIndex] == nIndex))
-            {
-                upGroup.Add(tIndex);
-                upGroup.Add(d1Index);
-                downGroup.Add(nIndex);
-                downGroup.Add(d2Index);
-            }
-
-            var stack1 = P4Stack.IndexOf(1);
-            var stack2 = P4Stack.LastIndexOf(1);
-            var tetherStack = P4Tether[stack1] == -1 ? stack2 : stack1;
-            var idleStack = P4Tether[stack1] == -1 ? stack1 : stack2;
-
-            List<int> idles = [];
-            for (int i = 0; i < 8; i++)
-            {
-                if (P4Tether[i] == -1)
-                {
-                    idles.Add(i);
-                }
-            }
-            var ii = idles.IndexOf(idleStack);
-
-            if (Phase4_Strat_Of_The_First_Half == Phase4_Strats_Of_The_First_Half.Double_Swaps_Baiting_First_先引导再双换)
-            {
-                if (upGroup.Contains(tetherStack))
-                {
-                    //线分摊在上
-                    if (ii == 0 || ii == 2)
-                    {
-                        downGroup.Add(idles[0]);//t
-                        downGroup.Add(idles[2]);//highD
-                        upGroup.Add(idles[1]);//n
-                        upGroup.Add(idles[3]);//lowD
-                    }
-                    if (ii == 1 || ii == 3)
-                    {
-                        downGroup.Add(idles[1]);
-                        downGroup.Add(idles[3]);
-                        upGroup.Add(idles[0]);
-                        upGroup.Add(idles[2]);
-                    }
-                }
-                if (downGroup.Contains(tetherStack))
-                {
-                    //线分摊在下
-                    if (ii == 0 || ii == 2)
-                    {
-                        upGroup.Add(idles[0]);
-                        upGroup.Add(idles[2]);
-                        downGroup.Add(idles[1]);
-                        downGroup.Add(idles[3]);
-                    }
-                    if (ii == 1 || ii == 3)
-                    {
-                        upGroup.Add(idles[1]);
-                        upGroup.Add(idles[3]);
-                        downGroup.Add(idles[0]);
-                        downGroup.Add(idles[2]);
-                    }
-                }
-            }
-            if (Phase4_Strat_Of_The_First_Half == Phase4_Strats_Of_The_First_Half.Single_Swap_Baiting_After_先单换再引导_莫灵喵与MMW || Phase4_Strat_Of_The_First_Half == Phase4_Strats_Of_The_First_Half.Single_Swap_Baiting_First_先引导再单换)
-            {
-                if (upGroup.Contains(tetherStack))
-                {
-                    //线分摊在上
-                    if (ii == 0)//闲t分摊
-                    {
-                        downGroup.Add(idles[0]);//t
-                        downGroup.Add(idles[3]);//lowD
-                        upGroup.Add(idles[2]);//highD
-                        upGroup.Add(idles[1]);//n
-                    }
-                    if (ii == 1)//闲n分摊
-                    {
-                        upGroup.Add(idles[0]);//t
-                        upGroup.Add(idles[3]);//lowD
-                        downGroup.Add(idles[2]);//highD
-                        downGroup.Add(idles[1]);//n
-                    }
-                    if (ii == 2 || ii == 3)//闲D分摊
-                    {
-                        upGroup.Add(idles[0]);//t
-                        downGroup.Add(idles[3]);//lowD
-                        downGroup.Add(idles[2]);//highD
-                        upGroup.Add(idles[1]);//n
-                    }
-
-                }
-                if (downGroup.Contains(tetherStack))
-                {
-                    //线分摊在下
-                    if (ii == 0 || ii == 1)//tn分摊
-                    {
-                        upGroup.Add(idles[0]);//t
-                        downGroup.Add(idles[3]);//lowD
-                        downGroup.Add(idles[2]);//highD
-                        upGroup.Add(idles[1]);//n
-                    }
-                    if (ii == 2)//highD分摊
-                    {
-                        downGroup.Add(idles[0]);//t
-                        downGroup.Add(idles[3]);//lowD
-                        upGroup.Add(idles[2]);//highD
-                        upGroup.Add(idles[1]);//n
-                    }
-                    if (ii == 3)//lowD分摊
-                    {
-                        upGroup.Add(idles[0]);//t
-                        upGroup.Add(idles[3]);//lowD
-                        downGroup.Add(idles[2]);//highD
-                        downGroup.Add(idles[1]);//n
-                    }
-                }
-            }
-
+            if (parse!=42) return;
+            var (upGroup, _, _) = P4龙诗LPDU分组();
             var myindex = accessory.Data.PartyList.IndexOf(accessory.Data.Me);
 
-            var dp = accessory.Data.GetDefaultDrawProperties();
-            dp.Name = "P4_暗光龙诗_分摊";
-            dp.Scale = new(6);
-            dp.Owner = accessory.Data.PartyList[tetherStack];
-            dp.Color = upGroup.Contains(tetherStack) == upGroup.Contains(myindex) ? accessory.Data.DefaultSafeColor : accessory.Data.DefaultDangerColor;
-            dp.DestoryAt = 5000;
-            accessory.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Circle, dp);
+            for (int i = 0; i < 8; i++)
+            {
+                if (P4Stack[i] != 1) continue;
+                var dp = accessory.Data.GetDefaultDrawProperties();
+                dp.Name = "P4_暗光龙诗_分摊";
+                dp.Scale = new(6);
+                dp.Owner = accessory.Data.PartyList[i];
+                dp.Color = upGroup.Contains(i) == upGroup.Contains(myindex) ? accessory.Data.DefaultSafeColor : accessory.Data.DefaultDangerColor;
+                dp.DestoryAt = 5000;
+                accessory.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Circle, dp);
+            }
 
-            dp = accessory.Data.GetDefaultDrawProperties();
-            dp.Name = "P4_暗光龙诗_分摊";
-            dp.Scale = new(6);
-            dp.Owner = accessory.Data.PartyList[idleStack];
-            dp.Color = upGroup.Contains(idleStack) == upGroup.Contains(myindex) ? accessory.Data.DefaultSafeColor : accessory.Data.DefaultDangerColor;
-            dp.DestoryAt = 5000;
-            accessory.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Circle, dp);
-
-            dp = accessory.Data.GetDefaultDrawProperties();
-            dp.Name = "P4_暗光龙诗_分摊_水晶";
-            dp.Scale = new(9.5f);
-            dp.Owner = P4FragmentId;
-            dp.Color = accessory.Data.DefaultDangerColor;
-            dp.DestoryAt = 5000;
-            accessory.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Circle, dp);
+            var dpFragment = accessory.Data.GetDefaultDrawProperties();
+            dpFragment.Name = "P4_暗光龙诗_分摊_水晶";
+            dpFragment.Scale = new(9.5f);
+            dpFragment.Owner = P4FragmentId;
+            dpFragment.Color = accessory.Data.DefaultDangerColor;
+            dpFragment.DestoryAt = 5000;
+            accessory.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Circle, dpFragment);
         }
         [ScriptMethod(name: "P4_暗光龙诗_无尽顿悟", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:40249"])]
         public void P4_暗光龙诗_无尽顿悟(Event @event, ScriptAccessory accessory)
@@ -7953,56 +7753,14 @@ namespace CicerosKodakkuAssist.FuturesRewrittenUltimate.LPDU
 
             if (!ParseObjectId(@event["SourceId"], out var sid)) return;
             if (!Debugging && sid != accessory.Data.Me) return;
-            //accessory.Log.Debug("线");
-            
+
             System.Threading.Thread.MemoryBarrier();
-            
+
             phase4_1_ManualReset.WaitOne();
-            
+
             System.Threading.Thread.MemoryBarrier();
 
-            var tIndex = P4Tether[0] == -1 ? 1 : 0;
-            var nIndex = P4Tether[2] == -1 ? 3 : 2;
-            var d1Index = -1;
-            var d2Index = -1;
-            List<int> upGroup = [];
-            List<int> downGroup = [];
-            for (int i = 4; i < 7; i++)
-            {
-                for (int j = i + 1; j < 8; j++)
-                {
-                    if (P4Tether[i] != -1 && P4Tether[j] != -1)
-                    {
-                        d1Index = i;
-                        d2Index = j;
-                    }
-                }
-            }
-            // t连线 高d 低d 蝴蝶结
-            if ((P4Tether[tIndex] == d1Index && P4Tether[d2Index] == tIndex) || (P4Tether[tIndex] == d2Index && P4Tether[d1Index] == tIndex))
-            {
-                upGroup.Add(tIndex);
-                upGroup.Add(nIndex);
-                downGroup.Add(d1Index);
-                downGroup.Add(d2Index);
-            }
-            // t连线 高d n 方块
-            if ((P4Tether[tIndex] == d1Index && P4Tether[nIndex] == tIndex) || (P4Tether[d1Index] == tIndex && P4Tether[tIndex] == nIndex))
-            {
-                upGroup.Add(d1Index);
-                upGroup.Add(nIndex);
-                downGroup.Add(tIndex);
-                downGroup.Add(d2Index);
-            }
-            // t连线 低d n 沙漏
-            if ((P4Tether[tIndex] == d2Index && P4Tether[nIndex] == tIndex) || (P4Tether[d2Index] == tIndex && P4Tether[tIndex] == nIndex))
-            {
-                upGroup.Add(tIndex);
-                upGroup.Add(d1Index);
-                downGroup.Add(nIndex);
-                downGroup.Add(d2Index);
-            }
-
+            var (upGroup, _, _) = P4龙诗LPDU分组();
             var myIndex = accessory.Data.PartyList.IndexOf((uint)sid);
             Vector3 dealpos = upGroup.Contains(myIndex) ? new(100, 0, 92) : new(100, 0, 108);
 
@@ -8025,350 +7783,53 @@ namespace CicerosKodakkuAssist.FuturesRewrittenUltimate.LPDU
             dp.Color = accessory.Data.DefaultSafeColor;
             dp.DestoryAt = dur;
             accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Circle, dp);
-
-
         }
+
         [ScriptMethod(name: "P4_暗光龙诗_引导处理位置", eventType: EventTypeEnum.Tether, eventCondition: ["Id:006E"], suppress: 2000)]
         public void P4_暗光龙诗_引导处理位置(Event @event, ScriptAccessory accessory)
         {
             if (parse!=42) return;
-            
+
             System.Threading.Thread.MemoryBarrier();
-            
+
             phase4_1_ManualReset.WaitOne();
-            
+
             System.Threading.Thread.MemoryBarrier();
-            
+
+            // 闲人站位（西北、西南、东北、东南），引导最近的扇形
+            var (_, _, 站位) = P4龙诗LPDU分组();
+            Vector3[] 位置 = [new(095.8f, 0, 098.0f), new(095.8f, 0, 102.0f), new(104.2f, 0, 098.0f), new(104.2f, 0, 102.0f)];
+
             foreach (var 视角 in GuidanceIndices(accessory)) 指路(视角);
 
             void 指路(int 视角)
             {
-                Vector3 dealpos = new();
-                if (Phase4_Strat_Of_The_First_Half == Phase4_Strats_Of_The_First_Half.Double_Swaps_Baiting_First_先引导再双换 || Phase4_Strat_Of_The_First_Half == Phase4_Strats_Of_The_First_Half.Single_Swap_Baiting_First_先引导再单换)
-                {
-                    List<int> idles = [];
-                    for (int i = 0; i < 8; i++)
-                    {
-                        if (P4Tether[i] == -1)
-                        {
-                            idles.Add(i);
-                        }
-                    }
-                    var myIndex = 视角;
-                    if (!idles.Contains(myIndex)) return;
-                    dealpos = idles.IndexOf(myIndex) switch
-                    {
-                        0 => new(095.8f, 0, 098.0f),
-                        1 => new(104.2f, 0, 098.0f),
-                        2 => new(095.8f, 0, 102.0f),
-                        3 => new(104.2f, 0, 102.0f),
-                    };
-                }
-                if (Phase4_Strat_Of_The_First_Half == Phase4_Strats_Of_The_First_Half.Single_Swap_Baiting_After_先单换再引导_莫灵喵与MMW)
-                {
-                    var tIndex = P4Tether[0] == -1 ? 1 : 0;
-                    var nIndex = P4Tether[2] == -1 ? 3 : 2;
-                    var d1Index = -1;
-                    var d2Index = -1;
-                    List<int> upGroup = [];
-                    List<int> downGroup = [];
-                    for (int i = 4; i < 7; i++)
-                    {
-                        for (int j = i + 1; j < 8; j++)
-                        {
-                            if (P4Tether[i] != -1 && P4Tether[j] != -1)
-                            {
-                                d1Index = i;
-                                d2Index = j;
-                            }
-                        }
-                    }
-                    // t连线 高d 低d 蝴蝶结
-                    if ((P4Tether[tIndex] == d1Index && P4Tether[d2Index] == tIndex) || (P4Tether[tIndex] == d2Index && P4Tether[d1Index] == tIndex))
-                    {
-                        upGroup.Add(tIndex);
-                        upGroup.Add(nIndex);
-                        downGroup.Add(d1Index);
-                        downGroup.Add(d2Index);
-                    }
-                    // t连线 高d n 方块
-                    if ((P4Tether[tIndex] == d1Index && P4Tether[nIndex] == tIndex) || (P4Tether[d1Index] == tIndex && P4Tether[tIndex] == nIndex))
-                    {
-                        upGroup.Add(d1Index);
-                        upGroup.Add(nIndex);
-                        downGroup.Add(tIndex);
-                        downGroup.Add(d2Index);
-                    }
-                    // t连线 低d n 沙漏
-                    if ((P4Tether[tIndex] == d2Index && P4Tether[nIndex] == tIndex) || (P4Tether[d2Index] == tIndex && P4Tether[tIndex] == nIndex))
-                    {
-                        upGroup.Add(tIndex);
-                        upGroup.Add(d1Index);
-                        downGroup.Add(nIndex);
-                        downGroup.Add(d2Index);
-                    }
-                    //Phase4_Strat_Of_The_First_Half
-                    var stack1 = P4Stack.IndexOf(1);
-                    var stack2 = P4Stack.LastIndexOf(1);
-                    var tetherStack = P4Tether[stack1] == -1 ? stack2 : stack1;
-                    var idleStack = P4Tether[stack1] == -1 ? stack1 : stack2;
+                var slot = Array.IndexOf(站位, 视角);
+                if (slot < 0) return;
 
-                    List<int> idles = [];
-                    for (int i = 0; i < 8; i++)
-                    {
-                        if (P4Tether[i] == -1)
-                        {
-                            idles.Add(i);
-                        }
-                    }
-                    var myIndex = 视角;
-                    var ii = idles.IndexOf(idleStack);
-                    if (upGroup.Contains(tetherStack))
-                    {
-                        //线分摊在上
-                        if (ii == 0)
-                        {
-                            dealpos = idles.IndexOf(myIndex) switch
-                            {
-                                2 => new(095.8f, 0, 098.0f),
-                                1 => new(104.2f, 0, 098.0f),
-                                0 => new(095.8f, 0, 102.0f),
-                                3 => new(104.2f, 0, 102.0f),
-                            };
-                        }
-                        if (ii == 1)
-                        {
-                            dealpos = idles.IndexOf(myIndex) switch
-                            {
-                                0 => new(095.8f, 0, 098.0f),
-                                3 => new(104.2f, 0, 098.0f),
-                                2 => new(095.8f, 0, 102.0f),
-                                1 => new(104.2f, 0, 102.0f),
-                            };
-                        }
-                        if (ii == 2 || ii == 3)
-                        {
-                            dealpos = idles.IndexOf(myIndex) switch
-                            {
-                                0 => new(095.8f, 0, 098.0f),
-                                1 => new(104.2f, 0, 098.0f),
-                                2 => new(095.8f, 0, 102.0f),
-                                3 => new(104.2f, 0, 102.0f),
-                            };
-                        }
-
-                    }
-                    if (downGroup.Contains(tetherStack))
-                    {
-                        //线分摊在下
-                        if (ii == 2)
-                        {
-                            dealpos = idles.IndexOf(myIndex) switch
-                            {
-                                2 => new(095.8f, 0, 098.0f),
-                                1 => new(104.2f, 0, 098.0f),
-                                0 => new(095.8f, 0, 102.0f),
-                                3 => new(104.2f, 0, 102.0f),
-                            };
-                        }
-                        if (ii == 3)
-                        {
-                            dealpos = idles.IndexOf(myIndex) switch
-                            {
-                                0 => new(095.8f, 0, 098.0f),
-                                3 => new(104.2f, 0, 098.0f),
-                                2 => new(095.8f, 0, 102.0f),
-                                1 => new(104.2f, 0, 102.0f),
-                            };
-                        }
-                        if (ii == 0 || ii == 1)
-                        {
-                            dealpos = idles.IndexOf(myIndex) switch
-                            {
-                                0 => new(095.8f, 0, 098.0f),
-                                1 => new(104.2f, 0, 098.0f),
-                                2 => new(095.8f, 0, 102.0f),
-                                3 => new(104.2f, 0, 102.0f),
-                            };
-                        }
-                    }
-                }
-
-
-
-                var dur = 10000;
                 var dp = accessory.Data.GetDefaultDrawProperties();
                 dp.Name = $"P4_暗光龙诗_引导处理位置-{视角}";
                 dp.Scale = new(2);
                 dp.ScaleMode |= ScaleMode.YByDistance;
                 dp.Owner = GuidanceOwner(accessory, 视角);
-                dp.TargetPosition = dealpos;
+                dp.TargetPosition = 位置[slot];
                 dp.Color = accessory.Data.DefaultSafeColor;
-                dp.DestoryAt = dur;
+                dp.DestoryAt = 10000;
                 accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
             }
         }
+
         [ScriptMethod(name: "P4_暗光龙诗_分摊处理位置", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:regex:^(4022[78])$"])]
         public void P4_暗光龙诗_分摊处理位置(Event @event, ScriptAccessory accessory)
         {
-            var tIndex = P4Tether[0] == -1 ? 1 : 0;
-            var nIndex = P4Tether[2] == -1 ? 3 : 2;
-            var d1Index = -1;
-            var d2Index = -1;
-            List<int> upGroup = [];
-            List<int> downGroup = [];
-            for (int i = 4; i < 7; i++)
-            {
-                for (int j = i + 1; j < 8; j++)
-                {
-                    if (P4Tether[i] != -1 && P4Tether[j] != -1)
-                    {
-                        d1Index = i;
-                        d2Index = j;
-                    }
-                }
-            }
-            // t连线 高d 低d 蝴蝶结
-            if ((P4Tether[tIndex] == d1Index && P4Tether[d2Index] == tIndex) || (P4Tether[tIndex] == d2Index && P4Tether[d1Index] == tIndex))
-            {
-                upGroup.Add(tIndex);
-                upGroup.Add(nIndex);
-                downGroup.Add(d1Index);
-                downGroup.Add(d2Index);
-            }
-            // t连线 高d n 方块
-            if ((P4Tether[tIndex] == d1Index && P4Tether[nIndex] == tIndex) || (P4Tether[d1Index] == tIndex && P4Tether[tIndex] == nIndex))
-            {
-                upGroup.Add(d1Index);
-                upGroup.Add(nIndex);
-                downGroup.Add(tIndex);
-                downGroup.Add(d2Index);
-            }
-            // t连线 低d n 沙漏
-            if ((P4Tether[tIndex] == d2Index && P4Tether[nIndex] == tIndex) || (P4Tether[d2Index] == tIndex && P4Tether[tIndex] == nIndex))
-            {
-                upGroup.Add(tIndex);
-                upGroup.Add(d1Index);
-                downGroup.Add(nIndex);
-                downGroup.Add(d2Index);
-            }
-            //Phase4_Strat_Of_The_First_Half
-            var stack1 = P4Stack.IndexOf(1);
-            var stack2 = P4Stack.LastIndexOf(1);
-            var tetherStack = P4Tether[stack1] == -1 ? stack2 : stack1;
-            var idleStack = P4Tether[stack1] == -1 ? stack1 : stack2;
-
-            List<int> idles = [];
-            for (int i = 0; i < 8; i++)
-            {
-                if (P4Tether[i] == -1)
-                {
-                    idles.Add(i);
-                }
-            }
-            var ii = idles.IndexOf(idleStack);
-            if (Phase4_Strat_Of_The_First_Half == Phase4_Strats_Of_The_First_Half.Double_Swaps_Baiting_First_先引导再双换)
-            {
-                if (upGroup.Contains(tetherStack))
-                {
-                    //线分摊在上
-                    if (ii == 0 || ii == 2)
-                    {
-                        downGroup.Add(idles[0]);//t
-                        downGroup.Add(idles[2]);//highD
-                        upGroup.Add(idles[1]);//n
-                        upGroup.Add(idles[3]);//lowD
-                    }
-                    if (ii == 1 || ii == 3)
-                    {
-                        downGroup.Add(idles[1]);
-                        downGroup.Add(idles[3]);
-                        upGroup.Add(idles[0]);
-                        upGroup.Add(idles[2]);
-                    }
-                }
-                if (downGroup.Contains(tetherStack))
-                {
-                    //线分摊在下
-                    if (ii == 0 || ii == 2)
-                    {
-                        upGroup.Add(idles[0]);
-                        upGroup.Add(idles[2]);
-                        downGroup.Add(idles[1]);
-                        downGroup.Add(idles[3]);
-                    }
-                    if (ii == 1 || ii == 3)
-                    {
-                        upGroup.Add(idles[1]);
-                        upGroup.Add(idles[3]);
-                        downGroup.Add(idles[0]);
-                        downGroup.Add(idles[2]);
-                    }
-                }
-            }
-            if (Phase4_Strat_Of_The_First_Half == Phase4_Strats_Of_The_First_Half.Single_Swap_Baiting_After_先单换再引导_莫灵喵与MMW || Phase4_Strat_Of_The_First_Half == Phase4_Strats_Of_The_First_Half.Single_Swap_Baiting_First_先引导再单换)
-            {
-                if (upGroup.Contains(tetherStack))
-                {
-                    //线分摊在上
-                    if (ii == 0)//闲t分摊
-                    {
-                        downGroup.Add(idles[0]);//t
-                        downGroup.Add(idles[3]);//lowD
-                        upGroup.Add(idles[2]);//highD
-                        upGroup.Add(idles[1]);//n
-                    }
-                    if (ii == 1)//闲n分摊
-                    {
-                        upGroup.Add(idles[0]);//t
-                        upGroup.Add(idles[3]);//lowD
-                        downGroup.Add(idles[2]);//highD
-                        downGroup.Add(idles[1]);//n
-                    }
-                    if (ii == 2 || ii == 3)//闲D分摊
-                    {
-                        upGroup.Add(idles[0]);//t
-                        downGroup.Add(idles[3]);//lowD
-                        downGroup.Add(idles[2]);//highD
-                        upGroup.Add(idles[1]);//n
-                    }
-
-                }
-                if (downGroup.Contains(tetherStack))
-                {
-                    //线分摊在下
-                    if (ii == 0 || ii == 1)//tn分摊
-                    {
-                        upGroup.Add(idles[0]);//t
-                        downGroup.Add(idles[3]);//lowD
-                        downGroup.Add(idles[2]);//highD
-                        upGroup.Add(idles[1]);//n
-                    }
-                    if (ii == 2)//highD分摊
-                    {
-                        downGroup.Add(idles[0]);//t
-                        downGroup.Add(idles[3]);//lowD
-                        upGroup.Add(idles[2]);//highD
-                        upGroup.Add(idles[1]);//n
-                    }
-                    if (ii == 3)//lowD分摊
-                    {
-                        upGroup.Add(idles[0]);//t
-                        upGroup.Add(idles[3]);//lowD
-                        downGroup.Add(idles[2]);//highD
-                        downGroup.Add(idles[1]);//n
-                    }
-                }
-            }
-
+            if (parse!=42) return;
+            var (upGroup, _, _) = P4龙诗LPDU分组();
 
             foreach (var 视角 in GuidanceIndices(accessory)) 指路(视角);
 
             void 指路(int 视角)
             {
-                var myindex = 视角;
-
-                Vector3 dealpos = new(@event["ActionId"] == "40227" ? 105 : 95, 0, upGroup.Contains(myindex) ? 92.5f : 107.5f);
+                Vector3 dealpos = new(@event["ActionId"] == "40227" ? 105 : 95, 0, upGroup.Contains(视角) ? 92.5f : 107.5f);
 
                 var dp = accessory.Data.GetDefaultDrawProperties();
                 dp.Name = $"P4_暗光龙诗_分摊处理位置-{视角}";
@@ -8379,8 +7840,6 @@ namespace CicerosKodakkuAssist.FuturesRewrittenUltimate.LPDU
                 dp.Color = accessory.Data.DefaultSafeColor;
                 dp.DestoryAt = 5000;
                 accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
-
-
             }
         }
 
@@ -8585,31 +8044,14 @@ namespace CicerosKodakkuAssist.FuturesRewrittenUltimate.LPDU
             _cry.Init(accessory, _pd);
             _events = [.. Enumerable.Range(0, 20).Select(_ => new System.Threading.ManualResetEvent(false))];
 
-            List<int> pdList = Phase4_Priority_Of_The_Players_With_Wyrmclaw switch
-            {
-                // 数字越小，优先度越高（偏左），默认为HTD顺序。
-                Phase4_Priorities_Of_The_Players_With_Wyrmclaw.In_THD_Order_按THD顺序_莫灵喵 => [0, 1, 2, 3, 4, 5, 6, 7],
-                Phase4_Priorities_Of_The_Players_With_Wyrmclaw.In_HTD_Order_按HTD顺序_MMW => [2, 3, 0, 1, 4, 5, 6, 7],
-                Phase4_Priorities_Of_The_Players_With_Wyrmclaw.In_H1TDH2_Order_按H1TDH2顺序 => [1, 2, 0, 7, 3, 4, 5, 6],
-                _ => [2, 3, 0, 1, 4, 5, 6, 7],
-            };
-            _pd.AddPriorities(pdList);
+            // 数字越小越靠西：LPDU 与启示录同一套 H2 H1 OT MT M1 M2 R1 R2
+            _pd.AddPriorities([3, 2, 1, 0, 4, 5, 6, 7]);
 
             P4ClawBuff = [0, 0, 0, 0, 0, 0, 0, 0];
             phase4_numberOfMajorDebuffsHaveBeenCounted = 0;
             phase4_semaphoreMajorDebuffsWereConfirmed = new System.Threading.AutoResetEvent(false);
             phase4_numberOfIncidentalDebuffsHaveBeenCounted = 0;
             phase4_semaphoreIncidentalDebuffsWereConfirmed = new System.Threading.AutoResetEvent(false);
-            phase4_marksOfPlayersWithWyrmfang = [
-                MarkType.Cross,
-                MarkType.Cross,
-                MarkType.Cross,
-                MarkType.Cross,
-                MarkType.Cross,
-                MarkType.Cross,
-                MarkType.Cross,
-                MarkType.Cross
-            ];
             P4OtherBuff = [0, 0, 0, 0, 0, 0, 0, 0];
             P4WaterPos = [];
             phase4_id1OfTheDrachenWanderers = "";
@@ -8751,49 +8193,6 @@ namespace CicerosKodakkuAssist.FuturesRewrittenUltimate.LPDU
             _events[2].Set();   // P4二运优先级记录完毕
         }
 
-        [ScriptMethod(name: "P4_时间结晶_接收外部标点",
-            eventType: EventTypeEnum.Marker,
-            eventCondition: ["Operate:Add", "Id:regex:^(0[679]|10)$"],
-            userControl: false)]
-
-        public void P4_时间结晶_接收外部标点(Event @event, ScriptAccessory accessory)
-        {
-            if (parse!=43) return;
-
-            _events[2].WaitOne();
-            if (!ParseObjectId(@event["TargetId"], out var tid)) return;
-            var index = accessory.Data.PartyList.IndexOf((uint)tid);
-            if (!int.TryParse(@event["Id"], out var sign)) return;
-
-            const int stop1 = 9;
-            const int stop2 = 10;
-            const int bind1 = 6;
-            const int bind2 = 7;
-
-            // 若外部存在标点则顺从
-            switch (sign)
-            {
-                case stop1:
-                    _cry.LeftIcePlayerIdx = index;
-                    accessory.Log.Debug($"时间结晶：接收到外部的stop1标点，标给{index}");
-                    break;
-                case stop2:
-                    _cry.RightIcePlayerIdx = index;
-                    accessory.Log.Debug($"时间结晶：接收到外部的stop2标点，标给{index}");
-                    break;
-                case bind1:
-                    _cry.LeftWindPlayerIdx = index;
-                    accessory.Log.Debug($"时间结晶：接收到外部的bind1标点，标给{index}");
-                    break;
-                case bind2:
-                    _cry.RightWindPlayerIdx = index;
-                    accessory.Log.Debug($"时间结晶：接收到外部的bind2标点，标给{index}");
-                    break;
-                default:
-                    break;
-            }
-        }
-
         [ScriptMethod(name: "P4_时间结晶_蓝线收集", eventType: EventTypeEnum.Tether, eventCondition: ["Id:0085"], userControl: false)]
         public void P4_时间结晶_蓝线收集(Event @event, ScriptAccessory accessory)
         {
@@ -8902,80 +8301,8 @@ namespace CicerosKodakkuAssist.FuturesRewrittenUltimate.LPDU
                 //短红
                 if (P4ClawBuff[myIndex] == 1)
                 {
-                    bool isHigh = true;
-
-                    if (Phase4_Priority_Of_The_Players_With_Wyrmclaw == Phase4_Priorities_Of_The_Players_With_Wyrmclaw.In_THD_Order_按THD顺序_莫灵喵)
-                    {
-
-                        isHigh = (P4ClawBuff.IndexOf(1) == myIndex);
-
-                    }
-
-                    if (Phase4_Priority_Of_The_Players_With_Wyrmclaw == Phase4_Priorities_Of_The_Players_With_Wyrmclaw.In_HTD_Order_按HTD顺序_MMW)
-                    {
-
-                        List<int> temporaryPriority = [2, 3, 0, 1, 4, 5, 6, 7];
-
-                        for (int i = 0; i < temporaryPriority.Count; ++i)
-                        {
-
-                            if (P4ClawBuff[temporaryPriority[i]] == 1)
-                            {
-
-                                if (temporaryPriority[i] == myIndex)
-                                {
-
-                                    isHigh = true;
-
-                                }
-
-                                else
-                                {
-
-                                    isHigh = false;
-
-                                }
-
-                                break;
-
-                            }
-
-                        }
-
-                    }
-
-                    if (Phase4_Priority_Of_The_Players_With_Wyrmclaw == Phase4_Priorities_Of_The_Players_With_Wyrmclaw.In_H1TDH2_Order_按H1TDH2顺序)
-                    {
-
-                        List<int> temporaryPriority = [2, 0, 1, 4, 5, 6, 7, 3];
-
-                        for (int i = 0; i < temporaryPriority.Count; ++i)
-                        {
-
-                            if (P4ClawBuff[temporaryPriority[i]] == 1)
-                            {
-
-                                if (temporaryPriority[i] == myIndex)
-                                {
-
-                                    isHigh = true;
-
-                                }
-
-                                else
-                                {
-
-                                    isHigh = false;
-
-                                }
-
-                                break;
-
-                            }
-
-                        }
-
-                    }
+                    // LPDU：同种红 debuff 两人按 H2 H1 OT MT M1 M2 R1 R2 排，靠前的去西（isHigh）
+                    bool isHigh = P4LPDU东西优先级.First(i => P4ClawBuff[i] == P4ClawBuff[myIndex]) == myIndex;
 
                     Vector3 dealpos = isHigh ? new(87, 0, 100) : new(113, 0, 100);
 
@@ -9041,80 +8368,8 @@ namespace CicerosKodakkuAssist.FuturesRewrittenUltimate.LPDU
                 //长红
                 if (P4ClawBuff[myIndex] == 2)
                 {
-                    bool isHigh = true;
-
-                    if (Phase4_Priority_Of_The_Players_With_Wyrmclaw == Phase4_Priorities_Of_The_Players_With_Wyrmclaw.In_THD_Order_按THD顺序_莫灵喵)
-                    {
-
-                        isHigh = (P4ClawBuff.IndexOf(2) == myIndex);
-
-                    }
-
-                    if (Phase4_Priority_Of_The_Players_With_Wyrmclaw == Phase4_Priorities_Of_The_Players_With_Wyrmclaw.In_HTD_Order_按HTD顺序_MMW)
-                    {
-
-                        List<int> temporaryPriority = [2, 3, 0, 1, 4, 5, 6, 7];
-
-                        for (int i = 0; i < temporaryPriority.Count; ++i)
-                        {
-
-                            if (P4ClawBuff[temporaryPriority[i]] == 2)
-                            {
-
-                                if (temporaryPriority[i] == myIndex)
-                                {
-
-                                    isHigh = true;
-
-                                }
-
-                                else
-                                {
-
-                                    isHigh = false;
-
-                                }
-
-                                break;
-
-                            }
-
-                        }
-
-                    }
-
-                    if (Phase4_Priority_Of_The_Players_With_Wyrmclaw == Phase4_Priorities_Of_The_Players_With_Wyrmclaw.In_H1TDH2_Order_按H1TDH2顺序)
-                    {
-
-                        List<int> temporaryPriority = [2, 0, 1, 4, 5, 6, 7, 3];
-
-                        for (int i = 0; i < temporaryPriority.Count; ++i)
-                        {
-
-                            if (P4ClawBuff[temporaryPriority[i]] == 2)
-                            {
-
-                                if (temporaryPriority[i] == myIndex)
-                                {
-
-                                    isHigh = true;
-
-                                }
-
-                                else
-                                {
-
-                                    isHigh = false;
-
-                                }
-
-                                break;
-
-                            }
-
-                        }
-
-                    }
+                    // LPDU：同种红 debuff 两人按 H2 H1 OT MT M1 M2 R1 R2 排，靠前的去西（isHigh）
+                    bool isHigh = P4LPDU东西优先级.First(i => P4ClawBuff[i] == P4ClawBuff[myIndex]) == myIndex;
 
                     Vector3 dealpos1 = isHigh ? new(088.5f, 0, 115.5f) : new(111.5f, 0, 115.5f);
                     Vector3 dealpos2 = isHigh ? new(090.2f, 0, 117.0f) : new(109.8f, 0, 117.0f);
@@ -9278,105 +8533,61 @@ namespace CicerosKodakkuAssist.FuturesRewrittenUltimate.LPDU
             {
                 var myindex = 视角;
                 Vector3 centre = new(100, 0, 100);
-                if (Phase4_Position_Before_Knockback == Phase4_Positions_Before_Knockback.Normal_正攻_莫灵喵与MMW)
+                // LPDU：在回返所在角落背对场中，G1（MT H1 M1 R1）在左、G2（OT H2 M2 R2）在右
+                // T 站外圈地面圆圈中心（16.5m，偏 12°），队友站 T 斜后方的圆圈外环（13.8m，偏 13°）；下面是回返在东北时的坐标
+                var dir8 = PositionTo8Dir((P4WaterPos[0] + P4WaterPos[1]) / 2, centre) - 1;
+                Vector3 mtPos = new(108.99f, 0, 86.16f);
+                Vector3 stPos = new(113.84f, 0, 91.01f);
+                Vector3 mtgPos = new(107.31f, 0, 88.30f);
+                Vector3 stgPos = new(111.70f, 0, 92.69f);
+                if (myindex == 0)
                 {
-                    var dir8 = PositionTo8Dir((P4WaterPos[0] + P4WaterPos[1]) / 2, centre) - 1;
-                    Vector3 mtPos = new(107, 0, 88);
-                    Vector3 stPos = new(112, 0, 93);
-                    Vector3 mtgPos = new(106, 0, 92);
-                    Vector3 stgPos = new(108, 0, 94);
-                    if (myindex == 0)
-                    {
-                        var dp = accessory.Data.GetDefaultDrawProperties();
-                        dp.Name = $"P4_时间结晶_放回返位置_MT-{视角}";
-                        dp.Scale = new(2);
-                        dp.ScaleMode |= ScaleMode.YByDistance;
-                        dp.Owner = GuidanceOwner(accessory, 视角);
-                        dp.TargetPosition = RotatePoint(mtPos, centre, float.Pi / 4 * dir8);
-                        dp.Color = accessory.Data.DefaultSafeColor;
-                        dp.DestoryAt = 9000;
-                        accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
-                    }
-                    if (myindex == 1)
-                    {
-                        var dp = accessory.Data.GetDefaultDrawProperties();
-                        dp.Name = $"P4_时间结晶_放回返位置_ST-{视角}";
-                        dp.Scale = new(2);
-                        dp.ScaleMode |= ScaleMode.YByDistance;
-                        dp.Owner = GuidanceOwner(accessory, 视角);
-                        dp.TargetPosition = RotatePoint(stPos, centre, float.Pi / 4 * dir8);
-                        dp.Color = accessory.Data.DefaultSafeColor;
-                        dp.DestoryAt = 9000;
-                        accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
-                    }
-                    if (myindex == 2 || myindex == 4 || myindex == 6)
-                    {
-                        var dp = accessory.Data.GetDefaultDrawProperties();
-                        dp.Name = $"P4_时间结晶_放回返位置_MTG-{视角}";
-                        dp.Scale = new(2);
-                        dp.ScaleMode |= ScaleMode.YByDistance;
-                        dp.Owner = GuidanceOwner(accessory, 视角);
-                        dp.TargetPosition = RotatePoint(mtgPos, centre, float.Pi / 4 * dir8);
-                        dp.Color = accessory.Data.DefaultSafeColor;
-                        dp.DestoryAt = 9000;
-                        accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
-                    }
-                    if (myindex == 3 || myindex == 5 || myindex == 7)
-                    {
-                        var dp = accessory.Data.GetDefaultDrawProperties();
-                        dp.Name = $"P4_时间结晶_放回返位置_STG-{视角}";
-                        dp.Scale = new(2);
-                        dp.ScaleMode |= ScaleMode.YByDistance;
-                        dp.Owner = GuidanceOwner(accessory, 视角);
-                        dp.TargetPosition = RotatePoint(stgPos, centre, float.Pi / 4 * dir8);
-                        dp.Color = accessory.Data.DefaultSafeColor;
-                        dp.DestoryAt = 9000;
-                        accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
-                    }
+                    var dp = accessory.Data.GetDefaultDrawProperties();
+                    dp.Name = $"P4_时间结晶_放回返位置_MT-{视角}";
+                    dp.Scale = new(2);
+                    dp.ScaleMode |= ScaleMode.YByDistance;
+                    dp.Owner = GuidanceOwner(accessory, 视角);
+                    dp.TargetPosition = RotatePoint(mtPos, centre, float.Pi / 4 * dir8);
+                    dp.Color = accessory.Data.DefaultSafeColor;
+                    dp.DestoryAt = 9000;
+                    accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
                 }
-                if (Phase4_Position_Before_Knockback == Phase4_Positions_Before_Knockback.Y_Formation_Japanese_PF_日服野队Y字队形)
+                if (myindex == 1)
                 {
-                    Vector3 mtPos = P4WaterPos[1].Z < 100 ? new(92, 0, 90) : new(108, 0, 110);
-                    Vector3 stPos = P4WaterPos[1].Z < 100 ? new(108, 0, 90) : new(92, 0, 110);
-                    Vector3 gPos = P4WaterPos[1].Z < 100 ? new(100, 0, 96) : new(100, 0, 104);
-                    if (myindex == 0)
-                    {
-                        var dp = accessory.Data.GetDefaultDrawProperties();
-                        dp.Name = $"P4_时间结晶_放回返位置_MT-{视角}";
-                        dp.Scale = new(2);
-                        dp.ScaleMode |= ScaleMode.YByDistance;
-                        dp.Owner = GuidanceOwner(accessory, 视角);
-                        dp.TargetPosition = mtPos;
-                        dp.Color = accessory.Data.DefaultSafeColor;
-                        dp.DestoryAt = 9000;
-                        accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
-                    }
-                    if (myindex == 1)
-                    {
-                        var dp = accessory.Data.GetDefaultDrawProperties();
-                        dp.Name = $"P4_时间结晶_放回返位置_ST-{视角}";
-                        dp.Scale = new(2);
-                        dp.ScaleMode |= ScaleMode.YByDistance;
-                        dp.Owner = GuidanceOwner(accessory, 视角);
-                        dp.TargetPosition = stPos;
-                        dp.Color = accessory.Data.DefaultSafeColor;
-                        dp.DestoryAt = 9000;
-                        accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
-                    }
-                    if (myindex == 2 || myindex == 3 || myindex == 4 || myindex == 5 || myindex == 6 || myindex == 7)
-                    {
-                        var dp = accessory.Data.GetDefaultDrawProperties();
-                        dp.Name = $"P4_时间结晶_放回返位置_MTG-{视角}";
-                        dp.Scale = new(2);
-                        dp.ScaleMode |= ScaleMode.YByDistance;
-                        dp.Owner = GuidanceOwner(accessory, 视角);
-                        dp.TargetPosition = gPos;
-                        dp.Color = accessory.Data.DefaultSafeColor;
-                        dp.DestoryAt = 9000;
-                        accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
-                    }
+                    var dp = accessory.Data.GetDefaultDrawProperties();
+                    dp.Name = $"P4_时间结晶_放回返位置_ST-{视角}";
+                    dp.Scale = new(2);
+                    dp.ScaleMode |= ScaleMode.YByDistance;
+                    dp.Owner = GuidanceOwner(accessory, 视角);
+                    dp.TargetPosition = RotatePoint(stPos, centre, float.Pi / 4 * dir8);
+                    dp.Color = accessory.Data.DefaultSafeColor;
+                    dp.DestoryAt = 9000;
+                    accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
                 }
-
+                if (myindex == 2 || myindex == 4 || myindex == 6)
+                {
+                    var dp = accessory.Data.GetDefaultDrawProperties();
+                    dp.Name = $"P4_时间结晶_放回返位置_MTG-{视角}";
+                    dp.Scale = new(2);
+                    dp.ScaleMode |= ScaleMode.YByDistance;
+                    dp.Owner = GuidanceOwner(accessory, 视角);
+                    dp.TargetPosition = RotatePoint(mtgPos, centre, float.Pi / 4 * dir8);
+                    dp.Color = accessory.Data.DefaultSafeColor;
+                    dp.DestoryAt = 9000;
+                    accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
+                }
+                if (myindex == 3 || myindex == 5 || myindex == 7)
+                {
+                    var dp = accessory.Data.GetDefaultDrawProperties();
+                    dp.Name = $"P4_时间结晶_放回返位置_STG-{视角}";
+                    dp.Scale = new(2);
+                    dp.ScaleMode |= ScaleMode.YByDistance;
+                    dp.Owner = GuidanceOwner(accessory, 视角);
+                    dp.TargetPosition = RotatePoint(stgPos, centre, float.Pi / 4 * dir8);
+                    dp.Color = accessory.Data.DefaultSafeColor;
+                    dp.DestoryAt = 9000;
+                    accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, dp);
+                }
             }
         }
 
@@ -9837,34 +9048,15 @@ namespace CicerosKodakkuAssist.FuturesRewrittenUltimate.LPDU
                 if (Enable_Developer_Mode)
                 {
 
-                    if (Phase4_Logic_Of_Residue_Guidance == Phase4_Logics_Of_Residue_Guidance.According_To_Signs_On_Me_根据我身上的目标标记_莫灵喵和MMW)
-                    {
+                    if (IsMe(accessory, 视角)) accessory.Method.SendChat($"""
+                                               /e 
+                                               phase4_residueIdsFromEastToWest[]={phase4_residueIdsFromEastToWest[0]},{phase4_residueIdsFromEastToWest[1]},{phase4_residueIdsFromEastToWest[2]},{phase4_residueIdsFromEastToWest[3]}
+                                               P4ClawBuff={P4ClawBuff[myIndex]}
+                                               P4OtherBuff={P4OtherBuff[myIndex]}
+                                               relativePositionOfMyResidue={relativePositionOfMyResidue}
+                                               idOfMyResidue={idOfMyResidue}
 
-                        if (IsMe(accessory, 视角)) accessory.Method.SendChat($"""
-                                                   /e 
-                                                   phase4_residueIdsFromEastToWest[]={phase4_residueIdsFromEastToWest[0]},{phase4_residueIdsFromEastToWest[1]},{phase4_residueIdsFromEastToWest[2]},{phase4_residueIdsFromEastToWest[3]}
-                                                   phase4_marksOfPlayersWithWyrmfang[myIndex]={phase4_marksOfPlayersWithWyrmfang[myIndex]}
-                                                   relativePositionOfMyResidue={relativePositionOfMyResidue}
-                                                   idOfMyResidue={idOfMyResidue}
-
-                                                   """);
-
-                    }
-
-                    else
-                    {
-
-                        if (IsMe(accessory, 视角)) accessory.Method.SendChat($"""
-                                                   /e 
-                                                   phase4_residueIdsFromEastToWest[]={phase4_residueIdsFromEastToWest[0]},{phase4_residueIdsFromEastToWest[1]},{phase4_residueIdsFromEastToWest[2]},{phase4_residueIdsFromEastToWest[3]}
-                                                   P4ClawBuff={P4ClawBuff[myIndex]}
-                                                   P4OtherBuff={P4OtherBuff[myIndex]}
-                                                   relativePositionOfMyResidue={relativePositionOfMyResidue}
-                                                   idOfMyResidue={idOfMyResidue}
-
-                                                   """);
-
-                    }
+                                               """);
 
                 }
 
@@ -10140,166 +9332,19 @@ namespace CicerosKodakkuAssist.FuturesRewrittenUltimate.LPDU
 
         }
 
-        [ScriptMethod(name: "Phase4 Record Signs On Party Members 记录小队队员的目标标记",
-            eventType: EventTypeEnum.Marker,
-            userControl: false)]
-
-        public void Phase4_Record_Signs_On_Party_Members_记录小队队员的目标标记(Event @event, ScriptAccessory accessory)
-        {
-
-            if (parse!=43)
-            {
-
-                return;
-
-            }
-
-            if (!ParseObjectId(@event["TargetId"], out var targetId))
-            {
-
-                return;
-
-            }
-
-            if (!int.TryParse(@event["Id"], out var sign))
-            {
-
-                return;
-
-            }
-
-            MarkType currentType = sign switch
-            {
-                1 => MarkType.Attack1,
-                2 => MarkType.Attack2,
-                3 => MarkType.Attack3,
-                4 => MarkType.Attack4,
-                9 => MarkType.Stop1,
-                10 => MarkType.Stop2,
-                6 => MarkType.Bind1,
-                7 => MarkType.Bind2,
-                _ => MarkType.Cross
-            };
-
-            int currentIndex = accessory.Data.PartyList.IndexOf(((uint)targetId));
-
-            if (0 <= currentIndex && currentIndex <= 7)
-            {
-
-                lock (phase4_marksOfPlayersWithWyrmfang)
-                {
-
-                    phase4_marksOfPlayersWithWyrmfang[currentIndex] = currentType;
-
-                }
-
-            }
-
-        }
-
+        // LPDU 白圈：暗炎喷发去 D（西侧先出现的那个），黑暗神圣(分摊)去 B（东侧先出现的），黑暗狂水去 3（东侧后出现的），黑暗冰封去 4（西侧后出现的）
         private Phase4_Relative_Positions_Of_Residues phase4_getRelativePosition(int currentIndex)
         {
-
-            if (currentIndex < 0 || currentIndex > 7)
+            if (currentIndex < 0 || currentIndex > 7 || P4ClawBuff[currentIndex] != 3) return Phase4_Relative_Positions_Of_Residues.Unknown_未知;
+            // P4OtherBuff：4 暗炎喷发、5 黑暗神圣、3 黑暗狂水、1 黑暗冰封
+            return P4OtherBuff[currentIndex] switch
             {
-
-                return Phase4_Relative_Positions_Of_Residues.Unknown_未知;
-
-            }
-
-            if (P4ClawBuff[currentIndex] == 1 || P4ClawBuff[currentIndex] == 2)
-            {
-                // 1 stands for short Wyrmclaw (the red debuff), 2 stands for long Wyrmclaw (also the red debuff).
-
-                return Phase4_Relative_Positions_Of_Residues.Unknown_未知;
-
-            }
-
-            if (Phase4_Logic_Of_Residue_Guidance == Phase4_Logics_Of_Residue_Guidance.According_To_Debuffs_根据Debuff)
-            {
-
-                if (P4ClawBuff[currentIndex] == 3)
-                {
-                    // 3 stands for Wyrmfang (the blue debuff).
-
-                    if (P4OtherBuff[currentIndex] == 4)
-                    {
-                        // 4 stands for Dark Eruption.
-
-                        return Phase4_Residue_Belongs_To_Dark_Eruption;
-
-                    }
-
-                    if (P4OtherBuff[currentIndex] == 5)
-                    {
-                        // 5 stands for Unholy Darkness.
-
-                        return Phase4_Residue_Belongs_To_Unholy_Darkness;
-
-                    }
-
-                    if (P4OtherBuff[currentIndex] == 1)
-                    {
-                        // 1 stands for Dark Blizzard III.
-
-                        return Phase4_Residue_Belongs_To_Dark_Blizzard_III;
-
-                    }
-
-                    if (P4OtherBuff[currentIndex] == 3)
-                    {
-                        // 3 stands for Dark Water III.
-
-                        return Phase4_Residue_Belongs_To_Dark_Water_III;
-
-                    }
-
-                }
-
-            }
-
-            if (Phase4_Logic_Of_Residue_Guidance == Phase4_Logics_Of_Residue_Guidance.According_To_Signs_On_Me_根据我身上的目标标记_莫灵喵和MMW)
-            {
-
-
-                if (P4ClawBuff[currentIndex] == 3)
-                {
-
-                    if (phase4_marksOfPlayersWithWyrmfang[currentIndex] == MarkType.Attack1)
-                    {
-
-                        return Phase4_Residue_Belongs_To_Attack1;
-
-                    }
-
-                    if (phase4_marksOfPlayersWithWyrmfang[currentIndex] == MarkType.Attack2)
-                    {
-
-                        return Phase4_Residue_Belongs_To_Attack2;
-
-                    }
-
-                    if (phase4_marksOfPlayersWithWyrmfang[currentIndex] == MarkType.Attack3)
-                    {
-
-                        return Phase4_Residue_Belongs_To_Attack3;
-
-                    }
-
-                    if (phase4_marksOfPlayersWithWyrmfang[currentIndex] == MarkType.Attack4)
-                    {
-
-                        return Phase4_Residue_Belongs_To_Attack4;
-
-                    }
-
-                }
-
-            }
-
-            return Phase4_Relative_Positions_Of_Residues.Unknown_未知;
-            // Just a placeholder and should never be reached.
-
+                4 => Phase4_Relative_Positions_Of_Residues.Westmost_最西侧,
+                5 => Phase4_Relative_Positions_Of_Residues.Eastmost_最东侧,
+                3 => Phase4_Relative_Positions_Of_Residues.About_East_次东侧,
+                1 => Phase4_Relative_Positions_Of_Residues.About_West_次西侧,
+                _ => Phase4_Relative_Positions_Of_Residues.Unknown_未知,
+            };
         }
 
         private ulong phase4_getResidueId(Phase4_Relative_Positions_Of_Residues relativePosition)
@@ -10367,14 +9412,14 @@ namespace CicerosKodakkuAssist.FuturesRewrittenUltimate.LPDU
                         if (Language_Of_Prompts == Languages_Of_Prompts.Simplified_Chinese_简体中文)
                         {
 
-                            return "最左/最东";
+                            return "B点白圈（最东）";
 
                         }
 
                         if (Language_Of_Prompts == Languages_Of_Prompts.English_英文)
                         {
 
-                            return "Leftmost/Eastmost";
+                            return "Puddle at B (eastmost)";
 
                         }
 
@@ -10389,14 +9434,14 @@ namespace CicerosKodakkuAssist.FuturesRewrittenUltimate.LPDU
                         if (Language_Of_Prompts == Languages_Of_Prompts.Simplified_Chinese_简体中文)
                         {
 
-                            return "次左/次东";
+                            return "3点白圈（次东）";
 
                         }
 
                         if (Language_Of_Prompts == Languages_Of_Prompts.English_英文)
                         {
 
-                            return "About left/About east";
+                            return "Puddle at 3 (about east)";
 
                         }
 
@@ -10411,14 +9456,14 @@ namespace CicerosKodakkuAssist.FuturesRewrittenUltimate.LPDU
                         if (Language_Of_Prompts == Languages_Of_Prompts.Simplified_Chinese_简体中文)
                         {
 
-                            return "次右/次西";
+                            return "4点白圈（次西）";
 
                         }
 
                         if (Language_Of_Prompts == Languages_Of_Prompts.English_英文)
                         {
 
-                            return "About right/About west";
+                            return "Puddle at 4 (about west)";
 
                         }
 
@@ -10433,14 +9478,14 @@ namespace CicerosKodakkuAssist.FuturesRewrittenUltimate.LPDU
                         if (Language_Of_Prompts == Languages_Of_Prompts.Simplified_Chinese_简体中文)
                         {
 
-                            return "最右/最西";
+                            return "D点白圈（最西）";
 
                         }
 
                         if (Language_Of_Prompts == Languages_Of_Prompts.English_英文)
                         {
 
-                            return "Rightmost/Westmost";
+                            return "Puddle at D (westmost)";
 
                         }
 
