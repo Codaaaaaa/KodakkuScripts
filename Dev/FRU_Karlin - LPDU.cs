@@ -41,7 +41,7 @@ namespace CicerosKodakkuAssist.FuturesRewrittenUltimate.LPDU
             整合自三个脚本：
                 Karlin's FRU script (灵视改装版) - Karlin & Cicero：全程绘图与指路（脚本主体）
                 FRU_Patch 补丁 - Usami：P1 罪壤堕(DB闲固)、P2 光暴放泥、P3 时间压缩 / 启示录、P4 光之锁 / 碎片受击警察等
-                FRU_DLC 额外补充 - Tetora：严冬风暴、未来的碎片、死亡轮回连线、各类横幅提醒与龙骑小工具
+                FRU_DLC 额外补充 - Tetora：严冬风暴、未来的碎片、死亡轮回连线、各类横幅提醒
 
             已删除所有给队友打头顶标记的功能；读取他人标记来指路的功能保留。
             小队排序需为 MT ST H1 H2 D1 D2 D3 D4。
@@ -94,8 +94,6 @@ namespace CicerosKodakkuAssist.FuturesRewrittenUltimate.LPDU
         public Languages_Of_Prompts Language_Of_Prompts { get; set; }
         [UserSetting("搞怪模式 (Some random weird prompts after each wipe./团灭后随机跳出些搞怪的东西。)")]
         public Weird_Shenanigans Weird_Shenanigan { get; set; } = Weird_Shenanigans.Astesia_ACR_蟹蟹的ACR;
-        [UserSetting("龙骑开荒小提示 (Tetora)")]
-        public bool isDRG { get; set; } = false;
 
         [UserSetting("-----TTS设置----- (No actual meaning for this setting/此设置无实际意义)")]
         public bool _____TTS_Settings_____ { get; set; } = true;
@@ -112,8 +110,6 @@ namespace CicerosKodakkuAssist.FuturesRewrittenUltimate.LPDU
         public bool P3眩晕自动面向 { get; set; } = true;
         [UserSetting("*P4二运 神圣之翼(Y字击退)自动防击退")]
         public AntiKnockbackEnum AutoAntiKnockback { get; set; } = AntiKnockbackEnum.None;
-        [UserSetting("*[龙骑] P2光之失控 踩塔前自动猛枪")]
-        public bool isAutoLanceCharge { get; set; } = false;
 
         [UserSetting("-----P1设置----- (No actual meaning for this setting/此设置无实际意义)")]
         public bool _____Phase1_Settings_____ { get; set; } = true;
@@ -426,7 +422,6 @@ namespace CicerosKodakkuAssist.FuturesRewrittenUltimate.LPDU
         private const int D1 = 4;
         private const ulong FragmentDataId = 17841;
 
-        private const uint 猛枪 = 85;
         private const uint 亲疏自行 = 7548;
         private const uint 沉稳咏唱 = 7559;
         private const uint 亲疏自行Buff = 0x4B9;
@@ -4261,35 +4256,6 @@ namespace CicerosKodakkuAssist.FuturesRewrittenUltimate.LPDU
             accessory.TTS("雷火线排队", Enable_Vanilla_TTS, Enable_Daily_Routines_TTS);
         }
 
-        // 倒计时 5 秒：龙骑开场爆发提示
-        [ScriptMethod(name: "P1 [龙骑] 开场提示", eventType: EventTypeEnum.Chat, eventCondition: ["Message:距离战斗开始还有5秒！"])]
-        public async void P1龙骑开场提示(Event @event, ScriptAccessory accessory)
-        {
-            if (!isDRG) return;
-            await Task.Delay(3000);
-            if (Enable_Text_Prompts) accessory.Method.TextInfo("1G高跳，2G连祷猛枪", duration: 7000, false);
-            accessory.TTS("1G高跳，2G连祷猛枪", Enable_Vanilla_TTS, Enable_Daily_Routines_TTS);
-        }
-
-        // 40168 连锁爆印铭刻：只取开场那次（乐园绝技之前，_fruPhase 仍是 Init）
-        [ScriptMethod(name: "P1 [龙骑] 雾龙上天前提示", eventType: EventTypeEnum.ActionEffect, eventCondition: ["ActionId:40168"])]
-        public void P1龙骑雾龙上天前提示(Event @event, ScriptAccessory accessory)
-        {
-            if (!isDRG) return;
-            if (_fruPhase != FruPhase.Init) return;
-            if (Enable_Text_Prompts) accessory.Method.TextInfo("提前后跳，强化标枪代替龙4收尾", duration: 10000, false);
-            accessory.TTS("提前后跳，标枪收尾", Enable_Vanilla_TTS, Enable_Daily_Routines_TTS);
-        }
-
-        // 40167 罪炎：雾龙落地
-        [ScriptMethod(name: "P1 [龙骑] 雾龙落地提示", eventType: EventTypeEnum.ActionEffect, eventCondition: ["ActionId:40167"], suppress: 1000)]
-        public void P1龙骑雾龙落地提示(Event @event, ScriptAccessory accessory)
-        {
-            if (!isDRG) return;
-            if (Enable_Text_Prompts) accessory.Method.TextInfo("1G后牵制，2G高跳，延后猛枪蓝炮，打完身位排队", duration: 6000, true);
-            accessory.TTS("1G牵制，延后爆发", Enable_Vanilla_TTS, Enable_Daily_Routines_TTS);
-        }
-
         #endregion
 
         #endregion
@@ -7592,7 +7558,7 @@ namespace CicerosKodakkuAssist.FuturesRewrittenUltimate.LPDU
             sa.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Circle, dp);
         }
         
-        #region P2 补丁 (Usami / Tetora)
+        #region P2 补丁 (Usami)
 
         #region P2.1 钻石星辰
 
@@ -7748,27 +7714,6 @@ namespace CicerosKodakkuAssist.FuturesRewrittenUltimate.LPDU
 
         #endregion P2.3 光爆
 
-        // 40220/40221 强放逐：只取光之失控期间那次（踩塔前）
-        [ScriptMethod(name: "P2 [龙骑] 光之失控 踩塔前猛枪提示", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:regex:^4022[01]$"])]
-        public void P2龙骑踩塔前猛枪提示(Event @event, ScriptAccessory accessory)
-        {
-            if (!isDRG) return;
-            if (_fruPhase != FruPhase.P2C_LightRampant) return;
-            if (Enable_Text_Prompts) accessory.Method.TextInfo("提前猛枪", duration: 5000, true);
-            accessory.TTS("提前猛枪", Enable_Vanilla_TTS, Enable_Daily_Routines_TTS);
-        }
-
-        // 同上时机，自动使用猛枪（按 ActionId 放，不依赖客户端语言）
-        [ScriptMethod(name: "*P2 [龙骑] 光之失控 踩塔前自动猛枪", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:regex:^4022[01]$"])]
-        public void P2龙骑自动猛枪(Event @event, ScriptAccessory accessory)
-        {
-            if (!isAutoLanceCharge) return;
-            if (_fruPhase != FruPhase.P2C_LightRampant) return;
-            if (!猛枪.IsSpellReady()) return;
-            accessory.Method.UseAction(accessory.Data.Me, 猛枪);
-            if (Enable_Developer_Mode) accessory.Method.SendChat("/e [Debug] 已尝试自动使用猛枪");
-        }
-
         #endregion
 
         #endregion
@@ -7838,16 +7783,6 @@ namespace CicerosKodakkuAssist.FuturesRewrittenUltimate.LPDU
         [ScriptMethod(name: "P2.5 严冬风暴销毁", eventType: EventTypeEnum.CancelAction, eventCondition: ["ActionId:40256"], userControl: false)]
         public void P25严冬风暴销毁(Event @event, ScriptAccessory accessory)
             => accessory.Method.RemoveDraw($"严冬风暴{@event.SourceId}");
-
-        // 永久冰晶(17829) 出现 = P2.5 开始
-        [ScriptMethod(name: "P2.5 [龙骑] 时间轴小抄", eventType: EventTypeEnum.AddCombatant, eventCondition: ["DataId:17829"])]
-        public async void P25龙骑时间轴小抄(Event @event, ScriptAccessory accessory)
-        {
-            if (!isDRG) return;
-            if (Enable_Text_Prompts) accessory.Method.TextInfo("[1G] 连祷爆发药  [2G] 高跳  [3G] 疾跑猛枪 \n [4G] 龙炎冲龙剑  [5G] 后撤放大圈  [6G] 蓝炮好了单插 \n [7G] 幻象冲+坠星冲 ", duration: 17500, false);
-            await Task.Delay(8200);
-            accessory.TTS("后撤引导大圈", Enable_Vanilla_TTS, Enable_Daily_Routines_TTS);
-        }
 
         #endregion
 
@@ -15819,23 +15754,6 @@ namespace CicerosKodakkuAssist.FuturesRewrittenUltimate.LPDU
             if (_fruPhase != FruPhase.P4B_CrystallizeTime) return;
             if (Enable_Text_Prompts) accessory.Method.TextInfo("延后120爆发至P5", duration: 5000, true);
             accessory.TTS("延后爆发", Enable_Vanilla_TTS, Enable_Daily_Routines_TTS);
-        }
-
-        // 未来的碎片(17841) 出现 = P4 开场
-        [ScriptMethod(name: "P4 [龙骑] 开场提示", eventType: EventTypeEnum.AddCombatant, eventCondition: ["DataId:17841"])]
-        public void P4龙骑开场提示(Event @event, ScriptAccessory accessory)
-        {
-            if (!isDRG) return;
-            if (Enable_Text_Prompts) accessory.Method.TextInfo("躲完天光轮回1G后，爆发药+猛枪 \n 盖娅出现开团辅", duration: 6000, false);
-            accessory.TTS("注意爆发时机", Enable_Vanilla_TTS, Enable_Daily_Routines_TTS);
-        }
-
-        // 40237 天光轮回：8 个分身同时生效，suppress 只报一次
-        [ScriptMethod(name: "P4 [龙骑] 天光轮回猛枪提示", eventType: EventTypeEnum.ActionEffect, eventCondition: ["ActionId:40237"], suppress: 1000)]
-        public void P4龙骑天光轮回猛枪提示(Event @event, ScriptAccessory accessory)
-        {
-            if (!isDRG) return;
-            accessory.TTS("爆发药加猛枪", Enable_Vanilla_TTS, Enable_Daily_Routines_TTS);
         }
 
         #endregion
