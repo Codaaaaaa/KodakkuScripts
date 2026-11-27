@@ -138,8 +138,6 @@ namespace CicerosKodakkuAssist.FuturesRewrittenUltimate.LPDU
         public bool _____Phase4_Settings_____ { get; set; } = true;
         [UserSetting("P4一运 忧郁舞蹈(远近死刑)的颜色")]
         public ScriptColor Phase4_Colour_Of_Somber_Dance { get; set; } = new() { V4 = new(1f, 0f, 0f, 1f) };
-        [UserSetting("P4 死亡轮回分摊位置连线")]
-        public AkhMornEnum AkhMorn { get; set; } = AkhMornEnum.None;
         [UserSetting("P4二运 正常灯和延时灯的范围显示时间(second/秒)")]
         public float Phase4_Drawing_Duration_Of_Normal_And_Delayed_Lights { get; set; } = 3f;
         [UserSetting("P4二运 光之潮汐(地火)的颜色")]
@@ -163,16 +161,8 @@ namespace CicerosKodakkuAssist.FuturesRewrittenUltimate.LPDU
         public ScriptColor Phase5_Colour_Of_The_Boss_Central_Axis { get; set; } = new() { V4 = new(1f, 0f, 0f, 1f) };
         [UserSetting("P5璀璨之刃(地火) 后Boss面向人群")]
         public bool Phase5_Boss_Faces_Players_After_Fulgent_Blade { get; set; } = true;
-        [UserSetting("P5光与暗之翼(踩塔) 攻略")]
-        public Phase5_Strats_Of_Wings_Dark_And_Light Phase5_Strat_Of_Wings_Dark_And_Light { get; set; } = Phase5_Strats_Of_Wings_Dark_And_Light.Grey9_Brain_Dead_MT_First_Tower_Opposite_灰九脑死法MT一塔对侧_莫灵喵与MMW;
-        [UserSetting("P5光与暗之翼(踩塔) 灰九脑死法的分支")]
-        public Phase5_Branches_Of_The_Grey9_Brain_Dead_Strat Phase5_Branch_Of_The_Grey9_Brain_Dead_Strat { get; set; } = Phase5_Branches_Of_The_Grey9_Brain_Dead_Strat.Healers_First_Then_Melees_Left_Ranges_Right_奶妈先然后近战左远程右_莫灵喵;
-        [UserSetting("P5光与暗之翼(踩塔) 倒三角法的分支")]
-        public Phase5_Branches_Of_The_Reverse_Triangle_Strat Phase5_Branch_Of_The_Reverse_Triangle_Strat { get; set; }
         [UserSetting("P5光与暗之翼(踩塔) 挑衅提醒")]
         public bool Phase5_Reminder_To_Provoke_During_Wings_Dark_And_Light { get; set; } = true;
-        [UserSetting("P5极化打击(挡枪) 顺序")]
-        public Phase5_Orders_During_Polarizing_Strikes Phase5_Order_During_Polarizing_Strikes { get; set; } = Phase5_Orders_During_Polarizing_Strikes.Tanks_Melees_Ranges_Healers_坦克近战远程奶妈_莫灵喵与MMW;
 
         [UserSetting("-----开发者设置----- (No actual meaning for this setting/此设置无实际意义)")]
         public bool _____Developer_Settings_____ { get; set; } = true;
@@ -242,9 +232,9 @@ namespace CicerosKodakkuAssist.FuturesRewrittenUltimate.LPDU
         // LPDU 启示分组：T奶西北、DPS东南；同组两人拿到同一种水时，MT>OT>H1>H2 / M1>M2>R1>R2 里优先级高的去对面
         // 同种水的两人里，这个列表中靠前的去左组（西北）：H2 H1 OT MT M1 M2 R1 R2
         List<int> phase3_locomotive_priority_asAConstant = [3, 2, 1, 0, 4, 5, 6, 7];
-        // 两组分摊点：职能半场（左组正北~西南、右组东北~正南）的中线方向，距场中 7m
-        static readonly Vector3 phase3_leftGroupPosition_asAConstant = new(93.53f, 0, 97.32f);
-        static readonly Vector3 phase3_rightGroupPosition_asAConstant = new(106.47f, 0, 102.68f);
+        // 两组分摊点：T奶在西北（1 标点方向）、DPS 在东南（3 标点方向），距场中 7m
+        static readonly Vector3 phase3_leftGroupPosition_asAConstant = new(95.05f, 0, 95.05f);
+        static readonly Vector3 phase3_rightGroupPosition_asAConstant = new(104.95f, 0, 104.95f);
         volatile bool phase3_hasConfirmedInitialSafePositions = false;
         Vector3 phase3_locomotive_initialSafePositionOfTheLeftGroup = new Vector3(100, 0, 100);
         Vector3 phase3_locomotive_initialSafePositionOfTheRightGroup = new Vector3(100, 0, 100);
@@ -338,13 +328,6 @@ namespace CicerosKodakkuAssist.FuturesRewrittenUltimate.LPDU
         #endregion
 
         #region Enumeration_And_Classes_枚举和类
-
-        public enum AkhMornEnum
-        {
-            None = -1,
-            盖娅 = 0,
-            琳 = 1,
-        }
 
         public enum AntiKnockbackEnum
         {
@@ -467,39 +450,6 @@ namespace CicerosKodakkuAssist.FuturesRewrittenUltimate.LPDU
             About_West_次西侧,
             Westmost_最西侧,
             Unknown_未知
-
-        }
-
-        public enum Phase5_Strats_Of_Wings_Dark_And_Light
-        {
-
-            Grey9_Brain_Dead_MT_First_Tower_Opposite_灰九脑死法MT一塔对侧_莫灵喵与MMW,
-            Reverse_Triangle_MT_Baits_In_Towers_倒三角法MT在塔中引导
-
-        }
-
-        public enum Phase5_Branches_Of_The_Grey9_Brain_Dead_Strat
-        {
-
-            Healers_First_Then_Melees_Left_Ranges_Right_奶妈先然后近战左远程右_莫灵喵,
-            Melees_First_Then_Healers_Left_Ranges_Right_近战先然后奶妈左远程右,
-            Healer_First_Then_Melees_Farther_Ranges_Closer_奶妈先然后近战远远程近_MMW
-
-        }
-        
-        public enum Phase5_Branches_Of_The_Reverse_Triangle_Strat
-        {
-
-            Healers_First_Then_Melees_Left_Ranges_Right_奶妈先然后近战左远程右,
-            Melees_First_Then_Healers_Left_Ranges_Right_近战先然后奶妈左远程右
-
-        }
-
-        public enum Phase5_Orders_During_Polarizing_Strikes
-        {
-
-            Tanks_Melees_Ranges_Healers_坦克近战远程奶妈_莫灵喵与MMW,
-            Tanks_Healers_Melees_Ranges_坦克奶妈近战远程
 
         }
 
@@ -4137,9 +4087,9 @@ namespace CicerosKodakkuAssist.FuturesRewrittenUltimate.LPDU
                     _ => tower5
                 };
 
-                // 北侧三塔去东北集合，南侧三塔去西南
+                // 北侧三塔去北偏东（NNE）集合分摊，南侧三塔去南偏西（SSW），之后顺时针转进安全区
                 bool northSide = myTower == tower1 || myTower == tower2 || myTower == tower6;
-                Vector3 myMeetingPoint = RotatePoint(new Vector3(100, 0, 82), new Vector3(100, 0, 100), float.Pi / 4 * (northSide ? 1 : 5));
+                Vector3 myMeetingPoint = RotatePoint(new Vector3(100, 0, 82), new Vector3(100, 0, 100), float.Pi / 8 * (northSide ? 1 : 9));
 
                 var currentProperty = accessory.Data.GetDefaultDrawProperties();
 
@@ -6025,23 +5975,23 @@ namespace CicerosKodakkuAssist.FuturesRewrittenUltimate.LPDU
 
                 var temporaryProperty = accessory.Data.GetDefaultDrawProperties();
 
-                // LPDU 两组在西北、东南（正西、正东顺时针转 22.5°），碎灵一击按方框预分散
-                Vector3 point1 = RotatePoint(new Vector3(93f, 0f, 101f), new Vector3(100, 0, 100), float.Pi / 8);
-                Vector3 point1Extension = RotatePoint(new Vector3(93f, 0f, 109f), new Vector3(100, 0, 100), float.Pi / 8);
-                Vector3 point2 = RotatePoint(new Vector3(93f, 0f, 99f), new Vector3(100, 0, 100), float.Pi / 8);
-                Vector3 point2Extension = RotatePoint(new Vector3(93f, 0f, 91f), new Vector3(100, 0, 100), float.Pi / 8);
-                Vector3 point3 = RotatePoint(new Vector3(92f, 0f, 101f), new Vector3(100, 0, 100), float.Pi / 8);
-                Vector3 point3Extension = RotatePoint(new Vector3(85.072f, 0f, 105f), new Vector3(100, 0, 100), float.Pi / 8);
-                Vector3 point4 = RotatePoint(new Vector3(92f, 0f, 99f), new Vector3(100, 0, 100), float.Pi / 8);
-                Vector3 point4Extension = RotatePoint(new Vector3(85.072f, 0f, 95f), new Vector3(100, 0, 100), float.Pi / 8);
-                Vector3 point5 = RotatePoint(new Vector3(107f, 0f, 101f), new Vector3(100, 0, 100), float.Pi / 8);
-                Vector3 point5Extension = RotatePoint(new Vector3(107f, 0f, 109f), new Vector3(100, 0, 100), float.Pi / 8);
-                Vector3 point6 = RotatePoint(new Vector3(107f, 0f, 99f), new Vector3(100, 0, 100), float.Pi / 8);
-                Vector3 point6Extension = RotatePoint(new Vector3(107f, 0f, 91f), new Vector3(100, 0, 100), float.Pi / 8);
-                Vector3 point7 = RotatePoint(new Vector3(108f, 0f, 101f), new Vector3(100, 0, 100), float.Pi / 8);
-                Vector3 point7Extension = RotatePoint(new Vector3(114.928f, 0f, 105f), new Vector3(100, 0, 100), float.Pi / 8);
-                Vector3 point8 = RotatePoint(new Vector3(108f, 0f, 99f), new Vector3(100, 0, 100), float.Pi / 8);
-                Vector3 point8Extension = RotatePoint(new Vector3(114.928f, 0f, 95f), new Vector3(100, 0, 100), float.Pi / 8);
+                // LPDU 两组在西北、东南（正西、正东顺时针转 45°），碎灵一击按方框预分散：前排（T/近战）往两侧，后排（奶/远程）往斜后
+                Vector3 point1 = RotatePoint(new Vector3(93f, 0f, 101f), new Vector3(100, 0, 100), float.Pi / 4);
+                Vector3 point1Extension = RotatePoint(new Vector3(93f, 0f, 109f), new Vector3(100, 0, 100), float.Pi / 4);
+                Vector3 point2 = RotatePoint(new Vector3(93f, 0f, 99f), new Vector3(100, 0, 100), float.Pi / 4);
+                Vector3 point2Extension = RotatePoint(new Vector3(93f, 0f, 91f), new Vector3(100, 0, 100), float.Pi / 4);
+                Vector3 point3 = RotatePoint(new Vector3(92f, 0f, 101f), new Vector3(100, 0, 100), float.Pi / 4);
+                Vector3 point3Extension = RotatePoint(new Vector3(85.072f, 0f, 105f), new Vector3(100, 0, 100), float.Pi / 4);
+                Vector3 point4 = RotatePoint(new Vector3(92f, 0f, 99f), new Vector3(100, 0, 100), float.Pi / 4);
+                Vector3 point4Extension = RotatePoint(new Vector3(85.072f, 0f, 95f), new Vector3(100, 0, 100), float.Pi / 4);
+                Vector3 point5 = RotatePoint(new Vector3(107f, 0f, 101f), new Vector3(100, 0, 100), float.Pi / 4);
+                Vector3 point5Extension = RotatePoint(new Vector3(107f, 0f, 109f), new Vector3(100, 0, 100), float.Pi / 4);
+                Vector3 point6 = RotatePoint(new Vector3(107f, 0f, 99f), new Vector3(100, 0, 100), float.Pi / 4);
+                Vector3 point6Extension = RotatePoint(new Vector3(107f, 0f, 91f), new Vector3(100, 0, 100), float.Pi / 4);
+                Vector3 point7 = RotatePoint(new Vector3(108f, 0f, 101f), new Vector3(100, 0, 100), float.Pi / 4);
+                Vector3 point7Extension = RotatePoint(new Vector3(114.928f, 0f, 105f), new Vector3(100, 0, 100), float.Pi / 4);
+                Vector3 point8 = RotatePoint(new Vector3(108f, 0f, 99f), new Vector3(100, 0, 100), float.Pi / 4);
+                Vector3 point8Extension = RotatePoint(new Vector3(114.928f, 0f, 95f), new Vector3(100, 0, 100), float.Pi / 4);
 
                 temporaryProperty = accessory.Data.GetDefaultDrawProperties();
 
@@ -6146,6 +6096,22 @@ namespace CicerosKodakkuAssist.FuturesRewrittenUltimate.LPDU
                 temporaryProperty.DestoryAt = 2500;
 
                 accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, temporaryProperty);
+
+                // LPDU 逐人定点：MT 往 A、OT 往 D、H1 H2 斜后；M1 往 C、M2 往 B、R1 R2 斜后
+                // 换过组的人站和自己交换的那个人的点；多次交换时两边换出去的人按 MT>OT>H1>H2、M1>M2>R1>R2 依次配对
+                if (phase3_numberOfDarkWaterIiiHasBeenProcessed == 6)
+                {
+                    Vector3[] 定点 = [point2Extension, point1Extension, point4Extension, point3Extension,
+                                      point5Extension, point6Extension, point7Extension, point8Extension];
+                    var 换出T奶 = Enumerable.Range(0, 4).Where(i => !phase3_locomotive_shouldGoLeft(i)).ToList();
+                    var 换出DPS = Enumerable.Range(4, 4).Where(i => phase3_locomotive_shouldGoLeft(i)).ToList();
+                    int 点位 = 视角;
+                    int a = 换出T奶.IndexOf(视角), b = 换出DPS.IndexOf(视角);
+                    if (a >= 0 && a < 换出DPS.Count) 点位 = 换出DPS[a];
+                    else if (b >= 0 && b < 换出T奶.Count) 点位 = 换出T奶[b];
+                    currentProperty.TargetPosition = 定点[点位];
+                    targetPositionConfirmed = true;
+                }
 
                 if (targetPositionConfirmed)
                 {
@@ -7087,12 +7053,12 @@ namespace CicerosKodakkuAssist.FuturesRewrittenUltimate.LPDU
                 sa.Method.SendDraw(DrawModeEnum.Default, DrawTypeEnum.Circle, dp);
             }
 
-            // 左组（T奶）集合点：LPDU 两组在西北、东南，整套分散点从正西、正东顺时针转 22.5°
-            Vector3 leftCenter = new Vector3(92, 0, 100).RotatePoint(Center, 22.5f.DegToRad());
+            // 左组（T奶）集合点：LPDU 两组在西北、东南，整套分散点从正西、正东顺时针转 45°
+            Vector3 leftCenter = new Vector3(92, 0, 100).RotatePoint(Center, 45f.DegToRad());
             Vector3 rightCenter = leftCenter.PointCenterSymmetry(Center);
             List<Vector3> spreadTargetPos = Enumerable.Repeat(new Vector3(0, 0, 0), 20).ToList();
 
-            List<float> rot = [22.5f, 22.5f, 202.5f, 202.5f, -37.5f, -37.5f, -97.5f, -97.5f];
+            List<float> rot = [45f, 45f, 225f, 225f, -15f, -15f, -75f, -75f];
 
             for (int i = 0; i < 8; i += 2)
             {
@@ -9671,26 +9637,24 @@ namespace CicerosKodakkuAssist.FuturesRewrittenUltimate.LPDU
             accessory.TTS("水晶AOE", Enable_Vanilla_TTS, Enable_Daily_Routines_TTS);
         }
 
-        // 40302 死亡轮回（盖娅）：设置为盖娅时连线去分摊
+        // LPDU 死亡轮回 4-4：G1（MT H1 M1 R1）在琳脚下分摊，G2（OT H2 M2 R2）在盖娅脚下
+        // 40302 死亡轮回（盖娅）：G2 连线盖娅
         [ScriptMethod(name: "P4 死亡轮回 盖娅连线", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:40302"])]
         public void P4死亡轮回盖娅连线(Event @event, ScriptAccessory accessory)
-        {
-            if (AkhMorn == AkhMornEnum.盖娅) 死亡轮回连线(accessory, @event.SourceId, "连线盖娅");
-        }
+            => 死亡轮回连线(accessory, @event.SourceId, "连线盖娅", g1: false);
 
-        // 40247 死亡轮回（琳）：设置为琳时连线去分摊
+        // 40247 死亡轮回（琳）：G1 连线琳
         [ScriptMethod(name: "P4 死亡轮回 琳连线", eventType: EventTypeEnum.StartCasting, eventCondition: ["ActionId:40247"])]
         public void P4死亡轮回琳连线(Event @event, ScriptAccessory accessory)
-        {
-            if (AkhMorn == AkhMornEnum.琳) 死亡轮回连线(accessory, @event.SourceId, "连线琳");
-        }
+            => 死亡轮回连线(accessory, @event.SourceId, "连线琳", g1: true);
 
-        private static void 死亡轮回连线(ScriptAccessory accessory, ulong bossId, string name)
+        private static void 死亡轮回连线(ScriptAccessory accessory, ulong bossId, string name, bool g1)
         {
             foreach (var 视角 in GuidanceIndices(accessory)) 指路(视角);
 
             void 指路(int 视角)
             {
+                if (视角 % 2 == 0 != g1) return;
                 var dp = accessory.Data.GetDefaultDrawProperties();
                 dp.Name = $"{name}-{视角}";
                 dp.Owner = GuidanceOwner(accessory, 视角);
@@ -10517,175 +10481,92 @@ namespace CicerosKodakkuAssist.FuturesRewrittenUltimate.LPDU
 
                 }
 
-                if(Phase5_Strat_Of_Wings_Dark_And_Light==Phase5_Strats_Of_Wings_Dark_And_Light.Grey9_Brain_Dead_MT_First_Tower_Opposite_灰九脑死法MT一塔对侧_莫灵喵与MMW) {
+                Vector3 position1OfCurrentMt=RotatePoint(positionOfTheFirstTower,new Vector3(100,0,100),float.Pi);
+                // Just opposite the first tower.
+                Vector3 position2OfCurrentMt=(isLeftFirstAndFarFirst)?
+                    (new((position1OfCurrentMt.X-100)/7+100,0,(position1OfCurrentMt.Z-100)/7+100)):
+                    (new((position1OfCurrentMt.X-100)/7*18+100,0,(position1OfCurrentMt.Z-100)/7*18+100));
+                // The calculations of Position 2 were directly inherited from Karlin's script.
+                // I don't know the mathematical ideas behind the algorithm, but it works and it definitely works great.
+                // So as a result, except the multiplier was adjusted from 15 to 18, I just keep the part as is.
 
-                    Vector3 position1OfCurrentMt=RotatePoint(positionOfTheFirstTower,new Vector3(100,0,100),float.Pi);
-                    // Just opposite the first tower.
-                    Vector3 position2OfCurrentMt=(isLeftFirstAndFarFirst)?
-                        (new((position1OfCurrentMt.X-100)/7+100,0,(position1OfCurrentMt.Z-100)/7+100)):
-                        (new((position1OfCurrentMt.X-100)/7*18+100,0,(position1OfCurrentMt.Z-100)/7*18+100));
-                    // The calculations of Position 2 were directly inherited from Karlin's script.
-                    // I don't know the mathematical ideas behind the algorithm, but it works and it definitely works great.
-                    // So as a result, except the multiplier was adjusted from 15 to 18, I just keep the part as is.
+                Vector3 position2OfCurrentOt=RotatePoint(position1OfCurrentMt,new(100,0,100),(isLeftFirstAndFarFirst)?
+                                                                                                          (convertDegree(120f)):
+                                                                                                          (convertDegree(-120f)));
+                Vector3 position1OfCurrentOt=(isLeftFirstAndFarFirst)?
+                    (new((position2OfCurrentOt.X-100)/7*18+100,0,(position2OfCurrentOt.Z-100)/7*18+100)):
+                    (new((position2OfCurrentOt.X-100)/7+100,0,(position2OfCurrentOt.Z-100)/7+100));
 
-                    Vector3 position2OfCurrentOt=RotatePoint(position1OfCurrentMt,new(100,0,100),(isLeftFirstAndFarFirst)?
-                                                                                                              (convertDegree(120f)):
-                                                                                                              (convertDegree(-120f)));
-                    Vector3 position1OfCurrentOt=(isLeftFirstAndFarFirst)?
-                        (new((position2OfCurrentOt.X-100)/7*18+100,0,(position2OfCurrentOt.Z-100)/7*18+100)):
-                        (new((position2OfCurrentOt.X-100)/7+100,0,(position2OfCurrentOt.Z-100)/7+100));
+                if(isCurrentMt) {
 
-                    if(isCurrentMt) {
+                    var currentProperty=accessory.Data.GetDefaultDrawProperties();
 
-                        var currentProperty=accessory.Data.GetDefaultDrawProperties();
+                    currentProperty.Name=$"Phase5_Guidance_1_For_The_Current_MT_During_Towers_当前MT踩塔指路1-{视角}";
+                    currentProperty.Scale=new(2);
+                    currentProperty.Owner=GuidanceOwner(accessory, 视角);
+                    currentProperty.TargetPosition=position1OfCurrentMt;
+                    currentProperty.ScaleMode|=ScaleMode.YByDistance;
+                    currentProperty.Color=accessory.Data.DefaultSafeColor;
+                    currentProperty.DestoryAt=7150;
 
-                        currentProperty.Name=$"Phase5_Guidance_1_For_The_Current_MT_During_Towers_当前MT踩塔指路1-{视角}";
-                        currentProperty.Scale=new(2);
-                        currentProperty.Owner=GuidanceOwner(accessory, 视角);
-                        currentProperty.TargetPosition=position1OfCurrentMt;
-                        currentProperty.ScaleMode|=ScaleMode.YByDistance;
-                        currentProperty.Color=accessory.Data.DefaultSafeColor;
-                        currentProperty.DestoryAt=7150;
+                    accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Displacement,currentProperty);
 
-                        accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Displacement,currentProperty);
+                    currentProperty=accessory.Data.GetDefaultDrawProperties();
 
-                        currentProperty=accessory.Data.GetDefaultDrawProperties();
+                    currentProperty.Name=$"Phase5_Guidance_2_Preview_For_The_Current_MT_During_Towers_当前MT踩塔指路2预览-{视角}";
+                    currentProperty.Scale=new(2);
+                    currentProperty.Position=position1OfCurrentMt;
+                    currentProperty.TargetPosition=position2OfCurrentMt;
+                    currentProperty.ScaleMode|=ScaleMode.YByDistance;
+                    currentProperty.Color=accessory.Data.DefaultSafeColor;
+                    currentProperty.DestoryAt=7150;
 
-                        currentProperty.Name=$"Phase5_Guidance_2_Preview_For_The_Current_MT_During_Towers_当前MT踩塔指路2预览-{视角}";
-                        currentProperty.Scale=new(2);
-                        currentProperty.Position=position1OfCurrentMt;
-                        currentProperty.TargetPosition=position2OfCurrentMt;
-                        currentProperty.ScaleMode|=ScaleMode.YByDistance;
-                        currentProperty.Color=accessory.Data.DefaultSafeColor;
-                        currentProperty.DestoryAt=7150;
+                    accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Displacement,currentProperty);
 
-                        accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Displacement,currentProperty);
+                    currentProperty=accessory.Data.GetDefaultDrawProperties();
 
-                        currentProperty=accessory.Data.GetDefaultDrawProperties();
+                    currentProperty.Name=$"Phase5_Guidance_2_For_The_Current_MT_During_Towers_当前MT踩塔指路2-{视角}";
+                    currentProperty.Scale=new(2);
+                    currentProperty.Owner=GuidanceOwner(accessory, 视角);
+                    currentProperty.TargetPosition=position2OfCurrentMt;
+                    currentProperty.ScaleMode|=ScaleMode.YByDistance;
+                    currentProperty.Color=accessory.Data.DefaultSafeColor;
+                    currentProperty.Delay=7150;
+                    currentProperty.DestoryAt=4250;
 
-                        currentProperty.Name=$"Phase5_Guidance_2_For_The_Current_MT_During_Towers_当前MT踩塔指路2-{视角}";
-                        currentProperty.Scale=new(2);
-                        currentProperty.Owner=GuidanceOwner(accessory, 视角);
-                        currentProperty.TargetPosition=position2OfCurrentMt;
-                        currentProperty.ScaleMode|=ScaleMode.YByDistance;
-                        currentProperty.Color=accessory.Data.DefaultSafeColor;
-                        currentProperty.Delay=7150;
-                        currentProperty.DestoryAt=4250;
+                    accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Displacement,currentProperty);
 
-                        accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Displacement,currentProperty);
+                    if(Phase5_Reminder_To_Provoke_During_Wings_Dark_And_Light) {
 
-                        if(Phase5_Reminder_To_Provoke_During_Wings_Dark_And_Light) {
+                        System.Threading.Thread.Sleep(1500);
 
-                            System.Threading.Thread.Sleep(1500);
+                        if(Enable_Text_Prompts) {
 
-                            if(Enable_Text_Prompts) {
+                            if(Language_Of_Prompts==Languages_Of_Prompts.Simplified_Chinese_简体中文) {
 
-                                if(Language_Of_Prompts==Languages_Of_Prompts.Simplified_Chinese_简体中文) {
-
-                                    if (IsMe(accessory, 视角)) accessory.Method.TextInfo("等待挑衅后退避",2500);
-
-                                }
-
-                                if(Language_Of_Prompts==Languages_Of_Prompts.English_英文) {
-
-                                    if (IsMe(accessory, 视角)) accessory.Method.TextInfo("Wait for provocation then shirk",2500);
-
-                                }
+                                if (IsMe(accessory, 视角)) accessory.Method.TextInfo("等待挑衅后退避",2500);
 
                             }
 
-                            if(Enable_Vanilla_TTS||Enable_Daily_Routines_TTS) {
+                            if(Language_Of_Prompts==Languages_Of_Prompts.English_英文) {
 
-                                if(Language_Of_Prompts==Languages_Of_Prompts.Simplified_Chinese_简体中文) {
-
-                                    if (IsMe(accessory, 视角)) accessory.TTS("等待挑衅后退避",Enable_Vanilla_TTS,Enable_Daily_Routines_TTS);
-
-                                }
-
-                                if(Language_Of_Prompts==Languages_Of_Prompts.English_英文) {
-
-                                    if (IsMe(accessory, 视角)) accessory.TTS("Wait for provocation then shirk",Enable_Vanilla_TTS,Enable_Daily_Routines_TTS);
-
-                                }
+                                if (IsMe(accessory, 视角)) accessory.Method.TextInfo("Wait for provocation then shirk",2500);
 
                             }
 
                         }
 
-                    }
+                        if(Enable_Vanilla_TTS||Enable_Daily_Routines_TTS) {
 
-                    else {
+                            if(Language_Of_Prompts==Languages_Of_Prompts.Simplified_Chinese_简体中文) {
 
-                        var currentProperty=accessory.Data.GetDefaultDrawProperties();
-
-                        currentProperty.Name=$"Phase5_Guidance_1_For_The_Current_OT_During_Towers_当前ST踩塔指路1-{视角}";
-                        currentProperty.Scale=new(2);
-                        currentProperty.Owner=GuidanceOwner(accessory, 视角);
-                        currentProperty.TargetPosition=position1OfCurrentOt;
-                        currentProperty.ScaleMode|=ScaleMode.YByDistance;
-                        currentProperty.Color=accessory.Data.DefaultSafeColor;
-                        currentProperty.DestoryAt=7650;
-
-                        accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Displacement,currentProperty);
-
-                        currentProperty=accessory.Data.GetDefaultDrawProperties();
-
-                        currentProperty.Name=$"Phase5_Guidance_2_Preview_For_The_Current_OT_During_Towers_当前ST踩塔指路2预览-{视角}";
-                        currentProperty.Scale=new(2);
-                        currentProperty.Position=position1OfCurrentOt;
-                        currentProperty.TargetPosition=position2OfCurrentOt;
-                        currentProperty.ScaleMode|=ScaleMode.YByDistance;
-                        currentProperty.Color=accessory.Data.DefaultSafeColor;
-                        currentProperty.DestoryAt=7650;
-
-                        accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Displacement,currentProperty);
-
-                        currentProperty=accessory.Data.GetDefaultDrawProperties();
-
-                        currentProperty.Name=$"Phase5_Guidance_2_For_The_Current_OT_During_Towers_当前ST踩塔指路2-{视角}";
-                        currentProperty.Scale=new(2);
-                        currentProperty.Owner=GuidanceOwner(accessory, 视角);
-                        currentProperty.TargetPosition=position2OfCurrentOt;
-                        currentProperty.ScaleMode|=ScaleMode.YByDistance;
-                        currentProperty.Color=accessory.Data.DefaultSafeColor;
-                        currentProperty.Delay=7650;
-                        currentProperty.DestoryAt=3750;
-
-                        accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Displacement,currentProperty);
-
-                        if(Phase5_Reminder_To_Provoke_During_Wings_Dark_And_Light) {
-
-                            System.Threading.Thread.Sleep(1000);
-
-                            if(Enable_Text_Prompts) {
-
-                                if(Language_Of_Prompts==Languages_Of_Prompts.Simplified_Chinese_简体中文) {
-
-                                    if (IsMe(accessory, 视角)) accessory.Method.TextInfo("立即挑衅！",2500);
-
-                                }
-
-                                if(Language_Of_Prompts==Languages_Of_Prompts.English_英文) {
-
-                                    if (IsMe(accessory, 视角)) accessory.Method.TextInfo("Now provoke!",2500);
-
-                                }
+                                if (IsMe(accessory, 视角)) accessory.TTS("等待挑衅后退避",Enable_Vanilla_TTS,Enable_Daily_Routines_TTS);
 
                             }
 
-                            if(Enable_Vanilla_TTS||Enable_Daily_Routines_TTS) {
+                            if(Language_Of_Prompts==Languages_Of_Prompts.English_英文) {
 
-                                if(Language_Of_Prompts==Languages_Of_Prompts.Simplified_Chinese_简体中文) {
-
-                                    if (IsMe(accessory, 视角)) accessory.TTS("立即挑衅！",Enable_Vanilla_TTS,Enable_Daily_Routines_TTS);
-
-                                }
-
-                                if(Language_Of_Prompts==Languages_Of_Prompts.English_英文) {
-
-                                    if (IsMe(accessory, 视角)) accessory.TTS("Now provoke!",Enable_Vanilla_TTS,Enable_Daily_Routines_TTS);
-
-                                }
+                                if (IsMe(accessory, 视角)) accessory.TTS("Wait for provocation then shirk",Enable_Vanilla_TTS,Enable_Daily_Routines_TTS);
 
                             }
 
@@ -10695,177 +10576,76 @@ namespace CicerosKodakkuAssist.FuturesRewrittenUltimate.LPDU
 
                 }
 
-                if(Phase5_Strat_Of_Wings_Dark_And_Light==Phase5_Strats_Of_Wings_Dark_And_Light.Reverse_Triangle_MT_Baits_In_Towers_倒三角法MT在塔中引导) {
+                else {
 
-                    Vector3 positionOfTheLeftTower=RotatePoint(positionOfTheFirstTower,new Vector3(100,0,100),float.Pi/3*2);
-                    Vector3 positionOfTheRightTower=RotatePoint(positionOfTheFirstTower,new Vector3(100,0,100),-(float.Pi/3*2));
-                    Vector3 oppositeOfTheFirstTower=RotatePoint(positionOfTheFirstTower,new Vector3(100,0,100),float.Pi);
+                    var currentProperty=accessory.Data.GetDefaultDrawProperties();
 
-                    Vector3 position1OfCurrentMt=(isLeftFirstAndFarFirst)?(positionOfTheRightTower):(positionOfTheLeftTower);
-                    // Always keep the first hit away from others.
-                    Vector3 position2OfCurrentMt=(isLeftFirstAndFarFirst)?
-                        new Vector3((oppositeOfTheFirstTower.X-100)/7+100,0,(oppositeOfTheFirstTower.Z-100)/7+100):
-                        new Vector3((position1OfCurrentMt.X-100)/7*18+100,0,(position1OfCurrentMt.Z-100)/7*18+100);
+                    currentProperty.Name=$"Phase5_Guidance_1_For_The_Current_OT_During_Towers_当前ST踩塔指路1-{视角}";
+                    currentProperty.Scale=new(2);
+                    currentProperty.Owner=GuidanceOwner(accessory, 视角);
+                    currentProperty.TargetPosition=position1OfCurrentOt;
+                    currentProperty.ScaleMode|=ScaleMode.YByDistance;
+                    currentProperty.Color=accessory.Data.DefaultSafeColor;
+                    currentProperty.DestoryAt=7650;
 
-                    Vector3 position2OfCurrentOt=(isLeftFirstAndFarFirst)?
-                        (RotatePoint(positionOfTheLeftTower,new Vector3(100,0,100),float.Pi)):
-                        (RotatePoint(positionOfTheRightTower,new Vector3(100,0,100),float.Pi));
-                    // OT would be opposite of the other tower.
-                    Vector3 position1OfCurrentOt=(isLeftFirstAndFarFirst)?
-                        new Vector3((position2OfCurrentOt.X-100)/7*18+100,0,(position2OfCurrentOt.Z-100)/7*18+100):
-                        new Vector3((positionOfTheFirstTower.X-100)/7+100,0,(positionOfTheFirstTower.Z-100)/7+100);
+                    accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Displacement,currentProperty);
 
-                    if(isCurrentMt) {
+                    currentProperty=accessory.Data.GetDefaultDrawProperties();
 
-                        var currentProperty=accessory.Data.GetDefaultDrawProperties();
+                    currentProperty.Name=$"Phase5_Guidance_2_Preview_For_The_Current_OT_During_Towers_当前ST踩塔指路2预览-{视角}";
+                    currentProperty.Scale=new(2);
+                    currentProperty.Position=position1OfCurrentOt;
+                    currentProperty.TargetPosition=position2OfCurrentOt;
+                    currentProperty.ScaleMode|=ScaleMode.YByDistance;
+                    currentProperty.Color=accessory.Data.DefaultSafeColor;
+                    currentProperty.DestoryAt=7650;
 
-                        currentProperty.Name=$"Phase5_Guidance_1_For_The_Current_MT_During_Towers_当前MT踩塔指路1-{视角}";
-                        currentProperty.Scale=new(2);
-                        currentProperty.Owner=GuidanceOwner(accessory, 视角);
-                        currentProperty.TargetPosition=position1OfCurrentMt;
-                        currentProperty.ScaleMode|=ScaleMode.YByDistance;
-                        currentProperty.Color=accessory.Data.DefaultSafeColor;
-                        currentProperty.DestoryAt=7150;
+                    accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Displacement,currentProperty);
 
-                        accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Displacement,currentProperty);
+                    currentProperty=accessory.Data.GetDefaultDrawProperties();
 
-                        currentProperty=accessory.Data.GetDefaultDrawProperties();
+                    currentProperty.Name=$"Phase5_Guidance_2_For_The_Current_OT_During_Towers_当前ST踩塔指路2-{视角}";
+                    currentProperty.Scale=new(2);
+                    currentProperty.Owner=GuidanceOwner(accessory, 视角);
+                    currentProperty.TargetPosition=position2OfCurrentOt;
+                    currentProperty.ScaleMode|=ScaleMode.YByDistance;
+                    currentProperty.Color=accessory.Data.DefaultSafeColor;
+                    currentProperty.Delay=7650;
+                    currentProperty.DestoryAt=3750;
 
-                        currentProperty.Name=$"Phase5_Guidance_2_Preview_For_The_Current_MT_During_Towers_当前MT踩塔指路2预览-{视角}";
-                        currentProperty.Scale=new(2);
-                        currentProperty.Position=position1OfCurrentMt;
-                        currentProperty.TargetPosition=position2OfCurrentMt;
-                        currentProperty.ScaleMode|=ScaleMode.YByDistance;
-                        currentProperty.Color=accessory.Data.DefaultSafeColor;
-                        currentProperty.DestoryAt=7150;
+                    accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Displacement,currentProperty);
 
-                        accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Displacement,currentProperty);
+                    if(Phase5_Reminder_To_Provoke_During_Wings_Dark_And_Light) {
 
-                        currentProperty=accessory.Data.GetDefaultDrawProperties();
+                        System.Threading.Thread.Sleep(1000);
 
-                        currentProperty.Name=$"Phase5_Guidance_2_For_The_Current_MT_During_Towers_当前MT踩塔指路2-{视角}";
-                        currentProperty.Scale=new(2);
-                        currentProperty.Owner=GuidanceOwner(accessory, 视角);
-                        currentProperty.TargetPosition=position2OfCurrentMt;
-                        currentProperty.ScaleMode|=ScaleMode.YByDistance;
-                        currentProperty.Color=accessory.Data.DefaultSafeColor;
-                        currentProperty.Delay=7150;
-                        currentProperty.DestoryAt=4250;
+                        if(Enable_Text_Prompts) {
 
-                        accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Displacement,currentProperty);
+                            if(Language_Of_Prompts==Languages_Of_Prompts.Simplified_Chinese_简体中文) {
 
-                        if(Phase5_Reminder_To_Provoke_During_Wings_Dark_And_Light) {
-
-                            System.Threading.Thread.Sleep(1500);
-
-                            if(Enable_Text_Prompts) {
-
-                                if(Language_Of_Prompts==Languages_Of_Prompts.Simplified_Chinese_简体中文) {
-
-                                    if (IsMe(accessory, 视角)) accessory.Method.TextInfo("等待挑衅后退避",2500);
-
-                                }
-
-                                if(Language_Of_Prompts==Languages_Of_Prompts.English_英文) {
-
-                                    if (IsMe(accessory, 视角)) accessory.Method.TextInfo("Wait for provocation then shirk",2500);
-
-                                }
+                                if (IsMe(accessory, 视角)) accessory.Method.TextInfo("立即挑衅！",2500);
 
                             }
 
-                            if(Enable_Vanilla_TTS||Enable_Daily_Routines_TTS) {
+                            if(Language_Of_Prompts==Languages_Of_Prompts.English_英文) {
 
-                                if(Language_Of_Prompts==Languages_Of_Prompts.Simplified_Chinese_简体中文) {
-
-                                    if (IsMe(accessory, 视角)) accessory.TTS("等待挑衅后退避",Enable_Vanilla_TTS,Enable_Daily_Routines_TTS);
-
-                                }
-
-                                if(Language_Of_Prompts==Languages_Of_Prompts.English_英文) {
-
-                                    if (IsMe(accessory, 视角)) accessory.TTS("Wait for provocation then shirk",Enable_Vanilla_TTS,Enable_Daily_Routines_TTS);
-
-                                }
+                                if (IsMe(accessory, 视角)) accessory.Method.TextInfo("Now provoke!",2500);
 
                             }
 
                         }
 
-                    }
+                        if(Enable_Vanilla_TTS||Enable_Daily_Routines_TTS) {
 
-                    else {
+                            if(Language_Of_Prompts==Languages_Of_Prompts.Simplified_Chinese_简体中文) {
 
-                        var currentProperty=accessory.Data.GetDefaultDrawProperties();
-
-                        currentProperty.Name=$"Phase5_Guidance_1_For_The_Current_OT_During_Towers_当前ST踩塔指路1-{视角}";
-                        currentProperty.Scale=new(2);
-                        currentProperty.Owner=GuidanceOwner(accessory, 视角);
-                        currentProperty.TargetPosition=position1OfCurrentOt;
-                        currentProperty.ScaleMode|=ScaleMode.YByDistance;
-                        currentProperty.Color=accessory.Data.DefaultSafeColor;
-                        currentProperty.DestoryAt=7650;
-
-                        accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Displacement,currentProperty);
-
-                        currentProperty=accessory.Data.GetDefaultDrawProperties();
-
-                        currentProperty.Name=$"Phase5_Guidance_2_Preview_For_The_Current_OT_During_Towers_当前ST踩塔指路2预览-{视角}";
-                        currentProperty.Scale=new(2);
-                        currentProperty.Position=position1OfCurrentOt;
-                        currentProperty.TargetPosition=position2OfCurrentOt;
-                        currentProperty.ScaleMode|=ScaleMode.YByDistance;
-                        currentProperty.Color=accessory.Data.DefaultSafeColor;
-                        currentProperty.DestoryAt=7650;
-
-                        accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Displacement,currentProperty);
-
-                        currentProperty=accessory.Data.GetDefaultDrawProperties();
-
-                        currentProperty.Name=$"Phase5_Guidance_2_For_The_Current_OT_During_Towers_当前ST踩塔指路2-{视角}";
-                        currentProperty.Scale=new(2);
-                        currentProperty.Owner=GuidanceOwner(accessory, 视角);
-                        currentProperty.TargetPosition=position2OfCurrentOt;
-                        currentProperty.ScaleMode|=ScaleMode.YByDistance;
-                        currentProperty.Color=accessory.Data.DefaultSafeColor;
-                        currentProperty.Delay=7650;
-                        currentProperty.DestoryAt=3750;
-
-                        accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Displacement,currentProperty);
-
-                        if(Phase5_Reminder_To_Provoke_During_Wings_Dark_And_Light) {
-
-                            System.Threading.Thread.Sleep(1000);
-
-                            if(Enable_Text_Prompts) {
-
-                                if (Language_Of_Prompts==Languages_Of_Prompts.Simplified_Chinese_简体中文) {
-
-                                    if (IsMe(accessory, 视角)) accessory.Method.TextInfo("立即挑衅！",2500);
-
-                                }
-
-                                if(Language_Of_Prompts==Languages_Of_Prompts.English_英文) {
-
-                                    if (IsMe(accessory, 视角)) accessory.Method.TextInfo("Now provoke!",2500);
-
-                                }
+                                if (IsMe(accessory, 视角)) accessory.TTS("立即挑衅！",Enable_Vanilla_TTS,Enable_Daily_Routines_TTS);
 
                             }
 
-                            if(Enable_Vanilla_TTS||Enable_Daily_Routines_TTS) {
+                            if(Language_Of_Prompts==Languages_Of_Prompts.English_英文) {
 
-                                if(Language_Of_Prompts==Languages_Of_Prompts.Simplified_Chinese_简体中文) {
-
-                                    if (IsMe(accessory, 视角)) accessory.TTS("立即挑衅！",Enable_Vanilla_TTS,Enable_Daily_Routines_TTS);
-
-                                }
-
-                                if(Language_Of_Prompts==Languages_Of_Prompts.English_英文) {
-
-                                    if (IsMe(accessory, 视角)) accessory.TTS("Now provoke!",Enable_Vanilla_TTS,Enable_Daily_Routines_TTS);
-
-                                }
+                                if (IsMe(accessory, 视角)) accessory.TTS("Now provoke!",Enable_Vanilla_TTS,Enable_Daily_Routines_TTS);
 
                             }
 
@@ -10922,1901 +10702,209 @@ namespace CicerosKodakkuAssist.FuturesRewrittenUltimate.LPDU
 
                 }
 
-                /*
-                if (Phase5_Strat_Of_Wings_Dark_And_Light == Phase5_Strats_Of_Wings_Dark_And_Light.Grey9_Brain_Dead_MT_First_Tower_Opposite_灰九脑死法MT一塔对侧_莫灵喵与MMW)
-                {
+                // The previous spaghetti code is commented out. The entire part was reworked.
 
-                    if (Phase5_Branch_Of_The_Grey9_Brain_Dead_Strat == Phase5_Branches_Of_The_Grey9_Brain_Dead_Strat.Melees_First_Then_Healers_Left_Ranges_Right_近战先然后奶妈左远程右)
-                    {
-                        // I'm just too lazy to adjust the indentation here. So I guiltily leave it as it is.
-                        // This branch was not necessary before, but the strat on CN does vary a little bit.
+                float rotation=0;
 
-                        var currentProperty = accessory.Data.GetDefaultDrawProperties();
+                if(phase5_indexOfTheFirstTower.Equals("00000030")) {
 
-                        if (phase5_indexOfTheFirstTower.Equals("00000030"))
-                        {
-                            // The first tower is in the northwest.
-
-                            if (视角 == 4
-                               ||
-                               视角 == 5)
-                            {
-                                // The melee group, that is M1 & M2 or D1 & D2.
-
-                                currentProperty = accessory.Data.GetDefaultDrawProperties();
-
-                                currentProperty.Name = $"Phase5_Guidance_1_For_Melees_During_Towers_近战踩塔指路1-{视角}";
-                                currentProperty.Scale = new(2);
-                                currentProperty.Owner = GuidanceOwner(accessory, 视角);
-                                currentProperty.TargetPosition = isLeftFirstAndFarFirst ? phase5_rightSideOfTheNorthwest_asAConstant : phase5_leftSideOfTheNorthwest_asAConstant;
-                                currentProperty.ScaleMode |= ScaleMode.YByDistance;
-                                currentProperty.Color = accessory.Data.DefaultSafeColor;
-                                currentProperty.DestoryAt = 7300;
-
-                                accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentProperty);
-
-                                currentProperty = accessory.Data.GetDefaultDrawProperties();
-
-                                currentProperty.Name = $"Phase5_Guidance_2_Preview_For_Melees_During_Towers_近战踩塔指路2预览-{视角}";
-                                currentProperty.Scale = new(2);
-                                currentProperty.Position = isLeftFirstAndFarFirst ? phase5_rightSideOfTheNorthwest_asAConstant : phase5_leftSideOfTheNorthwest_asAConstant;
-                                currentProperty.TargetPosition = phase5_standbyPointBetweenSouthAndNortheast_asAConstant;
-                                currentProperty.ScaleMode |= ScaleMode.YByDistance;
-                                currentProperty.Color = accessory.Data.DefaultSafeColor;
-                                currentProperty.DestoryAt = 7300;
-
-                                accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentProperty);
-
-                                currentProperty = accessory.Data.GetDefaultDrawProperties();
-
-                                currentProperty.Name = $"Phase5_Guidance_2_For_Melees_During_Towers_近战踩塔指路2-{视角}";
-                                currentProperty.Scale = new(2);
-                                currentProperty.Owner = GuidanceOwner(accessory, 视角);
-                                currentProperty.TargetPosition = phase5_standbyPointBetweenSouthAndNortheast_asAConstant;
-                                currentProperty.ScaleMode |= ScaleMode.YByDistance;
-                                currentProperty.Color = accessory.Data.DefaultSafeColor;
-                                currentProperty.Delay = 7300;
-                                currentProperty.DestoryAt = 7100;
-
-                                accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentProperty);
-
-                            }
-
-                            if (视角 == 6
-                               ||
-                               视角 == 7)
-                            {
-                                // The range group, that is R1 & R2 or D3 & D4.
-
-                                currentProperty = accessory.Data.GetDefaultDrawProperties();
-
-                                currentProperty.Name = $"Phase5_Guidance_1_For_Ranges_During_Towers_远程踩塔指路1-{视角}";
-                                currentProperty.Scale = new(2);
-                                currentProperty.Owner = GuidanceOwner(accessory, 视角);
-                                currentProperty.TargetPosition = isLeftFirstAndFarFirst ? phase5_standbyPointBetweenSouthAndNorthwest_asAConstant : phase5_standbyPointBetweenNortheastAndNorthwest_asAConstant;
-                                currentProperty.ScaleMode |= ScaleMode.YByDistance;
-                                currentProperty.Color = accessory.Data.DefaultSafeColor;
-                                currentProperty.DestoryAt = 6900;
-
-                                accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentProperty);
-
-                                currentProperty = accessory.Data.GetDefaultDrawProperties();
-
-                                currentProperty.Name = $"Phase5_Guidance_2_Preview_For_Ranges_During_Towers_远程踩塔指路2预览-{视角}";
-                                currentProperty.Scale = new(2);
-                                currentProperty.Position = isLeftFirstAndFarFirst ? phase5_standbyPointBetweenSouthAndNorthwest_asAConstant : phase5_standbyPointBetweenNortheastAndNorthwest_asAConstant;
-                                currentProperty.TargetPosition = phase5_rightSideOfTheSouth_asAConstant;
-                                currentProperty.ScaleMode |= ScaleMode.YByDistance;
-                                currentProperty.Color = accessory.Data.DefaultSafeColor;
-                                currentProperty.DestoryAt = 6900;
-
-                                accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentProperty);
-
-                                currentProperty = accessory.Data.GetDefaultDrawProperties();
-
-                                currentProperty.Name = $"Phase5_Guidance_2_For_Ranges_During_Towers_远程踩塔指路2-{视角}";
-                                currentProperty.Scale = new(2);
-                                currentProperty.Owner = GuidanceOwner(accessory, 视角);
-                                currentProperty.TargetPosition = phase5_rightSideOfTheSouth_asAConstant;
-                                currentProperty.ScaleMode |= ScaleMode.YByDistance;
-                                currentProperty.Color = accessory.Data.DefaultSafeColor;
-                                currentProperty.Delay = 6900;
-                                currentProperty.DestoryAt = 7500;
-
-                                accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentProperty);
-
-                            }
-
-                            if (视角 == 2
-                               ||
-                               视角 == 3)
-                            {
-                                // The healer group, that is H1 & H2.
-
-                                currentProperty = accessory.Data.GetDefaultDrawProperties();
-
-                                currentProperty.Name = $"Phase5_Guidance_1_For_Healers_During_Towers_奶妈踩塔指路1-{视角}";
-                                currentProperty.Scale = new(2);
-                                currentProperty.Owner = GuidanceOwner(accessory, 视角);
-                                currentProperty.TargetPosition = isLeftFirstAndFarFirst ? phase5_standbyPointBetweenSouthAndNorthwest_asAConstant : phase5_standbyPointBetweenNortheastAndNorthwest_asAConstant;
-                                currentProperty.ScaleMode |= ScaleMode.YByDistance;
-                                currentProperty.Color = accessory.Data.DefaultSafeColor;
-                                currentProperty.DestoryAt = 6900;
-
-                                accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentProperty);
-
-                                currentProperty = accessory.Data.GetDefaultDrawProperties();
-
-                                currentProperty.Name = $"Phase5_Guidance_2_Preview_For_Healers_During_Towers_奶妈踩塔指路2预览-{视角}";
-                                currentProperty.Scale = new(2);
-                                currentProperty.Position = isLeftFirstAndFarFirst ? phase5_standbyPointBetweenSouthAndNorthwest_asAConstant : phase5_standbyPointBetweenNortheastAndNorthwest_asAConstant;
-                                currentProperty.TargetPosition = phase5_leftSideOfTheNortheast_asAConstant;
-                                currentProperty.ScaleMode |= ScaleMode.YByDistance;
-                                currentProperty.Color = accessory.Data.DefaultSafeColor;
-                                currentProperty.DestoryAt = 6900;
-
-                                accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentProperty);
-
-                                currentProperty = accessory.Data.GetDefaultDrawProperties();
-
-                                currentProperty.Name = $"Phase5_Guidance_2_For_Healers_During_Towers_奶妈踩塔指路2-{视角}";
-                                currentProperty.Scale = new(2);
-                                currentProperty.Owner = GuidanceOwner(accessory, 视角);
-                                currentProperty.TargetPosition = phase5_leftSideOfTheNortheast_asAConstant;
-                                currentProperty.ScaleMode |= ScaleMode.YByDistance;
-                                currentProperty.Color = accessory.Data.DefaultSafeColor;
-                                currentProperty.Delay = 6900;
-                                currentProperty.DestoryAt = 7500;
-
-                                accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentProperty);
-
-                            }
-
-                        }
-
-                        if (phase5_indexOfTheFirstTower.Equals("00000031"))
-                        {
-                            // The first tower is in the northeast.
-
-                            if (视角 == 4
-                               ||
-                               视角 == 5)
-                            {
-
-                                currentProperty = accessory.Data.GetDefaultDrawProperties();
-
-                                currentProperty.Name = $"Phase5_Guidance_1_For_Melees_During_Towers_近战踩塔指路1-{视角}";
-                                currentProperty.Scale = new(2);
-                                currentProperty.Owner = GuidanceOwner(accessory, 视角);
-                                currentProperty.TargetPosition = isLeftFirstAndFarFirst ? phase5_rightSideOfTheNortheast_asAConstant : phase5_leftSideOfTheNortheast_asAConstant;
-                                currentProperty.ScaleMode |= ScaleMode.YByDistance;
-                                currentProperty.Color = accessory.Data.DefaultSafeColor;
-                                currentProperty.DestoryAt = 7300;
-
-                                accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentProperty);
-
-                                currentProperty = accessory.Data.GetDefaultDrawProperties();
-
-                                currentProperty.Name = $"Phase5_Guidance_2_Preview_For_Melees_During_Towers_近战踩塔指路2预览-{视角}";
-                                currentProperty.Scale = new(2);
-                                currentProperty.Position = isLeftFirstAndFarFirst ? phase5_rightSideOfTheNortheast_asAConstant : phase5_leftSideOfTheNortheast_asAConstant;
-                                currentProperty.TargetPosition = phase5_standbyPointBetweenSouthAndNorthwest_asAConstant;
-                                currentProperty.ScaleMode |= ScaleMode.YByDistance;
-                                currentProperty.Color = accessory.Data.DefaultSafeColor;
-                                currentProperty.DestoryAt = 7300;
-
-                                accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentProperty);
-
-                                currentProperty = accessory.Data.GetDefaultDrawProperties();
-
-                                currentProperty.Name = $"Phase5_Guidance_2_For_Melees_During_Towers_近战踩塔指路2-{视角}";
-                                currentProperty.Scale = new(2);
-                                currentProperty.Owner = GuidanceOwner(accessory, 视角);
-                                currentProperty.TargetPosition = phase5_standbyPointBetweenSouthAndNorthwest_asAConstant;
-                                currentProperty.ScaleMode |= ScaleMode.YByDistance;
-                                currentProperty.Color = accessory.Data.DefaultSafeColor;
-                                currentProperty.Delay = 7300;
-                                currentProperty.DestoryAt = 7100;
-
-                                accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentProperty);
-
-                            }
-
-                            if (视角 == 6
-                               ||
-                               视角 == 7)
-                            {
-
-                                currentProperty = accessory.Data.GetDefaultDrawProperties();
-
-                                currentProperty.Name = $"Phase5_Guidance_1_For_Ranges_During_Towers_远程踩塔指路1-{视角}";
-                                currentProperty.Scale = new(2);
-                                currentProperty.Owner = GuidanceOwner(accessory, 视角);
-                                currentProperty.TargetPosition = isLeftFirstAndFarFirst ? phase5_standbyPointBetweenNortheastAndNorthwest_asAConstant : phase5_standbyPointBetweenSouthAndNortheast_asAConstant;
-                                currentProperty.ScaleMode |= ScaleMode.YByDistance;
-                                currentProperty.Color = accessory.Data.DefaultSafeColor;
-                                currentProperty.DestoryAt = 6900;
-
-                                accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentProperty);
-
-                                currentProperty = accessory.Data.GetDefaultDrawProperties();
-
-                                currentProperty.Name = $"Phase5_Guidance_2_Preview_For_Ranges_During_Towers_远程踩塔指路2预览-{视角}";
-                                currentProperty.Scale = new(2);
-                                currentProperty.Position = isLeftFirstAndFarFirst ? phase5_standbyPointBetweenNortheastAndNorthwest_asAConstant : phase5_standbyPointBetweenSouthAndNortheast_asAConstant;
-                                currentProperty.TargetPosition = phase5_rightSideOfTheNorthwest_asAConstant;
-                                currentProperty.ScaleMode |= ScaleMode.YByDistance;
-                                currentProperty.Color = accessory.Data.DefaultSafeColor;
-                                currentProperty.DestoryAt = 6900;
-
-                                accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentProperty);
-
-                                currentProperty = accessory.Data.GetDefaultDrawProperties();
-
-                                currentProperty.Name = $"Phase5_Guidance_2_For_Ranges_During_Towers_远程踩塔指路2-{视角}";
-                                currentProperty.Scale = new(2);
-                                currentProperty.Owner = GuidanceOwner(accessory, 视角);
-                                currentProperty.TargetPosition = phase5_rightSideOfTheNorthwest_asAConstant;
-                                currentProperty.ScaleMode |= ScaleMode.YByDistance;
-                                currentProperty.Color = accessory.Data.DefaultSafeColor;
-                                currentProperty.Delay = 6900;
-                                currentProperty.DestoryAt = 7500;
-
-                                accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentProperty);
-
-                            }
-
-                            if (视角 == 2
-                               ||
-                               视角 == 3)
-                            {
-
-                                currentProperty = accessory.Data.GetDefaultDrawProperties();
-
-                                currentProperty.Name = $"Phase5_Guidance_1_For_Healers_During_Towers_奶妈踩塔指路1-{视角}";
-                                currentProperty.Scale = new(2);
-                                currentProperty.Owner = GuidanceOwner(accessory, 视角);
-                                currentProperty.TargetPosition = isLeftFirstAndFarFirst ? phase5_standbyPointBetweenNortheastAndNorthwest_asAConstant : phase5_standbyPointBetweenSouthAndNortheast_asAConstant;
-                                currentProperty.ScaleMode |= ScaleMode.YByDistance;
-                                currentProperty.Color = accessory.Data.DefaultSafeColor;
-                                currentProperty.DestoryAt = 6900;
-
-                                accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentProperty);
-
-                                currentProperty = accessory.Data.GetDefaultDrawProperties();
-
-                                currentProperty.Name = $"Phase5_Guidance_2_Preview_For_Healers_During_Towers_奶妈踩塔指路2预览-{视角}";
-                                currentProperty.Scale = new(2);
-                                currentProperty.Position = isLeftFirstAndFarFirst ? phase5_standbyPointBetweenNortheastAndNorthwest_asAConstant : phase5_standbyPointBetweenSouthAndNortheast_asAConstant;
-                                currentProperty.TargetPosition = phase5_leftSideOfTheSouth_asAConstant;
-                                currentProperty.ScaleMode |= ScaleMode.YByDistance;
-                                currentProperty.Color = accessory.Data.DefaultSafeColor;
-                                currentProperty.DestoryAt = 6900;
-
-                                accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentProperty);
-
-                                currentProperty = accessory.Data.GetDefaultDrawProperties();
-
-                                currentProperty.Name = $"Phase5_Guidance_2_For_Healers_During_Towers_奶妈踩塔指路2-{视角}";
-                                currentProperty.Scale = new(2);
-                                currentProperty.Owner = GuidanceOwner(accessory, 视角);
-                                currentProperty.TargetPosition = phase5_leftSideOfTheSouth_asAConstant;
-                                currentProperty.ScaleMode |= ScaleMode.YByDistance;
-                                currentProperty.Color = accessory.Data.DefaultSafeColor;
-                                currentProperty.Delay = 6900;
-                                currentProperty.DestoryAt = 7500;
-
-                                accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentProperty);
-
-                            }
-
-                        }
-
-                        if (phase5_indexOfTheFirstTower.Equals("00000032"))
-                        {
-                            // The first tower is in the south.
-
-                            if (视角 == 4
-                               ||
-                               视角 == 5)
-                            {
-
-                                currentProperty = accessory.Data.GetDefaultDrawProperties();
-
-                                currentProperty.Name = $"Phase5_Guidance_1_For_Melees_During_Towers_近战踩塔指路1-{视角}";
-                                currentProperty.Scale = new(2);
-                                currentProperty.Owner = GuidanceOwner(accessory, 视角);
-                                currentProperty.TargetPosition = isLeftFirstAndFarFirst ? phase5_rightSideOfTheSouth_asAConstant : phase5_leftSideOfTheSouth_asAConstant;
-                                currentProperty.ScaleMode |= ScaleMode.YByDistance;
-                                currentProperty.Color = accessory.Data.DefaultSafeColor;
-                                currentProperty.DestoryAt = 7300;
-
-                                accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentProperty);
-
-                                currentProperty = accessory.Data.GetDefaultDrawProperties();
-
-                                currentProperty.Name = $"Phase5_Guidance_2_Preview_For_Melees_During_Towers_近战踩塔指路2预览-{视角}";
-                                currentProperty.Scale = new(2);
-                                currentProperty.Position = isLeftFirstAndFarFirst ? phase5_rightSideOfTheSouth_asAConstant : phase5_leftSideOfTheSouth_asAConstant;
-                                currentProperty.TargetPosition = phase5_standbyPointBetweenNortheastAndNorthwest_asAConstant;
-                                currentProperty.ScaleMode |= ScaleMode.YByDistance;
-                                currentProperty.Color = accessory.Data.DefaultSafeColor;
-                                currentProperty.DestoryAt = 7300;
-
-                                accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentProperty);
-
-                                currentProperty = accessory.Data.GetDefaultDrawProperties();
-
-                                currentProperty.Name = $"Phase5_Guidance_2_For_Melees_During_Towers_近战踩塔指路2-{视角}";
-                                currentProperty.Scale = new(2);
-                                currentProperty.Owner = GuidanceOwner(accessory, 视角);
-                                currentProperty.TargetPosition = phase5_standbyPointBetweenNortheastAndNorthwest_asAConstant;
-                                currentProperty.ScaleMode |= ScaleMode.YByDistance;
-                                currentProperty.Color = accessory.Data.DefaultSafeColor;
-                                currentProperty.Delay = 7300;
-                                currentProperty.DestoryAt = 7100;
-
-                                accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentProperty);
-
-                            }
-
-                            if (视角 == 6
-                               ||
-                               视角 == 7)
-                            {
-
-                                currentProperty = accessory.Data.GetDefaultDrawProperties();
-
-                                currentProperty.Name = $"Phase5_Guidance_1_For_Ranges_During_Towers_远程踩塔指路1-{视角}";
-                                currentProperty.Scale = new(2);
-                                currentProperty.Owner = GuidanceOwner(accessory, 视角);
-                                currentProperty.TargetPosition = isLeftFirstAndFarFirst ? phase5_standbyPointBetweenSouthAndNortheast_asAConstant : phase5_standbyPointBetweenSouthAndNorthwest_asAConstant;
-                                currentProperty.ScaleMode |= ScaleMode.YByDistance;
-                                currentProperty.Color = accessory.Data.DefaultSafeColor;
-                                currentProperty.DestoryAt = 6900;
-
-                                accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentProperty);
-
-                                currentProperty = accessory.Data.GetDefaultDrawProperties();
-
-                                currentProperty.Name = $"Phase5_Guidance_2_Preview_For_Ranges_During_Towers_远程踩塔指路2预览-{视角}";
-                                currentProperty.Scale = new(2);
-                                currentProperty.Position = isLeftFirstAndFarFirst ? phase5_standbyPointBetweenSouthAndNortheast_asAConstant : phase5_standbyPointBetweenSouthAndNorthwest_asAConstant;
-                                currentProperty.TargetPosition = phase5_rightSideOfTheNortheast_asAConstant;
-                                currentProperty.ScaleMode |= ScaleMode.YByDistance;
-                                currentProperty.Color = accessory.Data.DefaultSafeColor;
-                                currentProperty.DestoryAt = 6900;
-
-                                accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentProperty);
-
-                                currentProperty = accessory.Data.GetDefaultDrawProperties();
-
-                                currentProperty.Name = $"Phase5_Guidance_2_For_Ranges_During_Towers_远程踩塔指路2-{视角}";
-                                currentProperty.Scale = new(2);
-                                currentProperty.Owner = GuidanceOwner(accessory, 视角);
-                                currentProperty.TargetPosition = phase5_rightSideOfTheNortheast_asAConstant;
-                                currentProperty.ScaleMode |= ScaleMode.YByDistance;
-                                currentProperty.Color = accessory.Data.DefaultSafeColor;
-                                currentProperty.Delay = 6900;
-                                currentProperty.DestoryAt = 7500;
-
-                                accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentProperty);
-
-                            }
-
-                            if (视角 == 2
-                               ||
-                               视角 == 3)
-                            {
-
-                                currentProperty = accessory.Data.GetDefaultDrawProperties();
-
-                                currentProperty.Name = $"Phase5_Guidance_1_For_Healers_During_Towers_奶妈踩塔指路1-{视角}";
-                                currentProperty.Scale = new(2);
-                                currentProperty.Owner = GuidanceOwner(accessory, 视角);
-                                currentProperty.TargetPosition = isLeftFirstAndFarFirst ? phase5_standbyPointBetweenSouthAndNortheast_asAConstant : phase5_standbyPointBetweenSouthAndNorthwest_asAConstant;
-                                currentProperty.ScaleMode |= ScaleMode.YByDistance;
-                                currentProperty.Color = accessory.Data.DefaultSafeColor;
-                                currentProperty.DestoryAt = 6900;
-
-                                accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentProperty);
-
-                                currentProperty = accessory.Data.GetDefaultDrawProperties();
-
-                                currentProperty.Name = $"Phase5_Guidance_2_Preview_For_Healers_During_Towers_奶妈踩塔指路2预览-{视角}";
-                                currentProperty.Scale = new(2);
-                                currentProperty.Position = isLeftFirstAndFarFirst ? phase5_standbyPointBetweenSouthAndNortheast_asAConstant : phase5_standbyPointBetweenSouthAndNorthwest_asAConstant;
-                                currentProperty.TargetPosition = phase5_leftSideOfTheNorthwest_asAConstant;
-                                currentProperty.ScaleMode |= ScaleMode.YByDistance;
-                                currentProperty.Color = accessory.Data.DefaultSafeColor;
-                                currentProperty.DestoryAt = 6900;
-
-                                accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentProperty);
-
-                                currentProperty = accessory.Data.GetDefaultDrawProperties();
-
-                                currentProperty.Name = $"Phase5_Guidance_2_For_Healers_During_Towers_奶妈踩塔指路2-{视角}";
-                                currentProperty.Scale = new(2);
-                                currentProperty.Owner = GuidanceOwner(accessory, 视角);
-                                currentProperty.TargetPosition = phase5_leftSideOfTheNorthwest_asAConstant;
-                                currentProperty.ScaleMode |= ScaleMode.YByDistance;
-                                currentProperty.Color = accessory.Data.DefaultSafeColor;
-                                currentProperty.Delay = 6900;
-                                currentProperty.DestoryAt = 7500;
-
-                                accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentProperty);
-
-                            }
-
-                        }
-
-                        Vector3 positionOfTheFirstTower=new Vector3(100,0,100);
-                        Vector3 positionOfTheLeftTower=new Vector3(100,0,100);
-                        Vector3 positionOfTheRightTower=new Vector3(100,0,100);
-
-                        if(phase5_indexOfTheFirstTower.Equals("00000030"))positionOfTheFirstTower=new Vector3(93.94f,0,96.50f);
-                        if(phase5_indexOfTheFirstTower.Equals("00000031"))positionOfTheFirstTower=new Vector3(106.06f,0,96.50f);
-                        if(phase5_indexOfTheFirstTower.Equals("00000032"))positionOfTheFirstTower=new Vector3(100,0,107);
-                        if(positionOfTheFirstTower.Equals(new Vector3(100,0,100)))return;
-                        positionOfTheLeftTower=RotatePoint(positionOfTheFirstTower,new Vector3(100,0,100),float.Pi/3*2);
-                        positionOfTheRightTower=RotatePoint(positionOfTheFirstTower,new Vector3(100,0,100),-(float.Pi/3*2));
-
-                        bool isMelee=false,isRange=false,isHealer=false;
-
-                        if(视角==2||视角==3)isHealer=true;
-                        if(视角==4||视角==5)isMelee=true;
-                        if(视角==6||视角==7)isRange=true;
-
-                        currentProperty=accessory.Data.GetDefaultDrawProperties();
-
-                        currentProperty.Name=$"Phase5_Range_Of_Towers_塔的范围-{视角}";
-                        currentProperty.Scale=new(3);
-                        currentProperty.Position=positionOfTheFirstTower;
-                        currentProperty.Color=(isMelee)?(accessory.Data.DefaultSafeColor):(accessory.Data.DefaultDangerColor);
-                        currentProperty.DestoryAt=7300;
-
-                        accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Circle,currentProperty);
-
-                        currentProperty=accessory.Data.GetDefaultDrawProperties();
-
-                        currentProperty.Name=$"Phase5_Range_Of_Towers_塔的范围-{视角}";
-                        currentProperty.Scale=new(3);
-                        currentProperty.Position=positionOfTheLeftTower;
-                        currentProperty.Color=(isHealer)?(accessory.Data.DefaultSafeColor):(accessory.Data.DefaultDangerColor);
-                        currentProperty.DestoryAt=14400;
-
-                        accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Circle,currentProperty);
-
-                        currentProperty=accessory.Data.GetDefaultDrawProperties();
-
-                        currentProperty.Name=$"Phase5_Range_Of_Towers_塔的范围-{视角}";
-                        currentProperty.Scale=new(3);
-                        currentProperty.Position=positionOfTheRightTower;
-                        currentProperty.Color=(isRange)?(accessory.Data.DefaultSafeColor):(accessory.Data.DefaultDangerColor);
-                        currentProperty.DestoryAt=14400;
-
-                        accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Circle,currentProperty);
-
-                    }
-
-                    if (Phase5_Branch_Of_The_Grey9_Brain_Dead_Strat == Phase5_Branches_Of_The_Grey9_Brain_Dead_Strat.Healers_First_Then_Melees_Left_Ranges_Right_奶妈先然后近战左远程右_莫灵喵)
-                    {
-
-                        var currentProperty = accessory.Data.GetDefaultDrawProperties();
-
-                        if (phase5_indexOfTheFirstTower.Equals("00000030"))
-                        {
-                            // The first tower is in the northwest.
-
-                            if (视角 == 2
-                               ||
-                               视角 == 3)
-                            {
-                                // The healer group, that is H1 & H2.
-
-                                currentProperty = accessory.Data.GetDefaultDrawProperties();
-
-                                currentProperty.Name = $"Phase5_Guidance_1_For_Melees_During_Towers_近战踩塔指路1-{视角}";
-                                // I'm also too lazy to change the name of currentProperty. The same below.
-                                // Please always refer to the if statements only.
-                                currentProperty.Scale = new(2);
-                                currentProperty.Owner = GuidanceOwner(accessory, 视角);
-                                currentProperty.TargetPosition = isLeftFirstAndFarFirst ? phase5_rightSideOfTheNorthwest_asAConstant : phase5_leftSideOfTheNorthwest_asAConstant;
-                                currentProperty.ScaleMode |= ScaleMode.YByDistance;
-                                currentProperty.Color = accessory.Data.DefaultSafeColor;
-                                currentProperty.DestoryAt = 7300;
-
-                                accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentProperty);
-
-                                currentProperty = accessory.Data.GetDefaultDrawProperties();
-
-                                currentProperty.Name = $"Phase5_Guidance_2_Preview_For_Melees_During_Towers_近战踩塔指路2预览-{视角}";
-                                currentProperty.Scale = new(2);
-                                currentProperty.Position = isLeftFirstAndFarFirst ? phase5_rightSideOfTheNorthwest_asAConstant : phase5_leftSideOfTheNorthwest_asAConstant;
-                                currentProperty.TargetPosition = phase5_standbyPointBetweenSouthAndNortheast_asAConstant;
-                                currentProperty.ScaleMode |= ScaleMode.YByDistance;
-                                currentProperty.Color = accessory.Data.DefaultSafeColor;
-                                currentProperty.DestoryAt = 7300;
-
-                                accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentProperty);
-
-                                currentProperty = accessory.Data.GetDefaultDrawProperties();
-
-                                currentProperty.Name = $"Phase5_Guidance_2_For_Melees_During_Towers_近战踩塔指路2-{视角}";
-                                currentProperty.Scale = new(2);
-                                currentProperty.Owner = GuidanceOwner(accessory, 视角);
-                                currentProperty.TargetPosition = phase5_standbyPointBetweenSouthAndNortheast_asAConstant;
-                                currentProperty.ScaleMode |= ScaleMode.YByDistance;
-                                currentProperty.Color = accessory.Data.DefaultSafeColor;
-                                currentProperty.Delay = 7300;
-                                currentProperty.DestoryAt = 7100;
-
-                                accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentProperty);
-
-                            }
-
-                            if (视角 == 6
-                               ||
-                               视角 == 7)
-                            {
-                                // The range group, that is R1 & R2 or D3 & D4.
-
-                                currentProperty = accessory.Data.GetDefaultDrawProperties();
-
-                                currentProperty.Name = $"Phase5_Guidance_1_For_Ranges_During_Towers_远程踩塔指路1-{视角}";
-                                currentProperty.Scale = new(2);
-                                currentProperty.Owner = GuidanceOwner(accessory, 视角);
-                                currentProperty.TargetPosition = isLeftFirstAndFarFirst ? phase5_standbyPointBetweenSouthAndNorthwest_asAConstant : phase5_standbyPointBetweenNortheastAndNorthwest_asAConstant;
-                                currentProperty.ScaleMode |= ScaleMode.YByDistance;
-                                currentProperty.Color = accessory.Data.DefaultSafeColor;
-                                currentProperty.DestoryAt = 6900;
-
-                                accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentProperty);
-
-                                currentProperty = accessory.Data.GetDefaultDrawProperties();
-
-                                currentProperty.Name = $"Phase5_Guidance_2_Preview_For_Ranges_During_Towers_远程踩塔指路2预览-{视角}";
-                                currentProperty.Scale = new(2);
-                                currentProperty.Position = isLeftFirstAndFarFirst ? phase5_standbyPointBetweenSouthAndNorthwest_asAConstant : phase5_standbyPointBetweenNortheastAndNorthwest_asAConstant;
-                                currentProperty.TargetPosition = phase5_rightSideOfTheSouth_asAConstant;
-                                currentProperty.ScaleMode |= ScaleMode.YByDistance;
-                                currentProperty.Color = accessory.Data.DefaultSafeColor;
-                                currentProperty.DestoryAt = 6900;
-
-                                accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentProperty);
-
-                                currentProperty = accessory.Data.GetDefaultDrawProperties();
-
-                                currentProperty.Name = $"Phase5_Guidance_2_For_Ranges_During_Towers_远程踩塔指路2-{视角}";
-                                currentProperty.Scale = new(2);
-                                currentProperty.Owner = GuidanceOwner(accessory, 视角);
-                                currentProperty.TargetPosition = phase5_rightSideOfTheSouth_asAConstant;
-                                currentProperty.ScaleMode |= ScaleMode.YByDistance;
-                                currentProperty.Color = accessory.Data.DefaultSafeColor;
-                                currentProperty.Delay = 6900;
-                                currentProperty.DestoryAt = 7500;
-
-                                accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentProperty);
-
-                            }
-
-                            if (视角 == 4
-                               ||
-                               视角 == 5)
-                            {
-                                // The melee group, that is M1 & M2 or D1 & D2.
-
-                                currentProperty = accessory.Data.GetDefaultDrawProperties();
-
-                                currentProperty.Name = $"Phase5_Guidance_1_For_Healers_During_Towers_奶妈踩塔指路1-{视角}";
-                                currentProperty.Scale = new(2);
-                                currentProperty.Owner = GuidanceOwner(accessory, 视角);
-                                currentProperty.TargetPosition = isLeftFirstAndFarFirst ? phase5_standbyPointBetweenSouthAndNorthwest_asAConstant : phase5_standbyPointBetweenNortheastAndNorthwest_asAConstant;
-                                currentProperty.ScaleMode |= ScaleMode.YByDistance;
-                                currentProperty.Color = accessory.Data.DefaultSafeColor;
-                                currentProperty.DestoryAt = 6900;
-
-                                accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentProperty);
-
-                                currentProperty = accessory.Data.GetDefaultDrawProperties();
-
-                                currentProperty.Name = $"Phase5_Guidance_2_Preview_For_Healers_During_Towers_奶妈踩塔指路2预览-{视角}";
-                                currentProperty.Scale = new(2);
-                                currentProperty.Position = isLeftFirstAndFarFirst ? phase5_standbyPointBetweenSouthAndNorthwest_asAConstant : phase5_standbyPointBetweenNortheastAndNorthwest_asAConstant;
-                                currentProperty.TargetPosition = phase5_leftSideOfTheNortheast_asAConstant;
-                                currentProperty.ScaleMode |= ScaleMode.YByDistance;
-                                currentProperty.Color = accessory.Data.DefaultSafeColor;
-                                currentProperty.DestoryAt = 6900;
-
-                                accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentProperty);
-
-                                currentProperty = accessory.Data.GetDefaultDrawProperties();
-
-                                currentProperty.Name = $"Phase5_Guidance_2_For_Healers_During_Towers_奶妈踩塔指路2-{视角}";
-                                currentProperty.Scale = new(2);
-                                currentProperty.Owner = GuidanceOwner(accessory, 视角);
-                                currentProperty.TargetPosition = phase5_leftSideOfTheNortheast_asAConstant;
-                                currentProperty.ScaleMode |= ScaleMode.YByDistance;
-                                currentProperty.Color = accessory.Data.DefaultSafeColor;
-                                currentProperty.Delay = 6900;
-                                currentProperty.DestoryAt = 7500;
-
-                                accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentProperty);
-
-                            }
-
-                        }
-
-                        if (phase5_indexOfTheFirstTower.Equals("00000031"))
-                        {
-                            // The first tower is in the northeast.
-
-                            if (视角 == 2
-                               ||
-                               视角 == 3)
-                            {
-
-                                currentProperty = accessory.Data.GetDefaultDrawProperties();
-
-                                currentProperty.Name = $"Phase5_Guidance_1_For_Melees_During_Towers_近战踩塔指路1-{视角}";
-                                currentProperty.Scale = new(2);
-                                currentProperty.Owner = GuidanceOwner(accessory, 视角);
-                                currentProperty.TargetPosition = isLeftFirstAndFarFirst ? phase5_rightSideOfTheNortheast_asAConstant : phase5_leftSideOfTheNortheast_asAConstant;
-                                currentProperty.ScaleMode |= ScaleMode.YByDistance;
-                                currentProperty.Color = accessory.Data.DefaultSafeColor;
-                                currentProperty.DestoryAt = 7300;
-
-                                accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentProperty);
-
-                                currentProperty = accessory.Data.GetDefaultDrawProperties();
-
-                                currentProperty.Name = $"Phase5_Guidance_2_Preview_For_Melees_During_Towers_近战踩塔指路2预览-{视角}";
-                                currentProperty.Scale = new(2);
-                                currentProperty.Position = isLeftFirstAndFarFirst ? phase5_rightSideOfTheNortheast_asAConstant : phase5_leftSideOfTheNortheast_asAConstant;
-                                currentProperty.TargetPosition = phase5_standbyPointBetweenSouthAndNorthwest_asAConstant;
-                                currentProperty.ScaleMode |= ScaleMode.YByDistance;
-                                currentProperty.Color = accessory.Data.DefaultSafeColor;
-                                currentProperty.DestoryAt = 7300;
-
-                                accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentProperty);
-
-                                currentProperty = accessory.Data.GetDefaultDrawProperties();
-
-                                currentProperty.Name = $"Phase5_Guidance_2_For_Melees_During_Towers_近战踩塔指路2-{视角}";
-                                currentProperty.Scale = new(2);
-                                currentProperty.Owner = GuidanceOwner(accessory, 视角);
-                                currentProperty.TargetPosition = phase5_standbyPointBetweenSouthAndNorthwest_asAConstant;
-                                currentProperty.ScaleMode |= ScaleMode.YByDistance;
-                                currentProperty.Color = accessory.Data.DefaultSafeColor;
-                                currentProperty.Delay = 7300;
-                                currentProperty.DestoryAt = 7100;
-
-                                accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentProperty);
-
-                            }
-
-                            if (视角 == 6
-                               ||
-                               视角 == 7)
-                            {
-
-                                currentProperty = accessory.Data.GetDefaultDrawProperties();
-
-                                currentProperty.Name = $"Phase5_Guidance_1_For_Ranges_During_Towers_远程踩塔指路1-{视角}";
-                                currentProperty.Scale = new(2);
-                                currentProperty.Owner = GuidanceOwner(accessory, 视角);
-                                currentProperty.TargetPosition = isLeftFirstAndFarFirst ? phase5_standbyPointBetweenNortheastAndNorthwest_asAConstant : phase5_standbyPointBetweenSouthAndNortheast_asAConstant;
-                                currentProperty.ScaleMode |= ScaleMode.YByDistance;
-                                currentProperty.Color = accessory.Data.DefaultSafeColor;
-                                currentProperty.DestoryAt = 6900;
-
-                                accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentProperty);
-
-                                currentProperty = accessory.Data.GetDefaultDrawProperties();
-
-                                currentProperty.Name = $"Phase5_Guidance_2_Preview_For_Ranges_During_Towers_远程踩塔指路2预览-{视角}";
-                                currentProperty.Scale = new(2);
-                                currentProperty.Position = isLeftFirstAndFarFirst ? phase5_standbyPointBetweenNortheastAndNorthwest_asAConstant : phase5_standbyPointBetweenSouthAndNortheast_asAConstant;
-                                currentProperty.TargetPosition = phase5_rightSideOfTheNorthwest_asAConstant;
-                                currentProperty.ScaleMode |= ScaleMode.YByDistance;
-                                currentProperty.Color = accessory.Data.DefaultSafeColor;
-                                currentProperty.DestoryAt = 6900;
-
-                                accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentProperty);
-
-                                currentProperty = accessory.Data.GetDefaultDrawProperties();
-
-                                currentProperty.Name = $"Phase5_Guidance_2_For_Ranges_During_Towers_远程踩塔指路2-{视角}";
-                                currentProperty.Scale = new(2);
-                                currentProperty.Owner = GuidanceOwner(accessory, 视角);
-                                currentProperty.TargetPosition = phase5_rightSideOfTheNorthwest_asAConstant;
-                                currentProperty.ScaleMode |= ScaleMode.YByDistance;
-                                currentProperty.Color = accessory.Data.DefaultSafeColor;
-                                currentProperty.Delay = 6900;
-                                currentProperty.DestoryAt = 7500;
-
-                                accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentProperty);
-
-                            }
-
-                            if (视角 == 4
-                               ||
-                               视角 == 5)
-                            {
-
-                                currentProperty = accessory.Data.GetDefaultDrawProperties();
-
-                                currentProperty.Name = $"Phase5_Guidance_1_For_Healers_During_Towers_奶妈踩塔指路1-{视角}";
-                                currentProperty.Scale = new(2);
-                                currentProperty.Owner = GuidanceOwner(accessory, 视角);
-                                currentProperty.TargetPosition = isLeftFirstAndFarFirst ? phase5_standbyPointBetweenNortheastAndNorthwest_asAConstant : phase5_standbyPointBetweenSouthAndNortheast_asAConstant;
-                                currentProperty.ScaleMode |= ScaleMode.YByDistance;
-                                currentProperty.Color = accessory.Data.DefaultSafeColor;
-                                currentProperty.DestoryAt = 6900;
-
-                                accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentProperty);
-
-                                currentProperty = accessory.Data.GetDefaultDrawProperties();
-
-                                currentProperty.Name = $"Phase5_Guidance_2_Preview_For_Healers_During_Towers_奶妈踩塔指路2预览-{视角}";
-                                currentProperty.Scale = new(2);
-                                currentProperty.Position = isLeftFirstAndFarFirst ? phase5_standbyPointBetweenNortheastAndNorthwest_asAConstant : phase5_standbyPointBetweenSouthAndNortheast_asAConstant;
-                                currentProperty.TargetPosition = phase5_leftSideOfTheSouth_asAConstant;
-                                currentProperty.ScaleMode |= ScaleMode.YByDistance;
-                                currentProperty.Color = accessory.Data.DefaultSafeColor;
-                                currentProperty.DestoryAt = 6900;
-
-                                accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentProperty);
-
-                                currentProperty = accessory.Data.GetDefaultDrawProperties();
-
-                                currentProperty.Name = $"Phase5_Guidance_2_For_Healers_During_Towers_奶妈踩塔指路2-{视角}";
-                                currentProperty.Scale = new(2);
-                                currentProperty.Owner = GuidanceOwner(accessory, 视角);
-                                currentProperty.TargetPosition = phase5_leftSideOfTheSouth_asAConstant;
-                                currentProperty.ScaleMode |= ScaleMode.YByDistance;
-                                currentProperty.Color = accessory.Data.DefaultSafeColor;
-                                currentProperty.Delay = 6900;
-                                currentProperty.DestoryAt = 7500;
-
-                                accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentProperty);
-
-                            }
-
-                        }
-
-                        if (phase5_indexOfTheFirstTower.Equals("00000032"))
-                        {
-                            // The first tower is in the south.
-
-                            if (视角 == 2
-                               ||
-                               视角 == 3)
-                            {
-
-                                currentProperty = accessory.Data.GetDefaultDrawProperties();
-
-                                currentProperty.Name = $"Phase5_Guidance_1_For_Melees_During_Towers_近战踩塔指路1-{视角}";
-                                currentProperty.Scale = new(2);
-                                currentProperty.Owner = GuidanceOwner(accessory, 视角);
-                                currentProperty.TargetPosition = isLeftFirstAndFarFirst ? phase5_rightSideOfTheSouth_asAConstant : phase5_leftSideOfTheSouth_asAConstant;
-                                currentProperty.ScaleMode |= ScaleMode.YByDistance;
-                                currentProperty.Color = accessory.Data.DefaultSafeColor;
-                                currentProperty.DestoryAt = 7300;
-
-                                accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentProperty);
-
-                                currentProperty = accessory.Data.GetDefaultDrawProperties();
-
-                                currentProperty.Name = $"Phase5_Guidance_2_Preview_For_Melees_During_Towers_近战踩塔指路2预览-{视角}";
-                                currentProperty.Scale = new(2);
-                                currentProperty.Position = isLeftFirstAndFarFirst ? phase5_rightSideOfTheSouth_asAConstant : phase5_leftSideOfTheSouth_asAConstant;
-                                currentProperty.TargetPosition = phase5_standbyPointBetweenNortheastAndNorthwest_asAConstant;
-                                currentProperty.ScaleMode |= ScaleMode.YByDistance;
-                                currentProperty.Color = accessory.Data.DefaultSafeColor;
-                                currentProperty.DestoryAt = 7300;
-
-                                accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentProperty);
-
-                                currentProperty = accessory.Data.GetDefaultDrawProperties();
-
-                                currentProperty.Name = $"Phase5_Guidance_2_For_Melees_During_Towers_近战踩塔指路2-{视角}";
-                                currentProperty.Scale = new(2);
-                                currentProperty.Owner = GuidanceOwner(accessory, 视角);
-                                currentProperty.TargetPosition = phase5_standbyPointBetweenNortheastAndNorthwest_asAConstant;
-                                currentProperty.ScaleMode |= ScaleMode.YByDistance;
-                                currentProperty.Color = accessory.Data.DefaultSafeColor;
-                                currentProperty.Delay = 7300;
-                                currentProperty.DestoryAt = 7100;
-
-                                accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentProperty);
-
-                            }
-
-                            if (视角 == 6
-                               ||
-                               视角 == 7)
-                            {
-
-                                currentProperty = accessory.Data.GetDefaultDrawProperties();
-
-                                currentProperty.Name = $"Phase5_Guidance_1_For_Ranges_During_Towers_远程踩塔指路1-{视角}";
-                                currentProperty.Scale = new(2);
-                                currentProperty.Owner = GuidanceOwner(accessory, 视角);
-                                currentProperty.TargetPosition = isLeftFirstAndFarFirst ? phase5_standbyPointBetweenSouthAndNortheast_asAConstant : phase5_standbyPointBetweenSouthAndNorthwest_asAConstant;
-                                currentProperty.ScaleMode |= ScaleMode.YByDistance;
-                                currentProperty.Color = accessory.Data.DefaultSafeColor;
-                                currentProperty.DestoryAt = 6900;
-
-                                accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentProperty);
-
-                                currentProperty = accessory.Data.GetDefaultDrawProperties();
-
-                                currentProperty.Name = $"Phase5_Guidance_2_Preview_For_Ranges_During_Towers_远程踩塔指路2预览-{视角}";
-                                currentProperty.Scale = new(2);
-                                currentProperty.Position = isLeftFirstAndFarFirst ? phase5_standbyPointBetweenSouthAndNortheast_asAConstant : phase5_standbyPointBetweenSouthAndNorthwest_asAConstant;
-                                currentProperty.TargetPosition = phase5_rightSideOfTheNortheast_asAConstant;
-                                currentProperty.ScaleMode |= ScaleMode.YByDistance;
-                                currentProperty.Color = accessory.Data.DefaultSafeColor;
-                                currentProperty.DestoryAt = 6900;
-
-                                accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentProperty);
-
-                                currentProperty = accessory.Data.GetDefaultDrawProperties();
-
-                                currentProperty.Name = $"Phase5_Guidance_2_For_Ranges_During_Towers_远程踩塔指路2-{视角}";
-                                currentProperty.Scale = new(2);
-                                currentProperty.Owner = GuidanceOwner(accessory, 视角);
-                                currentProperty.TargetPosition = phase5_rightSideOfTheNortheast_asAConstant;
-                                currentProperty.ScaleMode |= ScaleMode.YByDistance;
-                                currentProperty.Color = accessory.Data.DefaultSafeColor;
-                                currentProperty.Delay = 6900;
-                                currentProperty.DestoryAt = 7500;
-
-                                accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentProperty);
-
-                            }
-
-                            if (视角 == 4
-                               ||
-                               视角 == 5)
-                            {
-
-                                currentProperty = accessory.Data.GetDefaultDrawProperties();
-
-                                currentProperty.Name = $"Phase5_Guidance_1_For_Healers_During_Towers_奶妈踩塔指路1-{视角}";
-                                currentProperty.Scale = new(2);
-                                currentProperty.Owner = GuidanceOwner(accessory, 视角);
-                                currentProperty.TargetPosition = isLeftFirstAndFarFirst ? phase5_standbyPointBetweenSouthAndNortheast_asAConstant : phase5_standbyPointBetweenSouthAndNorthwest_asAConstant;
-                                currentProperty.ScaleMode |= ScaleMode.YByDistance;
-                                currentProperty.Color = accessory.Data.DefaultSafeColor;
-                                currentProperty.DestoryAt = 6900;
-
-                                accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentProperty);
-
-                                currentProperty = accessory.Data.GetDefaultDrawProperties();
-
-                                currentProperty.Name = $"Phase5_Guidance_2_Preview_For_Healers_During_Towers_奶妈踩塔指路2预览-{视角}";
-                                currentProperty.Scale = new(2);
-                                currentProperty.Position = isLeftFirstAndFarFirst ? phase5_standbyPointBetweenSouthAndNortheast_asAConstant : phase5_standbyPointBetweenSouthAndNorthwest_asAConstant;
-                                currentProperty.TargetPosition = phase5_leftSideOfTheNorthwest_asAConstant;
-                                currentProperty.ScaleMode |= ScaleMode.YByDistance;
-                                currentProperty.Color = accessory.Data.DefaultSafeColor;
-                                currentProperty.DestoryAt = 6900;
-
-                                accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentProperty);
-
-                                currentProperty = accessory.Data.GetDefaultDrawProperties();
-
-                                currentProperty.Name = $"Phase5_Guidance_2_For_Healers_During_Towers_奶妈踩塔指路2-{视角}";
-                                currentProperty.Scale = new(2);
-                                currentProperty.Owner = GuidanceOwner(accessory, 视角);
-                                currentProperty.TargetPosition = phase5_leftSideOfTheNorthwest_asAConstant;
-                                currentProperty.ScaleMode |= ScaleMode.YByDistance;
-                                currentProperty.Color = accessory.Data.DefaultSafeColor;
-                                currentProperty.Delay = 6900;
-                                currentProperty.DestoryAt = 7500;
-
-                                accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentProperty);
-
-                            }
-
-                        }
-
-                        Vector3 positionOfTheFirstTower=new Vector3(100,0,100);
-                        Vector3 positionOfTheLeftTower=new Vector3(100,0,100);
-                        Vector3 positionOfTheRightTower=new Vector3(100,0,100);
-
-                        if(phase5_indexOfTheFirstTower.Equals("00000030"))positionOfTheFirstTower=new Vector3(93.94f,0,96.50f);
-                        if(phase5_indexOfTheFirstTower.Equals("00000031"))positionOfTheFirstTower=new Vector3(106.06f,0,96.50f);
-                        if(phase5_indexOfTheFirstTower.Equals("00000032"))positionOfTheFirstTower=new Vector3(100,0,107);
-                        if(positionOfTheFirstTower.Equals(new Vector3(100,0,100)))return;
-                        positionOfTheLeftTower=RotatePoint(positionOfTheFirstTower,new Vector3(100,0,100),float.Pi/3*2);
-                        positionOfTheRightTower=RotatePoint(positionOfTheFirstTower,new Vector3(100,0,100),-(float.Pi/3*2));
-
-                        bool isMelee=false,isRange=false,isHealer=false;
-
-                        if(视角==2||视角==3)isHealer=true;
-                        if(视角==4||视角==5)isMelee=true;
-                        if(视角==6||视角==7)isRange=true;
-
-                        currentProperty=accessory.Data.GetDefaultDrawProperties();
-
-                        currentProperty.Name=$"Phase5_Range_Of_Towers_塔的范围-{视角}";
-                        currentProperty.Scale=new(3);
-                        currentProperty.Position=positionOfTheFirstTower;
-                        currentProperty.Color=(isHealer)?(accessory.Data.DefaultSafeColor):(accessory.Data.DefaultDangerColor);
-                        currentProperty.DestoryAt=7300;
-
-                        accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Circle,currentProperty);
-
-                        currentProperty=accessory.Data.GetDefaultDrawProperties();
-
-                        currentProperty.Name=$"Phase5_Range_Of_Towers_塔的范围-{视角}";
-                        currentProperty.Scale=new(3);
-                        currentProperty.Position=positionOfTheLeftTower;
-                        currentProperty.Color=(isMelee)?(accessory.Data.DefaultSafeColor):(accessory.Data.DefaultDangerColor);
-                        currentProperty.DestoryAt=14400;
-
-                        accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Circle,currentProperty);
-
-                        currentProperty=accessory.Data.GetDefaultDrawProperties();
-
-                        currentProperty.Name=$"Phase5_Range_Of_Towers_塔的范围-{视角}";
-                        currentProperty.Scale=new(3);
-                        currentProperty.Position=positionOfTheRightTower;
-                        currentProperty.Color=(isRange)?(accessory.Data.DefaultSafeColor):(accessory.Data.DefaultDangerColor);
-                        currentProperty.DestoryAt=14400;
-
-                        accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Circle,currentProperty);
-
-                    }
-
-                }
-                */
-
-                if(Phase5_Strat_Of_Wings_Dark_And_Light==Phase5_Strats_Of_Wings_Dark_And_Light.Grey9_Brain_Dead_MT_First_Tower_Opposite_灰九脑死法MT一塔对侧_莫灵喵与MMW) {
-                    // The previous spaghetti code is commented out. The entire part was reworked.
-
-                    float rotation=0;
-
-                    if(phase5_indexOfTheFirstTower.Equals("00000030")) {
-
-                        rotation=float.Pi/3*2;
-
-                    }
-
-                    if(phase5_indexOfTheFirstTower.Equals("00000031")) {
-
-                        rotation=-(float.Pi/3*2);
-
-                    }
-
-                    if(phase5_indexOfTheFirstTower.Equals("00000032")) {
-
-                        rotation=0;
-
-                    }
-
-                    Vector3 positionOfTheFirstTower=RotatePoint(new Vector3(100,0,107),new Vector3(100,0,100),rotation);
-                    Vector3 positionOfTheLeftTower=RotatePoint(positionOfTheFirstTower,new Vector3(100,0,100),float.Pi/3*2);
-                    Vector3 positionOfTheRightTower=RotatePoint(positionOfTheFirstTower,new Vector3(100,0,100),-(float.Pi/3*2));
-                    Vector3 leftOfTheFirstTower=RotatePoint(phase5_leftSideOfTheSouth_asAConstant,new Vector3(100,0,100),rotation);
-                    Vector3 rightOfTheFirstTower=RotatePoint(phase5_rightSideOfTheSouth_asAConstant,new Vector3(100,0,100),rotation);
-                    Vector3 leftOfTheLeftTower=RotatePoint(phase5_leftSideOfTheNorthwest_asAConstant,new Vector3(100,0,100),rotation);
-                    Vector3 rightOfTheRightTower=RotatePoint(phase5_rightSideOfTheNortheast_asAConstant,new Vector3(100,0,100),rotation);
-                    Vector3 oppositeStandbyPosition=RotatePoint(positionOfTheFirstTower,new Vector3(100,0,100),float.Pi);
-                    Vector3 leftStandbyPosition=RotatePoint(phase5_standbyPointBetweenSouthAndNorthwest_asAConstant,new Vector3(100,0,100),rotation);
-                    Vector3 rightStandbyPosition=RotatePoint(phase5_standbyPointBetweenSouthAndNortheast_asAConstant,new Vector3(100,0,100),rotation);
-                    var currentProperty=accessory.Data.GetDefaultDrawProperties();
-
-                    if(Phase5_Branch_Of_The_Grey9_Brain_Dead_Strat==Phase5_Branches_Of_The_Grey9_Brain_Dead_Strat.Melees_First_Then_Healers_Left_Ranges_Right_近战先然后奶妈左远程右) {
-
-                        bool isMelee=false;
-                        bool isRange=false;
-                        bool isHealer=false;
-
-                        if(视角==4
-                           ||
-                           视角==5) {
-
-                            isMelee=true;
-
-                            currentProperty = accessory.Data.GetDefaultDrawProperties();
-
-                            currentProperty.Name=$"Phase5_Guidance_1_For_Melees_During_Towers_近战踩塔指路1-{视角}";
-                            currentProperty.Scale=new(2);
-                            currentProperty.Owner=GuidanceOwner(accessory, 视角);
-                            currentProperty.TargetPosition=(isLeftFirstAndFarFirst)?(rightOfTheFirstTower):(leftOfTheFirstTower);
-                            currentProperty.ScaleMode|=ScaleMode.YByDistance;
-                            currentProperty.Color=accessory.Data.DefaultSafeColor;
-                            currentProperty.DestoryAt=7300;
-
-                            accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Displacement,currentProperty);
-
-                            currentProperty=accessory.Data.GetDefaultDrawProperties();
-
-                            currentProperty.Name=$"Phase5_Guidance_2_Preview_For_Melees_During_Towers_近战踩塔指路2预览-{视角}";
-                            currentProperty.Scale=new(2);
-                            currentProperty.Position=(isLeftFirstAndFarFirst)?(rightOfTheFirstTower):(leftOfTheFirstTower);
-                            currentProperty.TargetPosition=oppositeStandbyPosition;
-                            currentProperty.ScaleMode|=ScaleMode.YByDistance;
-                            currentProperty.Color=accessory.Data.DefaultSafeColor;
-                            currentProperty.DestoryAt=7300;
-
-                            accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Displacement,currentProperty);
-
-                            currentProperty=accessory.Data.GetDefaultDrawProperties();
-
-                            currentProperty.Name=$"Phase5_Guidance_2_For_Melees_During_Towers_近战踩塔指路2-{视角}";
-                            currentProperty.Scale=new(2);
-                            currentProperty.Owner=GuidanceOwner(accessory, 视角);
-                            currentProperty.TargetPosition=oppositeStandbyPosition;
-                            currentProperty.ScaleMode|=ScaleMode.YByDistance;
-                            currentProperty.Color=accessory.Data.DefaultSafeColor;
-                            currentProperty.Delay=7300;
-                            currentProperty.DestoryAt=7100;
-
-                            accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Displacement,currentProperty);
-
-                        }
-
-                        if(视角==6
-                           ||
-                           视角==7) {
-
-                            isRange=true;
-
-                            currentProperty=accessory.Data.GetDefaultDrawProperties();
-
-                            currentProperty.Name=$"Phase5_Guidance_1_For_Ranges_During_Towers_远程踩塔指路1-{视角}";
-                            currentProperty.Scale=new(2);
-                            currentProperty.Owner=GuidanceOwner(accessory, 视角);
-                            currentProperty.TargetPosition=(isLeftFirstAndFarFirst)?(rightStandbyPosition):(leftStandbyPosition);
-                            currentProperty.ScaleMode|=ScaleMode.YByDistance;
-                            currentProperty.Color=accessory.Data.DefaultSafeColor;
-                            currentProperty.DestoryAt=6900;
-
-                            accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Displacement,currentProperty);
-
-                            currentProperty=accessory.Data.GetDefaultDrawProperties();
-
-                            currentProperty.Name=$"Phase5_Guidance_2_Preview_For_Ranges_During_Towers_远程踩塔指路2预览-{视角}";
-                            currentProperty.Scale=new(2);
-                            currentProperty.Position=(isLeftFirstAndFarFirst)?(rightStandbyPosition):(leftStandbyPosition);
-                            currentProperty.TargetPosition=rightOfTheRightTower;
-                            currentProperty.ScaleMode|=ScaleMode.YByDistance;
-                            currentProperty.Color=accessory.Data.DefaultSafeColor;
-                            currentProperty.DestoryAt=6900;
-
-                            accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Displacement,currentProperty);
-
-                            currentProperty=accessory.Data.GetDefaultDrawProperties();
-
-                            currentProperty.Name=$"Phase5_Guidance_2_For_Ranges_During_Towers_远程踩塔指路2-{视角}";
-                            currentProperty.Scale=new(2);
-                            currentProperty.Owner=GuidanceOwner(accessory, 视角);
-                            currentProperty.TargetPosition=rightOfTheRightTower;
-                            currentProperty.ScaleMode|=ScaleMode.YByDistance;
-                            currentProperty.Color=accessory.Data.DefaultSafeColor;
-                            currentProperty.Delay=6900;
-                            currentProperty.DestoryAt=7500;
-
-                            accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Displacement,currentProperty);
-
-                        }
-
-                        if(视角==2
-                           ||
-                           视角==3) {
-
-                            isHealer=true;
-
-                            currentProperty=accessory.Data.GetDefaultDrawProperties();
-
-                            currentProperty.Name=$"Phase5_Guidance_1_For_Healers_During_Towers_奶妈踩塔指路1-{视角}";
-                            currentProperty.Scale=new(2);
-                            currentProperty.Owner=GuidanceOwner(accessory, 视角);
-                            currentProperty.TargetPosition=(isLeftFirstAndFarFirst)?(rightStandbyPosition):(leftStandbyPosition);
-                            currentProperty.ScaleMode|=ScaleMode.YByDistance;
-                            currentProperty.Color=accessory.Data.DefaultSafeColor; 
-                            currentProperty.DestoryAt=6900;
-
-                            accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Displacement,currentProperty);
-
-                            currentProperty=accessory.Data.GetDefaultDrawProperties();
-
-                            currentProperty.Name=$"Phase5_Guidance_2_Preview_For_Healers_During_Towers_奶妈踩塔指路2预览-{视角}";
-                            currentProperty.Scale=new(2);
-                            currentProperty.Position=(isLeftFirstAndFarFirst)?(rightStandbyPosition):(leftStandbyPosition);
-                            currentProperty.TargetPosition=leftOfTheLeftTower;
-                            currentProperty.ScaleMode|=ScaleMode.YByDistance;
-                            currentProperty.Color=accessory.Data.DefaultSafeColor;
-                            currentProperty.DestoryAt=6900;
-
-                            accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Displacement,currentProperty);
-
-                            currentProperty=accessory.Data.GetDefaultDrawProperties();
-
-                            currentProperty.Name=$"Phase5_Guidance_2_For_Healers_During_Towers_奶妈踩塔指路2-{视角}";
-                            currentProperty.Scale=new(2);
-                            currentProperty.Owner=GuidanceOwner(accessory, 视角);
-                            currentProperty.TargetPosition=leftOfTheLeftTower;
-                            currentProperty.ScaleMode|=ScaleMode.YByDistance;
-                            currentProperty.Color=accessory.Data.DefaultSafeColor;
-                            currentProperty.Delay=6900;
-                            currentProperty.DestoryAt=7500;
-
-                            accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Displacement,currentProperty);
-
-                        }
-
-                        currentProperty=accessory.Data.GetDefaultDrawProperties();
-
-                        currentProperty.Name=$"Phase5_Range_Of_Towers_塔的范围-{视角}";
-                        currentProperty.Scale=new(3);
-                        currentProperty.Position=positionOfTheFirstTower;
-                        currentProperty.Color=(isMelee)?(accessory.Data.DefaultSafeColor):(accessory.Data.DefaultDangerColor);
-                        currentProperty.DestoryAt=7300;
-
-                        accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Circle,currentProperty);
-
-                        currentProperty=accessory.Data.GetDefaultDrawProperties();
-
-                        currentProperty.Name=$"Phase5_Range_Of_Towers_塔的范围-{视角}";
-                        currentProperty.Scale=new(3);
-                        currentProperty.Position=positionOfTheLeftTower;
-                        currentProperty.Color=(isHealer)?(accessory.Data.DefaultSafeColor):(accessory.Data.DefaultDangerColor);
-                        currentProperty.DestoryAt=14400;
-
-                        accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Circle,currentProperty);
-
-                        currentProperty=accessory.Data.GetDefaultDrawProperties();
-
-                        currentProperty.Name=$"Phase5_Range_Of_Towers_塔的范围-{视角}";
-                        currentProperty.Scale=new(3);
-                        currentProperty.Position=positionOfTheRightTower;
-                        currentProperty.Color=(isRange)?(accessory.Data.DefaultSafeColor):(accessory.Data.DefaultDangerColor);
-                        currentProperty.DestoryAt=14400;
-
-                        accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Circle,currentProperty);
-
-                    }
-
-                    if(Phase5_Branch_Of_The_Grey9_Brain_Dead_Strat==Phase5_Branches_Of_The_Grey9_Brain_Dead_Strat.Healers_First_Then_Melees_Left_Ranges_Right_奶妈先然后近战左远程右_莫灵喵) {
-
-                        bool isMelee=false;
-                        bool isRange=false;
-                        bool isHealer=false;
-
-                        if(视角==2
-                           ||
-                           视角==3) {
-
-                            isHealer=true;
-
-                            currentProperty = accessory.Data.GetDefaultDrawProperties();
-
-                            currentProperty.Name=$"Phase5_Guidance_1_For_Healers_During_Towers_奶妈踩塔指路1-{视角}";
-                            currentProperty.Scale=new(2);
-                            currentProperty.Owner=GuidanceOwner(accessory, 视角);
-                            currentProperty.TargetPosition=(isLeftFirstAndFarFirst)?(rightOfTheFirstTower):(leftOfTheFirstTower);
-                            currentProperty.ScaleMode|=ScaleMode.YByDistance;
-                            currentProperty.Color=accessory.Data.DefaultSafeColor;
-                            currentProperty.DestoryAt=7300;
-
-                            accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Displacement,currentProperty);
-
-                            currentProperty=accessory.Data.GetDefaultDrawProperties();
-
-                            currentProperty.Name=$"Phase5_Guidance_2_Preview_For_Healers_During_Towers_奶妈踩塔指路2预览-{视角}";
-                            currentProperty.Scale=new(2);
-                            currentProperty.Position=(isLeftFirstAndFarFirst)?(rightOfTheFirstTower):(leftOfTheFirstTower);
-                            currentProperty.TargetPosition=oppositeStandbyPosition;
-                            currentProperty.ScaleMode|=ScaleMode.YByDistance;
-                            currentProperty.Color=accessory.Data.DefaultSafeColor;
-                            currentProperty.DestoryAt=7300;
-
-                            accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Displacement,currentProperty);
-
-                            currentProperty=accessory.Data.GetDefaultDrawProperties();
-
-                            currentProperty.Name=$"Phase5_Guidance_2_For_Healers_During_Towers_奶妈踩塔指路2-{视角}";
-                            currentProperty.Scale=new(2);
-                            currentProperty.Owner=GuidanceOwner(accessory, 视角);
-                            currentProperty.TargetPosition=oppositeStandbyPosition;
-                            currentProperty.ScaleMode|=ScaleMode.YByDistance;
-                            currentProperty.Color=accessory.Data.DefaultSafeColor;
-                            currentProperty.Delay=7300;
-                            currentProperty.DestoryAt=7100;
-
-                            accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Displacement,currentProperty);
-
-                        }
-
-                        if(视角==6
-                           ||
-                           视角==7) {
-
-                            isRange=true;
-
-                            currentProperty=accessory.Data.GetDefaultDrawProperties();
-
-                            currentProperty.Name=$"Phase5_Guidance_1_For_Ranges_During_Towers_远程踩塔指路1-{视角}";
-                            currentProperty.Scale=new(2);
-                            currentProperty.Owner=GuidanceOwner(accessory, 视角);
-                            currentProperty.TargetPosition=(isLeftFirstAndFarFirst)?(rightStandbyPosition):(leftStandbyPosition);
-                            currentProperty.ScaleMode|=ScaleMode.YByDistance;
-                            currentProperty.Color=accessory.Data.DefaultSafeColor;
-                            currentProperty.DestoryAt=6900;
-
-                            accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Displacement,currentProperty);
-
-                            currentProperty=accessory.Data.GetDefaultDrawProperties();
-
-                            currentProperty.Name=$"Phase5_Guidance_2_Preview_For_Ranges_During_Towers_远程踩塔指路2预览-{视角}";
-                            currentProperty.Scale=new(2);
-                            currentProperty.Position=(isLeftFirstAndFarFirst)?(rightStandbyPosition):(leftStandbyPosition);
-                            currentProperty.TargetPosition=rightOfTheRightTower;
-                            currentProperty.ScaleMode|=ScaleMode.YByDistance;
-                            currentProperty.Color=accessory.Data.DefaultSafeColor;
-                            currentProperty.DestoryAt=6900;
-
-                            accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Displacement,currentProperty);
-
-                            currentProperty=accessory.Data.GetDefaultDrawProperties();
-
-                            currentProperty.Name=$"Phase5_Guidance_2_For_Ranges_During_Towers_远程踩塔指路2-{视角}";
-                            currentProperty.Scale=new(2);
-                            currentProperty.Owner=GuidanceOwner(accessory, 视角);
-                            currentProperty.TargetPosition=rightOfTheRightTower;
-                            currentProperty.ScaleMode|=ScaleMode.YByDistance;
-                            currentProperty.Color=accessory.Data.DefaultSafeColor;
-                            currentProperty.Delay=6900;
-                            currentProperty.DestoryAt=7500;
-
-                            accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Displacement,currentProperty);
-
-                        }
-
-                        if(视角==4
-                           ||
-                           视角==5) {
-
-                            isMelee=true;
-
-                            currentProperty=accessory.Data.GetDefaultDrawProperties();
-
-                            currentProperty.Name=$"Phase5_Guidance_1_For_Melees_During_Towers_近战踩塔指路1-{视角}";
-                            currentProperty.Scale=new(2);
-                            currentProperty.Owner=GuidanceOwner(accessory, 视角);
-                            currentProperty.TargetPosition=(isLeftFirstAndFarFirst)?(rightStandbyPosition):(leftStandbyPosition);
-                            currentProperty.ScaleMode|=ScaleMode.YByDistance;
-                            currentProperty.Color=accessory.Data.DefaultSafeColor; 
-                            currentProperty.DestoryAt=6900;
-
-                            accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Displacement,currentProperty);
-
-                            currentProperty=accessory.Data.GetDefaultDrawProperties();
-
-                            currentProperty.Name=$"Phase5_Guidance_2_Preview_For_Melees_During_Towers_近战踩塔指路2预览-{视角}";
-                            currentProperty.Scale=new(2);
-                            currentProperty.Position=(isLeftFirstAndFarFirst)?(rightStandbyPosition):(leftStandbyPosition);
-                            currentProperty.TargetPosition=leftOfTheLeftTower;
-                            currentProperty.ScaleMode|=ScaleMode.YByDistance;
-                            currentProperty.Color=accessory.Data.DefaultSafeColor;
-                            currentProperty.DestoryAt=6900;
-
-                            accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Displacement,currentProperty);
-
-                            currentProperty=accessory.Data.GetDefaultDrawProperties();
-
-                            currentProperty.Name=$"Phase5_Guidance_2_For_Melees_During_Towers_近战踩塔指路2-{视角}";
-                            currentProperty.Scale=new(2);
-                            currentProperty.Owner=GuidanceOwner(accessory, 视角);
-                            currentProperty.TargetPosition=leftOfTheLeftTower;
-                            currentProperty.ScaleMode|=ScaleMode.YByDistance;
-                            currentProperty.Color=accessory.Data.DefaultSafeColor;
-                            currentProperty.Delay=6900;
-                            currentProperty.DestoryAt=7500;
-
-                            accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Displacement,currentProperty);
-
-                        }
-
-                        currentProperty=accessory.Data.GetDefaultDrawProperties();
-
-                        currentProperty.Name=$"Phase5_Range_Of_Towers_塔的范围-{视角}";
-                        currentProperty.Scale=new(3);
-                        currentProperty.Position=positionOfTheFirstTower;
-                        currentProperty.Color=(isHealer)?(accessory.Data.DefaultSafeColor):(accessory.Data.DefaultDangerColor);
-                        currentProperty.DestoryAt=7300;
-
-                        accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Circle,currentProperty);
-
-                        currentProperty=accessory.Data.GetDefaultDrawProperties();
-
-                        currentProperty.Name=$"Phase5_Range_Of_Towers_塔的范围-{视角}";
-                        currentProperty.Scale=new(3);
-                        currentProperty.Position=positionOfTheLeftTower;
-                        currentProperty.Color=(isMelee)?(accessory.Data.DefaultSafeColor):(accessory.Data.DefaultDangerColor);
-                        currentProperty.DestoryAt=14400;
-
-                        accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Circle,currentProperty);
-
-                        currentProperty=accessory.Data.GetDefaultDrawProperties();
-
-                        currentProperty.Name=$"Phase5_Range_Of_Towers_塔的范围-{视角}";
-                        currentProperty.Scale=new(3);
-                        currentProperty.Position=positionOfTheRightTower;
-                        currentProperty.Color=(isRange)?(accessory.Data.DefaultSafeColor):(accessory.Data.DefaultDangerColor);
-                        currentProperty.DestoryAt=14400;
-
-                        accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Circle,currentProperty);
-
-                    }
-
-                    if(Phase5_Branch_Of_The_Grey9_Brain_Dead_Strat==Phase5_Branches_Of_The_Grey9_Brain_Dead_Strat.Healer_First_Then_Melees_Farther_Ranges_Closer_奶妈先然后近战远远程近_MMW) {
-
-                        Vector3 positionOfTheCloserTower=(isLeftFirstAndFarFirst)?(positionOfTheRightTower):(positionOfTheLeftTower);
-                        Vector3 positionOfTheFartherTower=(isLeftFirstAndFarFirst)?(positionOfTheLeftTower):(positionOfTheRightTower);
-                        Vector3 positionToTakeTheCloserTower=(isLeftFirstAndFarFirst)?(rightOfTheRightTower):(leftOfTheLeftTower);
-                        Vector3 positionToTakeTheFartherTower=(isLeftFirstAndFarFirst)?(leftOfTheLeftTower):(rightOfTheRightTower);
-
-                        bool isMelee=false;
-                        bool isRange=false;
-                        bool isHealer=false;
-
-                        if(视角==2
-                           ||
-                           视角==3) {
-
-                            isHealer=true;
-
-                            currentProperty = accessory.Data.GetDefaultDrawProperties();
-
-                            currentProperty.Name=$"Phase5_Guidance_1_For_Healers_During_Towers_奶妈踩塔指路1-{视角}";
-                            currentProperty.Scale=new(2);
-                            currentProperty.Owner=GuidanceOwner(accessory, 视角);
-                            currentProperty.TargetPosition=(isLeftFirstAndFarFirst)?(rightOfTheFirstTower):(leftOfTheFirstTower);
-                            currentProperty.ScaleMode|=ScaleMode.YByDistance;
-                            currentProperty.Color=accessory.Data.DefaultSafeColor;
-                            currentProperty.DestoryAt=7300;
-
-                            accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Displacement,currentProperty);
-
-                            currentProperty=accessory.Data.GetDefaultDrawProperties();
-
-                            currentProperty.Name=$"Phase5_Guidance_2_Preview_For_Healers_During_Towers_奶妈踩塔指路2预览-{视角}";
-                            currentProperty.Scale=new(2);
-                            currentProperty.Position=(isLeftFirstAndFarFirst)?(rightOfTheFirstTower):(leftOfTheFirstTower);
-                            currentProperty.TargetPosition=oppositeStandbyPosition;
-                            currentProperty.ScaleMode|=ScaleMode.YByDistance;
-                            currentProperty.Color=accessory.Data.DefaultSafeColor;
-                            currentProperty.DestoryAt=7300;
-
-                            accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Displacement,currentProperty);
-
-                            currentProperty=accessory.Data.GetDefaultDrawProperties();
-
-                            currentProperty.Name=$"Phase5_Guidance_2_For_Healers_During_Towers_奶妈踩塔指路2-{视角}";
-                            currentProperty.Scale=new(2);
-                            currentProperty.Owner=GuidanceOwner(accessory, 视角);
-                            currentProperty.TargetPosition=oppositeStandbyPosition;
-                            currentProperty.ScaleMode|=ScaleMode.YByDistance;
-                            currentProperty.Color=accessory.Data.DefaultSafeColor;
-                            currentProperty.Delay=7300;
-                            currentProperty.DestoryAt=7100;
-
-                            accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Displacement,currentProperty);
-
-                        }
-
-                        if(视角==6
-                           ||
-                           视角==7) {
-
-                            isRange=true;
-
-                            currentProperty=accessory.Data.GetDefaultDrawProperties();
-
-                            currentProperty.Name=$"Phase5_Guidance_1_For_Ranges_During_Towers_远程踩塔指路1-{视角}";
-                            currentProperty.Scale=new(2);
-                            currentProperty.Owner=GuidanceOwner(accessory, 视角);
-                            currentProperty.TargetPosition=(isLeftFirstAndFarFirst)?(rightStandbyPosition):(leftStandbyPosition);
-                            currentProperty.ScaleMode|=ScaleMode.YByDistance;
-                            currentProperty.Color=accessory.Data.DefaultSafeColor;
-                            currentProperty.DestoryAt=6900;
-
-                            accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Displacement,currentProperty);
-
-                            currentProperty=accessory.Data.GetDefaultDrawProperties();
-
-                            currentProperty.Name=$"Phase5_Guidance_2_Preview_For_Ranges_During_Towers_远程踩塔指路2预览-{视角}";
-                            currentProperty.Scale=new(2);
-                            currentProperty.Position=(isLeftFirstAndFarFirst)?(rightStandbyPosition):(leftStandbyPosition);
-                            currentProperty.TargetPosition=positionToTakeTheCloserTower;
-                            currentProperty.ScaleMode|=ScaleMode.YByDistance;
-                            currentProperty.Color=accessory.Data.DefaultSafeColor;
-                            currentProperty.DestoryAt=6900;
-
-                            accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Displacement,currentProperty);
-
-                            currentProperty=accessory.Data.GetDefaultDrawProperties();
-
-                            currentProperty.Name=$"Phase5_Guidance_2_For_Ranges_During_Towers_远程踩塔指路2-{视角}";
-                            currentProperty.Scale=new(2);
-                            currentProperty.Owner=GuidanceOwner(accessory, 视角);
-                            currentProperty.TargetPosition=positionToTakeTheCloserTower;
-                            currentProperty.ScaleMode|=ScaleMode.YByDistance;
-                            currentProperty.Color=accessory.Data.DefaultSafeColor;
-                            currentProperty.Delay=6900;
-                            currentProperty.DestoryAt=7500;
-
-                            accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Displacement,currentProperty);
-
-                        }
-
-                        if(视角==4
-                           ||
-                           视角==5) {
-
-                            isMelee=true;
-
-                            currentProperty=accessory.Data.GetDefaultDrawProperties();
-
-                            currentProperty.Name=$"Phase5_Guidance_1_For_Melees_During_Towers_近战踩塔指路1-{视角}";
-                            currentProperty.Scale=new(2);
-                            currentProperty.Owner=GuidanceOwner(accessory, 视角);
-                            currentProperty.TargetPosition=(isLeftFirstAndFarFirst)?(rightStandbyPosition):(leftStandbyPosition);
-                            currentProperty.ScaleMode|=ScaleMode.YByDistance;
-                            currentProperty.Color=accessory.Data.DefaultSafeColor; 
-                            currentProperty.DestoryAt=6900;
-
-                            accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Displacement,currentProperty);
-
-                            currentProperty=accessory.Data.GetDefaultDrawProperties();
-
-                            currentProperty.Name=$"Phase5_Guidance_2_Preview_For_Melees_During_Towers_近战踩塔指路2预览-{视角}";
-                            currentProperty.Scale=new(2);
-                            currentProperty.Position=(isLeftFirstAndFarFirst)?(rightStandbyPosition):(leftStandbyPosition);
-                            currentProperty.TargetPosition=positionToTakeTheFartherTower;
-                            currentProperty.ScaleMode|=ScaleMode.YByDistance;
-                            currentProperty.Color=accessory.Data.DefaultSafeColor;
-                            currentProperty.DestoryAt=6900;
-
-                            accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Displacement,currentProperty);
-
-                            currentProperty=accessory.Data.GetDefaultDrawProperties();
-
-                            currentProperty.Name=$"Phase5_Guidance_2_For_Melees_During_Towers_近战踩塔指路2-{视角}";
-                            currentProperty.Scale=new(2);
-                            currentProperty.Owner=GuidanceOwner(accessory, 视角);
-                            currentProperty.TargetPosition=positionToTakeTheFartherTower;
-                            currentProperty.ScaleMode|=ScaleMode.YByDistance;
-                            currentProperty.Color=accessory.Data.DefaultSafeColor;
-                            currentProperty.Delay=6900;
-                            currentProperty.DestoryAt=7500;
-
-                            accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Displacement,currentProperty);
-
-                        }
-
-                        currentProperty=accessory.Data.GetDefaultDrawProperties();
-
-                        currentProperty.Name=$"Phase5_Range_Of_Towers_塔的范围-{视角}";
-                        currentProperty.Scale=new(3);
-                        currentProperty.Position=positionOfTheFirstTower;
-                        currentProperty.Color=(isHealer)?(accessory.Data.DefaultSafeColor):(accessory.Data.DefaultDangerColor);
-                        currentProperty.DestoryAt=7300;
-
-                        accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Circle,currentProperty);
-
-                        currentProperty=accessory.Data.GetDefaultDrawProperties();
-
-                        currentProperty.Name=$"Phase5_Range_Of_Towers_塔的范围-{视角}";
-                        currentProperty.Scale=new(3);
-                        currentProperty.Position=positionOfTheFartherTower;
-                        currentProperty.Color=(isMelee)?(accessory.Data.DefaultSafeColor):(accessory.Data.DefaultDangerColor);
-                        currentProperty.DestoryAt=14400;
-
-                        accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Circle,currentProperty);
-
-                        currentProperty=accessory.Data.GetDefaultDrawProperties();
-
-                        currentProperty.Name=$"Phase5_Range_Of_Towers_塔的范围-{视角}";
-                        currentProperty.Scale=new(3);
-                        currentProperty.Position=positionOfTheCloserTower;
-                        currentProperty.Color=(isRange)?(accessory.Data.DefaultSafeColor):(accessory.Data.DefaultDangerColor);
-                        currentProperty.DestoryAt=14400;
-
-                        accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Circle,currentProperty);
-
-                    }
+                    rotation=float.Pi/3*2;
 
                 }
 
-                if(Phase5_Strat_Of_Wings_Dark_And_Light==Phase5_Strats_Of_Wings_Dark_And_Light.Reverse_Triangle_MT_Baits_In_Towers_倒三角法MT在塔中引导) {
+                if(phase5_indexOfTheFirstTower.Equals("00000031")) {
 
-                    float rotation=0;
-
-                    if(phase5_indexOfTheFirstTower.Equals("00000030")) {
-
-                        rotation=float.Pi/3*2;
-
-                    }
-
-                    if(phase5_indexOfTheFirstTower.Equals("00000031")) {
-
-                        rotation=-(float.Pi/3*2);
-
-                    }
-
-                    if(phase5_indexOfTheFirstTower.Equals("00000032")) {
-
-                        rotation=0;
-
-                    }
-
-                    Vector3 positionOfTheFirstTower=RotatePoint(new Vector3(100,0,107),new Vector3(100,0,100),rotation);
-                    Vector3 positionOfTheLeftTower=RotatePoint(positionOfTheFirstTower,new Vector3(100,0,100),float.Pi/3*2);
-                    Vector3 positionOfTheRightTower=RotatePoint(positionOfTheFirstTower,new Vector3(100,0,100),-(float.Pi/3*2));
-                    Vector3 leftOfTheLeftTower=RotatePoint(phase5_leftSideOfTheNorthwest_asAConstant,new Vector3(100,0,100),rotation);
-                    Vector3 rightOfTheRightTower=RotatePoint(phase5_rightSideOfTheNortheast_asAConstant,new Vector3(100,0,100),rotation);
-                    Vector3 oppositeStandbyPosition=RotatePoint(positionOfTheFirstTower,new Vector3(100,0,100),float.Pi);
-                    Vector3 leftStandbyPosition=RotatePoint(phase5_standbyPointBetweenSouthAndNorthwest_asAConstant,new Vector3(100,0,100),rotation-(float.Pi/12));
-                    Vector3 rightStandbyPosition=RotatePoint(phase5_standbyPointBetweenSouthAndNortheast_asAConstant,new Vector3(100,0,100),rotation+(float.Pi/12));
-                    // I won't be so stupid as to enumerate every position anymore.
-                    // Maybe it could say that this is some kind of my growth?
-                    var currentProperty=accessory.Data.GetDefaultDrawProperties();
-
-                    if(Phase5_Branch_Of_The_Reverse_Triangle_Strat==Phase5_Branches_Of_The_Reverse_Triangle_Strat.Melees_First_Then_Healers_Left_Ranges_Right_近战先然后奶妈左远程右) {
-
-                        bool isMelee=false;
-                        bool isRange=false;
-                        bool isHealer=false;
-
-                        if(视角==4
-                           ||
-                           视角==5) {
-
-                            isMelee=true;
-
-                            currentProperty = accessory.Data.GetDefaultDrawProperties();
-
-                            currentProperty.Name=$"Phase5_Guidance_1_For_Melees_During_Towers_近战踩塔指路1-{视角}";
-                            currentProperty.Scale=new(2);
-                            currentProperty.Owner=GuidanceOwner(accessory, 视角);
-                            currentProperty.TargetPosition=positionOfTheFirstTower;
-                            currentProperty.ScaleMode|=ScaleMode.YByDistance;
-                            currentProperty.Color=accessory.Data.DefaultSafeColor;
-                            currentProperty.DestoryAt=7300;
-
-                            accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentProperty);
-
-                            currentProperty=accessory.Data.GetDefaultDrawProperties();
-
-                            currentProperty.Name=$"Phase5_Guidance_2_Preview_For_Melees_During_Towers_近战踩塔指路2预览-{视角}";
-                            currentProperty.Scale=new(2);
-                            currentProperty.Position=positionOfTheFirstTower;
-                            currentProperty.TargetPosition=oppositeStandbyPosition;
-                            currentProperty.ScaleMode|=ScaleMode.YByDistance;
-                            currentProperty.Color=accessory.Data.DefaultSafeColor;
-                            currentProperty.DestoryAt=7300;
-
-                            accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentProperty);
-
-                            currentProperty=accessory.Data.GetDefaultDrawProperties();
-
-                            currentProperty.Name=$"Phase5_Guidance_2_For_Melees_During_Towers_近战踩塔指路2-{视角}";
-                            currentProperty.Scale=new(2);
-                            currentProperty.Owner=GuidanceOwner(accessory, 视角);
-                            currentProperty.TargetPosition=oppositeStandbyPosition;
-                            currentProperty.ScaleMode|=ScaleMode.YByDistance;
-                            currentProperty.Color=accessory.Data.DefaultSafeColor;
-                            currentProperty.Delay=7300;
-                            currentProperty.DestoryAt=7100;
-
-                            accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentProperty);
-
-                        }
-
-                        if(视角==6
-                           ||
-                           视角==7) {
-
-                            isRange=true;
-
-                            currentProperty=accessory.Data.GetDefaultDrawProperties();
-
-                            currentProperty.Name=$"Phase5_Guidance_1_For_Ranges_During_Towers_远程踩塔指路1-{视角}";
-                            currentProperty.Scale=new(2);
-                            currentProperty.Owner=GuidanceOwner(accessory, 视角);
-                            currentProperty.TargetPosition=rightStandbyPosition;
-                            currentProperty.ScaleMode|=ScaleMode.YByDistance;
-                            currentProperty.Color=accessory.Data.DefaultSafeColor;
-                            currentProperty.DestoryAt=6900;
-
-                            accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Displacement,currentProperty);
-
-                            currentProperty=accessory.Data.GetDefaultDrawProperties();
-
-                            currentProperty.Name=$"Phase5_Guidance_2_Preview_For_Ranges_During_Towers_远程踩塔指路2预览-{视角}";
-                            currentProperty.Scale=new(2);
-                            currentProperty.Position=rightStandbyPosition;
-                            currentProperty.TargetPosition=rightOfTheRightTower;
-                            currentProperty.ScaleMode|=ScaleMode.YByDistance;
-                            currentProperty.Color=accessory.Data.DefaultSafeColor;
-                            currentProperty.DestoryAt=6900;
-
-                            accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Displacement,currentProperty);
-
-                            currentProperty=accessory.Data.GetDefaultDrawProperties();
-
-                            currentProperty.Name=$"Phase5_Guidance_2_For_Ranges_During_Towers_远程踩塔指路2-{视角}";
-                            currentProperty.Scale=new(2);
-                            currentProperty.Owner=GuidanceOwner(accessory, 视角);
-                            currentProperty.TargetPosition=rightOfTheRightTower;
-                            currentProperty.ScaleMode|=ScaleMode.YByDistance;
-                            currentProperty.Color=accessory.Data.DefaultSafeColor;
-                            currentProperty.Delay=6900;
-                            currentProperty.DestoryAt=7500;
-
-                            accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Displacement,currentProperty);
-
-                        }
-
-                        if(视角==2
-                           ||
-                           视角==3) {
-
-                            isHealer=true;
-
-                            currentProperty=accessory.Data.GetDefaultDrawProperties();
-
-                            currentProperty.Name=$"Phase5_Guidance_1_For_Healers_During_Towers_奶妈踩塔指路1-{视角}";
-                            currentProperty.Scale=new(2);
-                            currentProperty.Owner=GuidanceOwner(accessory, 视角);
-                            currentProperty.TargetPosition=leftStandbyPosition;
-                            currentProperty.ScaleMode|=ScaleMode.YByDistance;
-                            currentProperty.Color=accessory.Data.DefaultSafeColor; 
-                            currentProperty.DestoryAt=6900;
-
-                            accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Displacement,currentProperty);
-
-                            currentProperty=accessory.Data.GetDefaultDrawProperties();
-
-                            currentProperty.Name=$"Phase5_Guidance_2_Preview_For_Healers_During_Towers_奶妈踩塔指路2预览-{视角}";
-                            currentProperty.Scale=new(2);
-                            currentProperty.Position=leftStandbyPosition;
-                            currentProperty.TargetPosition=leftOfTheLeftTower;
-                            currentProperty.ScaleMode|=ScaleMode.YByDistance;
-                            currentProperty.Color=accessory.Data.DefaultSafeColor;
-                            currentProperty.DestoryAt=6900;
-
-                            accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Displacement,currentProperty);
-
-                            currentProperty=accessory.Data.GetDefaultDrawProperties();
-
-                            currentProperty.Name=$"Phase5_Guidance_2_For_Healers_During_Towers_奶妈踩塔指路2-{视角}";
-                            currentProperty.Scale=new(2);
-                            currentProperty.Owner=GuidanceOwner(accessory, 视角);
-                            currentProperty.TargetPosition=leftOfTheLeftTower;
-                            currentProperty.ScaleMode|=ScaleMode.YByDistance;
-                            currentProperty.Color=accessory.Data.DefaultSafeColor;
-                            currentProperty.Delay=6900;
-                            currentProperty.DestoryAt=7500;
-
-                            accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Displacement,currentProperty);
-
-                        }
-
-                        currentProperty=accessory.Data.GetDefaultDrawProperties();
-
-                        currentProperty.Name=$"Phase5_Range_Of_Towers_塔的范围-{视角}";
-                        currentProperty.Scale=new(3);
-                        currentProperty.Position=positionOfTheFirstTower;
-                        currentProperty.Color=(isMelee)?(accessory.Data.DefaultSafeColor):(accessory.Data.DefaultDangerColor);
-                        currentProperty.DestoryAt=7300;
-
-                        accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Circle,currentProperty);
-
-                        currentProperty=accessory.Data.GetDefaultDrawProperties();
-
-                        currentProperty.Name=$"Phase5_Range_Of_Towers_塔的范围-{视角}";
-                        currentProperty.Scale=new(3);
-                        currentProperty.Position=positionOfTheLeftTower;
-                        currentProperty.Color=(isHealer)?(accessory.Data.DefaultSafeColor):(accessory.Data.DefaultDangerColor);
-                        currentProperty.DestoryAt=14400;
-
-                        accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Circle,currentProperty);
-
-                        currentProperty=accessory.Data.GetDefaultDrawProperties();
-
-                        currentProperty.Name=$"Phase5_Range_Of_Towers_塔的范围-{视角}";
-                        currentProperty.Scale=new(3);
-                        currentProperty.Position=positionOfTheRightTower;
-                        currentProperty.Color=(isRange)?(accessory.Data.DefaultSafeColor):(accessory.Data.DefaultDangerColor);
-                        currentProperty.DestoryAt=14400;
-
-                        accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Circle,currentProperty);
-
-                    }
-
-                    if(Phase5_Branch_Of_The_Reverse_Triangle_Strat==Phase5_Branches_Of_The_Reverse_Triangle_Strat.Healers_First_Then_Melees_Left_Ranges_Right_奶妈先然后近战左远程右) {
-
-                        bool isMelee=false;
-                        bool isRange=false;
-                        bool isHealer=false;
-
-                        if(视角==2
-                           ||
-                           视角==3) {
-
-                            isHealer=true;
-
-                            currentProperty = accessory.Data.GetDefaultDrawProperties();
-
-                            currentProperty.Name=$"Phase5_Guidance_1_For_Healers_During_Towers_奶妈踩塔指路1-{视角}";
-                            currentProperty.Scale=new(2);
-                            currentProperty.Owner=GuidanceOwner(accessory, 视角);
-                            currentProperty.TargetPosition=positionOfTheFirstTower;
-                            currentProperty.ScaleMode|=ScaleMode.YByDistance;
-                            currentProperty.Color=accessory.Data.DefaultSafeColor;
-                            currentProperty.DestoryAt=7300;
-
-                            accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentProperty);
-
-                            currentProperty=accessory.Data.GetDefaultDrawProperties();
-
-                            currentProperty.Name=$"Phase5_Guidance_2_Preview_For_Healers_During_Towers_奶妈踩塔指路2预览-{视角}";
-                            currentProperty.Scale=new(2);
-                            currentProperty.Position=positionOfTheFirstTower;
-                            currentProperty.TargetPosition=oppositeStandbyPosition;
-                            currentProperty.ScaleMode|=ScaleMode.YByDistance;
-                            currentProperty.Color=accessory.Data.DefaultSafeColor;
-                            currentProperty.DestoryAt=7300;
-
-                            accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentProperty);
-
-                            currentProperty=accessory.Data.GetDefaultDrawProperties();
-
-                            currentProperty.Name=$"Phase5_Guidance_2_For_Healers_During_Towers_奶妈踩塔指路2-{视角}";
-                            currentProperty.Scale=new(2);
-                            currentProperty.Owner=GuidanceOwner(accessory, 视角);
-                            currentProperty.TargetPosition=oppositeStandbyPosition;
-                            currentProperty.ScaleMode|=ScaleMode.YByDistance;
-                            currentProperty.Color=accessory.Data.DefaultSafeColor;
-                            currentProperty.Delay=7300;
-                            currentProperty.DestoryAt=7100;
-
-                            accessory.Method.SendDraw(DrawModeEnum.Imgui, DrawTypeEnum.Displacement, currentProperty);
-
-                        }
-
-                        if(视角==6
-                           ||
-                           视角==7) {
-
-                            isRange=true;
-
-                            currentProperty=accessory.Data.GetDefaultDrawProperties();
-
-                            currentProperty.Name=$"Phase5_Guidance_1_For_Ranges_During_Towers_远程踩塔指路1-{视角}";
-                            currentProperty.Scale=new(2);
-                            currentProperty.Owner=GuidanceOwner(accessory, 视角);
-                            currentProperty.TargetPosition=rightStandbyPosition;
-                            currentProperty.ScaleMode|=ScaleMode.YByDistance;
-                            currentProperty.Color=accessory.Data.DefaultSafeColor;
-                            currentProperty.DestoryAt=6900;
-
-                            accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Displacement,currentProperty);
-
-                            currentProperty=accessory.Data.GetDefaultDrawProperties();
-
-                            currentProperty.Name=$"Phase5_Guidance_2_Preview_For_Ranges_During_Towers_远程踩塔指路2预览-{视角}";
-                            currentProperty.Scale=new(2);
-                            currentProperty.Position=rightStandbyPosition;
-                            currentProperty.TargetPosition=rightOfTheRightTower;
-                            currentProperty.ScaleMode|=ScaleMode.YByDistance;
-                            currentProperty.Color=accessory.Data.DefaultSafeColor;
-                            currentProperty.DestoryAt=6900;
-
-                            accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Displacement,currentProperty);
-
-                            currentProperty=accessory.Data.GetDefaultDrawProperties();
-
-                            currentProperty.Name=$"Phase5_Guidance_2_For_Ranges_During_Towers_远程踩塔指路2-{视角}";
-                            currentProperty.Scale=new(2);
-                            currentProperty.Owner=GuidanceOwner(accessory, 视角);
-                            currentProperty.TargetPosition=rightOfTheRightTower;
-                            currentProperty.ScaleMode|=ScaleMode.YByDistance;
-                            currentProperty.Color=accessory.Data.DefaultSafeColor;
-                            currentProperty.Delay=6900;
-                            currentProperty.DestoryAt=7500;
-
-                            accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Displacement,currentProperty);
-
-                        }
-
-                        if(视角==4
-                           ||
-                           视角==5) {
-
-                            isMelee=true;
-
-                            currentProperty=accessory.Data.GetDefaultDrawProperties();
-
-                            currentProperty.Name=$"Phase5_Guidance_1_For_Melees_During_Towers_近战踩塔指路1-{视角}";
-                            currentProperty.Scale=new(2);
-                            currentProperty.Owner=GuidanceOwner(accessory, 视角);
-                            currentProperty.TargetPosition=leftStandbyPosition;
-                            currentProperty.ScaleMode|=ScaleMode.YByDistance;
-                            currentProperty.Color=accessory.Data.DefaultSafeColor; 
-                            currentProperty.DestoryAt=6900;
-
-                            accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Displacement,currentProperty);
-
-                            currentProperty=accessory.Data.GetDefaultDrawProperties();
-
-                            currentProperty.Name=$"Phase5_Guidance_2_Preview_For_Melees_During_Towers_近战踩塔指路2预览-{视角}";
-                            currentProperty.Scale=new(2);
-                            currentProperty.Position=leftStandbyPosition;
-                            currentProperty.TargetPosition=leftOfTheLeftTower;
-                            currentProperty.ScaleMode|=ScaleMode.YByDistance;
-                            currentProperty.Color=accessory.Data.DefaultSafeColor;
-                            currentProperty.DestoryAt=6900;
-
-                            accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Displacement,currentProperty);
-
-                            currentProperty=accessory.Data.GetDefaultDrawProperties();
-
-                            currentProperty.Name=$"Phase5_Guidance_2_For_Melees_During_Towers_近战踩塔指路2-{视角}";
-                            currentProperty.Scale=new(2);
-                            currentProperty.Owner=GuidanceOwner(accessory, 视角);
-                            currentProperty.TargetPosition=leftOfTheLeftTower;
-                            currentProperty.ScaleMode|=ScaleMode.YByDistance;
-                            currentProperty.Color=accessory.Data.DefaultSafeColor;
-                            currentProperty.Delay=6900;
-                            currentProperty.DestoryAt=7500;
-
-                            accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Displacement,currentProperty);
-
-                        }
-
-                        currentProperty=accessory.Data.GetDefaultDrawProperties();
-
-                        currentProperty.Name=$"Phase5_Range_Of_Towers_塔的范围-{视角}";
-                        currentProperty.Scale=new(3);
-                        currentProperty.Position=positionOfTheFirstTower;
-                        currentProperty.Color=(isHealer)?(accessory.Data.DefaultSafeColor):(accessory.Data.DefaultDangerColor);
-                        currentProperty.DestoryAt=7300;
-
-                        accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Circle,currentProperty);
-
-                        currentProperty=accessory.Data.GetDefaultDrawProperties();
-
-                        currentProperty.Name=$"Phase5_Range_Of_Towers_塔的范围-{视角}";
-                        currentProperty.Scale=new(3);
-                        currentProperty.Position=positionOfTheLeftTower;
-                        currentProperty.Color=(isMelee)?(accessory.Data.DefaultSafeColor):(accessory.Data.DefaultDangerColor);
-                        currentProperty.DestoryAt=14400;
-
-                        accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Circle,currentProperty);
-
-                        currentProperty=accessory.Data.GetDefaultDrawProperties();
-
-                        currentProperty.Name=$"Phase5_Range_Of_Towers_塔的范围-{视角}";
-                        currentProperty.Scale=new(3);
-                        currentProperty.Position=positionOfTheRightTower;
-                        currentProperty.Color=(isRange)?(accessory.Data.DefaultSafeColor):(accessory.Data.DefaultDangerColor);
-                        currentProperty.DestoryAt=14400;
-
-                        accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Circle,currentProperty);
-
-                    }
+                    rotation=-(float.Pi/3*2);
 
                 }
+
+                if(phase5_indexOfTheFirstTower.Equals("00000032")) {
+
+                    rotation=0;
+
+                }
+
+                Vector3 positionOfTheFirstTower=RotatePoint(new Vector3(100,0,107),new Vector3(100,0,100),rotation);
+                Vector3 positionOfTheLeftTower=RotatePoint(positionOfTheFirstTower,new Vector3(100,0,100),float.Pi/3*2);
+                Vector3 positionOfTheRightTower=RotatePoint(positionOfTheFirstTower,new Vector3(100,0,100),-(float.Pi/3*2));
+                Vector3 leftOfTheFirstTower=RotatePoint(phase5_leftSideOfTheSouth_asAConstant,new Vector3(100,0,100),rotation);
+                Vector3 rightOfTheFirstTower=RotatePoint(phase5_rightSideOfTheSouth_asAConstant,new Vector3(100,0,100),rotation);
+                Vector3 leftOfTheLeftTower=RotatePoint(phase5_leftSideOfTheNorthwest_asAConstant,new Vector3(100,0,100),rotation);
+                Vector3 rightOfTheRightTower=RotatePoint(phase5_rightSideOfTheNortheast_asAConstant,new Vector3(100,0,100),rotation);
+                Vector3 oppositeStandbyPosition=RotatePoint(positionOfTheFirstTower,new Vector3(100,0,100),float.Pi);
+                Vector3 leftStandbyPosition=RotatePoint(phase5_standbyPointBetweenSouthAndNorthwest_asAConstant,new Vector3(100,0,100),rotation);
+                Vector3 rightStandbyPosition=RotatePoint(phase5_standbyPointBetweenSouthAndNortheast_asAConstant,new Vector3(100,0,100),rotation);
+                var currentProperty=accessory.Data.GetDefaultDrawProperties();
+
+                // LPDU：奶妈踩一塔；G1 DPS（M1 R1）去左塔（相对西北），G2 DPS（M2 R2）去右塔（相对东北），都站塔靠相对北的边
+                bool isG1=false;
+                bool isG2=false;
+                bool isHealer=false;
+
+                if(视角==2
+                   ||
+                   视角==3) {
+
+                    isHealer=true;
+
+                    currentProperty = accessory.Data.GetDefaultDrawProperties();
+
+                    currentProperty.Name=$"Phase5_Guidance_1_For_Healers_During_Towers_奶妈踩塔指路1-{视角}";
+                    currentProperty.Scale=new(2);
+                    currentProperty.Owner=GuidanceOwner(accessory, 视角);
+                    currentProperty.TargetPosition=(isLeftFirstAndFarFirst)?(rightOfTheFirstTower):(leftOfTheFirstTower);
+                    currentProperty.ScaleMode|=ScaleMode.YByDistance;
+                    currentProperty.Color=accessory.Data.DefaultSafeColor;
+                    currentProperty.DestoryAt=7300;
+
+                    accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Displacement,currentProperty);
+
+                    currentProperty=accessory.Data.GetDefaultDrawProperties();
+
+                    currentProperty.Name=$"Phase5_Guidance_2_Preview_For_Healers_During_Towers_奶妈踩塔指路2预览-{视角}";
+                    currentProperty.Scale=new(2);
+                    currentProperty.Position=(isLeftFirstAndFarFirst)?(rightOfTheFirstTower):(leftOfTheFirstTower);
+                    currentProperty.TargetPosition=oppositeStandbyPosition;
+                    currentProperty.ScaleMode|=ScaleMode.YByDistance;
+                    currentProperty.Color=accessory.Data.DefaultSafeColor;
+                    currentProperty.DestoryAt=7300;
+
+                    accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Displacement,currentProperty);
+
+                    currentProperty=accessory.Data.GetDefaultDrawProperties();
+
+                    currentProperty.Name=$"Phase5_Guidance_2_For_Healers_During_Towers_奶妈踩塔指路2-{视角}";
+                    currentProperty.Scale=new(2);
+                    currentProperty.Owner=GuidanceOwner(accessory, 视角);
+                    currentProperty.TargetPosition=oppositeStandbyPosition;
+                    currentProperty.ScaleMode|=ScaleMode.YByDistance;
+                    currentProperty.Color=accessory.Data.DefaultSafeColor;
+                    currentProperty.Delay=7300;
+                    currentProperty.DestoryAt=7100;
+
+                    accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Displacement,currentProperty);
+
+                }
+
+                if(视角==5
+                   ||
+                   视角==7) {
+
+                    isG2=true;
+
+                    currentProperty=accessory.Data.GetDefaultDrawProperties();
+
+                    currentProperty.Name=$"Phase5_Guidance_1_For_Ranges_During_Towers_远程踩塔指路1-{视角}";
+                    currentProperty.Scale=new(2);
+                    currentProperty.Owner=GuidanceOwner(accessory, 视角);
+                    currentProperty.TargetPosition=(isLeftFirstAndFarFirst)?(rightStandbyPosition):(leftStandbyPosition);
+                    currentProperty.ScaleMode|=ScaleMode.YByDistance;
+                    currentProperty.Color=accessory.Data.DefaultSafeColor;
+                    currentProperty.DestoryAt=6900;
+
+                    accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Displacement,currentProperty);
+
+                    currentProperty=accessory.Data.GetDefaultDrawProperties();
+
+                    currentProperty.Name=$"Phase5_Guidance_2_Preview_For_Ranges_During_Towers_远程踩塔指路2预览-{视角}";
+                    currentProperty.Scale=new(2);
+                    currentProperty.Position=(isLeftFirstAndFarFirst)?(rightStandbyPosition):(leftStandbyPosition);
+                    currentProperty.TargetPosition=rightOfTheRightTower;
+                    currentProperty.ScaleMode|=ScaleMode.YByDistance;
+                    currentProperty.Color=accessory.Data.DefaultSafeColor;
+                    currentProperty.DestoryAt=6900;
+
+                    accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Displacement,currentProperty);
+
+                    currentProperty=accessory.Data.GetDefaultDrawProperties();
+
+                    currentProperty.Name=$"Phase5_Guidance_2_For_Ranges_During_Towers_远程踩塔指路2-{视角}";
+                    currentProperty.Scale=new(2);
+                    currentProperty.Owner=GuidanceOwner(accessory, 视角);
+                    currentProperty.TargetPosition=rightOfTheRightTower;
+                    currentProperty.ScaleMode|=ScaleMode.YByDistance;
+                    currentProperty.Color=accessory.Data.DefaultSafeColor;
+                    currentProperty.Delay=6900;
+                    currentProperty.DestoryAt=7500;
+
+                    accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Displacement,currentProperty);
+
+                }
+
+                if(视角==4
+                   ||
+                   视角==6) {
+
+                    isG1=true;
+
+                    currentProperty=accessory.Data.GetDefaultDrawProperties();
+
+                    currentProperty.Name=$"Phase5_Guidance_1_For_Melees_During_Towers_近战踩塔指路1-{视角}";
+                    currentProperty.Scale=new(2);
+                    currentProperty.Owner=GuidanceOwner(accessory, 视角);
+                    currentProperty.TargetPosition=(isLeftFirstAndFarFirst)?(rightStandbyPosition):(leftStandbyPosition);
+                    currentProperty.ScaleMode|=ScaleMode.YByDistance;
+                    currentProperty.Color=accessory.Data.DefaultSafeColor; 
+                    currentProperty.DestoryAt=6900;
+
+                    accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Displacement,currentProperty);
+
+                    currentProperty=accessory.Data.GetDefaultDrawProperties();
+
+                    currentProperty.Name=$"Phase5_Guidance_2_Preview_For_Melees_During_Towers_近战踩塔指路2预览-{视角}";
+                    currentProperty.Scale=new(2);
+                    currentProperty.Position=(isLeftFirstAndFarFirst)?(rightStandbyPosition):(leftStandbyPosition);
+                    currentProperty.TargetPosition=leftOfTheLeftTower;
+                    currentProperty.ScaleMode|=ScaleMode.YByDistance;
+                    currentProperty.Color=accessory.Data.DefaultSafeColor;
+                    currentProperty.DestoryAt=6900;
+
+                    accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Displacement,currentProperty);
+
+                    currentProperty=accessory.Data.GetDefaultDrawProperties();
+
+                    currentProperty.Name=$"Phase5_Guidance_2_For_Melees_During_Towers_近战踩塔指路2-{视角}";
+                    currentProperty.Scale=new(2);
+                    currentProperty.Owner=GuidanceOwner(accessory, 视角);
+                    currentProperty.TargetPosition=leftOfTheLeftTower;
+                    currentProperty.ScaleMode|=ScaleMode.YByDistance;
+                    currentProperty.Color=accessory.Data.DefaultSafeColor;
+                    currentProperty.Delay=6900;
+                    currentProperty.DestoryAt=7500;
+
+                    accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Displacement,currentProperty);
+
+                }
+
+                currentProperty=accessory.Data.GetDefaultDrawProperties();
+
+                currentProperty.Name=$"Phase5_Range_Of_Towers_塔的范围-{视角}";
+                currentProperty.Scale=new(3);
+                currentProperty.Position=positionOfTheFirstTower;
+                currentProperty.Color=(isHealer)?(accessory.Data.DefaultSafeColor):(accessory.Data.DefaultDangerColor);
+                currentProperty.DestoryAt=7300;
+
+                accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Circle,currentProperty);
+
+                currentProperty=accessory.Data.GetDefaultDrawProperties();
+
+                currentProperty.Name=$"Phase5_Range_Of_Towers_塔的范围-{视角}";
+                currentProperty.Scale=new(3);
+                currentProperty.Position=positionOfTheLeftTower;
+                currentProperty.Color=(isG1)?(accessory.Data.DefaultSafeColor):(accessory.Data.DefaultDangerColor);
+                currentProperty.DestoryAt=14400;
+
+                accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Circle,currentProperty);
+
+                currentProperty=accessory.Data.GetDefaultDrawProperties();
+
+                currentProperty.Name=$"Phase5_Range_Of_Towers_塔的范围-{视角}";
+                currentProperty.Scale=new(3);
+                currentProperty.Position=positionOfTheRightTower;
+                currentProperty.Color=(isG2)?(accessory.Data.DefaultSafeColor):(accessory.Data.DefaultDangerColor);
+                currentProperty.DestoryAt=14400;
+
+                accessory.Method.SendDraw(DrawModeEnum.Imgui,DrawTypeEnum.Circle,currentProperty);
 
             }
         }
@@ -13149,77 +11237,35 @@ namespace CicerosKodakkuAssist.FuturesRewrittenUltimate.LPDU
         private int phase5_getRoundToTakeHits(int currentIndex)
         {
 
-            if (Phase5_Order_During_Polarizing_Strikes == Phase5_Orders_During_Polarizing_Strikes.Tanks_Melees_Ranges_Healers_坦克近战远程奶妈_莫灵喵与MMW)
+            if (currentIndex == 0 || currentIndex == 1)
             {
+                // Tanks.
 
-                if (currentIndex == 0 || currentIndex == 1)
-                {
-                    // Tanks.
-
-                    return 1;
-
-                }
-
-                if (currentIndex == 4 || currentIndex == 5)
-                {
-                    // Melees.
-
-                    return 2;
-
-                }
-
-                if (currentIndex == 6 || currentIndex == 7)
-                {
-                    // Ranges.
-
-                    return 3;
-
-                }
-
-                if (currentIndex == 2 || currentIndex == 3)
-                {
-                    // Healers.
-
-                    return 4;
-
-                }
+                return 1;
 
             }
 
-            if (Phase5_Order_During_Polarizing_Strikes == Phase5_Orders_During_Polarizing_Strikes.Tanks_Healers_Melees_Ranges_坦克奶妈近战远程)
+            if (currentIndex == 4 || currentIndex == 5)
             {
+                // Melees.
 
-                if (currentIndex == 0 || currentIndex == 1)
-                {
-                    // Tanks.
+                return 2;
 
-                    return 1;
+            }
 
-                }
+            if (currentIndex == 6 || currentIndex == 7)
+            {
+                // Ranges.
 
-                if (currentIndex == 2 || currentIndex == 3)
-                {
-                    // Healers.
+                return 3;
 
-                    return 2;
+            }
 
-                }
+            if (currentIndex == 2 || currentIndex == 3)
+            {
+                // Healers.
 
-                if (currentIndex == 4 || currentIndex == 5)
-                {
-                    // Melees.
-
-                    return 3;
-
-                }
-
-                if (currentIndex == 6 || currentIndex == 7)
-                {
-                    // Ranges.
-
-                    return 4;
-
-                }
+                return 4;
 
             }
 
