@@ -3658,18 +3658,37 @@ namespace CicerosKodakkuAssist.FuturesRewrittenUltimate.LPDU
             int meleeMirror = (Distance(redMirror1), Clockwise(redMirror1)).CompareTo((Distance(redMirror2), Clockwise(redMirror2))) <= 0 ? redMirror1 : redMirror2;
             int rangedMirror = meleeMirror == redMirror1 ? redMirror2 : redMirror1;
 
+            // LPDU 第二组镜子逐人点位：（相对镜子方向的偏角，顺时针为正，度；离场中的半径，米），取自 raidplan 第 19 步
+            // 近战镜：MT 往远程镜一侧单独一个点，M1 正中靠内，M2 在 M1 和 OT 之间，OT 贴墙在远离远程镜一侧
+            // 远程镜：面向镜子 G1 在右、G2 在左，DPS 贴墙；靠近战那一侧那组的奶站正中，两个奶都稍微偏离近战
+            int towardRanged = (meleeMirror + 2) % 8 == rangedMirror ? 1 : -1;
+            bool meleeOnTheLeft = towardRanged == 1;   // 面向远程镜时近战镜在左手（逆时针）一侧
+            (float degree, float radius) MirrorSpot(int i) => i switch
+            {
+                0 => (9 * towardRanged, 19.5f),
+                1 => (-7 * towardRanged, 19.5f),
+                4 => (0, 17.6f),
+                5 => (-4 * towardRanged, 18.2f),
+                6 => (11, 19.5f),
+                7 => (-11, 19.5f),
+                2 => ((meleeOnTheLeft ? 7 : 2) * towardRanged, meleeOnTheLeft ? 18.3f : 17.7f),
+                _ => ((meleeOnTheLeft ? 2 : 7) * towardRanged, meleeOnTheLeft ? 17.7f : 18.3f),
+            };
+
             foreach (var 视角 in GuidanceIndices(accessory)) 指路(视角);
 
             void 指路(int 视角)
             {
                 bool isMeleeGroup = 视角 is 0 or 1 or 4 or 5;
+                var (degree, radius) = MirrorSpot(视角);
                 var currentProperty = accessory.Data.GetDefaultDrawProperties();
 
                 currentProperty.Name = $"Phase2_Rough_Guidance_Of_Red_Mirrors_红色镜子粗略指路-{视角}";
                 currentProperty.Scale = new(2);
                 currentProperty.ScaleMode |= ScaleMode.YByDistance;
                 currentProperty.Owner = GuidanceOwner(accessory, 视角);
-                currentProperty.TargetPosition = RotatePoint(new Vector3(100, 0, 80.5f), new(100, 0, 100), float.Pi / 4 * (isMeleeGroup ? meleeMirror : rangedMirror));
+                currentProperty.TargetPosition = RotatePoint(new Vector3(100, 0, 100 - radius), new(100, 0, 100),
+                    float.Pi / 4 * (isMeleeGroup ? meleeMirror : rangedMirror) + float.DegreesToRadians(degree));
                 currentProperty.Color = Phase2_Colour_Of_Mirror_Rough_Guidance.V4.WithW(1f);
                 currentProperty.Delay = 13500;
                 currentProperty.DestoryAt = 9500;
